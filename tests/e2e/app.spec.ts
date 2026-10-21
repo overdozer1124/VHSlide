@@ -54,7 +54,7 @@ test("create, edit, persist, export/import and present a two-dimensional story",
     .click();
   await page.getByRole("button", { name: "文字", exact: true }).click();
   await page
-    .getByRole("textbox", { name: "文字の内容", exact: true })
+    .getByRole("textbox", { name: "スライド内の文字", exact: true })
     .fill("わたしたちの発見\n公園のひみつ");
   await page.getByRole("button", { name: "B 太字", exact: true }).click();
   await page.getByRole("spinbutton", { name: "文字の大きさ" }).fill("36");

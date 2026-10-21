@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   blank,
+  rememberRowPage,
+  rowPage,
+  editorNeighbor,
+  moveRowGroup,
+  movePage,
   insert,
   insertGridLine,
   neighbor,
@@ -156,5 +161,69 @@ describe("editor grid-line insertion", () => {
     expect(() => insertGridLine(full, "row", 1, 0)).toThrow(
       "ページは100枚までです。",
     );
+  });
+});
+
+describe("independent row choices and editor moves", () => {
+  it("remembers a different column in each row and restores choices from JSON", () => {
+    let d = sample();
+    d = rememberRowPage(d, d.slides[2].id);
+    d = rememberRowPage(d, d.slides[4].id);
+    expect(rowPage(d, 0)?.title).toBe("人とつながる");
+    expect(rowPage(d, 1)?.title).toBe("お気に入りの公園");
+    expect(parseDeck(JSON.stringify(d))).toEqual(d);
+    expect(editorNeighbor(d, d.slides[2], 0, 1)?.id).toBe(d.slides[4].id);
+    expect(editorNeighbor(d, d.slides[4], 0, -1)?.id).toBe(d.slides[2].id);
+    expect(editorNeighbor(d, d.slides[4], 1, 0)).toBeUndefined();
+  });
+  it("reorders entire row groups and keeps their selected IDs attached", () => {
+    let d = sample();
+    d = rememberRowPage(d, d.slides[1].id);
+    d = rememberRowPage(d, d.slides[4].id);
+    const moved = moveRowGroup(d, 0, 1);
+    for (const s of d.slides)
+      expect(moved.slides.find((n) => n.id === s.id)).toEqual({
+        ...s,
+        y: 1 - s.y,
+      });
+    expect(rowPage(moved, 0)?.title).toBe("お気に入りの公園");
+    expect(rowPage(moved, 1)?.title).toBe("自然がいっぱい");
+    expect(moveRowGroup(moved, 1, 0)).toEqual(d);
+  });
+  it("inserts a row group between other rows instead of swapping only two groups", () => {
+    const d: Deck = {
+      version: 1,
+      title: "rows",
+      slides: [blank(0, 0), blank(0, 1), blank(0, 2), blank(0, 3)],
+    };
+    expect(moveRowGroup(d, 3, 1).slides.map((s) => s.y)).toEqual([0, 2, 3, 1]);
+  });
+  it("moves one page across rows and swaps occupied cells without losing content", () => {
+    const d = sample(),
+      page = d.slides[1];
+    const moved = movePage(d, page.id, 2, 1);
+    expect(moved.slides.find((s) => s.id === page.id)).toMatchObject({
+      x: 2,
+      y: 1,
+    });
+    expect(moved.slides.filter((s) => s.id !== page.id)).toEqual(
+      d.slides.filter((s) => s.id !== page.id),
+    );
+    const swapped = movePage(d, page.id, 0, 1);
+    expect(swapped.slides.find((s) => s.id === d.slides[3].id)).toMatchObject({
+      x: 1,
+      y: 0,
+    });
+    expect(parseDeck(JSON.stringify(swapped))).toEqual(swapped);
+    expect(() => movePage(d, d.slides[0].id, 2, 1)).toThrow("はじめのマス");
+  });
+  it("recovers stale row choices and normalizes selections after a swap", () => {
+    const d = sample();
+    d.rowSelections = ["deleted", d.slides[0].id, d.slides[1].id];
+    expect(parseDeck(JSON.stringify(d)).rowSelections).toEqual([
+      d.slides[0].id,
+    ]);
+    const normalized = rememberRowPage(d, d.slides[4].id);
+    expect(parseDeck(JSON.stringify(normalized))).toEqual(normalized);
   });
 });

@@ -31,6 +31,17 @@
         },
         "required": ["x", "y"]
       }
+    },
+    "rowSelections": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "各段で最後に選択したスライドID。段の移動に追従する任意のUI状態。"
     }
   },
   "$defs": {

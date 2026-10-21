@@ -5,6 +5,7 @@ import { H, W } from "./model";
 import { Canvas } from "./Canvas";
 import { useFitCanvas } from "./useFitCanvas";
 import { SlideRail } from "./SlideRail";
+import type { RailDragSource } from "./RailDrag";
 const colors = [
   "#ffffff",
   "#e5f0dc",
@@ -29,6 +30,8 @@ interface EditorProps {
   onSelectSlide: (id: string) => void;
   onInsert: (axis: "row" | "column", index: number, cross: number) => boolean;
   onCreate: (x: number, y: number) => boolean;
+  onMove: (source: RailDragSource, x: number, y: number) => boolean;
+  onNavigate: (dx: number, dy: number) => Slide | undefined;
 }
 export function Editor({
   deck,
@@ -44,6 +47,8 @@ export function Editor({
   onSelectSlide,
   onInsert,
   onCreate,
+  onMove,
+  onNavigate,
 }: EditorProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const zoom = useFitCanvas(workspaceRef);
@@ -90,6 +95,8 @@ export function Editor({
           onSelectSlide={onSelectSlide}
           onInsert={onInsert}
           onCreate={onCreate}
+          onMove={onMove}
+          onNavigate={onNavigate}
         />
         <div
           className="editor-workspace"
@@ -127,7 +134,7 @@ export function Editor({
           />
           <div className="canvas-hint">
             {element
-              ? "ドラッグで移動 · 右下の点でサイズ変更 · Deleteで削除"
+              ? "枠内をクリックで文字入力 · ドラッグで移動 · 右下でサイズ変更"
               : "文字・画像・図形を選んで、あなたらしいページに。"}
           </div>
         </div>
@@ -162,15 +169,9 @@ export function Editor({
             <>
               {element.type === "text" && (
                 <>
-                  <label className="stack-label">
-                    文字の内容
-                    <textarea
-                      aria-label="文字の内容"
-                      value={element.text}
-                      maxLength={10000}
-                      onChange={(e) => updateElement({ text: e.target.value })}
-                    />
-                  </label>
+                  <p className="inspector-note inline-edit-note">
+                    文字の内容はキャンバス内で直接入力できます。文字の枠をクリックして編集します。
+                  </p>
                   <label>
                     文字の大きさ
                     <input

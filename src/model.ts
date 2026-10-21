@@ -37,6 +37,8 @@ export interface Deck {
   version: 1;
   title: string;
   slides: Slide[];
+  /** One remembered slide ID per row; coordinates may change during reordering. */
+  rowSelections?: string[];
 }
 export const uid = (): string => {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -199,8 +201,8 @@ export function swap(
         return { ...s, y: s.y === from.y ? to.y : s.y === to.y ? from.y : s.y };
       if (mode === "column")
         return { ...s, x: s.x === from.x ? to.x : s.x === to.x ? from.x : s.x };
-      if (s.x === from.x && s.y === from.y) return { ...s, ...to };
-      if (s.x === to.x && s.y === to.y) return { ...s, ...from };
+      if (s.x === from.x && s.y === from.y) return { ...s, x: to.x, y: to.y };
+      if (s.x === to.x && s.y === to.y) return { ...s, x: from.x, y: from.y };
       return s;
     }),
   };
@@ -216,6 +218,75 @@ export function removeSlide(deck: Deck, id: string): Deck {
     };
   }
   return { ...deck, slides };
+}
+/** Pick the independently remembered page of a row, falling back to its leftmost page. */
+export function rowPage(deck: Deck, y: number): Slide | undefined {
+  const pages = deck.slides.filter((s) => s.y === y).sort((a, b) => a.x - b.x);
+  return pages.find((s) => deck.rowSelections?.includes(s.id)) ?? pages[0];
+}
+export function rememberRowPage(deck: Deck, id: string): Deck {
+  const chosen = deck.slides.find((s) => s.id === id);
+  if (!chosen) return deck;
+  const seenRows = new Set<number>();
+  const rowSelections = (deck.rowSelections ?? []).filter((remembered) => {
+    const page = deck.slides.find((s) => s.id === remembered);
+    if (!page || page.y === chosen.y || seenRows.has(page.y)) return false;
+    seenRows.add(page.y);
+    return true;
+  });
+  return { ...deck, rowSelections: [...rowSelections, id] };
+}
+export function editorNeighbor(
+  deck: Deck,
+  current: Slide,
+  dx: number,
+  dy: number,
+): Slide | undefined {
+  if (dx)
+    return deck.slides
+      .filter(
+        (s) =>
+          s.y === current.y && (dx > 0 ? s.x > current.x : s.x < current.x),
+      )
+      .sort((a, b) => (dx > 0 ? a.x - b.x : b.x - a.x))[0];
+  const ys = [...new Set(deck.slides.map((s) => s.y))]
+    .filter((y) => (dy > 0 ? y > current.y : y < current.y))
+    .sort((a, b) => (dy > 0 ? a - b : b - a));
+  return ys.length ? rowPage(deck, ys[0]) : undefined;
+}
+function requireOrigin(deck: Deck): Deck {
+  if (!deck.slides.some((s) => s.x === 0 && s.y === 0))
+    throw new Error("はじめのマスにページが残る場所へ移動してください。");
+  return deck;
+}
+/** Reorder an entire row, shifting the rows between source and destination. */
+export function moveRowGroup(deck: Deck, from: number, to: number): Deck {
+  const { rows } = bounds(deck);
+  if (![from, to].every((y) => Number.isInteger(y) && y >= 0 && y < rows))
+    throw new Error("移動先の段を選んでください。");
+  if (from === to) return deck;
+  return requireOrigin({
+    ...deck,
+    slides: deck.slides.map((s) => ({
+      ...s,
+      y:
+        s.y === from
+          ? to
+          : from < to && s.y > from && s.y <= to
+            ? s.y - 1
+            : from > to && s.y >= to && s.y < from
+              ? s.y + 1
+              : s.y,
+    })),
+  });
+}
+/** Move one page across grid rows. An occupied destination swaps the two pages. */
+export function movePage(deck: Deck, id: string, x: number, y: number): Deck {
+  const from = deck.slides.find((s) => s.id === id);
+  if (!from || ![x, y].every((v) => Number.isInteger(v) && v >= 0 && v < 100))
+    throw new Error("移動先のマスを選んでください。");
+  if (from.x === x && from.y === y) return deck;
+  return requireOrigin(swap(deck, "slide", from, { x, y }));
 }
 // Import only known fields. Never render imported HTML, external images, or executable URLs.
 export function parseDeck(input: string): Deck {
@@ -306,7 +377,26 @@ export function parseDeck(input: string): Deck {
     };
   });
   if (!cells.has("0,0")) fail();
-  return { version: 1, title: str(d.title, 200), slides };
+  const result: Deck = { version: 1, title: str(d.title, 200), slides };
+  if (d.rowSelections !== undefined) {
+    if (
+      !Array.isArray(d.rowSelections) ||
+      d.rowSelections.length > 100 ||
+      !d.rowSelections.every(
+        (id: unknown) => typeof id === "string" && id.length <= 100,
+      )
+    )
+      fail();
+    // Stale IDs can result from deletion or swapping. Recover the valid choices.
+    const seenRows = new Set<number>();
+    result.rowSelections = d.rowSelections.filter((id: string) => {
+      const page = slides.find((s) => s.id === id);
+      if (!page || seenRows.has(page.y)) return false;
+      seenRows.add(page.y);
+      return true;
+    });
+  }
+  return result;
 }
 export function neighbor(
   deck: Deck,

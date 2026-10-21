@@ -43,7 +43,7 @@ test("hover previews a row without resizing the editor, and remains open across 
   await expect(page.getByRole("textbox", { name: "ページの名前" })).toHaveValue(
     "自然がいっぱい",
   );
-  await expect(rail.locator(".rail-heading strong")).toHaveText("話題 2");
+  await expect(rail.locator(".rail-heading strong")).toHaveText("ページ一覧");
   await expect(target).toHaveAttribute("aria-current", "page");
   await page.screenshot({ path: testInfo.outputPath("expanded-row.png") });
   await page.mouse.move(1100, 800);
@@ -153,7 +153,7 @@ test("keyboard focus opens the row, Escape restores focus, and outside clicks di
   await expect(page.locator('.row-flyout [aria-current="page"]')).toBeFocused();
   await expect(
     page.locator('.row-flyout [aria-current="page"]'),
-  ).toHaveAccessibleName("2.1 自然がいっぱいを編集");
+  ).toHaveAccessibleName("3.1 人とつながるを編集");
   await page.getByRole("textbox", { name: "ページの名前" }).click();
   await expect(page.locator(".row-flyout")).toHaveCount(0);
 });
@@ -227,7 +227,7 @@ test("touch selection keeps the horizontal row open until tapping outside", asyn
     "お気に入りの公園",
   );
   await expect(popup).toBeVisible();
-  await expect(page.locator(".rail-heading strong")).toHaveText("話題 2");
+  await expect(page.locator(".rail-heading strong")).toHaveText("ページ一覧");
   await page.getByRole("button", { name: "文字", exact: true }).tap();
   await expect(popup).toBeHidden();
   await expect(page.locator(".selected-element")).toContainText(

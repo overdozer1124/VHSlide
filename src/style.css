@@ -1758,3 +1758,87 @@ h1 span {
     min-height: 36px;
   }
 }
+.inline-text {
+  cursor: text;
+  user-select: text !important;
+  touch-action: manipulation;
+  outline: none;
+  min-height: 100%;
+  overflow: auto;
+}
+.editable .element.editing-element {
+  cursor: text;
+}
+.element-move-handle {
+  position: absolute;
+  top: -32px;
+  left: 0;
+  width: 27px;
+  height: 27px;
+  background: #fff;
+  border: 1px solid #4387c9;
+  border-radius: 4px;
+  color: #4387c9;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: move;
+}
+.inline-edit-note {
+  margin: 0 0 18px;
+  color: #7e9075;
+}
+.rail-drag-hint {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.rail-trigger,
+.row-page {
+  touch-action: manipulation;
+}
+.rail-trigger .rail-preview,
+.row-page-image {
+  user-select: none;
+}
+.rail-drop-over > .rail-trigger,
+.rail-drop-over > .row-page {
+  outline: 3px solid #74a65b;
+  outline-offset: 2px;
+  background: #e5f3dc;
+}
+.rail-dragging > .rail-trigger,
+.rail-dragging > .row-page {
+  opacity: 0.4;
+}
+.rail-drag-preview {
+  padding: 8px;
+  background: #fff;
+  border: 2px solid #7c9e66;
+  border-radius: 7px;
+  box-shadow: 0 5px 24px #173d3830;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  min-width: 144px;
+  pointer-events: none;
+}
+.rail-drag-preview small {
+  font-size: 10px;
+  color: #839976;
+}
+.rail-new-row-drop {
+  border: 2px dashed #b1c4a4;
+  border-radius: 7px;
+  padding: 14px 5px;
+  margin-bottom: 10px;
+  text-align: center;
+  color: #789366;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.rail-new-row-drop.rail-drop-over {
+  background: #dfeecd;
+  border-color: #6c9651;
+}

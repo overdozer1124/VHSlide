@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Element, Slide } from "./model";
 import { W, H } from "./model";
+import { InlineText } from "./InlineText";
+import { Move } from "lucide-react";
 export function ElementView({ element: e }: { element: Element }) {
   if (e.type === "text")
     return (
@@ -76,6 +78,22 @@ export function Canvas({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<Element>();
+  const [editingId, setEditingId] = useState<string>();
+  const previousSelection = useRef(selected);
+  useEffect(() => {
+    if (!editable) return;
+    if (selected !== previousSelection.current) {
+      const element = slide.elements.find((e) => e.id === selected);
+      setEditingId(
+        element?.type === "text" && element.text === "ここにことばを入力"
+          ? element.id
+          : undefined,
+      );
+      previousSelection.current = selected;
+    }
+    if (editingId && !slide.elements.some((e) => e.id === editingId))
+      setEditingId(undefined);
+  }, [selected, slide.id, slide.elements, editable, editingId]);
   const [guides, setGuides] = useState({ x: false, y: false });
   const drag = useRef<{
     element: Element;
@@ -83,11 +101,18 @@ export function Canvas({
     py: number;
     resize: boolean;
     scale: number;
+    allowTyping: boolean;
   } | null>(null);
-  function start(event: React.PointerEvent, element: Element, resize = false) {
+  function start(
+    event: React.PointerEvent,
+    element: Element,
+    resize = false,
+    allowTyping = true,
+  ) {
     if (!editable || event.button !== 0) return;
     event.stopPropagation();
     event.preventDefault();
+    setEditingId(undefined);
     onSelect?.(element.id);
     const scale = ref.current!.getBoundingClientRect().width / W;
     drag.current = {
@@ -96,6 +121,7 @@ export function Canvas({
       py: event.clientY,
       resize,
       scale,
+      allowTyping,
     };
     setDraft(element);
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -121,7 +147,19 @@ export function Canvas({
     setDraft(e);
   }
   function end() {
-    if (drag.current && draft) onChange?.(draft);
+    if (drag.current && draft) {
+      const before = drag.current.element;
+      const changed = (["x", "y", "w", "h"] as const).some(
+        (key) => before[key] !== draft[key],
+      );
+      if (changed) onChange?.(draft);
+      else if (
+        before.type === "text" &&
+        !drag.current.resize &&
+        drag.current.allowTyping
+      )
+        setEditingId(before.id);
+    }
     drag.current = null;
     setDraft(undefined);
     setGuides({ x: false, y: false });
@@ -139,7 +177,30 @@ export function Canvas({
           return (
             <div
               key={e.id}
-              className={`element ${editable && selected === e.id ? "selected-element" : ""}`}
+              className={`element ${editable && selected === e.id ? "selected-element" : ""} ${editingId === e.id ? "editing-element" : ""}`}
+              tabIndex={editable ? 0 : undefined}
+              aria-label={
+                editable && e.type === "text" ? "テキストボックス" : undefined
+              }
+              onDoubleClick={(event) => {
+                if (editable && e.type === "text") {
+                  event.stopPropagation();
+                  onSelect?.(e.id);
+                  setEditingId(e.id);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (
+                  editable &&
+                  e.type === "text" &&
+                  ["Enter", "F2"].includes(event.key)
+                ) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelect?.(e.id);
+                  setEditingId(e.id);
+                }
+              }}
               style={{ left: e.x, top: e.y, width: e.w, height: e.h }}
               onPointerDown={(event) => start(event, e)}
               onPointerMove={move}
@@ -150,7 +211,25 @@ export function Canvas({
                 setGuides({ x: false, y: false });
               }}
             >
-              <ElementView element={e} />
+              {editable && editingId === e.id && e.type === "text" ? (
+                <InlineText
+                  key={e.id}
+                  element={e}
+                  onChange={(text) => onChange?.({ ...e, text })}
+                  onFinish={() => setEditingId(undefined)}
+                />
+              ) : (
+                <ElementView element={e} />
+              )}
+              {editable && selected === e.id && e.type === "text" && (
+                <button
+                  className="element-move-handle"
+                  aria-label="要素を移動"
+                  onPointerDown={(event) => start(event, e, false, false)}
+                >
+                  <Move size={18} />
+                </button>
+              )}
               {editable && selected === e.id && (
                 <button
                   aria-label="要素のサイズを変更"

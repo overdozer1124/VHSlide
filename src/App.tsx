@@ -20,6 +20,10 @@ import {
   MAX_FILE_BYTES,
   insert,
   insertGridLine,
+  editorNeighbor,
+  rememberRowPage,
+  moveRowGroup,
+  movePage,
   neighbor,
   parseDeck,
   removeSlide,
@@ -79,6 +83,52 @@ export default function App() {
     setFuture([]);
     setDeck(next);
     return true;
+  }
+  const editorNavigationActive = useRef(false);
+  function selectEditorPage(id: string) {
+    editorNavigationActive.current = true;
+    const next = rememberRowPage(latestDeck.current, id);
+    latestDeck.current = next;
+    setDeck(next);
+    setActiveId(id);
+    setSelected(undefined);
+  }
+  function navigateEditor(dx: number, dy: number) {
+    const current =
+      latestDeck.current.slides.find((s) => s.id === activeId) ??
+      latestDeck.current.slides[0];
+    const next = editorNeighbor(latestDeck.current, current, dx, dy);
+    if (next) selectEditorPage(next.id);
+    return next;
+  }
+  function moveEditorItem(
+    source: { kind: "row"; y: number } | { kind: "page"; id: string },
+    x: number,
+    y: number,
+  ) {
+    try {
+      const current = latestDeck.current;
+      let next =
+        source.kind === "row"
+          ? moveRowGroup(
+              current,
+              source.y,
+              Math.min(y, bounds(current).rows - 1),
+            )
+          : movePage(current, source.id, x, y);
+      if (next === current) return false;
+      const chosen = source.kind === "page" ? source.id : activeId;
+      next = rememberRowPage(next, chosen);
+      if (!commit(next)) return false;
+      if (source.kind === "page") {
+        setActiveId(source.id);
+        setSelected(undefined);
+      }
+      return true;
+    } catch (error) {
+      notify((error as Error).message);
+      return false;
+    }
   }
   function undo() {
     if (!past.length) return;
@@ -164,6 +214,28 @@ export default function App() {
         if (event.key === "Escape") exitPresent();
         return;
       }
+      const editorSteps: Record<string, [number, number]> = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      };
+      const target = event.target as HTMLElement;
+      if (
+        view === "editor" &&
+        editorNavigationActive.current &&
+        !event.defaultPrevented &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        editorSteps[event.key] &&
+        (target === document.body || target.closest(".two-d-rail,.row-flyout"))
+      ) {
+        event.preventDefault();
+        navigateEditor(...editorSteps[event.key]);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
         if (event.shiftKey) redo();
@@ -207,6 +279,7 @@ export default function App() {
     return () => window.removeEventListener("paste", handler);
   });
   function addElement(type: "text" | "shape", shape: Shape = "rect") {
+    editorNavigationActive.current = false;
     if (slide.elements.length >= 200)
       return notify("1ページの要素は200個までです。");
     const e: Element =
@@ -336,7 +409,8 @@ export default function App() {
     cross: number,
   ): boolean {
     try {
-      const next = insertGridLine(latestDeck.current, axis, index, cross);
+      let next = insertGridLine(latestDeck.current, axis, index, cross);
+      next = rememberRowPage(next, next.slides.at(-1)!.id);
       if (!commit(next)) return false;
       setActiveId(next.slides.at(-1)!.id);
       setSelected(undefined);
@@ -354,7 +428,14 @@ export default function App() {
     }
     if (current.slides.some((s) => s.x === x && s.y === y)) return false;
     const added = blank(x, y);
-    if (!commit({ ...current, slides: [...current.slides, added] }))
+    if (
+      !commit(
+        rememberRowPage(
+          { ...current, slides: [...current.slides, added] },
+          added.id,
+        ),
+      )
+    )
       return false;
     setActiveId(added.id);
     setSelected(undefined);
@@ -557,8 +638,7 @@ export default function App() {
           dropAt={dropAt}
           add={add}
           onEdit={(id) => {
-            setActiveId(id);
-            setSelected(undefined);
+            selectEditorPage(id);
             setView("editor");
           }}
           onDelete={(id) => {
@@ -578,7 +658,10 @@ export default function App() {
           deck={deck}
           slide={slide}
           selected={selected}
-          setSelected={setSelected}
+          setSelected={(id) => {
+            editorNavigationActive.current = false;
+            setSelected(id);
+          }}
           updateSlide={updateSlide}
           updateElement={updateElement}
           addElement={addElement}
@@ -589,10 +672,9 @@ export default function App() {
           onFileDrop={(file) => {
             void addImage(file);
           }}
-          onSelectSlide={(id) => {
-            setActiveId(id);
-            setSelected(undefined);
-          }}
+          onSelectSlide={selectEditorPage}
+          onNavigate={navigateEditor}
+          onMove={moveEditorItem}
         />
       )}
       {view === "present" && (
