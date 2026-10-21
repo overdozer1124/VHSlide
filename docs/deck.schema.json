@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vhslide:deck:v1",
+  "title": "VHSlide deck v1",
+  "type": "object",
+  "required": ["version", "title", "slides"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/slide"
+      },
+      "contains": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "const": 0
+          },
+          "y": {
+            "const": 0
+          }
+        },
+        "required": ["x", "y"]
+      }
+    }
+  },
+  "$defs": {
+    "geometry": {
+      "type": "object",
+      "required": ["id", "type", "x", "y", "w", "h"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "type": {
+          "enum": ["text", "image", "shape"]
+        },
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 960
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 540
+        },
+        "w": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 960
+        },
+        "h": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 540
+        }
+      }
+    },
+    "slide": {
+      "type": "object",
+      "required": ["id", "x", "y", "title", "background", "elements"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "elements": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/text"
+              },
+              {
+                "$ref": "#/$defs/image"
+              },
+              {
+                "$ref": "#/$defs/shape"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "text": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/geometry"
+        },
+        {
+          "type": "object",
+          "required": ["text", "fontSize", "color"],
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 10000
+            },
+            "fontSize": {
+              "type": "number",
+              "minimum": 12,
+              "maximum": 120
+            },
+            "bold": {
+              "type": "boolean"
+            },
+            "color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "highlight": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "bullets": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "image": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/geometry"
+        },
+        {
+          "type": "object",
+          "required": ["src"],
+          "properties": {
+            "type": {
+              "const": "image"
+            },
+            "src": {
+              "type": "string",
+              "maxLength": 12000000,
+              "pattern": "^data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$"
+            }
+          }
+        }
+      ]
+    },
+    "shape": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/geometry"
+        },
+        {
+          "type": "object",
+          "required": ["shape", "fill", "stroke"],
+          "properties": {
+            "type": {
+              "const": "shape"
+            },
+            "shape": {
+              "enum": ["rect", "rounded", "circle", "arrow", "bubble"]
+            },
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
