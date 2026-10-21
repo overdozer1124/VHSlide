@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   blank,
   rememberRowPage,
@@ -19,6 +20,19 @@ import {
 } from "./model";
 import type { Deck } from "./model";
 describe("fixed grid and portable document", () => {
+  it("imports the complete 10 by 40 sample and rejects a 401st page", () => {
+    const d = parseDeck(
+      readFileSync("public/samples/vhslide-10x40.json", "utf8"),
+    );
+    expect(d.slides).toHaveLength(400);
+    expect(new Set(d.slides.map((s) => s.x)).size).toBe(10);
+    expect(new Set(d.slides.map((s) => s.y)).size).toBe(40);
+    expect(d.slides.at(-1)).toMatchObject({ x: 9, y: 39 });
+    expect(() =>
+      parseDeck(JSON.stringify({ ...d, slides: [...d.slides, blank(10, 0)] })),
+    ).toThrow();
+    expect(() => insert(d, d.slides[0], "right")).toThrow("400枚");
+  });
   it("inserts a topic by shifting all deeper columns and keeping fixed coordinates", () => {
     const d = sample(),
       added = insert(d, d.slides[0], "right");
@@ -192,11 +206,13 @@ describe("linked rows and thumbnail actions", () => {
     const full: Deck = {
       version: 1,
       title: "full",
-      slides: Array.from({ length: 100 }, (_, x) => blank(x, 0)),
+      slides: Array.from({ length: 400 }, (_, i) =>
+        blank(i % 10, Math.floor(i / 10)),
+      ),
     };
     const before = JSON.stringify(full);
-    expect(() => duplicateSlide(full, full.slides[0].id)).toThrow("100枚");
-    expect(() => duplicateRowGroup(full, 0)).toThrow("100枚");
+    expect(() => duplicateSlide(full, full.slides[0].id)).toThrow("400枚");
+    expect(() => duplicateRowGroup(full, 0)).toThrow("400枚");
     expect(JSON.stringify(full)).toBe(before);
     const edge: Deck = {
       version: 1,
@@ -269,10 +285,12 @@ describe("editor grid-line insertion", () => {
     const full: Deck = {
       version: 1,
       title: "full",
-      slides: Array.from({ length: 100 }, (_, x) => blank(x, 0)),
+      slides: Array.from({ length: 400 }, (_, i) =>
+        blank(i % 10, Math.floor(i / 10)),
+      ),
     };
     expect(() => insertGridLine(full, "row", 1, 0)).toThrow(
-      "ページは100枚までです。",
+      "ページは400枚までです。",
     );
   });
 });

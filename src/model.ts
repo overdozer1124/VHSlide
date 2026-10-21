@@ -1,3 +1,4 @@
+export const MAX_SLIDES = 400;
 export const MAX_FILE_BYTES = 25_000_000;
 export const W = 960,
   H = 540;
@@ -142,7 +143,8 @@ export function insert(
   at: Slide,
   direction: "right" | "down",
 ): Deck {
-  if (deck.slides.length >= 100) throw new Error("ページは100枚までです。");
+  if (deck.slides.length >= MAX_SLIDES)
+    throw new Error(`ページは${MAX_SLIDES}枚までです。`);
   const x = at.x + (direction === "right" ? 1 : 0),
     y = direction === "right" ? 0 : at.y + 1;
   const slides = deck.slides.map((s) =>
@@ -173,7 +175,8 @@ export function insertGridLine(
     cross >= crossLength
   )
     throw new Error("ページの間か、最後の＋を選んでください。");
-  if (deck.slides.length >= 100) throw new Error("ページは100枚までです。");
+  if (deck.slides.length >= MAX_SLIDES)
+    throw new Error(`ページは${MAX_SLIDES}枚までです。`);
   if (length >= 100) throw new Error("縦・横は100マスまでです。");
   const slides = deck.slides.map((s) =>
     axis === "row" && s.y >= index
@@ -312,7 +315,8 @@ function copySlide(source: Slide, x: number, y: number): Slide {
 export function duplicateSlide(deck: Deck, id: string): Deck {
   const source = deck.slides.find((s) => s.id === id);
   if (!source) throw new Error("複製するページが見つかりません。");
-  if (deck.slides.length >= 100) throw new Error("ページは100枚までです。");
+  if (deck.slides.length >= MAX_SLIDES)
+    throw new Error(`ページは${MAX_SLIDES}枚までです。`);
   if (deck.slides.some((s) => s.y === source.y && s.x === 99))
     throw new Error("縦・横は100マスまでです。");
   return {
@@ -329,8 +333,8 @@ export function duplicateSlide(deck: Deck, id: string): Deck {
 export function duplicateRowGroup(deck: Deck, y: number): Deck {
   const source = deck.slides.filter((s) => s.y === y);
   if (!source.length) throw new Error("複製する段にページがありません。");
-  if (deck.slides.length + source.length > 100)
-    throw new Error("ページは100枚までです。");
+  if (deck.slides.length + source.length > MAX_SLIDES)
+    throw new Error(`ページは${MAX_SLIDES}枚までです。`);
   if (bounds(deck).rows >= 100) throw new Error("縦・横は100マスまでです。");
   const copies = source.map((s) => copySlide(s, s.x, y + 1));
   const chosen = rowPage(deck, y);
@@ -385,7 +389,7 @@ export function parseDeck(input: string): Deck {
     d?.version !== 1 ||
     !Array.isArray(d.slides) ||
     !d.slides.length ||
-    d.slides.length > 100
+    d.slides.length > MAX_SLIDES
   )
     fail();
   const ids = new Set<string>(),

@@ -19,6 +19,7 @@ import {
   bounds,
   H,
   MAX_FILE_BYTES,
+  MAX_SLIDES,
   insert,
   insertGridLine,
   duplicateSlide,
@@ -578,8 +579,8 @@ export default function App() {
   }
   function createEditorPage(x: number, y: number): boolean {
     const current = latestDeck.current;
-    if (current.slides.length >= 100) {
-      notify("ページは100枚までです。");
+    if (current.slides.length >= MAX_SLIDES) {
+      notify(`ページは${MAX_SLIDES}枚までです。`);
       return false;
     }
     if (current.slides.some((s) => s.x === x && s.y === y)) return false;
@@ -847,9 +848,9 @@ export default function App() {
               notify("ページを削除しました。「もとに戻す」で戻せます。");
             }}
             onAddCell={(x, y) => {
-              if (deck.slides.length < 100)
+              if (deck.slides.length < MAX_SLIDES)
                 commit({ ...deck, slides: [...deck.slides, blank(x, y)] });
-              else notify("ページは100枚までです。");
+              else notify(`ページは${MAX_SLIDES}枚までです。`);
             }}
             onHelp={() => setHelp(true)}
             onOpenMenu={openThumbnailMenu}
