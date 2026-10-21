@@ -83,6 +83,7 @@ export class CloudWorkspace {
   panel = false;
   busy = false;
   error = "";
+  notice = "";
   onState = () => {};
   onDeck = (_deck: Deck, _reset: boolean) => {};
   private socket?: WebSocket;
@@ -95,6 +96,7 @@ export class CloudWorkspace {
   private connected = false;
   private stopped = false;
   private attempts = 0;
+  private syncIntervalMs = 100;
   private emit = () => this.onState();
   private offline = () => {
     clearTimeout(this.retry);
@@ -120,6 +122,12 @@ export class CloudWorkspace {
       if (generation !== this.generation) return;
       this.available = true;
       this.clientId = config.clientId || "";
+      this.notice = typeof config.notice === "string" ? config.notice : "";
+      if (Number.isFinite(config.syncIntervalMs))
+        this.syncIntervalMs = Math.max(
+          100,
+          Math.min(2000, config.syncIntervalMs),
+        );
       this.user = (await api<{ user: CloudUser | null }>("/api/session")).user;
       if (generation !== this.generation) return;
       await this.refresh();
@@ -263,7 +271,7 @@ export class CloudWorkspace {
       if (origin !== "server") {
         this.buffer.push(update);
         clearTimeout(this.flushTimer);
-        this.flushTimer = setTimeout(() => this.flush(), 100);
+        this.flushTimer = setTimeout(() => this.flush(), this.syncIntervalMs);
       }
       this.emit();
     });

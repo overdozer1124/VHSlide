@@ -1,6 +1,8 @@
 # VHSlide
 
-「よこに話題を、たてに発見を。」児童・生徒のための、2次元グリッド型スライド作成・発表アプリのMVPです。React 19 / TypeScript / Vite / Tailwind CSS 4 を使用し、端末だけで編集・JSON保存・発表できる構成に加え、Railway上でGoogleログイン・作品保存・共同編集を使える構成を備えています。
+「よこに話題を、たてに発見を。」児童・生徒のための、2次元グリッド型スライド作成・発表アプリのMVPです。React 19 / TypeScript / Vite / Tailwind CSS 4 を使用し、端末だけで編集・JSON保存・発表できる構成に加え、RailwayまたはCloudflare上でGoogleログイン・作品保存・共同編集を使える構成を備えています。
+
+従量課金を避けてCloudflareの無料枠で停止させたい場合は、[Cloudflareの構築手順と無料枠の制限](docs/cloudflare.md)を参照してください。R2を使わず、写真もSQLite型Durable Objectsへ保存する構成です。Workers Freeの利用が前提です。
 
 ## 起動
 

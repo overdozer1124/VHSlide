@@ -3,10 +3,18 @@ import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
 async function google(page: Page, identity: string) {
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (
+          await page.request.get(
+            `/__test/token?name=${encodeURIComponent(identity)}`,
+          )
+        ).text()
+      : identity;
   await page.route("https://accounts.google.com/gsi/client", (route) =>
     route.fulfill({
       contentType: "text/javascript",
-      body: `window.google={accounts:{id:{initialize(options){this.callback=options.callback},renderButton(element){const button=document.createElement('button');button.textContent='Googleでサインイン（テスト）';button.onclick=()=>this.callback({credential:${JSON.stringify(identity)}});element.appendChild(button)}}}};`,
+      body: `window.google={accounts:{id:{initialize(options){this.callback=options.callback},renderButton(element){const button=document.createElement('button');button.textContent='Googleでサインイン（テスト）';button.onclick=()=>this.callback({credential:${JSON.stringify(credential)}});element.appendChild(button)}}}};`,
     }),
   );
 }

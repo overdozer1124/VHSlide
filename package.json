@@ -16,7 +16,12 @@
     "test:server": "node --test tests/server/*.test.ts",
     "test:e2e": "playwright test",
     "test:cloud": "playwright test --config playwright.cloud.config.ts",
-    "format": "prettier --write src server tests docs README.md *.ts *.json index.html"
+    "format": "prettier --write src server cloudflare tests docs README.md *.ts *.json index.html",
+    "cf:check": "tsc -p tsconfig.cloudflare.json && wrangler deploy --dry-run --outdir .wrangler-build",
+    "cf:dev": "npm run build && wrangler dev --port 8787",
+    "cf:deploy": "npm run build && tsc -p tsconfig.cloudflare.json && wrangler deploy",
+    "test:cloudflare": "npm run cf:check && node --test tests/cloudflare/*.test.ts",
+    "test:cloudflare:e2e": "playwright test --config playwright.cloudflare.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1154.0",
@@ -32,6 +37,7 @@
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261021.1",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^24.19.2",
@@ -39,10 +45,12 @@
     "@types/react-dom": "^19.2.0",
     "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "^5.1.4",
+    "miniflare": "^4.20260730.0",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.151.3"
   }
 }

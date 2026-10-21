@@ -2,9 +2,12 @@ node_modules/
 dist/
 test-results/
 test-results-cloud/
+test-results-cloudflare/
 playwright-report/
 *.tsbuildinfo
 data/
+.wrangler/
+.wrangler-build/
 .env
 .env.*
 !.env.example

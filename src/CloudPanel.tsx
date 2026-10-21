@@ -123,6 +123,7 @@ export function CloudPanel({
             <X size={20} />
           </button>
         </div>
+        {cloud.notice && <p role="status">{cloud.notice}</p>}
         {!cloud.user ? (
           <>
             <p>
