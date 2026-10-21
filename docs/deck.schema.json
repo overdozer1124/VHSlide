@@ -32,6 +32,11 @@
         "required": ["x", "y"]
       }
     },
+    "linkedRows": {
+      "type": "boolean",
+      "default": false,
+      "description": "編集画面の縦一覧を同じ横位置のページで連動する。省略時は段ごとに選択。"
+    },
     "rowSelections": {
       "type": "array",
       "maxItems": 100,

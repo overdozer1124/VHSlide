@@ -1,11 +1,19 @@
 import { useRef } from "react";
-import { ArrowLeft, ImagePlus, Shapes, Trash2, Type } from "lucide-react";
+import {
+  ArrowLeft,
+  ImagePlus,
+  Link2,
+  Shapes,
+  Trash2,
+  Type,
+} from "lucide-react";
 import type { Deck, Element, Shape, Slide } from "./model";
 import { H, W } from "./model";
 import { Canvas } from "./Canvas";
 import { useFitCanvas } from "./useFitCanvas";
 import { SlideRail } from "./SlideRail";
 import type { RailDragSource } from "./RailDrag";
+import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const colors = [
   "#ffffff",
   "#e5f0dc",
@@ -32,6 +40,9 @@ interface EditorProps {
   onCreate: (x: number, y: number) => boolean;
   onMove: (source: RailDragSource, x: number, y: number) => boolean;
   onNavigate: (dx: number, dy: number) => Slide | undefined;
+  onToggleLinkedRows: () => void;
+  onOpenMenu: OpenThumbnailMenu;
+  menuOpen: boolean;
 }
 export function Editor({
   deck,
@@ -49,6 +60,9 @@ export function Editor({
   onCreate,
   onMove,
   onNavigate,
+  onToggleLinkedRows,
+  onOpenMenu,
+  menuOpen,
 }: EditorProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const zoom = useFitCanvas(workspaceRef);
@@ -86,6 +100,21 @@ export function Editor({
             <option value="bubble">吹き出し</option>
           </select>
         </label>
+        <button
+          className="tool-button row-link-toggle"
+          role="switch"
+          aria-label="縦の連動"
+          aria-checked={!!deck.linkedRows}
+          title={
+            deck.linkedRows
+              ? "同じ話題で縦のページをそろえています"
+              : "段ごとに表示するページを選べます"
+          }
+          onClick={onToggleLinkedRows}
+        >
+          <Link2 size={17} />
+          縦の連動 <span>{deck.linkedRows ? "オン" : "オフ"}</span>
+        </button>
         <span className="toolbar-note">画像は貼り付け・ドロップもできます</span>
       </div>
       <div className="editor-layout">
@@ -97,6 +126,8 @@ export function Editor({
           onCreate={onCreate}
           onMove={onMove}
           onNavigate={onNavigate}
+          onOpenMenu={onOpenMenu}
+          menuOpen={menuOpen}
         />
         <div
           className="editor-workspace"

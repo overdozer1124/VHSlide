@@ -11,6 +11,9 @@ import {
   neighbor,
   parseDeck,
   removeSlide,
+  duplicateSlide,
+  duplicateRowGroup,
+  removeRowGroup,
   sample,
   swap,
 } from "./model";
@@ -94,6 +97,116 @@ describe("fixed grid and portable document", () => {
     if (kind === "missing-origin") d.slides[0].x = 99;
     if (kind === "null-element") d.slides[0].elements.push(null);
     expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  });
+});
+
+describe("linked rows and thumbnail actions", () => {
+  it("links matching columns, skips missing pages, and retains independent row choices", () => {
+    let d = sample();
+    d = rememberRowPage(d, d.slides[2].id);
+    d = rememberRowPage(d, d.slides[3].id);
+    const linked = { ...d, linkedRows: true };
+    expect(rowPage(linked, 1, 1)?.id).toBe(d.slides[4].id);
+    expect(rowPage(linked, 1, 2)).toBeUndefined();
+    expect(editorNeighbor(linked, d.slides[2], 0, 1)).toBeUndefined();
+    linked.slides = [...linked.slides, blank(2, 3)];
+    expect(editorNeighbor(linked, d.slides[2], 0, 1)).toBe(
+      linked.slides.at(-1),
+    );
+    expect(editorNeighbor(linked, d.slides[1], 0, 1)?.id).toBe(d.slides[4].id);
+    const unlinked = { ...linked, linkedRows: false };
+    expect(rowPage(unlinked, 1, 1)?.id).toBe(d.slides[3].id);
+    expect(editorNeighbor(unlinked, d.slides[2], 0, 1)?.id).toBe(
+      d.slides[3].id,
+    );
+    expect(parseDeck(JSON.stringify(linked))).toEqual(linked);
+    expect(() =>
+      parseDeck(JSON.stringify({ ...d, linkedRows: "true" })),
+    ).toThrow();
+  });
+
+  it("duplicates a page with unique element IDs, shifting only its own row", () => {
+    const d = sample();
+    const next = duplicateSlide(d, d.slides[0].id);
+    const copy = next.slides.at(-1)!;
+    expect(copy).toMatchObject({
+      x: 1,
+      y: 0,
+      title: "わたしたちのまち のコピー",
+    });
+    expect(copy.id).not.toBe(d.slides[0].id);
+    expect(copy.elements.map(({ id, ...e }) => e)).toEqual(
+      d.slides[0].elements.map(({ id, ...e }) => e),
+    );
+    copy.elements[0].text = "copy only";
+    expect(d.slides[0].elements[0].text).toBe("OUR TOWN");
+    expect(next.slides.find((s) => s.id === d.slides[1].id)?.x).toBe(2);
+    expect(next.slides.find((s) => s.id === d.slides[4].id)?.x).toBe(1);
+    expect(parseDeck(JSON.stringify(next))).toEqual(next);
+  });
+
+  it("duplicates a sparse row below itself and preserves its remembered topic", () => {
+    let d = sample();
+    d.slides[1].x = 4;
+    d = rememberRowPage(d, d.slides[1].id);
+    const next = duplicateRowGroup(d, 0);
+    expect(next.slides).toHaveLength(8);
+    expect(next.slides.filter((s) => s.y === 1).map((s) => s.x)).toEqual([
+      0, 4, 2,
+    ]);
+    expect(rowPage(next, 1)?.title).toBe("自然がいっぱい のコピー");
+    expect(next.slides.find((s) => s.id === d.slides[3].id)?.y).toBe(2);
+    expect(rowPage(next, 0)?.id).toBe(d.slides[1].id);
+    expect(parseDeck(JSON.stringify(next))).toEqual(next);
+  });
+
+  it("removes a group atomically, retains other content, and recovers the origin", () => {
+    let d = sample();
+    d = rememberRowPage(d, d.slides[1].id);
+    d = rememberRowPage(d, d.slides[4].id);
+    const next = removeRowGroup(d, 0);
+    expect(next.slides).toEqual(
+      d.slides.filter((s) => s.y === 1).map((s) => ({ ...s, y: 0 })),
+    );
+    expect(next.rowSelections).toEqual([d.slides[4].id]);
+    const sparse: Deck = {
+      version: 1,
+      title: "sparse",
+      slides: [blank(0, 0), blank(3, 1)],
+    };
+    const recovered = removeRowGroup(sparse, 0);
+    expect(
+      recovered.slides.find((s) => s.id === sparse.slides[1].id),
+    ).toMatchObject({ x: 3, y: 0 });
+    expect(parseDeck(JSON.stringify(recovered))).toEqual(recovered);
+    const empty = removeRowGroup(
+      { ...d, slides: d.slides.filter((s) => s.y === 0) },
+      0,
+    );
+    expect(empty.slides).toHaveLength(1);
+    expect(empty.slides[0]).toMatchObject({ x: 0, y: 0, elements: [] });
+    expect(parseDeck(JSON.stringify(empty))).toEqual(empty);
+  });
+
+  it("rejects duplicate operations at the page and grid limits without mutating the source", () => {
+    const full: Deck = {
+      version: 1,
+      title: "full",
+      slides: Array.from({ length: 100 }, (_, x) => blank(x, 0)),
+    };
+    const before = JSON.stringify(full);
+    expect(() => duplicateSlide(full, full.slides[0].id)).toThrow("100枚");
+    expect(() => duplicateRowGroup(full, 0)).toThrow("100枚");
+    expect(JSON.stringify(full)).toBe(before);
+    const edge: Deck = {
+      version: 1,
+      title: "edge",
+      slides: [blank(0, 0), blank(99, 0), blank(0, 99)],
+    };
+    expect(() => duplicateSlide(edge, edge.slides[0].id)).toThrow("100マス");
+    expect(() => duplicateRowGroup(edge, 0)).toThrow("100マス");
+    expect(() => duplicateSlide(edge, "missing")).toThrow();
+    expect(() => duplicateRowGroup(edge, 1)).toThrow();
   });
 });
 

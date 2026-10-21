@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, ChevronRight, GripVertical, Plus, X } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronRight,
+  GripVertical,
+  MoreHorizontal,
+  Plus,
+  X,
+} from "lucide-react";
 import type { Deck, Slide } from "./model";
 import { bounds, H, W, rowPage } from "./model";
 import { Canvas } from "./Canvas";
@@ -20,6 +27,7 @@ import type {
 } from "@dnd-kit/core";
 import { RailRowFrame, PageDragFrame, NewRowDrop } from "./RailDrag";
 import type { RailDragSource, RailDropTarget } from "./RailDrag";
+import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 
 interface SlideRailProps {
   deck: Deck;
@@ -29,6 +37,8 @@ interface SlideRailProps {
   onCreate: (x: number, y: number) => boolean;
   onMove: (source: RailDragSource, x: number, y: number) => boolean;
   onNavigate: (dx: number, dy: number) => Slide | undefined;
+  onOpenMenu: OpenThumbnailMenu;
+  menuOpen: boolean;
 }
 
 /** A fixed-width column, with a temporary horizontal view of each grid row. */
@@ -40,6 +50,8 @@ export function SlideRail({
   onCreate,
   onMove,
   onNavigate,
+  onOpenMenu,
+  menuOpen,
 }: SlideRailProps) {
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 7 } }),
@@ -117,12 +129,12 @@ export function SlideRail({
     if (keyboard) requestAnimationFrame(focusSelectedPage);
   }
   function hover(y: number) {
-    if (draggingRef.current) return;
+    if (draggingRef.current || menuOpen) return;
     cancelTimers();
     openTimer.current = setTimeout(() => show(y), 180);
   }
   function delayClose() {
-    if (draggingRef.current) return;
+    if (draggingRef.current || menuOpen) return;
     cancelTimers();
     closeTimer.current = setTimeout(() => setOpenRow(null), 330);
   }
@@ -173,6 +185,9 @@ export function SlideRail({
   }
   useEffect(() => () => cancelTimers(), []);
   useEffect(() => {
+    if (menuOpen) cancelTimers();
+  }, [menuOpen]);
+  useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
     const observer = new ResizeObserver(([entry]) =>
@@ -217,6 +232,7 @@ export function SlideRail({
     }
     function outside(event: Event) {
       const target = event.target as Node;
+      if ((target as HTMLElement).closest?.(".thumbnail-menu")) return;
       if (
         !railRef.current?.contains(target) &&
         !popupRef.current?.contains(target)
@@ -225,7 +241,7 @@ export function SlideRail({
     }
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        if (draggingRef.current) return;
+        if (draggingRef.current || menuOpen) return;
         event.preventDefault();
         event.stopPropagation();
         close(true);
@@ -242,7 +258,7 @@ export function SlideRail({
       document.removeEventListener("keydown", escape, true);
       window.removeEventListener("resize", resize);
     };
-  }, [openRow, rows, slide.id]);
+  }, [openRow, rows, slide.id, menuOpen]);
 
   return (
     <DndContext
@@ -295,7 +311,7 @@ export function SlideRail({
           }}
         >
           {Array.from({ length: rows }, (_, y) => {
-            const cell = rowPage(deck, y);
+            const cell = rowPage(deck, y, slide.x);
             return (
               <RailRowFrame
                 x={cell?.x ?? 0}
@@ -323,6 +339,10 @@ export function SlideRail({
                       aria-controls={
                         openRow === y ? "editor-row-pages" : undefined
                       }
+                      onContextMenu={(event) => {
+                        cancelTimers();
+                        onOpenMenu(event, { pageId: cell?.id, row: y });
+                      }}
                       onPointerDown={(e) => {
                         pointer.current = e.pointerType;
                       }}
@@ -371,6 +391,17 @@ export function SlideRail({
                       <span className="rail-page-title">
                         {cell?.title ?? "横のページを確認"}
                       </span>
+                    </button>
+                    <button
+                      className="thumbnail-more rail-more"
+                      aria-label={`${y + 1}段目のメニュー`}
+                      title="ページ・段の複製や削除"
+                      onClick={(event) => {
+                        cancelTimers();
+                        onOpenMenu(event, { pageId: cell?.id, row: y });
+                      }}
+                    >
+                      <MoreHorizontal size={15} />
                     </button>
                     <button
                       className="rail-insert-row"
@@ -449,6 +480,11 @@ export function SlideRail({
                             aria-current={
                               cell?.id === slide.id ? "page" : undefined
                             }
+                            onContextMenu={(event) => {
+                              if (!cell) return;
+                              cancelTimers();
+                              onOpenMenu(event, { pageId: cell.id });
+                            }}
                             aria-label={
                               cell
                                 ? `${x + 1}.${openRow + 1} ${cell.title}を編集`
@@ -479,6 +515,19 @@ export function SlideRail({
                               <span className="row-editing-badge">編集中</span>
                             )}
                           </button>
+                          {cell && (
+                            <button
+                              className="thumbnail-more page-more"
+                              aria-label={`${cell.title}のページメニュー`}
+                              title="ページの複製や削除"
+                              onClick={(event) => {
+                                cancelTimers();
+                                onOpenMenu(event, { pageId: cell.id });
+                              }}
+                            >
+                              <MoreHorizontal size={15} />
+                            </button>
+                          )}
                           <button
                             className="row-insert-column"
                             aria-label={`${x + 1}番目の話題の右に列を挿入`}

@@ -39,6 +39,8 @@ export interface Deck {
   slides: Slide[];
   /** One remembered slide ID per row; coordinates may change during reordering. */
   rowSelections?: string[];
+  /** Show the same topic in every editor row; independent choices are retained. */
+  linkedRows?: boolean;
 }
 export const uid = (): string => {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -220,7 +222,13 @@ export function removeSlide(deck: Deck, id: string): Deck {
   return { ...deck, slides };
 }
 /** Pick the independently remembered page of a row, falling back to its leftmost page. */
-export function rowPage(deck: Deck, y: number): Slide | undefined {
+export function rowPage(
+  deck: Deck,
+  y: number,
+  linkedX?: number,
+): Slide | undefined {
+  if (deck.linkedRows && linkedX !== undefined)
+    return deck.slides.find((s) => s.y === y && s.x === linkedX);
   const pages = deck.slides.filter((s) => s.y === y).sort((a, b) => a.x - b.x);
   return pages.find((s) => deck.rowSelections?.includes(s.id)) ?? pages[0];
 }
@@ -249,6 +257,8 @@ export function editorNeighbor(
           s.y === current.y && (dx > 0 ? s.x > current.x : s.x < current.x),
       )
       .sort((a, b) => (dx > 0 ? a.x - b.x : b.x - a.x))[0];
+  if (!dy) return undefined;
+  if (deck.linkedRows) return neighbor(deck, current, 0, dy);
   const ys = [...new Set(deck.slides.map((s) => s.y))]
     .filter((y) => (dy > 0 ? y > current.y : y < current.y))
     .sort((a, b) => (dy > 0 ? a - b : b - a));
@@ -287,6 +297,72 @@ export function movePage(deck: Deck, id: string, x: number, y: number): Deck {
     throw new Error("移動先のマスを選んでください。");
   if (from.x === x && from.y === y) return deck;
   return requireOrigin(swap(deck, "slide", from, { x, y }));
+}
+function copySlide(source: Slide, x: number, y: number): Slide {
+  return {
+    ...source,
+    id: uid(),
+    x,
+    y,
+    title: `${source.title.slice(0, 195)} のコピー`,
+    elements: source.elements.map((element) => ({ ...element, id: uid() })),
+  };
+}
+/** Copy one page to its right, shifting only pages in that row. */
+export function duplicateSlide(deck: Deck, id: string): Deck {
+  const source = deck.slides.find((s) => s.id === id);
+  if (!source) throw new Error("複製するページが見つかりません。");
+  if (deck.slides.length >= 100) throw new Error("ページは100枚までです。");
+  if (deck.slides.some((s) => s.y === source.y && s.x === 99))
+    throw new Error("縦・横は100マスまでです。");
+  return {
+    ...deck,
+    slides: [
+      ...deck.slides.map((s) =>
+        s.y === source.y && s.x > source.x ? { ...s, x: s.x + 1 } : s,
+      ),
+      copySlide(source, source.x + 1, source.y),
+    ],
+  };
+}
+/** Copy an entire row immediately below itself, preserving its gaps and selection. */
+export function duplicateRowGroup(deck: Deck, y: number): Deck {
+  const source = deck.slides.filter((s) => s.y === y);
+  if (!source.length) throw new Error("複製する段にページがありません。");
+  if (deck.slides.length + source.length > 100)
+    throw new Error("ページは100枚までです。");
+  if (bounds(deck).rows >= 100) throw new Error("縦・横は100マスまでです。");
+  const copies = source.map((s) => copySlide(s, s.x, y + 1));
+  const chosen = rowPage(deck, y);
+  const chosenCopy = copies.find((s) => s.x === chosen?.x);
+  const next = {
+    ...deck,
+    slides: [
+      ...deck.slides.map((s) => (s.y > y ? { ...s, y: s.y + 1 } : s)),
+      ...copies,
+    ],
+  };
+  return chosenCopy ? rememberRowPage(next, chosenCopy.id) : next;
+}
+/** Delete a whole row and close the gap without changing other topics' x positions. */
+export function removeRowGroup(deck: Deck, y: number): Deck {
+  if (!Number.isInteger(y) || y < 0 || y >= bounds(deck).rows)
+    throw new Error("削除する段を選んでください。");
+  const slides = deck.slides
+    .filter((s) => s.y !== y)
+    .map((s) => (s.y > y ? { ...s, y: s.y - 1 } : s));
+  if (!slides.some((s) => s.x === 0 && s.y === 0)) slides.unshift(blank(0, 0));
+  return {
+    ...deck,
+    slides,
+    ...(deck.rowSelections === undefined
+      ? {}
+      : {
+          rowSelections: deck.rowSelections.filter((id) =>
+            slides.some((s) => s.id === id),
+          ),
+        }),
+  };
 }
 // Import only known fields. Never render imported HTML, external images, or executable URLs.
 export function parseDeck(input: string): Deck {
@@ -378,6 +454,7 @@ export function parseDeck(input: string): Deck {
   });
   if (!cells.has("0,0")) fail();
   const result: Deck = { version: 1, title: str(d.title, 200), slides };
+  if (d.linkedRows !== undefined) result.linkedRows = bool(d.linkedRows);
   if (d.rowSelections !== undefined) {
     if (
       !Array.isArray(d.rowSelections) ||

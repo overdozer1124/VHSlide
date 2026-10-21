@@ -1,0 +1,166 @@
+import { useLayoutEffect, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import { createPortal } from "react-dom";
+import { Copy, Layers, Trash2 } from "lucide-react";
+import type { Deck } from "./model";
+
+export type ThumbnailAction =
+  | { kind: "duplicate-page"; id: string }
+  | { kind: "delete-page"; id: string }
+  | { kind: "duplicate-row"; y: number }
+  | { kind: "delete-row"; y: number };
+export interface ThumbnailTarget {
+  pageId?: string;
+  row?: number;
+}
+export type OpenThumbnailMenu = (
+  event: MouseEvent<HTMLElement>,
+  target: ThumbnailTarget,
+) => void;
+export interface ThumbnailMenuState extends ThumbnailTarget {
+  left: number;
+  top: number;
+  trigger: HTMLElement;
+}
+
+/** One menu for mouse, keyboard context-menu events, and touch-accessible ⋯ buttons. */
+export function ThumbnailMenu({
+  deck,
+  menu,
+  onClose,
+  onAction,
+}: {
+  deck: Deck;
+  menu: ThumbnailMenuState;
+  onClose: () => void;
+  onAction: (action: ThumbnailAction) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ left: menu.left, top: menu.top });
+  const page = deck.slides.find((s) => s.id === menu.pageId);
+  const count = deck.slides.filter((s) => s.y === menu.row).length;
+  function dismiss(restoreFocus = false) {
+    onClose();
+    if (restoreFocus)
+      requestAnimationFrame(() => {
+        if (menu.trigger.isConnected)
+          menu.trigger.focus({ preventScroll: true });
+      });
+  }
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const box = node.getBoundingClientRect();
+    setPosition({
+      left: Math.max(8, Math.min(menu.left, window.innerWidth - box.width - 8)),
+      top: Math.max(8, Math.min(menu.top, window.innerHeight - box.height - 8)),
+    });
+    node
+      .querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus({ preventScroll: true });
+    function outside(event: Event) {
+      if (!ref.current?.contains(event.target as Node)) onClose();
+    }
+    const resize = () => onClose();
+    document.addEventListener("pointerdown", outside, true);
+    window.addEventListener("resize", resize);
+    // Thumbnail panes may scroll themselves to reveal the current page while
+    // opening a menu. Only a document scroll should dismiss this fixed overlay.
+    window.addEventListener("scroll", resize);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("scroll", resize);
+    };
+  }, [menu]);
+  const act = (action: ThumbnailAction) => {
+    onClose();
+    onAction(action);
+  };
+  return createPortal(
+    <div
+      ref={ref}
+      className="thumbnail-menu"
+      role="menu"
+      aria-label={
+        menu.row === undefined ? "ページの操作" : `${menu.row + 1}段目の操作`
+      }
+      style={position}
+      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (["Escape", "Tab"].includes(event.key)) {
+          event.preventDefault();
+          dismiss(true);
+        } else if (
+          ["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
+        ) {
+          event.preventDefault();
+          const items = Array.from(
+            ref.current?.querySelectorAll<HTMLButtonElement>(
+              "button:not(:disabled)",
+            ) ?? [],
+          );
+          const current = items.indexOf(
+            document.activeElement as HTMLButtonElement,
+          );
+          const index =
+            event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? items.length - 1
+                : (current +
+                    (event.key === "ArrowDown" ? 1 : -1) +
+                    items.length) %
+                  items.length;
+          items[index]?.focus();
+        }
+      }}
+    >
+      <div className="thumbnail-menu-title">
+        {menu.row === undefined
+          ? page?.title
+          : `${menu.row + 1}段目 · ${count}ページ`}
+      </div>
+      <button
+        role="menuitem"
+        disabled={!page}
+        onClick={() => page && act({ kind: "duplicate-page", id: page.id })}
+      >
+        <Copy size={16} />
+        このページを複製
+      </button>
+      <button
+        role="menuitem"
+        className="menu-delete"
+        disabled={!page}
+        onClick={() => page && act({ kind: "delete-page", id: page.id })}
+      >
+        <Trash2 size={16} />
+        このページを削除
+      </button>
+      {menu.row !== undefined && (
+        <>
+          <div role="separator" className="thumbnail-menu-separator" />
+          <button
+            role="menuitem"
+            disabled={!count}
+            onClick={() => act({ kind: "duplicate-row", y: menu.row! })}
+          >
+            <Layers size={16} />
+            この段をまとめて複製
+          </button>
+          <button
+            role="menuitem"
+            className="menu-delete"
+            onClick={() => act({ kind: "delete-row", y: menu.row! })}
+          >
+            <Trash2 size={16} />
+            この段をまとめて削除
+          </button>
+        </>
+      )}
+    </div>,
+    document.body,
+  );
+}

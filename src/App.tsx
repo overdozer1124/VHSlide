@@ -20,6 +20,8 @@ import {
   MAX_FILE_BYTES,
   insert,
   insertGridLine,
+  duplicateSlide,
+  duplicateRowGroup,
   editorNeighbor,
   rememberRowPage,
   moveRowGroup,
@@ -27,6 +29,8 @@ import {
   neighbor,
   parseDeck,
   removeSlide,
+  removeRowGroup,
+  rowPage,
   sample,
   serializeDeck,
   swap,
@@ -36,6 +40,12 @@ import {
 import { MapView } from "./MapView";
 import { Editor } from "./Editor";
 import { PresentationView } from "./PresentationView";
+import { ThumbnailMenu } from "./ThumbnailMenu";
+import type {
+  ThumbnailAction,
+  ThumbnailMenuState,
+  OpenThumbnailMenu,
+} from "./ThumbnailMenu";
 const KEY = "vhslide-deck-v1";
 function initial(): { deck: Deck; error?: string } {
   try {
@@ -62,6 +72,7 @@ export default function App() {
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
   const [moving, setMoving] = useState<GridMove>();
+  const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();
   const [direction, setDirection] = useState("right");
   const jsonRef = useRef<HTMLInputElement>(null),
     imageRef = useRef<HTMLInputElement>(null);
@@ -87,7 +98,9 @@ export default function App() {
   const editorNavigationActive = useRef(false);
   function selectEditorPage(id: string) {
     editorNavigationActive.current = true;
-    const next = rememberRowPage(latestDeck.current, id);
+    const next = latestDeck.current.linkedRows
+      ? latestDeck.current
+      : rememberRowPage(latestDeck.current, id);
     latestDeck.current = next;
     setDeck(next);
     setActiveId(id);
@@ -101,6 +114,63 @@ export default function App() {
     if (next) selectEditorPage(next.id);
     return next;
   }
+  function toggleLinkedRows() {
+    const current = latestDeck.current;
+    const restored = current.linkedRows ? rowPage(current, slide.y) : undefined;
+    if (!commit({ ...current, linkedRows: !current.linkedRows })) return;
+    if (restored) setActiveId(restored.id);
+    setSelected(undefined);
+  }
+  const openThumbnailMenu: OpenThumbnailMenu = (event, target) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const trigger = event.currentTarget;
+    const box = trigger.getBoundingClientRect();
+    setThumbnailMenu({
+      ...target,
+      trigger,
+      left: event.clientX || box.left,
+      top: event.clientY || box.bottom,
+    });
+    setMoving(undefined);
+  };
+  function thumbnailAction(action: ThumbnailAction) {
+    try {
+      const current = latestDeck.current;
+      let next: Deck;
+      let chosen: Slide | undefined;
+      if (action.kind === "duplicate-page") {
+        next = duplicateSlide(current, action.id);
+        chosen = next.slides.at(-1);
+      } else if (action.kind === "duplicate-row") {
+        next = duplicateRowGroup(current, action.y);
+        chosen =
+          rowPage(next, action.y + 1, slide.x) ?? rowPage(next, action.y + 1);
+      } else {
+        next =
+          action.kind === "delete-page"
+            ? removeSlide(current, action.id)
+            : removeRowGroup(current, action.y);
+        chosen =
+          next.slides.find((s) => s.id === slide.id) ??
+          rowPage(next, Math.min(slide.y, bounds(next).rows - 1), slide.x) ??
+          next.slides[0];
+      }
+      if (chosen) next = rememberRowPage(next, chosen.id);
+      if (!commit(next)) return;
+      setActiveId(chosen!.id);
+      setSelected(undefined);
+      editorNavigationActive.current = true;
+      notify(
+        action.kind.startsWith("duplicate")
+          ? "複製しました。「もとに戻す」で戻せます。"
+          : "削除しました。「もとに戻す」で戻せます。",
+      );
+    } catch (error) {
+      notify((error as Error).message);
+    }
+  }
+  useEffect(() => setThumbnailMenu(undefined), [view, deck]);
   function moveEditorItem(
     source: { kind: "row"; y: number } | { kind: "page"; id: string },
     x: number,
@@ -196,7 +266,7 @@ export default function App() {
     const handler = (event: KeyboardEvent) => {
       if (
         (event.target as HTMLElement).closest(
-          "input,textarea,select,[contenteditable]",
+          "input,textarea,select,[contenteditable],[role=menu]",
         )
       )
         return;
@@ -651,6 +721,7 @@ export default function App() {
             else notify("ページは100枚までです。");
           }}
           onHelp={() => setHelp(true)}
+          onOpenMenu={openThumbnailMenu}
         />
       )}
       {view === "editor" && (
@@ -675,6 +746,9 @@ export default function App() {
           onSelectSlide={selectEditorPage}
           onNavigate={navigateEditor}
           onMove={moveEditorItem}
+          onToggleLinkedRows={toggleLinkedRows}
+          onOpenMenu={openThumbnailMenu}
+          menuOpen={!!thumbnailMenu}
         />
       )}
       {view === "present" && (
@@ -693,6 +767,14 @@ export default function App() {
             <X size={16} />
           </button>
         </div>
+      )}
+      {thumbnailMenu && view !== "present" && (
+        <ThumbnailMenu
+          deck={deck}
+          menu={thumbnailMenu}
+          onClose={() => setThumbnailMenu(undefined)}
+          onAction={thumbnailAction}
+        />
       )}
       {protectSaved && view !== "present" && (
         <div className="recovery-banner">

@@ -5,12 +5,14 @@ import {
   GripVertical,
   LayoutGrid,
   Move,
+  MoreHorizontal,
   Plus,
   Trash2,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
 import { bounds, W } from "./model";
 import { Canvas } from "./Canvas";
+import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 interface MapViewProps {
   deck: Deck;
   activeId: string;
@@ -22,6 +24,7 @@ interface MapViewProps {
   onDelete: (id: string) => void;
   onAddCell: (x: number, y: number) => void;
   onHelp: () => void;
+  onOpenMenu: OpenThumbnailMenu;
 }
 export function MapView({
   deck,
@@ -34,6 +37,7 @@ export function MapView({
   onDelete,
   onAddCell,
   onHelp,
+  onOpenMenu,
 }: MapViewProps) {
   const size = bounds(deck),
     cols = Math.max(3, size.cols),
@@ -155,6 +159,9 @@ export function MapView({
                         <>
                           <div
                             className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
+                            onContextMenu={(event) =>
+                              onOpenMenu(event, { pageId: s.id })
+                            }
                             draggable
                             onDragStart={(e) => {
                               e.dataTransfer.setData("text/plain", s.id);
@@ -180,6 +187,15 @@ export function MapView({
                                 {x + 1}.{y + 1}
                               </span>
                               <span className="card-title">{s.title}</span>
+                              <button
+                                className="card-tool"
+                                aria-label={`${s.title}のページメニュー`}
+                                onClick={(event) =>
+                                  onOpenMenu(event, { pageId: s.id })
+                                }
+                              >
+                                <MoreHorizontal size={14} />
+                              </button>
                               <button
                                 className="card-tool"
                                 aria-label={`${s.title}を移動`}
