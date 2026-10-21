@@ -1,8 +1,27 @@
-import { useLayoutEffect, useRef } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef } from "react";
 import type { Element } from "./model";
+import { useCloudText } from "./CloudContext";
+const CloudText = lazy(() =>
+  import("./CloudText").then((module) => ({ default: module.CloudText })),
+);
+
+export function InlineText(props: {
+  element: Element;
+  onChange: (text: string) => void;
+  onFinish: () => void;
+}) {
+  const text = useCloudText(props.element.id);
+  return text ? (
+    <Suspense fallback={<div className="slide-text">{props.element.text}</div>}>
+      <CloudText element={props.element} onFinish={props.onFinish} />
+    </Suspense>
+  ) : (
+    <LocalInlineText {...props} />
+  );
+}
 
 /** Keep the editing DOM stable during React renders and Japanese IME composition. */
-export function InlineText({
+function LocalInlineText({
   element,
   onChange,
   onFinish,

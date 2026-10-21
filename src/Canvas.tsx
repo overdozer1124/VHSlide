@@ -152,7 +152,14 @@ export function Canvas({
       const changed = (["x", "y", "w", "h"] as const).some(
         (key) => before[key] !== draft[key],
       );
-      if (changed) onChange?.(draft);
+      if (changed)
+        onChange?.({
+          ...(slide.elements.find((e) => e.id === draft.id) ?? draft),
+          x: draft.x,
+          y: draft.y,
+          w: draft.w,
+          h: draft.h,
+        });
       else if (
         before.type === "text" &&
         !drag.current.resize &&

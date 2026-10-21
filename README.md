@@ -1,10 +1,10 @@
 # VHSlide
 
-「よこに話題を、たてに発見を。」児童・生徒のための、2次元グリッド型スライド作成・発表アプリのMVPです。React 19 / TypeScript / Vite / Tailwind CSS 4 を使用し、外部DB・アカウント・APIサーバーは必要ありません。
+「よこに話題を、たてに発見を。」児童・生徒のための、2次元グリッド型スライド作成・発表アプリのMVPです。React 19 / TypeScript / Vite / Tailwind CSS 4 を使用し、端末だけで編集・JSON保存・発表できる構成に加え、Railway上でGoogleログイン・作品保存・共同編集を使える構成を備えています。
 
 ## 起動
 
-Node.js 22.12以降（この環境では24.19で検証）とnpmを使用します。
+Node.js 24（この環境では24.19で検証）とnpmを使用します。
 
 ```sh
 cd /workspace/VHSlide
@@ -17,13 +17,25 @@ npm run dev -- --port 5173 --strictPort
 ```sh
 npm run build          # TypeScriptチェック + 本番ビルド
 npm run preview       # ビルド済みdistの動作確認
-npm test              # 座標操作・JSON検証のユニットテスト
+npm test              # 座標・JSON・共有データ・サーバー権限・40接続のテスト
 npm run test:e2e      # デスクトップ/iPad相当のChromiumブラウザテスト
 ```
 
 E2Eテストはシステムの `/usr/bin/chromium` があれば利用します。その他の環境では事前に `npx playwright install chromium` を実行してください。ブラウザの場所は `CHROMIUM_PATH` でも指定できます。
 
-`dist/` 一式を静的ホスティングに配置できます。相対パスでビルドするため、サブディレクトリへの配置にも対応します。ローカル配布時も静的HTTP配信を使ってください（HTMLのダブルクリックによる `file://` 起動は対象外）。実行時の外部通信やCDN読み込みはありません。ブラウザだけで作成・保存・発表できます。完全なオフライン再起動を保証するPWAのキャッシュ機能は未実装です。
+`dist/` 一式を静的ホスティングに配置できます。相対パスでビルドするため、サブディレクトリへの配置にも対応します。ローカル配布時も静的HTTP配信を使ってください（HTMLのダブルクリックによる `file://` 起動は対象外）。静的配信ではブラウザだけで作成・保存・発表でき、Googleログインや共同編集は表示しません。Railwayでサーバーを動かす場合は、Googleとクラウド保存への通信を利用します。完全なオフライン再起動を保証するPWAのキャッシュ機能は未実装です。
+
+## RailwayでGoogleログイン・共同編集
+
+[Railway設定手順](docs/railway.md)に、新規プロジェクト・永続Volume・Google OAuthクライアントID・写真用Bucketsの設定をまとめています。`railway.json`でビルド・起動・ヘルスチェックを設定済みです。GoogleクライアントID未設定でも端末の編集機能は利用できます。
+
+```sh
+npm run build
+npm start             # Node.jsサーバー。既定は3000番
+npm run test:cloud    # 本番ビルドを使う共同編集のブラウザテスト
+```
+
+サーバー側ではYjs/WebSocketで変更を共有し、SQLiteの更新ログへ保存します。写真はRailway Buckets（未設定時は永続ディスク）に保存します。招待による参加・参加解除・作品ごとの画像アクセス制御に対応しています。静的ホスティングのGitHub Pagesは、従来の端末編集用として引き続き利用できます。
 
 ## GitHub Pagesで公開
 
@@ -37,7 +49,7 @@ E2Eテストはシステムの `/usr/bin/chromium` があれば利用します�
 
 ## Windows（PowerShell）での起動
 
-`/workspace/VHSlide` はCodexのクラウド内のパスであり、Windowsのパスではありません。ソースがGitHubに反映された後、PCで以下を実行して取得してください。Node.js 22.12以降とGitが必要です。
+`/workspace/VHSlide` はCodexのクラウド内のパスであり、Windowsのパスではありません。ソースがGitHubに反映された後、PCで以下を実行して取得してください。Node.js 24とGitが必要です。
 
 ```powershell
 git clone https://github.com/overdozer1124/VHSlide.git "$env:USERPROFILE\VHSlide"
@@ -90,7 +102,7 @@ src/
   style.css               Tailwind取り込み、共通デザイントークン、レスポンシブUI
 ```
 
-画像はData URLでJSON内に保存します。作成したデータをサーバーへ送信しません。LocalStorageのキーは `vhslide-deck-v1`。自動保存の容量超過は通知し、JSONの書き出しは引き続き利用できます。破損した自動保存データを検出した場合、元データを上書きせずサンプルを表示し、明示的な再開操作まで自動保存を保留します。
+端末の作品は画像をData URLでJSON内に保存します。クラウドに保存する場合は作品と写真をサーバーへ送信し、参加者に共有します。クラウド作品のJSONダウンロード時には写真を再びData URLに埋め込みます。LocalStorageのキーは `vhslide-deck-v1`。自動保存の容量超過は通知し、JSONの書き出しは引き続き利用できます。破損した自動保存データを検出した場合、元データを上書きせずサンプルを表示し、明示的な再開操作まで自動保存を保留します。
 
 ## データ構造
 
@@ -150,7 +162,7 @@ src/
 | `Element.x / y / w / h` | 960×540の論理キャンバス内の位置・サイズ。表示倍率を変えても保存値は変わりません。                    |
 | 要素の前後              | `elements` 配列の後ろほど前面です。                                                                  |
 | `type: text`            | `text`, `fontSize`, `color`。任意で `bold`, `highlight`, `bullets`。書式はテキストボックス単位です。 |
-| `type: image`           | `src` はPNG/JPEG/WebP/GIFの埋め込みData URL。外部URL・SVGは受け付けません。                          |
+| `type: image`           | `src` は画像Data URL、または認証付きの作品内画像パス。任意の外部URL・SVGは受け付けません。           |
 | `type: shape`           | `shape` は `rect / rounded / circle / arrow / bubble`。`fill`, `stroke` は色です。                   |
 | `version`               | 保存形式のバージョン。現状は1のみ。将来の移行処理の判定に使えます。                                  |
 
@@ -170,8 +182,8 @@ src/
 ## MVPの範囲・制限
 
 - 最大100ページ、各ページ200要素、縦横それぞれ100マス。画像1枚6MB、作品全体25MBまでです。自動保存に使える容量は端末・ブラウザに依存し、この上限より小さい場合があります。
-- 太字・色・サイズ・ハイライト・箇条書きはボックス全体への設定です。文字の部分選択による書式、複数要素の同時選択、回転、動画、PDF/PPTX書き出し、共同編集は未実装です。
+- 太字・色・サイズ・ハイライト・箇条書きはボックス全体への設定です。文字の部分選択による書式、複数要素の同時選択、回転、動画、PDF/PPTX書き出しは未実装です。
 - 整列ガイドはキャンバスの水平・垂直中央。近くの他要素への整列ガイドは今後の拡張対象です。
 - 全画面APIが使えない環境でも画面内の発表表示を継続します。
 - 自動テストはChromiumのデスクトップ・iPad相当表示で実施します。実機のiPad Safari / Chromebook / Windowsでの総合確認は別途必要です。
-- 外部通信を必要とするのは開発依存関係のインストール時のみ。アプリ実行にキー・認証情報は不要です。
+- 静的配信の端末編集にはキー・認証情報は不要です。クラウド機能にはサーバー・GoogleクライアントID・永続ディスクが必要です。実Googleアカウントと実Railway/Bucketsでの確認は設定後に実施します。

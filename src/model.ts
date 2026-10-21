@@ -436,7 +436,8 @@ export function parseDeck(input: string): Deck {
           if (
             !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(
               src,
-            )
+            ) &&
+            !/^\/api\/decks\/[a-f0-9-]{36}\/assets\/[a-f0-9-]{36}$/.test(src)
           )
             fail();
           return { ...base, src };

@@ -184,7 +184,7 @@
             "src": {
               "type": "string",
               "maxLength": 12000000,
-              "pattern": "^data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$"
+              "pattern": "^(data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+|/api/decks/[a-f0-9-]{36}/assets/[a-f0-9-]{36})$"
             }
           }
         }

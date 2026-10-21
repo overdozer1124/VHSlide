@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "quill/dist/quill.core.css";
 :root {
   font-family:
     Inter,
@@ -1941,4 +1942,144 @@ h1 span {
   height: 1px;
   margin: 5px 4px;
   background: #e5ebdf;
+}
+
+.cloud-presence {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 24px;
+  background: #edf4e7;
+  color: #315d4e;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.cloud-presence + .editor-main {
+  height: calc(100dvh - 175px);
+}
+.cloud-participants {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40vw;
+}
+.cloud-overlay {
+  position: fixed;
+  inset: 0;
+  background: #173d3866;
+  z-index: 180;
+  display: flex;
+  justify-content: flex-end;
+}
+.cloud-panel {
+  width: min(520px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: white;
+  padding: 24px;
+  box-shadow: -8px 0 40px #173d3826;
+}
+.cloud-panel-heading,
+.cloud-account,
+.cloud-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cloud-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 650;
+}
+.cloud-panel h3 {
+  margin: 24px 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.cloud-panel p {
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 16px 0;
+}
+.cloud-panel small {
+  display: block;
+  font-size: 11px;
+  color: #7b8b72;
+  margin: 8px 0;
+  line-height: 1.7;
+}
+.cloud-account {
+  margin: 20px 0;
+  font-size: 13px;
+}
+.cloud-sharing {
+  margin-top: 20px;
+  border: 1px solid #dce5d5;
+  border-radius: 9px;
+  padding: 16px;
+}
+.cloud-sharing strong {
+  font-size: 12px;
+}
+.cloud-sharing .quiet {
+  margin-top: 8px;
+}
+.cloud-invite {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  gap: 5px;
+}
+.cloud-invite input {
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  padding: 9px;
+  border: 1px solid #dce5d5;
+  border-radius: 5px;
+}
+.cloud-deck {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #e5ebdf;
+}
+.cloud-deck > button:first-child {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 5px;
+  text-align: left;
+}
+.cloud-deck strong {
+  font-size: 13px;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.cloud-deck small {
+  margin: 3px 0;
+}
+.cloud-panel .cloud-error {
+  color: #a14a40;
+  background: #fff1eb;
+  padding: 10px;
+  border-radius: 5px;
+}
+.cloud-text.ql-container {
+  font-family: inherit;
+  font-size: inherit;
+  border: 0;
+}
+.cloud-text .ql-editor {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  outline: none;
+}
+.cloud-text .ql-editor p {
+  margin: 0;
 }

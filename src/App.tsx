@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
+  Cloud,
   CircleHelp,
   Download,
   LayoutGrid,
@@ -46,6 +47,9 @@ import type {
   ThumbnailMenuState,
   OpenThumbnailMenu,
 } from "./ThumbnailMenu";
+import { CloudWorkspace, portableDeck } from "./cloud";
+import { CloudPanel } from "./CloudPanel";
+import { CloudDocument } from "./CloudContext";
 const KEY = "vhslide-deck-v1";
 function initial(): { deck: Deck; error?: string } {
   try {
@@ -62,6 +66,8 @@ function initial(): { deck: Deck; error?: string } {
 export default function App() {
   const [boot] = useState(initial);
   const [deck, setDeck] = useState(boot.deck);
+  const [cloud] = useState(() => new CloudWorkspace());
+  const [, cloudChanged] = useState(0);
   const [past, setPast] = useState<Deck[]>([]),
     [future, setFuture] = useState<Deck[]>([]);
   const [view, setView] = useState<"map" | "editor" | "present">("map");
@@ -81,7 +87,53 @@ export default function App() {
   latestDeck.current = deck;
   const latestSlideId = useRef(slide.id);
   latestSlideId.current = slide.id;
-  function commit(next: Deck) {
+  cloud.onState = () => cloudChanged((revision) => revision + 1);
+  cloud.onDeck = (shared, reset) => {
+    let preferences: Partial<Deck> = latestDeck.current;
+    if (reset) {
+      try {
+        preferences = parseDeck(
+          localStorage.getItem(`vhslide-cloud-deck:${cloud.active!.id}`) ?? "",
+        );
+      } catch {
+        preferences = {};
+      }
+      setPast([]);
+      setFuture([]);
+      setSelected(undefined);
+      setView("map");
+      setActiveId(shared.slides[0].id);
+    }
+    const next = {
+      ...shared,
+      rowSelections: preferences.rowSelections,
+      linkedRows: preferences.linkedRows,
+    };
+    latestDeck.current = next;
+    setDeck(next);
+  };
+  useEffect(() => {
+    cloud.onState = () => cloudChanged((revision) => revision + 1);
+    void cloud.initialize();
+    return () => {
+      cloud.onState = () => {};
+      cloud.dispose();
+    };
+  }, [cloud]);
+  function returnToLocal() {
+    cloud.detach();
+    const next = initial().deck;
+    latestDeck.current = next;
+    setDeck(next);
+    setPast([]);
+    setFuture([]);
+    setActiveId(next.slides[0].id);
+    setSelected(undefined);
+    setView("map");
+    cloud.panel = false;
+    cloud.onState();
+  }
+  function commit(next: Deck, basedOn = deck) {
     try {
       serializeDeck(next);
     } catch (error) {
@@ -89,7 +141,8 @@ export default function App() {
       return false;
     }
     const previous = latestDeck.current;
-    setPast((p) => [...p.slice(-39), previous]);
+    if (cloud.doc) next = cloud.apply(basedOn, next);
+    else setPast((p) => [...p.slice(-39), previous]);
     latestDeck.current = next;
     setFuture([]);
     setDeck(next);
@@ -117,7 +170,8 @@ export default function App() {
   function toggleLinkedRows() {
     const current = latestDeck.current;
     const restored = current.linkedRows ? rowPage(current, slide.y) : undefined;
-    if (!commit({ ...current, linkedRows: !current.linkedRows })) return;
+    if (!commit({ ...current, linkedRows: !current.linkedRows }, current))
+      return;
     if (restored) setActiveId(restored.id);
     setSelected(undefined);
   }
@@ -157,7 +211,7 @@ export default function App() {
           next.slides[0];
       }
       if (chosen) next = rememberRowPage(next, chosen.id);
-      if (!commit(next)) return;
+      if (!commit(next, current)) return;
       setActiveId(chosen!.id);
       setSelected(undefined);
       editorNavigationActive.current = true;
@@ -189,7 +243,7 @@ export default function App() {
       if (next === current) return false;
       const chosen = source.kind === "page" ? source.id : activeId;
       next = rememberRowPage(next, chosen);
-      if (!commit(next)) return false;
+      if (!commit(next, current)) return false;
       if (source.kind === "page") {
         setActiveId(source.id);
         setSelected(undefined);
@@ -201,12 +255,20 @@ export default function App() {
     }
   }
   function undo() {
+    if (cloud.undoManager) {
+      cloud.undoManager.undo();
+      return;
+    }
     if (!past.length) return;
     setFuture((f) => [deck, ...f]);
     setDeck(past[past.length - 1]);
     setPast((p) => p.slice(0, -1));
   }
   function redo() {
+    if (cloud.undoManager) {
+      cloud.undoManager.redo();
+      return;
+    }
     if (!future.length) return;
     setPast((p) => [...p, deck]);
     setDeck(future[0]);
@@ -236,7 +298,10 @@ export default function App() {
       return;
     }
     try {
-      localStorage.setItem(KEY, JSON.stringify(deck));
+      localStorage.setItem(
+        cloud.active ? `vhslide-cloud-deck:${cloud.active.id}` : KEY,
+        JSON.stringify(deck),
+      );
       setSaveStatus("この端末に保存済み");
     } catch {
       setSaveStatus("端末の保存容量が不足");
@@ -382,6 +447,7 @@ export default function App() {
   }
   async function addImage(file: File) {
     const targetId = slide.id;
+    const roomId = cloud.active?.id;
     try {
       if (
         !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
@@ -417,18 +483,26 @@ export default function App() {
         w,
         h,
       };
+      if (roomId) {
+        e.src = await cloud.upload(file, roomId);
+        if (cloud.active?.id !== roomId)
+          throw new Error("追加先の作品が切り替わりました。");
+      }
       // File decoding is asynchronous: preserve edits and page navigation made in the meantime.
       const current = latestDeck.current;
       const target = current.slides.find((s) => s.id === targetId);
       if (!target) throw new Error("追加先のページが削除されました。");
       if (target.elements.length >= 200)
         throw new Error("1ページの要素は200個までです。");
-      commit({
-        ...current,
-        slides: current.slides.map((s) =>
-          s.id === targetId ? { ...s, elements: [...s.elements, e] } : s,
-        ),
-      });
+      commit(
+        {
+          ...current,
+          slides: current.slides.map((s) =>
+            s.id === targetId ? { ...s, elements: [...s.elements, e] } : s,
+          ),
+        },
+        current,
+      );
       if (latestSlideId.current === targetId) setSelected(e.id);
     } catch (error) {
       notify(
@@ -442,7 +516,13 @@ export default function App() {
       if (file.size > MAX_FILE_BYTES)
         throw new Error("ファイルは25MBまでです。");
       const next = parseDeck(await file.text());
-      commit(next);
+      if (cloud.active) {
+        cloud.detach();
+        setPast([]);
+        setFuture([]);
+        latestDeck.current = next;
+        setDeck(next);
+      } else commit(next);
       setProtectSaved(false);
       setActiveId(next.slides[0].id);
       setView("map");
@@ -452,16 +532,21 @@ export default function App() {
       notify(error instanceof Error ? error.message : "読み込めませんでした。");
     }
   }
-  function download() {
-    const url = URL.createObjectURL(
-      new Blob([serializeDeck(deck)], { type: "application/json" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${deck.title.replace(/[\\/:*?"<>|]/g, "_") || "VHSlide"}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    notify("JSONファイルを保存しました。");
+  async function download() {
+    try {
+      const portable = cloud.active ? await portableDeck(deck) : deck;
+      const url = URL.createObjectURL(
+        new Blob([serializeDeck(portable)], { type: "application/json" }),
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${deck.title.replace(/[\\/:*?"<>|]/g, "_") || "VHSlide"}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify("JSONファイルを保存しました。");
+    } catch (error) {
+      notify((error as Error).message);
+    }
   }
   function add(at: Slide, dir: "right" | "down") {
     try {
@@ -479,9 +564,10 @@ export default function App() {
     cross: number,
   ): boolean {
     try {
-      let next = insertGridLine(latestDeck.current, axis, index, cross);
+      const current = latestDeck.current;
+      let next = insertGridLine(current, axis, index, cross);
       next = rememberRowPage(next, next.slides.at(-1)!.id);
-      if (!commit(next)) return false;
+      if (!commit(next, current)) return false;
       setActiveId(next.slides.at(-1)!.id);
       setSelected(undefined);
       return true;
@@ -504,6 +590,7 @@ export default function App() {
           { ...current, slides: [...current.slides, added] },
           added.id,
         ),
+        current,
       )
     )
       return false;
@@ -541,254 +628,299 @@ export default function App() {
   }
   const iconSize = 17;
   return (
-    <div className="app-shell">
-      <input
-        ref={jsonRef}
-        type="file"
-        accept=".json,application/json"
-        hidden
-        onChange={(e) => {
-          void openFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={imageRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif"
-        hidden
-        onChange={(e) => {
-          if (e.target.files?.[0]) void addImage(e.target.files[0]);
-          e.target.value = "";
-        }}
-      />
-      {view !== "present" && (
-        <>
-          <header className="app-header">
-            <a
-              className="brand"
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setView("map");
-              }}
-              aria-label="VHSlide 全体マップ"
-            >
-              <span className="brand-icon">
-                <LayoutGrid size={22} />
-              </span>
-              VH<span>Slide</span>
-              <span className="beta">BETA</span>
-            </a>
-            <span className="header-divider" />
-            <input
-              className="deck-title"
-              aria-label="作品のタイトル"
-              maxLength={200}
-              value={deck.title}
-              onChange={(e) => commit({ ...deck, title: e.target.value })}
-            />
-            <span className="save-state">
-              <Check size={14} />
-              {saveStatus}
-            </span>
-            <div className="header-actions">
-              <button
-                className="quiet new-deck"
-                onClick={() => {
-                  const next: Deck = {
-                    version: 1,
-                    title: "あたらしい作品",
-                    slides: [blank(0, 0)],
-                  };
-                  commit(next);
-                  setActiveId(next.slides[0].id);
-                  setSelected(undefined);
+    <CloudDocument.Provider value={cloud.doc}>
+      <div className="app-shell">
+        <input
+          ref={jsonRef}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          onChange={(e) => {
+            void openFile(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={imageRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          hidden
+          onChange={(e) => {
+            if (e.target.files?.[0]) void addImage(e.target.files[0]);
+            e.target.value = "";
+          }}
+        />
+        {view !== "present" && (
+          <>
+            <header className="app-header">
+              <a
+                className="brand"
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
                   setView("map");
-                  notify(
-                    "白紙の作品を作りました。前の作品は「もとに戻す」で戻せます。",
-                  );
                 }}
+                aria-label="VHSlide 全体マップ"
               >
-                <Plus size={iconSize} />
-                <span>新しく</span>
-              </button>
-              <button
-                className="quiet"
-                onClick={() => jsonRef.current?.click()}
-              >
-                <Upload size={iconSize} />
-                <span>開く</span>
-              </button>
-              <button className="button outline" onClick={download}>
-                <Download size={iconSize} />
-                <span>保存</span>
-              </button>
-              <button className="button primary" onClick={startPresent}>
-                <Presentation size={iconSize} />
-                <span>発表する</span>
-              </button>
+                <span className="brand-icon">
+                  <LayoutGrid size={22} />
+                </span>
+                VH<span>Slide</span>
+                <span className="beta">BETA</span>
+              </a>
+              <span className="header-divider" />
+              <input
+                className="deck-title"
+                aria-label="作品のタイトル"
+                maxLength={200}
+                value={deck.title}
+                onChange={(e) => commit({ ...deck, title: e.target.value })}
+              />
+              <span className="save-state">
+                <Check size={14} />
+                {cloud.active ? cloud.status : saveStatus}
+              </span>
+              <div className="header-actions">
+                {cloud.available && (
+                  <button
+                    className="quiet cloud-open"
+                    onClick={() => {
+                      cloud.panel = true;
+                      cloud.error = "";
+                      cloud.onState();
+                      void cloud.refresh().catch((error: Error) => {
+                        cloud.error = error.message;
+                        cloud.onState();
+                      });
+                    }}
+                  >
+                    <Cloud size={iconSize} />
+                    <span>クラウド</span>
+                  </button>
+                )}
+                <button
+                  className="quiet new-deck"
+                  onClick={() => {
+                    if (cloud.active) returnToLocal();
+                    const next: Deck = {
+                      version: 1,
+                      title: "あたらしい作品",
+                      slides: [blank(0, 0)],
+                    };
+                    commit(next);
+                    setActiveId(next.slides[0].id);
+                    setSelected(undefined);
+                    setView("map");
+                    notify(
+                      "白紙の作品を作りました。前の作品は「もとに戻す」で戻せます。",
+                    );
+                  }}
+                >
+                  <Plus size={iconSize} />
+                  <span>新しく</span>
+                </button>
+                <button
+                  className="quiet"
+                  onClick={() => jsonRef.current?.click()}
+                >
+                  <Upload size={iconSize} />
+                  <span>開く</span>
+                </button>
+                <button
+                  className="button outline"
+                  onClick={() => void download()}
+                >
+                  <Download size={iconSize} />
+                  <span>保存</span>
+                </button>
+                <button className="button primary" onClick={startPresent}>
+                  <Presentation size={iconSize} />
+                  <span>発表する</span>
+                </button>
+              </div>
+            </header>
+            <nav className="view-bar">
+              <div className="view-tabs">
+                <button
+                  className={view === "map" ? "active" : ""}
+                  onClick={() => setView("map")}
+                >
+                  <LayoutGrid size={16} />
+                  全体マップ
+                </button>
+                <button
+                  className={view === "editor" ? "active" : ""}
+                  onClick={() => {
+                    setView("editor");
+                    setSelected(undefined);
+                  }}
+                >
+                  <Type size={16} />
+                  ページを編集
+                </button>
+              </div>
+              <div className="history">
+                <button
+                  className="icon-button"
+                  aria-label="もとに戻す"
+                  title="もとに戻す (Ctrl+Z)"
+                  disabled={
+                    cloud.undoManager
+                      ? !cloud.undoManager.canUndo()
+                      : !past.length
+                  }
+                  onClick={undo}
+                >
+                  <Undo2 size={18} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label="やり直す"
+                  disabled={
+                    cloud.undoManager
+                      ? !cloud.undoManager.canRedo()
+                      : !future.length
+                  }
+                  onClick={redo}
+                >
+                  <Redo2 size={18} />
+                </button>
+                <span className="small-divider" />
+                <button className="quiet" onClick={() => setHelp((h) => !h)}>
+                  <CircleHelp size={17} />
+                  <span>使い方</span>
+                </button>
+              </div>
+            </nav>
+          </>
+        )}
+        {help && view !== "present" && (
+          <aside className="help-panel">
+            <div>
+              <strong>よこに話題を、たてに発見を。</strong>
+              <p>
+                カードを押すと編集できます。右の＋で次の話題、下の＋で詳しいページを追加。
+                <br />
+                並べ替えはドラッグ、または「移動」→移動先をタップ。発表中は矢印キー・スワイプでも進めます。
+              </p>
+              <small>
+                データはこのブラウザに保存されます。授業の終わりにはJSONファイルも保存しましょう。
+              </small>
             </div>
-          </header>
-          <nav className="view-bar">
-            <div className="view-tabs">
-              <button
-                className={view === "map" ? "active" : ""}
-                onClick={() => setView("map")}
-              >
-                <LayoutGrid size={16} />
-                全体マップ
-              </button>
-              <button
-                className={view === "editor" ? "active" : ""}
-                onClick={() => {
-                  setView("editor");
-                  setSelected(undefined);
-                }}
-              >
-                <Type size={16} />
-                ページを編集
-              </button>
-            </div>
-            <div className="history">
-              <button
-                className="icon-button"
-                aria-label="もとに戻す"
-                title="もとに戻す (Ctrl+Z)"
-                disabled={!past.length}
-                onClick={undo}
-              >
-                <Undo2 size={18} />
-              </button>
-              <button
-                className="icon-button"
-                aria-label="やり直す"
-                disabled={!future.length}
-                onClick={redo}
-              >
-                <Redo2 size={18} />
-              </button>
-              <span className="small-divider" />
-              <button className="quiet" onClick={() => setHelp((h) => !h)}>
-                <CircleHelp size={17} />
-                <span>使い方</span>
-              </button>
-            </div>
-          </nav>
-        </>
-      )}
-      {help && view !== "present" && (
-        <aside className="help-panel">
-          <div>
-            <strong>よこに話題を、たてに発見を。</strong>
-            <p>
-              カードを押すと編集できます。右の＋で次の話題、下の＋で詳しいページを追加。
-              <br />
-              並べ替えはドラッグ、または「移動」→移動先をタップ。発表中は矢印キー・スワイプでも進めます。
-            </p>
-            <small>
-              データはこのブラウザに保存されます。授業の終わりにはJSONファイルも保存しましょう。
-            </small>
+            <button
+              className="icon-button"
+              aria-label="使い方を閉じる"
+              onClick={() => setHelp(false)}
+            >
+              <X size={18} />
+            </button>
+          </aside>
+        )}
+        {cloud.active && view !== "present" && (
+          <div className="cloud-presence">
+            <Cloud size={14} />
+            <span>{cloud.status}</span>
+            <span>{cloud.members.length}人が参加中</span>
+            <span className="cloud-participants">
+              {cloud.members.map((member) => member.name).join("、")}
+            </span>
+            {cloud.error && <span role="alert">{cloud.error}</span>}
           </div>
-          <button
-            className="icon-button"
-            aria-label="使い方を閉じる"
-            onClick={() => setHelp(false)}
-          >
-            <X size={18} />
-          </button>
-        </aside>
-      )}
-      {view === "map" && (
-        <MapView
-          deck={deck}
-          activeId={activeId}
-          moving={moving}
-          onMove={setMoving}
-          dropAt={dropAt}
-          add={add}
-          onEdit={(id) => {
-            selectEditorPage(id);
-            setView("editor");
-          }}
-          onDelete={(id) => {
-            commit(removeSlide(deck, id));
-            notify("ページを削除しました。「もとに戻す」で戻せます。");
-          }}
-          onAddCell={(x, y) => {
-            if (deck.slides.length < 100)
-              commit({ ...deck, slides: [...deck.slides, blank(x, y)] });
-            else notify("ページは100枚までです。");
-          }}
-          onHelp={() => setHelp(true)}
-          onOpenMenu={openThumbnailMenu}
-        />
-      )}
-      {view === "editor" && (
-        <Editor
-          deck={deck}
-          slide={slide}
-          selected={selected}
-          setSelected={(id) => {
-            editorNavigationActive.current = false;
-            setSelected(id);
-          }}
-          updateSlide={updateSlide}
-          updateElement={updateElement}
-          addElement={addElement}
-          onInsert={insertEditorLine}
-          onCreate={createEditorPage}
-          onBack={() => setView("map")}
-          onImagePicker={() => imageRef.current?.click()}
-          onFileDrop={(file) => {
-            void addImage(file);
-          }}
-          onSelectSlide={selectEditorPage}
-          onNavigate={navigateEditor}
-          onMove={moveEditorItem}
-          onToggleLinkedRows={toggleLinkedRows}
-          onOpenMenu={openThumbnailMenu}
-          menuOpen={!!thumbnailMenu}
-        />
-      )}
-      {view === "present" && (
-        <PresentationView
-          deck={deck}
-          slide={slide}
-          direction={direction}
-          go={go}
-          exitPresent={exitPresent}
-        />
-      )}
-      {notice && (
-        <div role="status" className="toast">
-          {notice}
-          <button aria-label="通知を閉じる" onClick={() => setNotice("")}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      {thumbnailMenu && view !== "present" && (
-        <ThumbnailMenu
-          deck={deck}
-          menu={thumbnailMenu}
-          onClose={() => setThumbnailMenu(undefined)}
-          onAction={thumbnailAction}
-        />
-      )}
-      {protectSaved && view !== "present" && (
-        <div className="recovery-banner">
-          元データを保持しています。
-          <button
-            onClick={() => {
-              setProtectSaved(false);
-              notify("現在の作品で自動保存を再開しました。");
+        )}
+        {cloud.panel && (
+          <CloudPanel cloud={cloud} deck={deck} onLocal={returnToLocal} />
+        )}
+        {view === "map" && (
+          <MapView
+            deck={deck}
+            activeId={activeId}
+            moving={moving}
+            onMove={setMoving}
+            dropAt={dropAt}
+            add={add}
+            onEdit={(id) => {
+              selectEditorPage(id);
+              setView("editor");
             }}
-          >
-            現在の作品で自動保存を再開
-          </button>
-        </div>
-      )}
-    </div>
+            onDelete={(id) => {
+              commit(removeSlide(deck, id));
+              notify("ページを削除しました。「もとに戻す」で戻せます。");
+            }}
+            onAddCell={(x, y) => {
+              if (deck.slides.length < 100)
+                commit({ ...deck, slides: [...deck.slides, blank(x, y)] });
+              else notify("ページは100枚までです。");
+            }}
+            onHelp={() => setHelp(true)}
+            onOpenMenu={openThumbnailMenu}
+          />
+        )}
+        {view === "editor" && (
+          <Editor
+            deck={deck}
+            slide={slide}
+            selected={selected}
+            setSelected={(id) => {
+              editorNavigationActive.current = false;
+              setSelected(id);
+            }}
+            updateSlide={updateSlide}
+            updateElement={updateElement}
+            addElement={addElement}
+            onInsert={insertEditorLine}
+            onCreate={createEditorPage}
+            onBack={() => setView("map")}
+            onImagePicker={() => imageRef.current?.click()}
+            onFileDrop={(file) => {
+              void addImage(file);
+            }}
+            onSelectSlide={selectEditorPage}
+            onNavigate={navigateEditor}
+            onMove={moveEditorItem}
+            onToggleLinkedRows={toggleLinkedRows}
+            onOpenMenu={openThumbnailMenu}
+            menuOpen={!!thumbnailMenu}
+          />
+        )}
+        {view === "present" && (
+          <PresentationView
+            deck={deck}
+            slide={slide}
+            direction={direction}
+            go={go}
+            exitPresent={exitPresent}
+          />
+        )}
+        {notice && (
+          <div role="status" className="toast">
+            {notice}
+            <button aria-label="通知を閉じる" onClick={() => setNotice("")}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {thumbnailMenu && view !== "present" && (
+          <ThumbnailMenu
+            deck={deck}
+            menu={thumbnailMenu}
+            onClose={() => setThumbnailMenu(undefined)}
+            onAction={thumbnailAction}
+          />
+        )}
+        {protectSaved && view !== "present" && (
+          <div className="recovery-banner">
+            元データを保持しています。
+            <button
+              onClick={() => {
+                setProtectSaved(false);
+                notify("現在の作品で自動保存を再開しました。");
+              }}
+            >
+              現在の作品で自動保存を再開
+            </button>
+          </div>
+        )}
+      </div>
+    </CloudDocument.Provider>
   );
 }
