@@ -150,6 +150,42 @@ export function insert(
   );
   return { ...deck, slides: [...slides, blank(x, y)] };
 }
+/** Insert a complete grid line between pages; the origin is never displaced. */
+export function insertGridLine(
+  deck: Deck,
+  axis: "row" | "column",
+  index: number,
+  cross: number,
+): Deck {
+  const size = bounds(deck);
+  const length = axis === "row" ? size.rows : size.cols;
+  const crossLength = axis === "row" ? size.cols : size.rows;
+  if (
+    !Number.isInteger(index) ||
+    index < 1 ||
+    index > length ||
+    !Number.isInteger(cross) ||
+    cross < 0 ||
+    cross >= crossLength
+  )
+    throw new Error("ページの間か、最後の＋を選んでください。");
+  if (deck.slides.length >= 100) throw new Error("ページは100枚までです。");
+  if (length >= 100) throw new Error("縦・横は100マスまでです。");
+  const slides = deck.slides.map((s) =>
+    axis === "row" && s.y >= index
+      ? { ...s, y: s.y + 1 }
+      : axis === "column" && s.x >= index
+        ? { ...s, x: s.x + 1 }
+        : s,
+  );
+  return {
+    ...deck,
+    slides: [
+      ...slides,
+      blank(axis === "column" ? index : cross, axis === "row" ? index : cross),
+    ],
+  };
+}
 export function swap(
   deck: Deck,
   mode: "slide" | "row" | "column",

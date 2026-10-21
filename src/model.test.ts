@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   blank,
   insert,
+  insertGridLine,
   neighbor,
   parseDeck,
   removeSlide,
@@ -88,5 +89,72 @@ describe("fixed grid and portable document", () => {
     if (kind === "missing-origin") d.slides[0].x = 99;
     if (kind === "null-element") d.slides[0].elements.push(null);
     expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  });
+});
+
+describe("editor grid-line insertion", () => {
+  it("inserts between columns at the hovered depth and shifts every row together", () => {
+    const d = sample(),
+      next = insertGridLine(d, "column", 1, 1);
+    expect(next.slides.at(-1)).toMatchObject({ x: 1, y: 1, elements: [] });
+    for (const s of d.slides)
+      expect(next.slides.find((n) => n.id === s.id)).toEqual({
+        ...s,
+        x: s.x >= 1 ? s.x + 1 : s.x,
+      });
+    expect(parseDeck(JSON.stringify(next))).toEqual(next);
+  });
+  it("inserts a row across all topics and appends a last row", () => {
+    const d = sample(),
+      next = insertGridLine(d, "row", 1, 1);
+    expect(next.slides.at(-1)).toMatchObject({ x: 1, y: 1 });
+    for (const s of d.slides)
+      expect(next.slides.find((n) => n.id === s.id)).toEqual({
+        ...s,
+        y: s.y >= 1 ? s.y + 1 : s.y,
+      });
+    expect(insertGridLine(next, "row", 3, 2).slides.at(-1)).toMatchObject({
+      x: 2,
+      y: 3,
+    });
+    expect(parseDeck(JSON.stringify(next))).toEqual(next);
+  });
+  it("preserves gaps in sparse rows and columns", () => {
+    const d: Deck = {
+      version: 1,
+      title: "sparse",
+      slides: [blank(0, 0), blank(3, 0), blank(0, 4)],
+    };
+    const next = insertGridLine(insertGridLine(d, "column", 1, 4), "row", 2, 1);
+    expect(next.slides.map((s) => [s.x, s.y])).toEqual([
+      [0, 0],
+      [4, 0],
+      [0, 5],
+      [1, 5],
+      [1, 2],
+    ]);
+    expect(new Set(next.slides.map((s) => `${s.x},${s.y}`)).size).toBe(5);
+  });
+  it("rejects origin displacement, invalid positions, page and coordinate limits", () => {
+    expect(() => insertGridLine(sample(), "row", 0, 1)).toThrow();
+    expect(() => insertGridLine(sample(), "column", 1.5, 0)).toThrow();
+    expect(() => insertGridLine(sample(), "row", 3, 0)).toThrow();
+    expect(() => insertGridLine(sample(), "row", 1, 3)).toThrow();
+    const wide: Deck = {
+      version: 1,
+      title: "wide",
+      slides: [blank(0, 0), blank(99, 0)],
+    };
+    expect(() => insertGridLine(wide, "column", 1, 0)).toThrow(
+      "縦・横は100マスまでです。",
+    );
+    const full: Deck = {
+      version: 1,
+      title: "full",
+      slides: Array.from({ length: 100 }, (_, x) => blank(x, 0)),
+    };
+    expect(() => insertGridLine(full, "row", 1, 0)).toThrow(
+      "ページは100枚までです。",
+    );
   });
 });

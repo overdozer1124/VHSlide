@@ -4,6 +4,7 @@ import type { Deck, Element, Shape, Slide } from "./model";
 import { H, W } from "./model";
 import { Canvas } from "./Canvas";
 import { useFitCanvas } from "./useFitCanvas";
+import { SlideRail } from "./SlideRail";
 const colors = [
   "#ffffff",
   "#e5f0dc",
@@ -26,6 +27,8 @@ interface EditorProps {
   onImagePicker: () => void;
   onFileDrop: (file: File) => void;
   onSelectSlide: (id: string) => void;
+  onInsert: (axis: "row" | "column", index: number, cross: number) => boolean;
+  onCreate: (x: number, y: number) => boolean;
 }
 export function Editor({
   deck,
@@ -39,6 +42,8 @@ export function Editor({
   onImagePicker,
   onFileDrop,
   onSelectSlide,
+  onInsert,
+  onCreate,
 }: EditorProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const zoom = useFitCanvas(workspaceRef);
@@ -79,25 +84,13 @@ export function Editor({
         <span className="toolbar-note">画像は貼り付け・ドロップもできます</span>
       </div>
       <div className="editor-layout">
-        <aside className="slide-rail">
-          {[...deck.slides]
-            .sort((a, b) => a.x - b.x || a.y - b.y)
-            .map((s) => (
-              <button
-                key={s.id}
-                className={s.id === slide.id ? "rail-active" : ""}
-                aria-label={`${s.title}を選択`}
-                onClick={() => {
-                  onSelectSlide(s.id);
-                }}
-              >
-                <span>
-                  {s.x + 1}.{s.y + 1}
-                </span>
-                <Canvas slide={s} zoom={140 / W} />
-              </button>
-            ))}
-        </aside>
+        <SlideRail
+          deck={deck}
+          slide={slide}
+          onSelectSlide={onSelectSlide}
+          onInsert={onInsert}
+          onCreate={onCreate}
+        />
         <div
           className="editor-workspace"
           ref={workspaceRef}

@@ -19,6 +19,7 @@ import {
   H,
   MAX_FILE_BYTES,
   insert,
+  insertGridLine,
   neighbor,
   parseDeck,
   removeSlide,
@@ -70,13 +71,14 @@ export default function App() {
       serializeDeck(next);
     } catch (error) {
       notify((error as Error).message);
-      return;
+      return false;
     }
     const previous = latestDeck.current;
     setPast((p) => [...p.slice(-39), previous]);
     latestDeck.current = next;
     setFuture([]);
     setDeck(next);
+    return true;
   }
   function undo() {
     if (!past.length) return;
@@ -328,6 +330,36 @@ export default function App() {
       notify((e as Error).message);
     }
   }
+  function insertEditorLine(
+    axis: "row" | "column",
+    index: number,
+    cross: number,
+  ): boolean {
+    try {
+      const next = insertGridLine(latestDeck.current, axis, index, cross);
+      if (!commit(next)) return false;
+      setActiveId(next.slides.at(-1)!.id);
+      setSelected(undefined);
+      return true;
+    } catch (error) {
+      notify((error as Error).message);
+      return false;
+    }
+  }
+  function createEditorPage(x: number, y: number): boolean {
+    const current = latestDeck.current;
+    if (current.slides.length >= 100) {
+      notify("ページは100枚までです。");
+      return false;
+    }
+    if (current.slides.some((s) => s.x === x && s.y === y)) return false;
+    const added = blank(x, y);
+    if (!commit({ ...current, slides: [...current.slides, added] }))
+      return false;
+    setActiveId(added.id);
+    setSelected(undefined);
+    return true;
+  }
   function dropAt(x: number, y: number, source = moving) {
     if (!source) return;
     if (
@@ -550,6 +582,8 @@ export default function App() {
           updateSlide={updateSlide}
           updateElement={updateElement}
           addElement={addElement}
+          onInsert={insertEditorLine}
+          onCreate={createEditorPage}
           onBack={() => setView("map")}
           onImagePicker={() => imageRef.current?.click()}
           onFileDrop={(file) => {
