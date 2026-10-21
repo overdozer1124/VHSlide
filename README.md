@@ -25,6 +25,16 @@ E2Eテストはシステムの `/usr/bin/chromium` があれば利用します�
 
 `dist/` 一式を静的ホスティングに配置できます。相対パスでビルドするため、サブディレクトリへの配置にも対応します。ローカル配布時も静的HTTP配信を使ってください（HTMLのダブルクリックによる `file://` 起動は対象外）。実行時の外部通信やCDN読み込みはありません。ブラウザだけで作成・保存・発表できます。完全なオフライン再起動を保証するPWAのキャッシュ機能は未実装です。
 
+## GitHub Pagesで公開
+
+[Settings → Pages](https://github.com/overdozer1124/VHSlide/settings/pages) の **Build and deployment → Source** を **GitHub Actions** に設定します。その後 [Deploy GitHub Pages](https://github.com/overdozer1124/VHSlide/actions/workflows/pages.yml) を開き、**Run workflow → main → Run workflow** を実行してください。以降は `main` へのpushごとにテスト・ビルド・公開が自動で実行されます。
+
+デプロイ成功後の標準URLは **https://overdozer1124.github.io/VHSlide/** です。公開状態と実際のURLはGitHubのPages設定画面・Actionsの `deploy` ジョブで確認してください。
+
+ワークフローはNode.js 24で `npm ci`、`npm test`、`npm run build` を実行し、`dist/` のみをPagesに配置します。GitHub公式のPages Actionsを使用し、追加のアクセストークンは不要です。Viteの相対パス設定 `base: "./"` を使用するため、`/VHSlide/` のようなサブパスでも画像・JavaScript・CSSを読み込めます。
+
+ローカルと公開サイトの自動保存はブラウザの別の領域です。ローカルの作品を使う場合は、JSONで保存してから公開サイトで「開く」を選んで読み込んでください。
+
 ## Windows（PowerShell）での起動
 
 `/workspace/VHSlide` はCodexのクラウド内のパスであり、Windowsのパスではありません。ソースがGitHubに反映された後、PCで以下を実行して取得してください。Node.js 22.12以降とGitが必要です。
