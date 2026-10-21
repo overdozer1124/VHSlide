@@ -368,7 +368,7 @@ export function SlideRail({
                     >
                       <span className="rail-coordinate">
                         <span>
-                          {cell ? cell.x + 1 : "—"}.{y + 1}
+                          {y + 1}.{cell ? cell.x + 1 : "—"}
                         </span>
                         <span className="rail-drag-hint">
                           <GripVertical size={11} />
@@ -487,8 +487,8 @@ export function SlideRail({
                             }}
                             aria-label={
                               cell
-                                ? `${x + 1}.${openRow + 1} ${cell.title}を編集`
-                                : `${x + 1}.${openRow + 1}の空のマスにページを追加`
+                                ? `${openRow + 1}.${x + 1} ${cell.title}を編集`
+                                : `${openRow + 1}.${x + 1}の空のマスにページを追加`
                             }
                             onClick={() => {
                               if (cell) select(cell.id);
@@ -507,7 +507,7 @@ export function SlideRail({
                             </span>
                             <span className="row-page-caption">
                               <span>
-                                {x + 1}.{openRow + 1}
+                                {openRow + 1}.{x + 1}
                               </span>
                               <span>{cell?.title ?? "ページを追加"}</span>
                             </span>

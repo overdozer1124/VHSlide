@@ -102,10 +102,10 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   await page.getByRole("button", { name: "発表する", exact: true }).click();
   await expect(page.locator(".minimap-caption")).toHaveText("1.1 現在地");
   await page.getByRole("button", { name: "下のページ", exact: true }).click();
-  await expect(page.locator(".minimap-caption")).toHaveText("1.2 現在地");
+  await expect(page.locator(".minimap-caption")).toHaveText("2.1 現在地");
   await page.keyboard.press("ArrowUp");
   await page.keyboard.press("ArrowRight");
-  await expect(page.locator(".minimap-caption")).toHaveText("2.1 現在地");
+  await expect(page.locator(".minimap-caption")).toHaveText("1.2 現在地");
   await page.screenshot({ path: testInfo.outputPath("presentation.png") });
   await page.getByRole("button", { name: "発表をおわる", exact: true }).click();
   expect(errors).toEqual([]);
@@ -284,7 +284,7 @@ test("touch taps and directional swipe navigate the story", async ({
       }),
     );
   });
-  await expect(page.locator(".minimap-caption")).toHaveText("1.2 現在地");
+  await expect(page.locator(".minimap-caption")).toHaveText("2.1 現在地");
   await page.getByRole("button", { name: "次の話題", exact: true }).tap();
   await expect(page.locator(".minimap-caption")).toHaveText("2.2 現在地");
 });

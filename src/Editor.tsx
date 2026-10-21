@@ -146,7 +146,7 @@ export function Editor({
               onChange={(e) => updateSlide({ title: e.target.value })}
             />
             <span>
-              {slide.x + 1}.{slide.y + 1} / 16:9
+              {slide.y + 1}.{slide.x + 1} / 16:9
             </span>
           </div>
           <Canvas

@@ -28,7 +28,7 @@ test("row choices stay independent after selection, keyboard navigation and JSON
   await editor(page);
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await page
-    .getByRole("button", { name: "3.1 人とつながるを編集", exact: true })
+    .getByRole("button", { name: "1.3 人とつながるを編集", exact: true })
     .click();
   await expect(page.locator(".rail-trigger").nth(0)).toContainText(
     "人とつながる",
@@ -141,7 +141,7 @@ test("one thumbnail can cross rows, unfold its destination and drop into an empt
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await dragStart(
     page,
-    page.getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true }),
+    page.getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true }),
   );
   await dragTo(page, page.locator('[data-drop-row="1"] .rail-trigger'));
   await expect(
@@ -174,7 +174,7 @@ test("dropping onto another page swaps contents and cancelling a drag does not m
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await dragStart(
     page,
-    page.getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true }),
+    page.getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true }),
   );
   await page.keyboard.press("Escape");
   await page.mouse.up();
@@ -182,7 +182,7 @@ test("dropping onto another page swaps contents and cancelling a drag does not m
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await dragStart(
     page,
-    page.getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true }),
+    page.getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true }),
   );
   await dragTo(page, page.locator('[data-drop-row="1"] .rail-trigger'));
   await page.mouse.up();
@@ -247,7 +247,7 @@ test("arrow navigation continues after the clicked thumbnail flyout closes", asy
   await editor(page);
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await page
-    .getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true })
+    .getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true })
     .click();
   await page.mouse.move(1100, 800);
   await expect(page.locator(".row-flyout")).toBeHidden();
@@ -266,7 +266,7 @@ test("a single page can be dropped into a new last row", async ({ page }) => {
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await dragStart(
     page,
-    page.getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true }),
+    page.getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true }),
   );
   await dragTo(page, page.locator(".rail-new-row-drop"));
   await page.mouse.up();
@@ -274,6 +274,10 @@ test("a single page can be dropped into a new last row", async ({ page }) => {
     (await data(page)).slides.find((s: any) => s.title === "自然がいっぱい"),
   ).toMatchObject({ x: 1, y: 2 });
   await expect(page.locator(".rail-trigger")).toHaveCount(3);
+  await expect(
+    page.locator(".rail-trigger.rail-active .rail-coordinate"),
+  ).toHaveText("3.2");
+  await expect(page.locator(".canvas-title > span")).toHaveText("3.2 / 16:9");
 });
 
 test("Japanese composition remains in the canvas textbox across live updates", async ({
@@ -308,7 +312,7 @@ test("touch drags an individual page across an unfolding row", async ({
   await editor(page);
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).tap();
   const source = (await page
-    .getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true })
+    .getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true })
     .boundingBox())!;
   const cdp = await page.context().newCDPSession(page);
   let current = {

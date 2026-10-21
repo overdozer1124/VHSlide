@@ -20,7 +20,7 @@ test("linked rows can be toggled, navigate within a topic, restore independent c
   await expect(link).not.toBeChecked();
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await page
-    .getByRole("button", { name: "3.1 人とつながるを編集", exact: true })
+    .getByRole("button", { name: "1.3 人とつながるを編集", exact: true })
     .click();
   const choices = (await data(page)).rowSelections;
   const width = (await page.locator(".two-d-rail").boundingBox())!.width;
@@ -29,7 +29,7 @@ test("linked rows can be toggled, navigate within a topic, restore independent c
   await expect(page.locator(".rail-trigger").nth(1)).toContainText("空のマス");
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await page
-    .getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true })
+    .getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true })
     .click();
   await expect(page.locator(".rail-trigger").nth(1)).toContainText(
     "お気に入りの公園",
@@ -73,7 +73,7 @@ test("right-click duplicates one page without altering adjacent rows, and deleti
   const before = await data(page);
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await page
-    .getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true })
+    .getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true })
     .click({ button: "right" });
   const menu = page.getByRole("menu", { name: "ページの操作", exact: true });
   await expect(menu).toBeVisible();
@@ -102,7 +102,7 @@ test("right-click duplicates one page without altering adjacent rows, and deleti
   ).toBe("自然がいっぱい");
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
   await page
-    .getByRole("button", { name: "3.1 コピーだけ変更を編集", exact: true })
+    .getByRole("button", { name: "1.3 コピーだけ変更を編集", exact: true })
     .click({ button: "right" });
   const preDelete = await data(page);
   await page

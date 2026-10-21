@@ -184,7 +184,7 @@ export function MapView({
                             </button>
                             <div className="card-footer">
                               <span className="page-number">
-                                {x + 1}.{y + 1}
+                                {y + 1}.{x + 1}
                               </span>
                               <span className="card-title">{s.title}</span>
                               <button
@@ -232,7 +232,7 @@ export function MapView({
                       ) : (
                         <button
                           className="empty-cell"
-                          aria-label={`${x + 1}.${y + 1}にページを${moving ? "移動" : "追加"}`}
+                          aria-label={`${y + 1}.${x + 1}にページを${moving ? "移動" : "追加"}`}
                           onClick={() => {
                             if (moving) dropAt(x, y);
                             else onAddCell(x, y);

@@ -96,7 +96,7 @@ export function PresentationView({
             className="minimap-caption"
             style={{ gridColumn: `1 / ${size.cols + 1}` }}
           >
-            {slide.x + 1}.{slide.y + 1} 現在地
+            {slide.y + 1}.{slide.x + 1} 現在地
           </span>
         </div>
         <span className="present-caption">{slide.title}</span>

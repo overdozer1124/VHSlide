@@ -32,7 +32,7 @@ test("hover previews a row without resizing the editor, and remains open across 
     await page.locator(".editor-workspace > .canvas-scale").boundingBox(),
   ).toEqual(beforeCanvas);
   const target = popup.getByRole("button", {
-    name: "2.1 自然がいっぱいを編集",
+    name: "1.2 自然がいっぱいを編集",
     exact: true,
   });
   await target.hover();
@@ -146,14 +146,14 @@ test("keyboard focus opens the row, Escape restores focus, and outside clicks di
   await page.keyboard.press("Enter");
   await expect(page.locator(".row-flyout")).toBeVisible();
   await page
-    .getByRole("button", { name: "2.1 自然がいっぱいを編集", exact: true })
+    .getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true })
     .click();
   await page.keyboard.press("Escape");
   await page.keyboard.press("ArrowRight");
   await expect(page.locator('.row-flyout [aria-current="page"]')).toBeFocused();
   await expect(
     page.locator('.row-flyout [aria-current="page"]'),
-  ).toHaveAccessibleName("3.1 人とつながるを編集");
+  ).toHaveAccessibleName("1.3 人とつながるを編集");
   await page.getByRole("textbox", { name: "ページの名前" }).click();
   await expect(page.locator(".row-flyout")).toHaveCount(0);
 });
@@ -196,7 +196,7 @@ test("narrow screens retain a slim rail and long rows scroll within the flyout",
     (await popup.boundingBox())!.x + (await popup.boundingBox())!.width,
   ).toBeLessThanOrEqual(600);
   await popup
-    .getByRole("button", { name: "10.1 話題10を編集", exact: true })
+    .getByRole("button", { name: "1.10 話題10を編集", exact: true })
     .click();
   await expect(page.getByRole("textbox", { name: "ページの名前" })).toHaveValue(
     "話題10",
