@@ -307,7 +307,21 @@ export function SlideRail({
           className="rail-scroll"
           ref={scrollRef}
           onScroll={() => {
-            if (!draggingRef.current) close();
+            if (draggingRef.current || openRow === null) return;
+            const trigger = triggers.current
+              .get(openRow)
+              ?.getBoundingClientRect();
+            const viewport = scrollRef.current?.getBoundingClientRect();
+            // Selecting a distant row can scroll this pane automatically. Keep
+            // its flyout aligned while the row is visible, including that scroll.
+            if (
+              trigger &&
+              viewport &&
+              trigger.bottom > viewport.top &&
+              trigger.top < viewport.bottom
+            )
+              show(openRow);
+            else close();
           }}
         >
           {Array.from({ length: rows }, (_, y) => {

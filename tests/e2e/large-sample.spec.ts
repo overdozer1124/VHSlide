@@ -3,6 +3,8 @@ import { test, expect } from "@playwright/test";
 test("imports 400 sample pages, selects the last thumbnail, and restores the deck", async ({
   page,
 }, testInfo) => {
+  if (testInfo.project.name === "desktop")
+    await page.setViewportSize({ width: 1280, height: 720 });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
