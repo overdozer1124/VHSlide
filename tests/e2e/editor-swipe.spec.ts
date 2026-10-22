@@ -61,13 +61,15 @@ const saved = (page: Page) =>
 async function idle(page: Page) {
   await expect(pager(page)).toHaveAttribute("data-pan-phase", "idle");
 }
-async function open(page: Page) {
+async function open(page: Page, initialTitle = "1.1") {
   await page.addInitScript(
     (deck) => localStorage.setItem("vhslide-deck-v1", JSON.stringify(deck)),
     fixture,
   );
   await page.goto("/");
-  await page.getByRole("button", { name: "1.1を編集", exact: true }).click();
+  await page
+    .getByRole("button", { name: `${initialTitle}を編集`, exact: true })
+    .click();
   await idle(page);
   const workspace = (await page.locator(".editor-workspace").boundingBox())!;
   const fittedWidth =
@@ -404,6 +406,144 @@ for (const streamKind of ["decaying", "steady"] as const) {
     expect((await saved(page)).slides).toEqual(fixture.slides);
   });
 }
+
+for (const edge of [
+  { name: "left", page: "1.1", dx: -24, dy: 0 },
+  { name: "top", page: "1.1", dx: 0, dy: -24 },
+  { name: "right", page: "3.3", dx: 24, dy: 0 },
+  { name: "bottom", page: "3.3", dx: 0, dy: 24 },
+]) {
+  test(`the ${edge.name} edge returns promptly while outward wheel momentum continues`, async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== "desktop", "タッチパッドの慣性操作");
+    await open(page, edge.page);
+    await pager(page).evaluate((node, edge) => {
+      const probe = { sent: 0, done: false, returnedMs: 0 };
+      (window as any).__edgeProbe = probe;
+      const started = performance.now();
+      const outward = () =>
+        node.dispatchEvent(
+          new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            deltaX: edge.dx,
+            deltaY: edge.dy,
+          }),
+        );
+      outward();
+      const stream = setInterval(() => {
+        const elapsed = performance.now() - started;
+        if (
+          elapsed >= 100 &&
+          !probe.returnedMs &&
+          node.getAttribute("data-pan-phase") === "idle"
+        )
+          probe.returnedMs = elapsed;
+        outward();
+        if (++probe.sent === 60) {
+          clearInterval(stream);
+          probe.done = true;
+        }
+      }, 16);
+    }, edge);
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__edgeProbe.sent), {
+        intervals: [16, 16, 32],
+      })
+      .toBeGreaterThanOrEqual(8);
+    await expect(pager(page)).toHaveAttribute("data-pan-phase", "idle", {
+      timeout: 300,
+    });
+    expect(await offset(page)).toEqual({ x: 0, y: 0 });
+    expect(await page.evaluate(() => (window as any).__edgeProbe.done)).toBe(
+      false,
+    );
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__edgeProbe.done))
+      .toBe(true);
+    const probe = await page.evaluate(() => (window as any).__edgeProbe);
+    expect(probe.returnedMs).toBeGreaterThan(0);
+    expect(probe.returnedMs).toBeLessThan(350);
+    await idle(page);
+    await expect(title(page)).toHaveValue(edge.page);
+    expect((await saved(page)).slides).toEqual(fixture.slides);
+  });
+}
+
+test("an inward wheel gesture interrupts the edge return without being cleared by the old timer", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "タッチパッドの操作");
+  await open(page);
+  await pager(page).evaluate((node) => {
+    const probe = { reversedDuringReturn: false, duration: "" };
+    (window as any).__returnProbe = probe;
+    const observer = new MutationObserver(() => {
+      if (node.getAttribute("data-pan-phase") !== "settling") return;
+      observer.disconnect();
+      probe.reversedDuringReturn = true;
+      probe.duration = getComputedStyle(node).getPropertyValue(
+        "--page-settle-duration",
+      );
+      node.dispatchEvent(
+        new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          deltaX: 100,
+        }),
+      );
+    });
+    observer.observe(node, {
+      attributes: true,
+      attributeFilter: ["data-pan-phase"],
+    });
+    node.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaX: -100,
+      }),
+    );
+  });
+  await expect(title(page)).toHaveValue("1.2");
+  await idle(page);
+  const probe = await page.evaluate(() => (window as any).__returnProbe);
+  expect(probe.reversedDuringReturn).toBe(true);
+  expect(parseFloat(probe.duration)).toBeLessThanOrEqual(100);
+  expect((await saved(page)).slides).toEqual(fixture.slides);
+});
+
+test("a new finger swipe can start during the edge return", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実タッチの操作");
+  const cdp = await open(page);
+  const b = (await canvas(page).boundingBox())!;
+  const start = { id: 1, x: b.x + b.width * 0.5, y: b.y + b.height * 0.8 };
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [start],
+  });
+  await move(cdp, start, 95, 0);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(pager(page)).toHaveAttribute("data-pan-phase", "settling");
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [start],
+  });
+  await move(cdp, start, -95, 0);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(title(page)).toHaveValue("1.2");
+  await idle(page);
+  expect((await saved(page)).slides).toEqual(fixture.slides);
+});
 
 test("Chromebook layouts devote at most 104 pixels to the header and tools", async ({
   page,

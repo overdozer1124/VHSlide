@@ -119,7 +119,9 @@ export function useSlidePan(options: {
       !cancelled &&
       !!p.target &&
       Math.abs(p.offset) >= Math.min(72, size * 0.2);
-    settling.current = true;
+    // Only a committed page change needs to finish before accepting another one.
+    // Returning from an edge or a cancelled pan is short and interruptible.
+    settling.current = commit;
     if (g.source === "wheel")
       wheelTail.current = {
         axis: p.axis,
@@ -131,9 +133,11 @@ export function useSlidePan(options: {
     const duration = window.matchMedia("(prefers-reduced-motion: reduce)")
       .matches
       ? 0
-      : g.source === "wheel"
-        ? 160
-        : 220;
+      : !commit
+        ? 90
+        : g.source === "wheel"
+          ? 160
+          : 220;
     display({
       ...p,
       settling: true,
@@ -214,6 +218,8 @@ export function useSlidePan(options: {
       if (settling.current) return;
       let g = gesture.current;
       if (!g) {
+        // Stop the previous return timer before it can clear the new gesture.
+        if (currentPan.current?.settling) reset();
         g = {
           source: "wheel",
           slideId: latest.current.slideId,
@@ -237,6 +243,12 @@ export function useSlidePan(options: {
       update(g);
       clearTimeout(wheelTimer.current);
       const p = currentPan.current;
+      if (p && !p.target) {
+        // There is no destination: do not wait for a potentially long momentum
+        // stream to end. Its remaining outward events are handled by wheelTail.
+        finish();
+        return;
+      }
       const size =
         p?.axis === "x" ? latest.current.width : latest.current.height;
       const ready =
@@ -264,6 +276,9 @@ export function useSlidePan(options: {
     pan,
     handlers: {
       onPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
+        // Ignore the compatibility click after a swipe, not the next real tap.
+        suppressClickUntil.current = 0;
+        if (!settling.current && currentPan.current?.settling) reset();
         if (event.pointerType !== "touch") return;
         if (!event.isPrimary) {
           if (!settling.current) finish(true);
