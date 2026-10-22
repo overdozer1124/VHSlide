@@ -44,7 +44,12 @@ interface EditorProps {
   onSelectSlide: (id: string) => void;
   onInsert: (axis: "row" | "column", index: number, cross: number) => boolean;
   onCreate: (x: number, y: number) => boolean;
-  onMove: (source: RailDragSource, x: number, y: number) => boolean;
+  onMove: (
+    source: RailDragSource,
+    x: number,
+    y: number,
+    mode?: "swap" | "insert",
+  ) => boolean;
   onNavigate: (dx: number, dy: number) => Slide | undefined;
   onToggleLinkedRows: () => void;
   onOpenMenu: OpenThumbnailMenu;

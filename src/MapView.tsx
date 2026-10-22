@@ -24,6 +24,8 @@ import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const ThumbnailCanvas = memo(Canvas);
 import { MapZoomSettings } from "./MapZoomSettings";
 import { closestZoom } from "./workspacePreferences";
+import { useMapTouchDrag } from "./useMapTouchDrag";
+import type { MapDrop } from "./useMapTouchDrag";
 
 interface MapViewProps {
   visible: boolean;
@@ -33,7 +35,8 @@ interface MapViewProps {
   activeId: string;
   moving?: GridMove;
   onMove: (move?: GridMove) => void;
-  dropAt: (x: number, y: number) => void;
+  dropAt: (x: number, y: number, source?: GridMove) => void;
+  onInsertMove: (id: string, x: number, y: number) => void;
   add: (slide: Slide, direction: "right" | "down") => void;
   onEdit: (id: string, rect?: DOMRect) => void;
   onSelect: (id: string) => void;
@@ -52,6 +55,7 @@ function MapViewComponent({
   moving,
   onMove,
   dropAt,
+  onInsertMove,
   add,
   onEdit,
   onSelect,
@@ -79,6 +83,22 @@ function MapViewComponent({
   const [find, setFind] = useState("");
   const [findError, setFindError] = useState("");
   const activeCard = useRef<HTMLDivElement>(null);
+  const [dropHint, setDropHint] = useState<MapDrop>();
+  function hint(target?: MapDrop) {
+    setDropHint((before) =>
+      before?.x === target?.x &&
+      before?.y === target?.y &&
+      before?.insert === target?.insert
+        ? before
+        : target,
+    );
+  }
+  function insertDrop(x: number, y: number, source = moving) {
+    if (source?.mode !== "slide") return;
+    const page = deck.slides.find((s) => s.x === source.x && s.y === source.y);
+    if (page) onInsertMove(page.id, x, y);
+    hint();
+  }
   const skipFocusScroll = useRef(false);
   const cells = useMemo(
     () => new Map(deck.slides.map((s) => [`${s.x},${s.y}`, s])),
@@ -205,6 +225,32 @@ function MapViewComponent({
       // Always complete the display step chosen by the initial pinch direction.
       const next = sample.direction === "in" ? smallerScale : largerScale;
       keepAnchor(next, sample);
+    },
+  });
+  useMapTouchDrag(scrollRef, {
+    enabled: visible,
+    start: (source) => onMove(source),
+    hit(point, source) {
+      const target = document
+        .elementFromPoint(point.x, point.y)
+        ?.closest<HTMLElement>("[data-map-insert],[data-map-cell]");
+      if (!target || !scrollRef.current?.contains(target)) return;
+      const insert =
+        target.hasAttribute("data-map-insert") && source.mode === "slide";
+      const position = target.dataset.mapInsert ?? target.dataset.mapCell;
+      const [x, y] = position!.split(",").map(Number);
+      return { x, y, insert };
+    },
+    hover: hint,
+    drop(source, target) {
+      if (target.insert) insertDrop(target.x, target.y, source);
+      else dropAt(target.x, target.y, source);
+      onMove(undefined);
+      hint();
+    },
+    cancel() {
+      onMove(undefined);
+      hint();
     },
   });
   useLayoutEffect(restoreAnchor, [scale]);
@@ -420,7 +466,9 @@ function MapViewComponent({
               : moving.mode === "column"
                 ? "同じ話題のページをまとめて"
                 : "ページを"}
-            移動：入れかえるマスをタップしてください。
+            {moving.mode === "slide"
+              ? "移動：重ねて入れ替え、間に置いて挿入。マスをタップしても移動できます。"
+              : "移動：入れかえるマスに置くか、タップしてください。"}
             <button onClick={() => onMove(undefined)}>キャンセル</button>
           </div>
         )}
@@ -469,7 +517,15 @@ function MapViewComponent({
                   <span>{x === 0 ? "はじまり" : `話題 ${x + 1}`}</span>
                   <button
                     draggable
+                    data-map-drag-source="column"
+                    data-x={x}
+                    data-y={0}
+                    data-map-drag-handle
                     onDragStart={() => onMove({ mode: "column", x, y: 0 })}
+                    onDragEnd={() => {
+                      onMove(undefined);
+                      hint();
+                    }}
                     className="icon-button"
                     title="この話題をまとめて移動"
                     aria-label={`話題${x + 1}を移動`}
@@ -487,7 +543,15 @@ function MapViewComponent({
                   <button
                     className="row-move"
                     draggable
+                    data-map-drag-source="row"
+                    data-x={0}
+                    data-y={y}
+                    data-map-drag-handle
                     onDragStart={() => onMove({ mode: "row", x: 0, y })}
+                    onDragEnd={() => {
+                      onMove(undefined);
+                      hint();
+                    }}
                     onClick={() => onMove({ mode: "row", x: 0, y })}
                     aria-label={`高さ${y + 1}のページをまとめて移動`}
                     title="同じ高さのページを移動"
@@ -511,20 +575,73 @@ function MapViewComponent({
                   return (
                     <div
                       className={`grid-cell ${moving ? "drop-ready" : ""}`}
+                      data-map-cell={`${x},${y}`}
+                      data-insert-shift={
+                        dropHint?.insert && dropHint.y === y && x >= dropHint.x
+                      }
+                      data-drop-over={
+                        dropHint &&
+                        !dropHint.insert &&
+                        dropHint.x === x &&
+                        dropHint.y === y
+                      }
                       key={x}
                       onDragOver={(e) => {
-                        if (moving) e.preventDefault();
+                        if (moving) {
+                          e.preventDefault();
+                          hint({ x, y, insert: false });
+                        }
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
                         dropAt(x, y);
+                        hint();
                       }}
                     >
+                      <div
+                        className="map-insert-drop"
+                        data-map-insert={`${x},${y}`}
+                        data-active={moving?.mode === "slide"}
+                        data-over={
+                          dropHint?.insert &&
+                          dropHint.x === x &&
+                          dropHint.y === y
+                        }
+                        onDragEnter={(event) => {
+                          if (moving?.mode !== "slide") return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          hint({ x, y, insert: true });
+                        }}
+                        onDragOver={(event) => {
+                          if (moving?.mode !== "slide") return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          hint({ x, y, insert: true });
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          insertDrop(x, y);
+                        }}
+                      >
+                        <span className="insert-drop-line" />
+                        {dropHint?.insert &&
+                          dropHint.x === x &&
+                          dropHint.y === y && (
+                            <span className="insert-drop-label">
+                              ここに挿入
+                            </span>
+                          )}
+                      </div>
                       {s ? (
                         <>
                           <div
                             ref={s.id === activeId ? activeCard : undefined}
                             data-page-id={s.id}
+                            data-map-drag-source="slide"
+                            data-x={x}
+                            data-y={y}
                             style={
                               !numbers && !detailed
                                 ? { height: cardHeight }
@@ -539,7 +656,10 @@ function MapViewComponent({
                               e.dataTransfer.setData("text/plain", s.id);
                               onMove({ mode: "slide", x, y });
                             }}
-                            onDragEnd={() => onMove(undefined)}
+                            onDragEnd={() => {
+                              onMove(undefined);
+                              hint();
+                            }}
                           >
                             <button
                               className="thumbnail"
@@ -597,6 +717,7 @@ function MapViewComponent({
                                   </button>
                                   <button
                                     className="card-tool"
+                                    data-map-drag-handle
                                     aria-label={`${s.title}を移動`}
                                     onClick={() =>
                                       onMove({ mode: "slide", x, y })
@@ -658,7 +779,37 @@ function MapViewComponent({
                     </div>
                   );
                 })}
-                <div className="grid-end" />
+                <div className="grid-end map-row-end">
+                  <div
+                    className="map-insert-drop"
+                    data-map-insert={`${cols},${y}`}
+                    data-active={moving?.mode === "slide"}
+                    data-over={
+                      dropHint?.insert &&
+                      dropHint.x === cols &&
+                      dropHint.y === y
+                    }
+                    onDragEnter={(event) => {
+                      if (moving?.mode !== "slide") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      hint({ x: cols, y, insert: true });
+                    }}
+                    onDragOver={(event) => {
+                      if (moving?.mode !== "slide") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      hint({ x: cols, y, insert: true });
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      insertDrop(cols, y);
+                    }}
+                  >
+                    <span className="insert-drop-line" />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -670,7 +821,7 @@ function MapViewComponent({
             <span className="keyboard-key">↕</span> たては「くわしい説明」
           </span>
           <span className="map-pinch-hint">
-            ピンチで拡大・縮小 → ページ編集
+            長押し・つまみで移動 · ピンチで拡大・縮小
           </span>
         </div>
       </section>

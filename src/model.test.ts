@@ -6,7 +6,10 @@ import {
   rowPage,
   editorNeighbor,
   moveRowGroup,
+  swapRowGroups,
+  insertMovedRowGroup,
   movePage,
+  insertMovedPage,
   insert,
   insertGridLine,
   neighbor,
@@ -242,6 +245,62 @@ describe("linked rows and thumbnail actions", () => {
   });
 });
 
+describe("inserting an existing page between thumbnails", () => {
+  it("closes the source gap and shifts only the destination row without losing content", () => {
+    const d = sample(),
+      page = d.slides[1];
+    const next = insertMovedPage(d, page.id, 1, 1);
+    expect(next.slides.find((s) => s.id === page.id)).toEqual({
+      ...page,
+      x: 1,
+      y: 1,
+    });
+    expect(next.slides.find((s) => s.id === d.slides[2].id)?.x).toBe(1);
+    expect(next.slides.find((s) => s.id === d.slides[4].id)?.x).toBe(2);
+    expect(next.slides).toHaveLength(d.slides.length);
+    expect(next.slides.map((s) => s.id)).toEqual(d.slides.map((s) => s.id));
+    expect(parseDeck(JSON.stringify(next))).toEqual(next);
+    expect(d.slides[1]).toEqual(page);
+  });
+  it("adjusts same-row boundaries after removal, including no-op gaps and the end", () => {
+    const d = sample();
+    expect(insertMovedPage(d, d.slides[1].id, 1, 0)).toBe(d);
+    expect(insertMovedPage(d, d.slides[1].id, 2, 0)).toBe(d);
+    expect(
+      insertMovedPage(d, d.slides[0].id, 3, 0).slides.map((s) => [s.x, s.y]),
+    ).toEqual([
+      [2, 0],
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+    ]);
+    expect(
+      insertMovedPage(d, d.slides[2].id, 0, 0).slides.map((s) => [s.x, s.y]),
+    ).toEqual([
+      [1, 0],
+      [2, 0],
+      [0, 0],
+      [0, 1],
+      [1, 1],
+    ]);
+  });
+  it("preserves sparse rows and rejects an empty origin or coordinate overflow atomically", () => {
+    const d = { ...sample(), slides: [blank(0, 0), blank(0, 1), blank(99, 1)] };
+    expect(() => insertMovedPage(d, d.slides[0].id, 0, 2)).toThrow(
+      "はじめのマス",
+    );
+    expect(() => insertMovedPage(d, d.slides[0].id, 0, 1)).toThrow("100マス");
+    expect(() => insertMovedPage(d, d.slides[1].id, 100, 0)).toThrow("100マス");
+    const next = insertMovedPage(d, d.slides[2].id, 1, 0);
+    expect(next.slides.map((s) => [s.x, s.y])).toEqual([
+      [0, 0],
+      [0, 1],
+      [1, 0],
+    ]);
+    expect(d.slides[2].x).toBe(99);
+  });
+});
 describe("editor grid-line insertion", () => {
   it("inserts between columns at the hovered depth and shifts every row together", () => {
     const d = sample(),
@@ -312,6 +371,39 @@ describe("editor grid-line insertion", () => {
 });
 
 describe("independent row choices and editor moves", () => {
+  it("swaps overlapping row groups but inserts at gaps and the final boundary", () => {
+    const d: Deck = {
+      version: 1,
+      title: "row drop targets",
+      slides: Array.from({ length: 6 }, (_, i) =>
+        blank(i % 2, Math.floor(i / 2)),
+      ),
+    };
+    const swapped = swapRowGroups(d, 0, 2);
+    expect(swapped.slides.map((s) => s.y)).toEqual([2, 2, 1, 1, 0, 0]);
+    expect(insertMovedRowGroup(d, 0, 2).slides.map((s) => s.y)).toEqual([
+      1, 1, 0, 0, 2, 2,
+    ]);
+    expect(insertMovedRowGroup(d, 0, 3).slides.map((s) => s.y)).toEqual([
+      2, 2, 0, 0, 1, 1,
+    ]);
+    expect(insertMovedRowGroup(d, 2, 0).slides.map((s) => s.y)).toEqual([
+      1, 1, 2, 2, 0, 0,
+    ]);
+    expect(insertMovedRowGroup(d, 1, 1)).toBe(d);
+    expect(insertMovedRowGroup(d, 1, 2)).toBe(d);
+    expect(swapRowGroups(d, 1, 1)).toBe(d);
+    for (const page of d.slides)
+      expect(swapped.slides.find((s) => s.id === page.id)).toEqual({
+        ...page,
+        y: 2 - page.y,
+      });
+    expect(() => insertMovedRowGroup(d, 1, 4)).toThrow();
+    expect(() => swapRowGroups(d, 0, 3)).toThrow();
+    const sparse = { ...d, slides: [blank(0, 0), blank(1, 2)] };
+    expect(() => swapRowGroups(sparse, 0, 2)).toThrow("はじめのマス");
+    expect(() => insertMovedRowGroup(sparse, 2, 0)).toThrow("はじめのマス");
+  });
   it("remembers a different column in each row and restores choices from JSON", () => {
     let d = sample();
     d = rememberRowPage(d, d.slides[2].id);

@@ -29,8 +29,10 @@ import {
   duplicateRowGroup,
   editorNeighbor,
   rememberRowPage,
-  moveRowGroup,
+  swapRowGroups,
+  insertMovedRowGroup,
   movePage,
+  insertMovedPage,
   neighbor,
   parseDeck,
   removeSlide,
@@ -271,17 +273,18 @@ export default function App() {
     source: { kind: "row"; y: number } | { kind: "page"; id: string },
     x: number,
     y: number,
+    mode: "swap" | "insert" = "swap",
   ) {
     try {
       const current = latestDeck.current;
       let next =
         source.kind === "row"
-          ? moveRowGroup(
-              current,
-              source.y,
-              Math.min(y, bounds(current).rows - 1),
-            )
-          : movePage(current, source.id, x, y);
+          ? mode === "insert"
+            ? insertMovedRowGroup(current, source.y, y)
+            : swapRowGroups(current, source.y, y)
+          : mode === "insert"
+            ? insertMovedPage(current, source.id, x, y)
+            : movePage(current, source.id, x, y);
       if (next === current) return false;
       const chosen = source.kind === "page" ? source.id : activeId;
       next = rememberRowPage(next, chosen);
@@ -917,6 +920,10 @@ export default function App() {
             moving={moving}
             onMove={setMoving}
             dropAt={dropAt}
+            onInsertMove={(id, x, y) => {
+              moveEditorItem({ kind: "page", id }, x, y, "insert");
+              setMoving(undefined);
+            }}
             add={add}
             onEdit={(id, rect) => switchWorkspace("editor", id, rect)}
             onSelect={selectEditorPage}

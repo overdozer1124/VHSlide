@@ -980,7 +980,7 @@ h1 span {
   color: #99a68e;
   flex-shrink: 0;
 }
-.row-page-caption > span:last-child {
+.row-page-caption > span:nth-child(2) {
   font-size: 9px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2883,4 +2883,184 @@ h1 span {
 .editor-layout:has(.two-d-rail[data-resizing="true"]) * {
   cursor: ew-resize;
   user-select: none;
+}
+/* Fixed drop areas keep the pointer stable while the card previews slide aside. */
+.page-insert-drop {
+  position: relative;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.page-insert-drop[data-leading="true"] {
+  width: 18px;
+}
+.page-insert-drop[data-active="true"] {
+  z-index: 3;
+}
+.insert-drop-line {
+  pointer-events: none;
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 50%;
+  width: 3px;
+  border-radius: 3px;
+  background: #638c4c;
+  opacity: 0;
+}
+.page-insert-drop[data-over="true"] .insert-drop-line {
+  opacity: 1;
+}
+.page-insert-drop[data-over="true"] .row-insert-column {
+  opacity: 0;
+}
+.row-insert-drop {
+  position: relative;
+  width: 100%;
+}
+.row-insert-drop[data-leading="true"] {
+  height: 18px;
+}
+.row-insert-drop[data-active="true"] {
+  z-index: 3;
+}
+.row-insert-drop .insert-drop-line {
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  bottom: auto;
+  width: auto;
+  height: 3px;
+}
+.row-insert-drop[data-over="true"] .insert-drop-line {
+  opacity: 1;
+}
+.row-insert-drop[data-over="true"] .rail-insert-row {
+  opacity: 0;
+}
+.row-insert-drop .insert-drop-label {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.rail-trigger,
+.rail-more {
+  transition: transform 160ms ease;
+}
+.rail-entry[data-insert-shift="true"] > .rail-trigger,
+.rail-entry[data-insert-shift="true"] > .rail-more {
+  transform: translateY(16px);
+}
+.insert-drop-label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #315d4e;
+  color: white;
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+.row-page,
+.page-more {
+  transition: transform 160ms ease;
+}
+.row-page-pair[data-insert-shift="true"] > .row-page,
+.row-page-pair[data-insert-shift="true"] > .page-more {
+  transform: translateX(16px);
+}
+.page-drag-grip {
+  display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 3px;
+  color: #6b875e;
+}
+[data-touch-drag-handle] {
+  touch-action: none;
+  cursor: grab;
+}
+.rail-trigger,
+.row-page,
+.slide-card {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-page,
+  .page-more,
+  .rail-trigger,
+  .rail-more {
+    transition: none;
+  }
+}
+.map-row-end {
+  position: relative;
+}
+.map-insert-drop {
+  position: absolute;
+  left: calc(-1 * var(--map-gap, 24px));
+  top: 0;
+  width: var(--map-gap, 24px);
+  height: var(--map-card-height);
+  z-index: 5;
+  pointer-events: none;
+}
+.map-insert-drop[data-active="true"] {
+  pointer-events: auto;
+}
+.map-insert-drop[data-over="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 16px;
+  height: 100%;
+}
+.map-insert-drop[data-over="true"] .insert-drop-line {
+  opacity: 1;
+}
+.mapping .slide-card,
+.mapping .empty-cell {
+  transition:
+    transform 160ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+.mapping .grid-cell[data-insert-shift="true"] > .slide-card,
+.mapping .grid-cell[data-insert-shift="true"] > .empty-cell {
+  transform: translateX(16px);
+}
+.mapping .grid-cell[data-drop-over="true"] > .slide-card,
+.mapping .grid-cell[data-drop-over="true"] > .empty-cell {
+  outline: 3px solid #74a65b;
+}
+.map-touch-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 150;
+  pointer-events: none;
+  transform-origin: top left;
+  opacity: 0.9;
+  filter: drop-shadow(0 5px 10px #173d3844);
+}
+.map-touch-preview * {
+  pointer-events: none !important;
+}
+.map-touch-source {
+  opacity: 0.35;
+}
+[data-map-drag-handle] {
+  touch-action: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mapping .slide-card,
+  .mapping .empty-cell {
+    transition: none;
+  }
 }

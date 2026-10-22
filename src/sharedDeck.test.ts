@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as Y from "yjs";
-import { blank, parseDeck, sample } from "./model";
+import { blank, insertMovedPage, parseDeck, sample } from "./model";
 import {
   applyDeckChange,
   createSharedDeck,
@@ -10,6 +10,41 @@ import {
 } from "./sharedDeck";
 
 describe("shared slide document", () => {
+  it("undoes an inserted page's positions without undoing a collaborator's text", () => {
+    const base = sample(),
+      a = createSharedDeck(base),
+      b = new Y.Doc();
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a), "server");
+    const undo = new Y.UndoManager([a.getMap("slides"), a.getText("title")], {
+      trackedOrigins: new Set([LOCAL_CHANGE]),
+    });
+    applyDeckChange(a, base, insertMovedPage(base, base.slides[1].id, 1, 1));
+    const text = sharedText(
+      b,
+      base.slides[1].id,
+      base.slides[1].elements[0].id,
+    )!;
+    text.insert(0, "相手の入力 ");
+    Y.applyUpdate(a, Y.encodeStateAsUpdate(b), "server");
+    expect(
+      readSharedDeck(a).slides.find((s) => s.id === base.slides[1].id),
+    ).toMatchObject({ x: 1, y: 1 });
+    undo.undo();
+    const result = readSharedDeck(a);
+    for (const slide of base.slides)
+      expect(result.slides.find((s) => s.id === slide.id)).toMatchObject({
+        x: slide.x,
+        y: slide.y,
+      });
+    expect(
+      sharedText(
+        a,
+        base.slides[1].id,
+        base.slides[1].elements[0].id,
+      )!.toString(),
+    ).toContain("相手の入力");
+    expect(result.slides).toHaveLength(base.slides.length);
+  });
   it("round-trips content and keeps per-user thumbnail settings out of shared state", () => {
     const deck = sample();
     deck.linkedRows = true;

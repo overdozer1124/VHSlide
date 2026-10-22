@@ -293,6 +293,25 @@ export function moveRowGroup(deck: Deck, from: number, to: number): Deck {
     })),
   });
 }
+/** Overlapping row thumbnails swaps the two complete groups. */
+export function swapRowGroups(deck: Deck, from: number, to: number): Deck {
+  const { rows } = bounds(deck);
+  if (![from, to].every((y) => Number.isInteger(y) && y >= 0 && y < rows))
+    throw new Error("移動先の段を選んでください。");
+  if (from === to) return deck;
+  return requireOrigin(swap(deck, "row", { x: 0, y: from }, { x: 0, y: to }));
+}
+/** A gap refers to the boundary before removing the source row. */
+export function insertMovedRowGroup(
+  deck: Deck,
+  from: number,
+  boundary: number,
+): Deck {
+  const { rows } = bounds(deck);
+  if (!Number.isInteger(boundary) || boundary < 0 || boundary > rows)
+    throw new Error("挿入先の段を選んでください。");
+  return moveRowGroup(deck, from, boundary - (from < boundary ? 1 : 0));
+}
 /** Move one page across grid rows. An occupied destination swaps the two pages. */
 export function movePage(deck: Deck, id: string, x: number, y: number): Deck {
   const from = deck.slides.find((s) => s.id === id);
@@ -300,6 +319,40 @@ export function movePage(deck: Deck, id: string, x: number, y: number): Deck {
     throw new Error("移動先のマスを選んでください。");
   if (from.x === x && from.y === y) return deck;
   return requireOrigin(swap(deck, "slide", from, { x, y }));
+}
+/** Insert an existing page at a row boundary. Only source/destination rows shift. */
+export function insertMovedPage(
+  deck: Deck,
+  id: string,
+  boundary: number,
+  y: number,
+): Deck {
+  const from = deck.slides.find((s) => s.id === id);
+  if (
+    !from ||
+    !Number.isInteger(boundary) ||
+    boundary < 0 ||
+    boundary > 100 ||
+    !Number.isInteger(y) ||
+    y < 0 ||
+    y >= 100
+  )
+    throw new Error("挿入先を選んでください。");
+  const x = boundary - (from.y === y && from.x < boundary ? 1 : 0);
+  if (from.y === y && from.x === x) return deck;
+  if (x >= 100) throw new Error("縦・横は100マスまでです。");
+  const next = {
+    ...deck,
+    slides: deck.slides.map((s) => {
+      if (s.id === id) return { ...s, x, y };
+      let nextX = s.x;
+      if (s.y === from.y && nextX > from.x) nextX--;
+      if (s.y === y && nextX >= x) nextX++;
+      if (nextX >= 100) throw new Error("縦・横は100マスまでです。");
+      return nextX === s.x ? s : { ...s, x: nextX };
+    }),
+  };
+  return requireOrigin(next);
 }
 function copySlide(source: Slide, x: number, y: number): Slide {
   return {

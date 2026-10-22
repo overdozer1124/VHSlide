@@ -26,7 +26,13 @@ import type {
   DragOverEvent,
   CollisionDetection,
 } from "@dnd-kit/core";
-import { RailRowFrame, PageDragFrame, NewRowDrop } from "./RailDrag";
+import {
+  RailRowFrame,
+  PageDragFrame,
+  PageInsertDrop,
+  RowInsertDrop,
+  NewRowDrop,
+} from "./RailDrag";
 import type { RailDragSource, RailDropTarget } from "./RailDrag";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 import {
@@ -43,7 +49,12 @@ interface SlideRailProps {
   onSelectSlide: (id: string) => void;
   onInsert: (axis: "row" | "column", index: number, cross: number) => boolean;
   onCreate: (x: number, y: number) => boolean;
-  onMove: (source: RailDragSource, x: number, y: number) => boolean;
+  onMove: (
+    source: RailDragSource,
+    x: number,
+    y: number,
+    mode?: "swap" | "insert",
+  ) => boolean;
   onNavigate: (dx: number, dy: number) => Slide | undefined;
   onOpenMenu: OpenThumbnailMenu;
   menuOpen: boolean;
@@ -66,21 +77,58 @@ export function SlideRail({
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 7 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 7 },
+      activationConstraint: { delay: 250, tolerance: 16 },
+      bypassActivationConstraint: ({ event }) =>
+        !!(event.target as Element).closest("[data-touch-drag-handle]"),
     }),
   );
   const [dragging, setDragging] = useState<RailDragSource | null>(null);
   const draggingRef = useRef<RailDragSource | null>(null);
   const navigationStarted = useRef(false);
-  const collision: CollisionDetection = (args) =>
-    pointerWithin({
+  const [insertTarget, setInsertTarget] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [rowInsertTarget, setRowInsertTarget] = useState<number | null>(null);
+  const collision: CollisionDetection = (args) => {
+    // Keep the newly opened part of the gap an insertion target as well.
+    const droppableRects = new Map(args.droppableRects);
+    if (insertTarget) {
+      const id = `insert-${insertTarget.x}-${insertTarget.y}`;
+      const rect = droppableRects.get(id);
+      if (rect)
+        droppableRects.set(id, {
+          ...rect,
+          right: rect.right + 16,
+          width: rect.width + 16,
+        });
+    }
+    if (rowInsertTarget !== null) {
+      const id = `row-insert-${rowInsertTarget}`;
+      const rect = droppableRects.get(id);
+      if (rect)
+        droppableRects.set(id, {
+          ...rect,
+          bottom: rect.bottom + 16,
+          height: rect.height + 16,
+        });
+    }
+    const hits = pointerWithin({
       ...args,
-      droppableContainers: args.droppableContainers.filter(
-        (container) =>
-          args.active.data.current?.kind !== "row" ||
-          container.data.current?.kind === "row",
+      droppableRects,
+      droppableContainers: args.droppableContainers.filter((container) =>
+        args.active.data.current?.kind === "row"
+          ? ["row", "row-insert"].includes(container.data.current?.kind)
+          : container.data.current?.kind !== "row-insert",
       ),
     });
+    // Gaps overlap the fixed card hit boxes, so prefer an explicit insert target.
+    const isInsert = (id: string | number) =>
+      ["insert", "row-insert"].includes(
+        args.droppableContainers.find((d) => d.id === id)?.data.current?.kind,
+      );
+    return hits.sort((a, b) => Number(isInsert(b.id)) - Number(isInsert(a.id)));
+  };
   const { rows, cols } = bounds(deck);
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [position, setPosition] = useState({ left: 180, top: 220, width: 720 });
@@ -186,6 +234,8 @@ export function SlideRail({
   function over(event: DragOverEvent) {
     clearTimeout(openTimer.current);
     const target = event.over?.data.current as RailDropTarget | undefined;
+    setInsertTarget(target?.kind === "insert" ? target : null);
+    setRowInsertTarget(target?.kind === "row-insert" ? target.y : null);
     if (
       draggingRef.current?.kind === "page" &&
       target?.kind === "row" &&
@@ -199,8 +249,18 @@ export function SlideRail({
       target = event.over?.data.current as RailDropTarget | undefined;
     draggingRef.current = null;
     setDragging(null);
+    setInsertTarget(null);
+    setRowInsertTarget(null);
     cancelTimers();
-    if (source && target) onMove(source, target.x, target.y);
+    if (source && target)
+      onMove(
+        source,
+        target.x,
+        target.y,
+        target.kind === "insert" || target.kind === "row-insert"
+          ? "insert"
+          : "swap",
+      );
     close();
   }
   useEffect(() => () => cancelTimers(), []);
@@ -309,6 +369,8 @@ export function SlideRail({
       onDragCancel={() => {
         draggingRef.current = null;
         setDragging(null);
+        setInsertTarget(null);
+        setRowInsertTarget(null);
         close(true);
       }}
       accessibility={{
@@ -356,6 +418,7 @@ export function SlideRail({
             else close();
           }}
         >
+          <RowInsertDrop y={0} active={dragging?.kind === "row"} />
           {Array.from({ length: rows }, (_, y) => {
             const cell = rowPage(deck, y, slide.x);
             return (
@@ -363,6 +426,7 @@ export function SlideRail({
                 x={cell?.x ?? 0}
                 y={y}
                 hasPages={deck.slides.some((s) => s.y === y)}
+                shifted={rowInsertTarget !== null && y >= rowInsertTarget}
                 key={y}
                 onPointerEnter={(e) => {
                   if (e.pointerType === "mouse") hover(y);
@@ -386,6 +450,13 @@ export function SlideRail({
                         openRow === y ? "editor-row-pages" : undefined
                       }
                       onContextMenu={(event) => {
+                        if (
+                          pointer.current === "touch" ||
+                          draggingRef.current
+                        ) {
+                          event.preventDefault();
+                          return;
+                        }
                         cancelTimers();
                         onOpenMenu(event, { pageId: cell?.id, row: y });
                       }}
@@ -416,7 +487,11 @@ export function SlideRail({
                         <span>
                           {y + 1}.{cell ? cell.x + 1 : "—"}
                         </span>
-                        <span className="rail-drag-hint">
+                        <span
+                          className="rail-drag-hint"
+                          data-touch-drag-handle
+                          title="ここをドラッグで段ごと移動"
+                        >
                           <GripVertical size={11} />
                           <ChevronRight size={13} />
                         </span>
@@ -446,16 +521,18 @@ export function SlideRail({
                     >
                       <MoreHorizontal size={15} />
                     </button>
-                    <button
-                      className="rail-insert-row"
-                      aria-label={`${y + 1}段目の下に行を挿入`}
-                      title="ここに詳しい段を追加"
-                      onClick={() => insert("row", y + 1, cell?.x ?? 0)}
-                    >
-                      <span />
-                      <Plus size={15} />
-                      <span />
-                    </button>
+                    <RowInsertDrop y={y + 1} active={dragging?.kind === "row"}>
+                      <button
+                        className="rail-insert-row"
+                        aria-label={`${y + 1}段目の下に行を挿入`}
+                        title="ここに詳しい段を追加"
+                        onClick={() => insert("row", y + 1, cell?.x ?? 0)}
+                      >
+                        <span />
+                        <Plus size={15} />
+                        <span />
+                      </button>
+                    </RowInsertDrop>
                   </>
                 )}
               </RailRowFrame>
@@ -474,7 +551,9 @@ export function SlideRail({
             />
           )}
         </div>
-        <div className="rail-footnote">ドラッグで段ごと移動 ↕</div>
+        <div className="rail-footnote">
+          段ごと移動 ↕ · 重ねて入れ替え · 間に挿入
+        </div>
         <div
           className="rail-resize-handle"
           role="separator"
@@ -572,10 +651,23 @@ export function SlideRail({
             </div>
             <div className="row-page-scroll">
               <div className="row-page-items">
+                <PageInsertDrop
+                  x={0}
+                  y={openRow}
+                  active={dragging?.kind === "page"}
+                />
                 {Array.from({ length: cols }, (_, x) => {
                   const cell = cells.get(`${x},${openRow}`);
                   return (
-                    <PageDragFrame key={x} x={x} y={openRow} page={cell}>
+                    <PageDragFrame
+                      key={x}
+                      x={x}
+                      y={openRow}
+                      page={cell}
+                      shifted={
+                        insertTarget?.y === openRow && x >= insertTarget.x
+                      }
+                    >
                       {(dragProps, ref) => (
                         <>
                           <button
@@ -587,6 +679,13 @@ export function SlideRail({
                               cell?.id === slide.id ? "page" : undefined
                             }
                             onContextMenu={(event) => {
+                              if (
+                                pointer.current === "touch" ||
+                                draggingRef.current
+                              ) {
+                                event.preventDefault();
+                                return;
+                              }
                               if (!cell) return;
                               cancelTimers();
                               onOpenMenu(event, { pageId: cell.id });
@@ -596,6 +695,9 @@ export function SlideRail({
                                 ? `${openRow + 1}.${x + 1} ${cell.title}を編集`
                                 : `${openRow + 1}.${x + 1}の空のマスにページを追加`
                             }
+                            onPointerDown={(event) => {
+                              pointer.current = event.pointerType;
+                            }}
                             onClick={() => {
                               if (cell) select(cell.id);
                               else if (onCreate(x, openRow)) close();
@@ -616,6 +718,15 @@ export function SlideRail({
                                 {openRow + 1}.{x + 1}
                               </span>
                               <span>{cell?.title ?? "ページを追加"}</span>
+                              {cell && (
+                                <span
+                                  className="page-drag-grip"
+                                  data-touch-drag-handle
+                                  title="ここをドラッグで移動"
+                                >
+                                  <GripVertical size={16} />
+                                </span>
+                              )}
                             </span>
                             {cell?.id === slide.id && (
                               <span className="row-editing-badge">編集中</span>
@@ -634,14 +745,20 @@ export function SlideRail({
                               <MoreHorizontal size={15} />
                             </button>
                           )}
-                          <button
-                            className="row-insert-column"
-                            aria-label={`${x + 1}番目の話題の右に列を挿入`}
-                            title="ここに新しい話題を挿入"
-                            onClick={() => insert("column", x + 1, openRow)}
+                          <PageInsertDrop
+                            x={x + 1}
+                            y={openRow}
+                            active={dragging?.kind === "page"}
                           >
-                            <Plus size={17} />
-                          </button>
+                            <button
+                              className="row-insert-column"
+                              aria-label={`${x + 1}番目の話題の右に列を挿入`}
+                              title="ここに新しい話題を挿入"
+                              onClick={() => insert("column", x + 1, openRow)}
+                            >
+                              <Plus size={17} />
+                            </button>
+                          </PageInsertDrop>
                         </>
                       )}
                     </PageDragFrame>
@@ -650,7 +767,7 @@ export function SlideRail({
               </div>
             </div>
             <div className="row-flyout-hint">
-              クリック・矢印で切り替え · ドラッグで1枚移動
+              長押し・つまみで移動 · 重ねて入れ替え · 間に置いて挿入
             </div>
           </div>,
           document.body,
