@@ -896,8 +896,9 @@ export default function App() {
         {cloud.panel && (
           <CloudPanel cloud={cloud} deck={deck} onLocal={returnToLocal} />
         )}
-        {view === "map" && (
+        {view !== "present" && (
           <MapView
+            visible={view === "map"}
             deck={deck}
             activeId={activeId}
             moving={moving}

@@ -97,6 +97,9 @@ test("pinch follows the fingers, reverses, opens the focused slide, and returns 
   await expect(page.locator(".map-scroll")).toBeVisible();
   await noFlight(page);
   await expect(tile).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(async () => (await tile.boundingBox())!.width)
+    .toBeCloseTo(b.width, 0);
   expect(
     await page.evaluate(
       () => JSON.parse(localStorage.getItem("vhslide-deck-v1")!).slides,
@@ -131,10 +134,9 @@ test("trackpad pinch navigates both ways; numbered overview finds page 40.10 and
     name: "表示サイズを80%に戻す",
     exact: true,
   });
-  for (let i = 0; i < 9; i++)
-    await page
-      .getByRole("button", { name: "マップを縮小", exact: true })
-      .click();
+  await page.getByRole("button", { name: "マップを縮小", exact: true }).click();
+  await expect(reset).toHaveText("60%");
+  await page.getByRole("button", { name: "マップを縮小", exact: true }).click();
   await expect(reset).toHaveText("番号");
   await expect(page.locator(".number-tile")).toHaveCount(400);
   await expect(page.locator(".map-grid .slide-canvas")).toHaveCount(0);
@@ -221,4 +223,33 @@ test("map pinch cancels safely and one finger still scrolls the large map", asyn
   await expect
     .poll(() => page.locator(".map-scroll").evaluate((node) => node.scrollTop))
     .toBeGreaterThan(60);
+});
+
+test("pinching the map switches between standard, smaller, and numbered views without intermediate thumbnail sizes", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "ピンチの3段階切り替え");
+  await page.goto("/");
+  const cdp = await page.context().newCDPSession(page);
+  const reset = page.getByRole("button", {
+    name: "表示サイズを80%に戻す",
+    exact: true,
+  });
+  const first = page.locator(".thumbnail").first();
+  for (const [ratio, expected] of [
+    [0.65, "60%"],
+    [0.65, "番号"],
+    [1.35, "60%"],
+    [1.35, "80%"],
+  ] as const) {
+    const box = (await first.boundingBox())!;
+    const x = box.x + box.width / 2,
+      y = box.y + box.height / 2;
+    const radius = Math.min(35, box.width * 0.3);
+    await points(cdp, "touchStart", x, y, radius);
+    await points(cdp, "touchMove", x, y, radius * ratio);
+    await points(cdp, "touchEnd", x, y, 0);
+    await expect(reset).toHaveText(expected);
+    await expect(page.locator(".editor-pager")).toHaveCount(0);
+  }
 });

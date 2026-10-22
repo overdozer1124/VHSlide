@@ -2575,24 +2575,6 @@ h1 span {
   background: #dcebd3;
   color: #173d38;
 }
-.mapping .map-grid[data-mini="true"] .card-footer {
-  height: 18px;
-  padding: 0 2px;
-}
-.mapping .map-grid[data-mini="true"] .page-number {
-  font-size: 9px;
-  padding: 0;
-}
-.mapping .map-grid[data-mini="true"] .card-tool,
-.mapping .map-grid[data-mini="true"] .column-heading .icon-button {
-  display: none;
-}
-.mapping .map-grid[data-mini="true"] .column-heading {
-  padding: 0 2px;
-}
-.mapping .map-grid[data-mini="true"] .add-dot {
-  display: none;
-}
 .mapping .map-grid[data-numbers="true"] .card-footer,
 .mapping .map-grid[data-numbers="true"] .add-dot,
 .mapping .map-grid[data-numbers="true"] .start-badge,

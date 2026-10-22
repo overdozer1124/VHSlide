@@ -29,8 +29,11 @@ import { usePinch } from "./usePinch";
 import type { PinchPoint } from "./usePinch";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const ThumbnailCanvas = memo(Canvas);
+const STANDARD_SCALE = 0.8;
+const SMALL_SCALE = 0.6;
 
 interface MapViewProps {
+  visible: boolean;
   deck: Deck;
   activeId: string;
   moving?: GridMove;
@@ -45,7 +48,8 @@ interface MapViewProps {
   onScale: (scale: number) => void;
   onOpenMenu: OpenThumbnailMenu;
 }
-export function MapView({
+function MapViewComponent({
+  visible,
   deck,
   activeId,
   moving,
@@ -69,6 +73,12 @@ export function MapView({
     width: 1000,
     height: 500,
   });
+  const [visibleWindow, setVisibleWindow] = useState({
+    left: 0,
+    right: 8,
+    top: 0,
+    bottom: 4,
+  });
   const [find, setFind] = useState("");
   const [findError, setFindError] = useState("");
   const activeCard = useRef<HTMLDivElement>(null);
@@ -78,16 +88,15 @@ export function MapView({
     [deck.slides],
   );
   const numbers = scale === 0;
-  const gap = numbers || scale < 0.25 ? 8 : 24;
+  const gap = numbers ? 8 : 24;
   const thumbWidth = numbers
-      ? Math.max(44, Math.min(72, (viewportSize.width - 88) / cols - gap))
+      ? Math.max(44, Math.min(72, (viewportSize.width - 88) / cols - gap - 2))
       : 242 * scale,
     thumbHeight = numbers
       ? Math.max(20, Math.min(32, (viewportSize.height - 60) / rows))
       : (thumbWidth * H) / W;
   const cardWidth = thumbWidth + 2,
-    cardHeight = thumbHeight + (numbers ? 0 : scale < 0.25 ? 20 : 34);
-  const clampScale = (next: number) => Math.max(0.1, Math.min(1.25, next));
+    cardHeight = thumbHeight + (numbers ? 0 : 34);
   const anchor = useRef<{
     id?: string;
     point: PinchPoint;
@@ -122,23 +131,36 @@ export function MapView({
     onScale(next);
     if (next === scale) restoreAnchor();
   }
-  usePinch(scrollRef, {
+  const pinching = usePinch(scrollRef, {
     start(point) {
       const grid = gridRef.current!,
         rect = grid.getBoundingClientRect();
-      let nearest: HTMLElement | undefined,
-        best = Infinity;
-      grid.querySelectorAll<HTMLElement>("[data-page-id]").forEach((node) => {
-        const b = node.getBoundingClientRect();
-        const distance = Math.hypot(
-          Math.max(b.x - point.x, 0, point.x - b.right),
-          Math.max(b.y - point.y, 0, point.y - b.bottom),
-        );
-        if (distance < best) {
-          best = distance;
-          nearest = node;
+      // Read the touched card directly. For gaps, use fixed grid coordinates
+      // instead of forcing a layout read for every slide in the document.
+      let nearest = document
+        .elementFromPoint(point.x, point.y)
+        ?.closest<HTMLElement>(".slide-card");
+      if (!nearest || !grid.contains(nearest)) {
+        let target: Slide | undefined,
+          best = Infinity;
+        for (const page of deck.slides) {
+          const left = rect.x + 32 + page.x * (cardWidth + gap);
+          const top = rect.y + 46 + page.y * (cardHeight + gap);
+          const distance = Math.hypot(
+            Math.max(left - point.x, 0, point.x - left - cardWidth),
+            Math.max(top - point.y, 0, point.y - top - cardHeight),
+          );
+          if (distance < best) {
+            best = distance;
+            target = page;
+          }
         }
-      });
+        nearest = target
+          ? grid.querySelector<HTMLElement>(
+              `[data-page-id="${CSS.escape(target.id)}"]`,
+            )
+          : null;
+      }
       const tile = nearest
         ?.querySelector(".thumbnail")
         ?.getBoundingClientRect();
@@ -169,68 +191,115 @@ export function MapView({
           `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
         );
         const rect = tile?.getBoundingClientRect();
+        // The map stays mounted while editing; do not retain its pinch preview.
+        gridRef.current!.style.transform = "";
         // Keep the last useful map size when returning from the editor.
         onEdit(a.id, rect);
         return;
       }
+      // Commit a single display step. Continuous transforms above still follow
+      // the fingers, but releasing never leaves dozens of tiny thumbnails.
       const next = numbers
         ? sample.ratio > 1.18
-          ? clampScale((thumbWidth / 242) * sample.ratio)
+          ? SMALL_SCALE
           : 0
-        : a.scale * sample.ratio < 0.075
-          ? 0
-          : clampScale(a.scale * sample.ratio);
+        : sample.ratio < 0.85
+          ? a.scale === STANDARD_SCALE
+            ? SMALL_SCALE
+            : 0
+          : sample.ratio > 1.15
+            ? STANDARD_SCALE
+            : a.scale;
       keepAnchor(next, sample);
     },
   });
   useLayoutEffect(restoreAnchor, [scale]);
-  useEffect(() => {
-    const observer = new ResizeObserver(([entry]) =>
-      setViewportSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      }),
-    );
-    observer.observe(scrollRef.current!);
-    return () => observer.disconnect();
-  }, []);
+  useLayoutEffect(() => {
+    if (!visible) return;
+    const node = scrollRef.current!;
+    let frame: number | undefined;
+    function measure() {
+      frame = undefined;
+      if (pinching.current || !node.clientWidth || !node.clientHeight) return;
+      const width = node.clientWidth,
+        height = node.clientHeight;
+      setViewportSize((before) =>
+        before.width === width && before.height === height
+          ? before
+          : { width, height },
+      );
+      // Keep one neighbouring row/column ready for scrolling and pinch previews.
+      const next = {
+        left: Math.max(
+          0,
+          Math.floor((node.scrollLeft - 44) / (cardWidth + gap)) - 1,
+        ),
+        right:
+          Math.ceil((node.scrollLeft + width - 44) / (cardWidth + gap)) + 1,
+        top: Math.max(
+          0,
+          Math.floor((node.scrollTop - 56) / (cardHeight + gap)) - 1,
+        ),
+        bottom:
+          Math.ceil((node.scrollTop + height - 56) / (cardHeight + gap)) + 1,
+      };
+      setVisibleWindow((before) =>
+        before.left === next.left &&
+        before.right === next.right &&
+        before.top === next.top &&
+        before.bottom === next.bottom
+          ? before
+          : next,
+      );
+    }
+    function queue() {
+      if (frame === undefined) frame = requestAnimationFrame(measure);
+    }
+    const observer = new ResizeObserver(queue);
+    observer.observe(node);
+    node.addEventListener("scroll", queue, { passive: true });
+    measure();
+    return () => {
+      observer.disconnect();
+      node.removeEventListener("scroll", queue);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [cardWidth, cardHeight, gap, pinching, visible]);
   function zoomOut() {
-    onScale(
-      scale <= 0.1
-        ? 0
-        : scale <= 0.15
-          ? 0.1
-          : scale <= 0.25
-            ? 0.15
-            : Math.max(0.25, Math.round((scale - 0.1) * 100) / 100),
-    );
+    onScale(scale === STANDARD_SCALE ? SMALL_SCALE : 0);
   }
   function zoomIn() {
-    onScale(
-      numbers
-        ? 0.1
-        : scale < 0.15
-          ? 0.15
-          : scale < 0.25
-            ? 0.25
-            : clampScale(Math.round((scale + 0.1) * 100) / 100),
-    );
+    onScale(numbers ? SMALL_SCALE : STANDARD_SCALE);
   }
   function fitColumns() {
     if (!scrollRef.current) return;
     const width = scrollRef.current.clientWidth - 24 - 32 - 32;
-    onScale(clampScale(Math.min(1, (width / cols - 24 - 2) / 242)));
+    onScale(
+      cols * (242 * STANDARD_SCALE + 2 + 24) <= width
+        ? STANDARD_SCALE
+        : cols * (242 * SMALL_SCALE + 2 + 24) <= width
+          ? SMALL_SCALE
+          : 0,
+    );
     scrollRef.current.scrollLeft = 0;
   }
   useEffect(() => {
+    if (!visible) return;
     if (skipFocusScroll.current) {
       skipFocusScroll.current = false;
       return;
     }
-    activeCard.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [activeId, numbers]);
+    activeCard.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [activeId, numbers, visible]);
   return (
-    <main className="map-main">
+    <main
+      className="map-main"
+      hidden={!visible}
+      style={visible ? undefined : { display: "none" }}
+    >
       <section className="map-panel" aria-label="ページの全体マップ">
         <div className="map-toolbar">
           <div className="map-summary">
@@ -307,7 +376,7 @@ export function MapView({
               className="icon-button"
               aria-label="マップを拡大"
               title="マップを拡大"
-              disabled={scale >= 1.25}
+              disabled={scale === STANDARD_SCALE}
               onClick={zoomIn}
             >
               <ZoomIn size={17} />
@@ -317,7 +386,7 @@ export function MapView({
               aria-label="番号だけの一覧"
               aria-pressed={numbers}
               title="番号だけの一覧"
-              onClick={() => onScale(numbers ? 0.1 : 0)}
+              onClick={() => onScale(numbers ? SMALL_SCALE : 0)}
             >
               <Hash size={17} />
             </button>
@@ -371,9 +440,8 @@ export function MapView({
             className="map-grid"
             ref={gridRef}
             data-numbers={numbers}
-            data-mini={!numbers && scale < 0.25}
             data-compact={scale <= 0.6}
-            data-tiny={scale < 0.4}
+            data-tiny={numbers}
             style={
               {
                 gridTemplateColumns: `32px repeat(${cols}, ${cardWidth + gap}px) 32px`,
@@ -438,6 +506,12 @@ export function MapView({
                 </div>
                 {Array.from({ length: cols }, (_, x) => {
                   const s = cells.get(`${x},${y}`);
+                  const detailed =
+                    !numbers &&
+                    x >= visibleWindow.left &&
+                    x <= visibleWindow.right &&
+                    y >= visibleWindow.top &&
+                    y <= visibleWindow.bottom;
                   return (
                     <div
                       className={`grid-cell ${moving ? "drop-ready" : ""}`}
@@ -455,6 +529,11 @@ export function MapView({
                           <div
                             ref={s.id === activeId ? activeCard : undefined}
                             data-page-id={s.id}
+                            style={
+                              !numbers && !detailed
+                                ? { height: cardHeight }
+                                : undefined
+                            }
                             className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
                             onContextMenu={(event) =>
                               onOpenMenu(event, { pageId: s.id })
@@ -468,6 +547,15 @@ export function MapView({
                           >
                             <button
                               className="thumbnail"
+                              style={
+                                !numbers && !detailed
+                                  ? {
+                                      width: thumbWidth,
+                                      height: thumbHeight,
+                                      background: s.background,
+                                    }
+                                  : undefined
+                              }
                               aria-current={
                                 s.id === activeId ? "page" : undefined
                               }
@@ -485,62 +573,72 @@ export function MapView({
                                 >
                                   {y + 1}.{x + 1}
                                 </span>
-                              ) : (
+                              ) : detailed ? (
                                 <ThumbnailCanvas
                                   slide={s}
                                   zoom={thumbWidth / W}
                                 />
-                              )}
-                              {x === 0 && y === 0 && (
+                              ) : null}
+                              {detailed && x === 0 && y === 0 && (
                                 <span className="start-badge">START</span>
                               )}
                             </button>
-                            <div className="card-footer">
-                              <span className="page-number">
-                                {y + 1}.{x + 1}
-                              </span>
-                              <span className="card-title">{s.title}</span>
-                              <button
-                                className="card-tool"
-                                aria-label={`${s.title}のページメニュー`}
-                                onClick={(event) =>
-                                  onOpenMenu(event, { pageId: s.id })
-                                }
-                              >
-                                <MoreHorizontal size={14} />
-                              </button>
-                              <button
-                                className="card-tool"
-                                aria-label={`${s.title}を移動`}
-                                onClick={() => onMove({ mode: "slide", x, y })}
-                              >
-                                <GripVertical size={14} />
-                              </button>
-                              <button
-                                className="card-tool delete"
-                                aria-label={`${s.title}を削除`}
-                                onClick={() => onDelete(s.id)}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
+                            {detailed && (
+                              <div className="card-footer">
+                                <span className="page-number">
+                                  {y + 1}.{x + 1}
+                                </span>
+                                <span className="card-title">{s.title}</span>
+                                <>
+                                  <button
+                                    className="card-tool"
+                                    aria-label={`${s.title}のページメニュー`}
+                                    onClick={(event) =>
+                                      onOpenMenu(event, { pageId: s.id })
+                                    }
+                                  >
+                                    <MoreHorizontal size={14} />
+                                  </button>
+                                  <button
+                                    className="card-tool"
+                                    aria-label={`${s.title}を移動`}
+                                    onClick={() =>
+                                      onMove({ mode: "slide", x, y })
+                                    }
+                                  >
+                                    <GripVertical size={14} />
+                                  </button>
+                                  <button
+                                    className="card-tool delete"
+                                    aria-label={`${s.title}を削除`}
+                                    onClick={() => onDelete(s.id)}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              </div>
+                            )}
                           </div>
-                          <button
-                            className="add-right add-dot"
-                            aria-label={`${s.title}の右に次の話題を追加`}
-                            title="次の話題へ（右）"
-                            onClick={() => add(s, "right")}
-                          >
-                            <Plus size={15} />
-                          </button>
-                          <button
-                            className="add-down add-dot"
-                            aria-label={`${s.title}の下に詳しいページを追加`}
-                            title="くわしく（下）"
-                            onClick={() => add(s, "down")}
-                          >
-                            <Plus size={15} />
-                          </button>
+                          {detailed && (
+                            <>
+                              <button
+                                className="add-right add-dot"
+                                aria-label={`${s.title}の右に次の話題を追加`}
+                                title="次の話題へ（右）"
+                                onClick={() => add(s, "right")}
+                              >
+                                <Plus size={15} />
+                              </button>
+                              <button
+                                className="add-down add-dot"
+                                aria-label={`${s.title}の下に詳しいページを追加`}
+                                title="くわしく（下）"
+                                onClick={() => add(s, "down")}
+                              >
+                                <Plus size={15} />
+                              </button>
+                            </>
+                          )}
                         </>
                       ) : (
                         <button
@@ -551,8 +649,14 @@ export function MapView({
                             else onAddCell(x, y);
                           }}
                         >
-                          <Plus size={19} />
-                          <span>{moving ? "ここへ移動" : "ページを追加"}</span>
+                          {detailed && (
+                            <>
+                              <Plus size={19} />
+                              <span>
+                                {moving ? "ここへ移動" : "ページを追加"}
+                              </span>
+                            </>
+                          )}
                         </button>
                       )}
                     </div>
@@ -577,3 +681,9 @@ export function MapView({
     </main>
   );
 }
+// Keep the map's DOM and scroll position for a quick return. While hidden,
+// editor keystrokes and cloud updates do not rerender its thumbnails.
+export const MapView = memo(
+  MapViewComponent,
+  (previous, next) => !previous.visible && !next.visible,
+);
