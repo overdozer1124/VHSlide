@@ -14,6 +14,7 @@ import {
   insertGridLine,
   neighbor,
   parseDeck,
+  serializeDeck,
   removeSlide,
   duplicateSlide,
   duplicateRowGroup,
@@ -102,6 +103,27 @@ describe("fixed grid and portable document", () => {
     d.slides[0].elements[0].highlight = "#fffabc";
     d.slides[0].elements[0].bullets = true;
     expect(parseDeck(JSON.stringify(d))).toEqual(d);
+  });
+  it("round-trips all text alignments while leaving older documents unchanged", () => {
+    const d = sample();
+    expect(parseDeck(JSON.stringify(d))).toEqual(d);
+    for (const textAlign of ["left", "center", "right"] as const)
+      for (const verticalAlign of ["top", "middle", "bottom"] as const) {
+        Object.assign(d.slides[0].elements[0], { textAlign, verticalAlign });
+        expect(parseDeck(serializeDeck(d))).toEqual(d);
+      }
+  });
+  it.each([
+    ["textAlign", "justify"],
+    ["textAlign", null],
+    ["textAlign", 1],
+    ["verticalAlign", "center"],
+    ["verticalAlign", null],
+    ["verticalAlign", {}],
+  ])("rejects invalid text alignment %s=%j", (key, value) => {
+    const d = sample();
+    Object.assign(d.slides[0].elements[0], { [key as string]: value });
+    expect(() => parseDeck(JSON.stringify(d))).toThrow();
   });
   it.each([
     "duplicate",

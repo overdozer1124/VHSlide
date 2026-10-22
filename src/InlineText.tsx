@@ -58,12 +58,6 @@ function LocalInlineText({
       aria-label="スライド内の文字"
       aria-multiline="true"
       spellCheck
-      style={{
-        fontSize: element.fontSize,
-        fontWeight: element.bold ? 700 : 400,
-        color: element.color,
-        background: element.highlight,
-      }}
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onInput={(event) => changed(event.currentTarget)}

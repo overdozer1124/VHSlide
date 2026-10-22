@@ -232,6 +232,23 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await expect(a).toContainText("online");
     await expect(b).toContainText("offline");
     await page.keyboard.press("Escape");
+    // Alignment is element formatting, shared with an active Quill editor.
+    await page
+      .getByRole("button", { name: "文字を右揃え", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "文字を下揃え", exact: true })
+      .click();
+    for (const user of [page, other]) {
+      const layout = user
+        .locator(".editor-workspace .element")
+        .first()
+        .locator(".text-layout");
+      await expect(layout).toHaveCSS("text-align", "right");
+      await expect(layout).toHaveAttribute("data-vertical-align", "bottom");
+    }
+    await expect(b).toHaveCSS("text-align", "right");
+    await expect(b).toBeFocused();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
       "base64",
@@ -248,6 +265,10 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await page.getByRole("button", { name: "保存", exact: true }).click();
     const file = await download,
       exported = JSON.parse(await readFile((await file.path())!, "utf8"));
+    expect(exported.slides[0].elements[0]).toMatchObject({
+      textAlign: "right",
+      verticalAlign: "bottom",
+    });
     expect(
       exported.slides
         .flatMap((s: any) => s.elements)
@@ -256,6 +277,12 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await other.reload();
     await saved(other);
     await openEditor(other);
+    await expect(
+      other
+        .locator(".editor-workspace .element")
+        .first()
+        .locator(".text-layout"),
+    ).toHaveAttribute("data-vertical-align", "bottom");
     await expect(other.locator(".editor-workspace")).toContainText("offline");
     await expect(
       other.locator(".editor-workspace img.slide-image"),

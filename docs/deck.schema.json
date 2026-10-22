@@ -164,6 +164,16 @@
             },
             "bullets": {
               "type": "boolean"
+            },
+            "textAlign": {
+              "enum": ["left", "center", "right"],
+              "default": "left",
+              "description": "テキストボックス内の左右の文字位置。"
+            },
+            "verticalAlign": {
+              "enum": ["top", "middle", "bottom"],
+              "default": "top",
+              "description": "テキストボックス内の上下の文字位置。"
             }
           }
         }

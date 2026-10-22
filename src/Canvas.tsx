@@ -6,15 +6,7 @@ import { Move } from "lucide-react";
 export function ElementView({ element: e }: { element: Element }) {
   if (e.type === "text")
     return (
-      <div
-        className="slide-text"
-        style={{
-          fontSize: e.fontSize,
-          fontWeight: e.bold ? 700 : 400,
-          color: e.color,
-          background: e.highlight,
-        }}
-      >
+      <div className="slide-text">
         {e.bullets
           ? e.text
               ?.split("\n")
@@ -269,13 +261,29 @@ export function Canvas({
               onPointerUp={end}
               onPointerCancel={cancelDrag}
             >
-              {editable && editingId === e.id && e.type === "text" ? (
-                <InlineText
-                  key={e.id}
-                  element={e}
-                  onChange={(text) => onChange?.({ ...e, text })}
-                  onFinish={() => setEditingId(undefined)}
-                />
+              {e.type === "text" ? (
+                <div
+                  className="text-layout"
+                  data-vertical-align={e.verticalAlign ?? "top"}
+                  style={{
+                    fontSize: e.fontSize,
+                    fontWeight: e.bold ? 700 : 400,
+                    color: e.color,
+                    background: e.highlight,
+                    textAlign: e.textAlign ?? "left",
+                  }}
+                >
+                  {editable && editingId === e.id ? (
+                    <InlineText
+                      key={e.id}
+                      element={e}
+                      onChange={(text) => onChange?.({ ...e, text })}
+                      onFinish={() => setEditingId(undefined)}
+                    />
+                  ) : (
+                    <ElementView element={e} />
+                  )}
+                </div>
               ) : (
                 <ElementView element={e} />
               )}

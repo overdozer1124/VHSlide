@@ -21,6 +21,8 @@ export interface Element {
   color?: string;
   highlight?: string;
   bullets?: boolean;
+  textAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "middle" | "bottom";
   src?: string;
   shape?: Shape;
   fill?: string;
@@ -484,6 +486,22 @@ export function parseDeck(input: string): Deck {
             fontSize: num(e.fontSize, 12, 120),
             ...(e.bold === undefined ? {} : { bold: bool(e.bold) }),
             ...(e.bullets === undefined ? {} : { bullets: bool(e.bullets) }),
+            ...(e.textAlign === undefined
+              ? {}
+              : {
+                  textAlign: ["left", "center", "right"].includes(e.textAlign)
+                    ? e.textAlign
+                    : fail(),
+                }),
+            ...(e.verticalAlign === undefined
+              ? {}
+              : {
+                  verticalAlign: ["top", "middle", "bottom"].includes(
+                    e.verticalAlign,
+                  )
+                    ? e.verticalAlign
+                    : fail(),
+                }),
             color: color(e.color),
             highlight:
               e.highlight === undefined ? undefined : color(e.highlight),

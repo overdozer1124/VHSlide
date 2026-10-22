@@ -2,6 +2,12 @@ import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowLeft,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
   ImagePlus,
   Link2,
   PanelLeftClose,
@@ -338,6 +344,68 @@ export function Editor({
                         ☷ 箇条書き
                       </button>
                     </div>
+                    <div className="text-alignment-controls">
+                      <div role="group" aria-label="文字の左右の位置">
+                        <span>左右の位置</span>
+                        <div className="text-alignment-buttons">
+                          {(
+                            [
+                              ["left", "左揃え", AlignLeft],
+                              ["center", "中央揃え", AlignCenter],
+                              ["right", "右揃え", AlignRight],
+                            ] as const
+                          ).map(([value, label, Icon]) => (
+                            <button
+                              key={value}
+                              aria-label={`文字を${label}`}
+                              aria-pressed={
+                                (element.textAlign ?? "left") === value
+                              }
+                              title={label}
+                              onClick={() =>
+                                updateElement({ textAlign: value })
+                              }
+                            >
+                              <Icon size={17} />
+                              <span>{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div role="group" aria-label="文字の上下の位置">
+                        <span>上下の位置</span>
+                        <div className="text-alignment-buttons">
+                          {(
+                            [
+                              ["top", "上揃え", AlignVerticalJustifyStart],
+                              [
+                                "middle",
+                                "上下中央揃え",
+                                AlignVerticalJustifyCenter,
+                              ],
+                              ["bottom", "下揃え", AlignVerticalJustifyEnd],
+                            ] as const
+                          ).map(([value, label, Icon]) => (
+                            <button
+                              key={value}
+                              aria-label={`文字を${label}`}
+                              aria-pressed={
+                                (element.verticalAlign ?? "top") === value
+                              }
+                              title={label}
+                              onClick={() =>
+                                updateElement({ verticalAlign: value })
+                              }
+                            >
+                              <Icon size={17} />
+                              <span>
+                                {value === "middle" ? "中央揃え" : label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                     <label>
                       文字の色
                       <input
@@ -397,7 +465,7 @@ export function Editor({
                   </>
                 )}
                 <div className="inspector-section">
-                  <h3>そろえる・重なり</h3>
+                  <h3>枠の位置・重なり</h3>
                   <div className="arrange-buttons">
                     <button onClick={() => updateElement({ x: 0 })}>左</button>
                     <button

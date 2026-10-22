@@ -10,6 +10,43 @@ import {
 } from "./sharedDeck";
 
 describe("shared slide document", () => {
+  it("merges alignment with remote typing and undoes only the local alignment", () => {
+    const base = sample();
+    const a = createSharedDeck(base),
+      b = new Y.Doc();
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a), "server");
+    const undo = new Y.UndoManager(a.getMap("slides"), {
+      trackedOrigins: new Set([LOCAL_CHANGE]),
+    });
+    const aligned = structuredClone(base);
+    Object.assign(aligned.slides[0].elements[0], {
+      textAlign: "right",
+      verticalAlign: "bottom",
+    });
+    applyDeckChange(a, base, aligned);
+    const remoteText = sharedText(
+      b,
+      base.slides[0].id,
+      base.slides[0].elements[0].id,
+    )!;
+    remoteText.insert(0, "相手の文字 ");
+    Y.applyUpdate(a, Y.encodeStateAsUpdate(b), "server");
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a), "server");
+    const result = readSharedDeck(a).slides[0].elements[0];
+    expect(result).toMatchObject({
+      textAlign: "right",
+      verticalAlign: "bottom",
+    });
+    expect(result.text).toContain("相手の文字");
+    expect(parseDeck(JSON.stringify(readSharedDeck(b)))).toEqual(
+      readSharedDeck(a),
+    );
+    undo.undo();
+    const restored = readSharedDeck(a).slides[0].elements[0];
+    expect(restored.textAlign).toBeUndefined();
+    expect(restored.verticalAlign).toBeUndefined();
+    expect(restored.text).toContain("相手の文字");
+  });
   it("undoes an inserted page's positions without undoing a collaborator's text", () => {
     const base = sample(),
       a = createSharedDeck(base),

@@ -48,12 +48,6 @@ export function CloudText({
     <div
       ref={target}
       className="slide-text inline-text cloud-text"
-      style={{
-        fontSize: element.fontSize,
-        fontWeight: element.bold ? 700 : 400,
-        color: element.color,
-        background: element.highlight,
-      }}
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
