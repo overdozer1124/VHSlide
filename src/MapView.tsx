@@ -1,16 +1,19 @@
+import { useEffect, useMemo, useRef } from "react";
+import type { CSSProperties } from "react";
 import {
   ArrowDown,
   ArrowRight,
-  ChevronRight,
   GripVertical,
   LayoutGrid,
-  Move,
+  Maximize2,
   MoreHorizontal,
   Plus,
   Trash2,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
-import { bounds, W } from "./model";
+import { bounds, W, H } from "./model";
 import { Canvas } from "./Canvas";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 interface MapViewProps {
@@ -23,7 +26,8 @@ interface MapViewProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onAddCell: (x: number, y: number) => void;
-  onHelp: () => void;
+  scale: number;
+  onScale: (scale: number) => void;
   onOpenMenu: OpenThumbnailMenu;
 }
 export function MapView({
@@ -36,43 +40,89 @@ export function MapView({
   onEdit,
   onDelete,
   onAddCell,
-  onHelp,
+  scale,
+  onScale,
   onOpenMenu,
 }: MapViewProps) {
   const size = bounds(deck),
     cols = Math.max(3, size.cols),
     rows = Math.max(2, size.rows);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeCard = useRef<HTMLDivElement>(null);
+  const cells = useMemo(
+    () => new Map(deck.slides.map((s) => [`${s.x},${s.y}`, s])),
+    [deck.slides],
+  );
+  const thumbWidth = 242 * scale,
+    thumbHeight = (thumbWidth * H) / W;
+  const cardWidth = thumbWidth + 2,
+    cardHeight = thumbHeight + 34;
+  const clampScale = (next: number) => Math.max(0.25, Math.min(1.25, next));
+  function fitColumns() {
+    if (!scrollRef.current) return;
+    const width = scrollRef.current.clientWidth - 24 - 32 - 32;
+    onScale(clampScale(Math.min(1, (width / cols - 24 - 2) / 242)));
+    scrollRef.current.scrollLeft = 0;
+  }
+  useEffect(() => {
+    activeCard.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeId]);
   return (
     <main className="map-main">
-      <section className="map-intro">
-        <div>
-          <div className="eyebrow">YOUR STORY, IN TWO DIRECTIONS</div>
-          <h1>
-            アイデアを、つなげよう<span>。</span>
-          </h1>
-          <p>
-            よこに広げて、たてに深める。あなたの伝えたいことを、このマップに。
-          </p>
-        </div>
-        <div className="map-count">
-          <span>{deck.slides.length.toString().padStart(2, "0")}</span>
-          <div>
-            ページ
-            <br />
-            <small>{size.cols} つの話題</small>
-          </div>
-        </div>
-      </section>
       <section className="map-panel" aria-label="ページの全体マップ">
         <div className="map-toolbar">
-          <div className="map-legend">
-            <span className="live-dot" />
-            ストーリーマップ<span className="subtle">/ すべてのページ</span>
+          <div className="map-summary">
+            <h1>
+              <LayoutGrid size={16} />
+              全体マップ
+            </h1>
+            <span className="map-stats">
+              {deck.slides.length}ページ{" "}
+              <span>
+                ／ {size.cols}話題・{size.rows}段
+              </span>
+            </span>
           </div>
-          <span className="map-tip">
-            <Move size={14} />
-            マスにぴったり並びます
-          </span>
+          <div
+            className="map-zoom"
+            role="group"
+            aria-label="マップの表示サイズ"
+          >
+            <button
+              className="icon-button"
+              aria-label="マップを縮小"
+              title="マップを縮小"
+              disabled={scale <= 0.25}
+              onClick={() =>
+                onScale(clampScale(Math.round((scale - 0.1) * 100) / 100))
+              }
+            >
+              <ZoomOut size={17} />
+            </button>
+            <button
+              className="map-scale-reset"
+              aria-label="表示サイズを80%に戻す"
+              title="標準の表示サイズに戻す"
+              onClick={() => onScale(0.8)}
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              className="icon-button"
+              aria-label="マップを拡大"
+              title="マップを拡大"
+              disabled={scale >= 1.25}
+              onClick={() =>
+                onScale(clampScale(Math.round((scale + 0.1) * 100) / 100))
+              }
+            >
+              <ZoomIn size={17} />
+            </button>
+            <button className="quiet map-fit" onClick={fitColumns}>
+              <Maximize2 size={15} />
+              横をおさめる
+            </button>
+          </div>
         </div>
         {moving && (
           <div className="move-banner">
@@ -85,10 +135,26 @@ export function MapView({
             <button onClick={() => onMove(undefined)}>キャンセル</button>
           </div>
         )}
-        <div className="map-scroll">
+        <div
+          className="map-scroll"
+          ref={scrollRef}
+          role="region"
+          aria-label="スライドのマップ"
+          tabIndex={0}
+        >
           <div
             className="map-grid"
-            style={{ gridTemplateColumns: `44px repeat(${cols}, 274px) 110px` }}
+            data-compact={scale <= 0.6}
+            data-tiny={scale < 0.4}
+            style={
+              {
+                gridTemplateColumns: `32px repeat(${cols}, ${cardWidth + 24}px) 32px`,
+                "--map-card-width": `${cardWidth}px`,
+                "--map-card-height": `${cardHeight}px`,
+                "--map-row-height": `${cardHeight + 24}px`,
+                "--map-thumb-height": `${thumbHeight}px`,
+              } as CSSProperties
+            }
           >
             <div className="axis-origin" />
             <div
@@ -142,7 +208,7 @@ export function MapView({
                   )}
                 </div>
                 {Array.from({ length: cols }, (_, x) => {
-                  const s = deck.slides.find((s) => s.x === x && s.y === y);
+                  const s = cells.get(`${x},${y}`);
                   return (
                     <div
                       className={`grid-cell ${moving ? "drop-ready" : ""}`}
@@ -158,6 +224,8 @@ export function MapView({
                       {s ? (
                         <>
                           <div
+                            ref={s.id === activeId ? activeCard : undefined}
+                            data-page-id={s.id}
                             className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
                             onContextMenu={(event) =>
                               onOpenMenu(event, { pageId: s.id })
@@ -177,7 +245,7 @@ export function MapView({
                                 else onEdit(s.id);
                               }}
                             >
-                              <Canvas slide={s} zoom={242 / W} />
+                              <Canvas slide={s} zoom={thumbWidth / W} />
                               {x === 0 && y === 0 && (
                                 <span className="start-badge">START</span>
                               )}
@@ -259,15 +327,6 @@ export function MapView({
           <span>小さなアイデアから、はじめよう。</span>
         </div>
       </section>
-      <footer className="page-footer">
-        <span className="footer-brand">
-          <LayoutGrid size={15} /> VHSlide
-        </span>
-        <span>伝えることが、もっと自由に。</span>
-        <button className="quiet" onClick={() => onHelp()}>
-          はじめての方へ <ChevronRight size={14} />
-        </button>
-      </footer>
     </main>
   );
 }

@@ -78,6 +78,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState("この端末に自動保存");
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
+  const [mapScale, setMapScale] = useState(0.8);
   const [moving, setMoving] = useState<GridMove>();
   const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();
   const [direction, setDirection] = useState("right");
@@ -676,7 +677,9 @@ export default function App() {
   );
   return (
     <CloudDocument.Provider value={cloud.doc}>
-      <div className={`app-shell ${view === "editor" ? "editing" : ""}`}>
+      <div
+        className={`app-shell ${view !== "present" ? "workspace-mode" : ""} ${view === "editor" ? "editing" : view === "map" ? "mapping" : ""}`}
+      >
         <input
           ref={jsonRef}
           type="file"
@@ -723,7 +726,7 @@ export default function App() {
                 value={deck.title}
                 onChange={(e) => commit({ ...deck, title: e.target.value })}
               />
-              {view === "editor" && cloudPresence}
+              {cloudPresence}
               <span className="save-state">
                 <Check size={14} />
                 {cloud.active ? cloud.status : saveStatus}
@@ -847,7 +850,6 @@ export default function App() {
             </button>
           </aside>
         )}
-        {view === "map" && cloudPresence}
         {cloud.panel && (
           <CloudPanel cloud={cloud} deck={deck} onLocal={returnToLocal} />
         )}
@@ -872,7 +874,8 @@ export default function App() {
                 commit({ ...deck, slides: [...deck.slides, blank(x, y)] });
               else notify(`ページは${MAX_SLIDES}枚までです。`);
             }}
-            onHelp={() => setHelp(true)}
+            scale={mapScale}
+            onScale={setMapScale}
             onOpenMenu={openThumbnailMenu}
           />
         )}

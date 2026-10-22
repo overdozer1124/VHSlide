@@ -177,9 +177,7 @@ test("map menus support keyboard navigation, Escape, outside dismissal and origi
   await expect(page.getByRole("menu")).toHaveCount(0);
   await expect(more).toBeFocused();
   await more.click();
-  await page
-    .getByRole("heading", { name: "アイデアを、つなげよう。", exact: true })
-    .click();
+  await page.getByRole("heading", { name: "全体マップ", exact: true }).click();
   await expect(page.getByRole("menu")).toHaveCount(0);
   expect(await data(page)).toEqual(before);
   await page

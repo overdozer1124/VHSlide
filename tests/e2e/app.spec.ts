@@ -6,9 +6,7 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "アイデアを、つなげよう。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "全体マップ" })).toBeVisible();
   await expect(page.locator(".slide-card")).toHaveCount(5);
   await page.screenshot({
     path: testInfo.outputPath("map.png"),
