@@ -256,6 +256,8 @@ export class CloudWorkspace {
     this.undoManager = new Y.UndoManager(
       [doc.getMap("slides"), doc.getText("title")],
       {
+        // Only this browser's UI/Quill edits enter its history. Remote updates
+        // arrive with the "server" origin and must never be undoable here.
         trackedOrigins: new Set([LOCAL_CHANGE, QuillBinding]),
         captureTimeout: 400,
       },

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
@@ -9,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import type { Deck, Slide } from "./model";
-import { bounds, H, W, rowPage } from "./model";
+import { bounds, W, rowPage } from "./model";
 import { Canvas } from "./Canvas";
 import {
   DndContext,
@@ -28,8 +29,15 @@ import type {
 import { RailRowFrame, PageDragFrame, NewRowDrop } from "./RailDrag";
 import type { RailDragSource, RailDropTarget } from "./RailDrag";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
+import {
+  clampRailScale,
+  MIN_RAIL_SCALE,
+  MAX_RAIL_SCALE,
+} from "./workspacePreferences";
 
 interface SlideRailProps {
+  scale: number;
+  onScale: (scale: number) => void;
   deck: Deck;
   slide: Slide;
   onSelectSlide: (id: string) => void;
@@ -41,8 +49,10 @@ interface SlideRailProps {
   menuOpen: boolean;
 }
 
-/** A fixed-width column, with a temporary horizontal view of each grid row. */
+/** A resizable column, with a temporary horizontal view of each grid row. */
 export function SlideRail({
+  scale,
+  onScale,
   deck,
   slide,
   onSelectSlide,
@@ -76,6 +86,16 @@ export function SlideRail({
   const [position, setPosition] = useState({ left: 180, top: 220, width: 720 });
   const [thumbWidth, setThumbWidth] = useState(140);
   const railRef = useRef<HTMLElement>(null);
+  const previewRef = useRef<HTMLSpanElement>(null);
+  const [draftScale, setDraftScale] = useState<number>();
+  const resizeDrag = useRef<{
+    id: number;
+    x: number;
+    scale: number;
+    baseWidth: number;
+    next: number;
+  }>(undefined);
+  const displayedScale = draftScale ?? scale;
   const scrollRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const triggers = useRef(new Map<number, HTMLButtonElement>());
@@ -129,7 +149,7 @@ export function SlideRail({
     if (keyboard) requestAnimationFrame(focusSelectedPage);
   }
   function hover(y: number) {
-    if (draggingRef.current || menuOpen) return;
+    if (draggingRef.current || resizeDrag.current || menuOpen) return;
     cancelTimers();
     openTimer.current = setTimeout(() => show(y), 180);
   }
@@ -188,14 +208,23 @@ export function SlideRail({
     if (menuOpen) cancelTimers();
   }, [menuOpen]);
   useEffect(() => {
-    const rail = railRef.current;
-    if (!rail) return;
+    const preview = previewRef.current;
+    if (!preview) return;
     const observer = new ResizeObserver(([entry]) =>
-      setThumbWidth(Math.max(56, Math.min(140, entry.contentRect.width - 24))),
+      setThumbWidth(entry.contentRect.width),
     );
-    observer.observe(rail);
+    observer.observe(preview);
     return () => observer.disconnect();
   }, []);
+  function finishResize(event: PointerEvent<HTMLDivElement>, cancel = false) {
+    const drag = resizeDrag.current;
+    if (!drag || event.pointerId !== drag.id) return;
+    resizeDrag.current = undefined;
+    setDraftScale(undefined);
+    if (!cancel) onScale(drag.next);
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  }
   useEffect(() => {
     // Scroll this pane only; never move the canvas or the document to reveal a page.
     const node = triggers.current.get(slide.y),
@@ -292,6 +321,8 @@ export function SlideRail({
       <aside
         className="slide-rail two-d-rail"
         id="editor-thumbnails"
+        style={{ "--rail-scale": displayedScale / 100 } as CSSProperties}
+        data-resizing={draftScale !== undefined}
         ref={railRef}
         aria-label="縦横のページ一覧"
         onPointerLeave={(e) => {
@@ -392,10 +423,7 @@ export function SlideRail({
                       </span>
                       <span
                         className="rail-preview"
-                        style={{
-                          width: thumbWidth,
-                          height: (thumbWidth * H) / W,
-                        }}
+                        ref={y === 0 ? previewRef : undefined}
                       >
                         {cell ? (
                           <Canvas slide={cell} zoom={thumbWidth / W} />
@@ -447,6 +475,66 @@ export function SlideRail({
           )}
         </div>
         <div className="rail-footnote">ドラッグで段ごと移動 ↕</div>
+        <div
+          className="rail-resize-handle"
+          role="separator"
+          tabIndex={0}
+          aria-label="サムネイルバーの幅"
+          aria-orientation="vertical"
+          aria-controls="editor-thumbnails"
+          aria-valuemin={MIN_RAIL_SCALE}
+          aria-valuemax={MAX_RAIL_SCALE}
+          aria-valuenow={displayedScale}
+          aria-valuetext={`${displayedScale}%`}
+          title={`幅 ${displayedScale}%：ドラッグで変更・ダブルクリックで100%に戻す`}
+          onPointerDown={(event) => {
+            if (!event.isPrimary || event.button !== 0 || draggingRef.current)
+              return;
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+            event.currentTarget.focus({ preventScroll: true });
+            resizeDrag.current = {
+              id: event.pointerId,
+              x: event.clientX,
+              scale,
+              baseWidth:
+                railRef.current!.getBoundingClientRect().width / (scale / 100),
+              next: scale,
+            };
+            setDraftScale(scale);
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const drag = resizeDrag.current;
+            if (!drag || event.pointerId !== drag.id) return;
+            drag.next = clampRailScale(
+              drag.scale + ((event.clientX - drag.x) / drag.baseWidth) * 100,
+            );
+            setDraftScale(drag.next);
+          }}
+          onPointerUp={finishResize}
+          onPointerCancel={(event) => finishResize(event, true)}
+          onLostPointerCapture={(event) => finishResize(event)}
+          onDoubleClick={() => onScale(100)}
+          onKeyDown={(event) => {
+            const next =
+              event.key === "ArrowLeft"
+                ? displayedScale - 5
+                : event.key === "ArrowRight"
+                  ? displayedScale + 5
+                  : event.key === "Home"
+                    ? MIN_RAIL_SCALE
+                    : event.key === "End"
+                      ? MAX_RAIL_SCALE
+                      : undefined;
+            if (next === undefined) return;
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+            onScale(clampRailScale(next));
+          }}
+        />
       </aside>
       {openRow !== null &&
         createPortal(
@@ -458,7 +546,10 @@ export function SlideRail({
             className="row-flyout"
             style={position}
             onPointerEnter={(e) => {
-              if (e.pointerType === "mouse") cancelTimers();
+              // Compatibility mouse events during a touch drag must not cancel
+              // the timer that opens its destination row.
+              if (e.pointerType === "mouse" && !draggingRef.current)
+                cancelTimers();
             }}
             onPointerLeave={(e) => {
               if (e.pointerType === "mouse") delayClose();

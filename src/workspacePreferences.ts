@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 
 export const DEFAULT_ZOOM_STEPS = [60, 100];
+export const MIN_RAIL_SCALE = 80;
+export const MAX_RAIL_SCALE = 150;
+export const clampRailScale = (value: number) =>
+  Math.max(MIN_RAIL_SCALE, Math.min(MAX_RAIL_SCALE, Math.round(value)));
 const KEY = "vhslide-workspace-preferences-v1";
 type Preferences = {
   zoomSteps: number[];
   railCollapsed: boolean;
   inspectorCollapsed: boolean;
+  railScale: number;
 };
 export function parseZoomSteps(text: string): number[] {
   const values = text
@@ -34,6 +39,7 @@ function initial(): Preferences {
     zoomSteps: [...DEFAULT_ZOOM_STEPS],
     railCollapsed: false,
     inspectorCollapsed: false,
+    railScale: 100,
   };
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "null");
@@ -47,6 +53,11 @@ function initial(): Preferences {
       zoomSteps: parseZoomSteps(stored.zoomSteps.join(",")),
       railCollapsed: stored.railCollapsed === true,
       inspectorCollapsed: stored.inspectorCollapsed === true,
+      railScale:
+        typeof stored.railScale === "number" &&
+        Number.isFinite(stored.railScale)
+          ? clampRailScale(stored.railScale)
+          : 100,
     };
   } catch {
     return fallback;

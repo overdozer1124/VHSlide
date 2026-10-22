@@ -741,18 +741,20 @@ h1 span {
   flex: 1;
   min-height: 0;
 }
-/* This rail stays the same width; horizontal pages live in a portal overlay. */
+/* The rail can resize; horizontal pages live in a portal overlay. */
 .slide-rail {
-  width: 180px;
+  --rail-base-width: 180px;
+  width: calc(var(--rail-base-width) * var(--rail-scale, 1));
   flex-shrink: 0;
   border-right: 1px solid #e1e7de;
   background: #f0f3ed;
 }
 .two-d-rail {
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 0;
+  padding: 0 7px 0 0;
   min-height: 0;
 }
 .rail-heading {
@@ -818,6 +820,8 @@ h1 span {
 }
 .rail-preview {
   display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 3px;
@@ -1499,7 +1503,7 @@ h1 span {
     padding: 20px 15px;
   }
   .slide-rail {
-    width: 165px;
+    --rail-base-width: 165px;
   }
   .toolbar-note {
     display: none;
@@ -1641,7 +1645,7 @@ h1 span {
     flex-wrap: wrap;
   }
   .slide-rail {
-    width: 96px;
+    --rail-base-width: 96px;
     height: 50dvh;
     min-height: 250px;
     grid-column: 1;
@@ -1672,7 +1676,7 @@ h1 span {
   }
   .editor-layout {
     display: grid;
-    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
   }
   .editor-workspace {
@@ -2845,4 +2849,38 @@ h1 span {
 }
 .editor-main[data-focused="true"] .canvas-title {
   padding: 2px 16px;
+}
+.rail-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 7px;
+  z-index: 4;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+.rail-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 3px;
+  background: transparent;
+}
+.rail-resize-handle:hover::after,
+.rail-resize-handle:focus-visible::after,
+.two-d-rail[data-resizing="true"] .rail-resize-handle::after {
+  background: #759865;
+}
+.rail-resize-handle:focus-visible {
+  outline: 2px solid #315d4e;
+  outline-offset: -2px;
+}
+.editor-layout:has(.two-d-rail[data-resizing="true"]),
+.editor-layout:has(.two-d-rail[data-resizing="true"]) * {
+  cursor: ew-resize;
+  user-select: none;
 }

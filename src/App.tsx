@@ -686,7 +686,11 @@ export default function App() {
       <button
         className="icon-button"
         aria-label="もとに戻す"
-        title="もとに戻す (Ctrl+Z)"
+        title={
+          cloud.undoManager
+            ? "自分の変更をもとに戻す (Ctrl+Z)"
+            : "もとに戻す (Ctrl+Z)"
+        }
         disabled={
           cloud.undoManager ? !cloud.undoManager.canUndo() : !past.length
         }
@@ -697,6 +701,11 @@ export default function App() {
       <button
         className="icon-button"
         aria-label="やり直す"
+        title={
+          cloud.undoManager
+            ? "自分の変更をやり直す (Ctrl+Shift+Z)"
+            : "やり直す (Ctrl+Shift+Z)"
+        }
         disabled={
           cloud.undoManager ? !cloud.undoManager.canRedo() : !future.length
         }
@@ -959,6 +968,10 @@ export default function App() {
             menuOpen={!!thumbnailMenu}
             historyActions={historyActions}
             railCollapsed={preferences.railCollapsed}
+            railScale={preferences.railScale}
+            onRailScale={(railScale) =>
+              setPreferences((previous) => ({ ...previous, railScale }))
+            }
             inspectorCollapsed={preferences.inspectorCollapsed}
             onToggleRail={() =>
               setPreferences((previous) => ({

@@ -51,6 +51,8 @@ interface EditorProps {
   menuOpen: boolean;
   historyActions: ReactNode;
   railCollapsed: boolean;
+  railScale: number;
+  onRailScale: (scale: number) => void;
   inspectorCollapsed: boolean;
   onToggleRail: () => void;
   onToggleInspector: () => void;
@@ -76,6 +78,8 @@ export function Editor({
   menuOpen,
   historyActions,
   railCollapsed,
+  railScale,
+  onRailScale,
   inspectorCollapsed,
   onToggleRail,
   onToggleInspector,
@@ -192,6 +196,8 @@ export function Editor({
       >
         {!railCollapsed && (
           <SlideRail
+            scale={railScale}
+            onScale={onRailScale}
             deck={deck}
             slide={slide}
             onSelectSlide={onSelectSlide}

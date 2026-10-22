@@ -190,6 +190,37 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await expect(b).toContainText("Bob");
     await saved(page);
     await saved(other);
+    // Each browser must undo/redo only its own Quill input, even in the same box.
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+    for (const user of [page, other]) {
+      await expect(user.locator(".editor-workspace")).not.toContainText(
+        "Alice",
+      );
+      await expect(user.locator(".editor-workspace")).toContainText("Bob");
+    }
+    await expect(
+      page.getByRole("button", { name: "もとに戻す", exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: "やり直す", exact: true }).click();
+    await expect(other.locator(".editor-workspace")).toContainText("Alice");
+    await other.keyboard.press("Escape");
+    await other
+      .getByRole("button", { name: "もとに戻す", exact: true })
+      .click();
+    for (const user of [page, other]) {
+      await expect(user.locator(".editor-workspace")).toContainText("Alice");
+      await expect(user.locator(".editor-workspace")).not.toContainText("Bob");
+    }
+    await expect(
+      other.getByRole("button", { name: "もとに戻す", exact: true }),
+    ).toBeDisabled();
+    await other.getByRole("button", { name: "やり直す", exact: true }).click();
+    await expect(page.locator(".editor-workspace")).toContainText("Bob");
+    await saved(page);
+    await saved(other);
+    await page.locator(".editor-workspace .element").first().click();
+    await other.locator(".editor-workspace .element").first().click();
     await page.context().setOffline(true);
     await expect(page.locator(".cloud-presence")).toContainText("再接続中");
     await a.press("End");
