@@ -200,6 +200,12 @@ test("the full map supports dragging into a gap with the same insertion animatio
   await expect(page.locator(".editor-pager")).toHaveCount(0);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   expect((await data(page)).slides).toEqual(before.slides);
+  // A new pointer gesture immediately after dropping must not be mistaken for
+  // the synthetic release click that dragging suppresses.
+  await page
+    .getByRole("button", { name: "わたしたちのまちを編集", exact: true })
+    .click();
+  await expect(page.locator(".editor-pager")).toBeVisible();
 });
 
 test("touch map grips start immediately, swap cards, and two-finger pinches still belong to zoom", async ({

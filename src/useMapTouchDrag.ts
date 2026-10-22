@@ -159,6 +159,10 @@ export function useMapTouchDrag(
         event.stopPropagation();
       }
     }
+    function pointer(event: PointerEvent) {
+      // Suppress a release-generated click, but accept the next intentional tap.
+      if (event.isPrimary && !drag?.active) suppressUntil = 0;
+    }
     function context(event: MouseEvent) {
       if (drag || performance.now() < suppressUntil) {
         event.preventDefault();
@@ -179,6 +183,7 @@ export function useMapTouchDrag(
     node.addEventListener("touchend", end, { passive: false, capture: true });
     node.addEventListener("touchcancel", cancel, true);
     node.addEventListener("click", click, true);
+    node.addEventListener("pointerdown", pointer, true);
     node.addEventListener("contextmenu", context, true);
     document.addEventListener("keydown", key);
     return () => {
@@ -188,6 +193,7 @@ export function useMapTouchDrag(
       node.removeEventListener("touchend", end, true);
       node.removeEventListener("touchcancel", cancel, true);
       node.removeEventListener("click", click, true);
+      node.removeEventListener("pointerdown", pointer, true);
       node.removeEventListener("contextmenu", context, true);
       document.removeEventListener("keydown", key);
     };
