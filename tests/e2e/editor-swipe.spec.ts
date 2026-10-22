@@ -295,7 +295,7 @@ test("touch taps edit text, explicit handles move and resize, and swiping an act
   await expect(title(page)).toHaveValue("1.1");
 });
 
-test("trackpad wheel gestures follow both axes, reverse, settle once, and ignore momentum and pinch zoom", async ({
+test("trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "desktop", "ノートPCのタッチパッド操作");
@@ -329,7 +329,7 @@ test("trackpad wheel gestures follow both axes, reverse, settle once, and ignore
         bubbles: true,
         cancelable: true,
         ctrlKey: true,
-        deltaY: 100,
+        deltaY: 10,
       }),
     ),
   );

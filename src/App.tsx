@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { WorkspaceTransition } from "./WorkspaceTransition";
+import type { WorkspaceFlight } from "./WorkspaceTransition";
 import {
   Check,
   Cloud,
@@ -79,6 +82,7 @@ export default function App() {
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
   const [mapScale, setMapScale] = useState(0.8);
+  const [flight, setFlight] = useState<WorkspaceFlight>();
   const [moving, setMoving] = useState<GridMove>();
   const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();
   const [direction, setDirection] = useState("right");
@@ -160,6 +164,38 @@ export default function App() {
     setDeck(next);
     setActiveId(id);
     setSelected(undefined);
+  }
+  function switchWorkspace(
+    destination: "map" | "editor",
+    id = slide.id,
+    from?: DOMRect,
+  ) {
+    const target = deck.slides.find((page) => page.id === id);
+    const source =
+      from ??
+      (view === "map"
+        ? document.querySelector(
+            `[data-page-id="${CSS.escape(id)}"] .thumbnail`,
+          )
+        : document.querySelector(".editor-pager")
+      )?.getBoundingClientRect();
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.isContentEditable)
+      active.blur();
+    flushSync(() => {
+      if (destination === "editor") selectEditorPage(id);
+      setView(destination);
+      setSelected(undefined);
+      setMoving(undefined);
+      setThumbnailMenu(undefined);
+      if (
+        source &&
+        target &&
+        !matchMedia("(prefers-reduced-motion: reduce)").matches
+      )
+        setFlight({ slide: target, from: source, destination });
+      else setFlight(undefined);
+    });
   }
   function navigateEditor(dx: number, dy: number) {
     const current =
@@ -678,7 +714,13 @@ export default function App() {
   return (
     <CloudDocument.Provider value={cloud.doc}>
       <div
-        className={`app-shell ${view !== "present" ? "workspace-mode" : ""} ${view === "editor" ? "editing" : view === "map" ? "mapping" : ""}`}
+        onPointerDownCapture={() => {
+          if (flight) flushSync(() => setFlight(undefined));
+        }}
+        onKeyDownCapture={() => {
+          if (flight) flushSync(() => setFlight(undefined));
+        }}
+        className={`app-shell ${view !== "present" ? "workspace-mode" : ""} ${view === "editor" ? "editing" : view === "map" ? "mapping" : ""} ${flight ? `workspace-transition-${flight.destination}` : ""}`}
       >
         <input
           ref={jsonRef}
@@ -806,15 +848,14 @@ export default function App() {
                 <div className="view-tabs">
                   <button
                     className={view === "map" ? "active" : ""}
-                    onClick={() => setView("map")}
+                    onClick={() => switchWorkspace("map")}
                   >
                     <LayoutGrid size={16} />
                     全体マップ
                   </button>
                   <button
                     onClick={() => {
-                      setView("editor");
-                      setSelected(undefined);
+                      switchWorkspace("editor");
                     }}
                   >
                     <Type size={16} />
@@ -834,6 +875,8 @@ export default function App() {
                 カードを押すと編集できます。右の＋で次の話題、下の＋で詳しいページを追加。
                 <br />
                 並べ替えはドラッグ、または「移動」→移動先をタップ。発表中は矢印キー・スワイプでも進めます。
+                <br />
+                マップはピンチで拡大すると編集画面へ、編集中はピンチインでマップへ戻ります。番号一覧や番号検索でも探せます。
                 <br />
                 編集中は文字・画像の上でも1本指でスワイプしてページを移動できます。タッチパッドは2本指で操作します。要素はタップして選び、移動ハンドルで動かします。
               </p>
@@ -861,10 +904,8 @@ export default function App() {
             onMove={setMoving}
             dropAt={dropAt}
             add={add}
-            onEdit={(id) => {
-              selectEditorPage(id);
-              setView("editor");
-            }}
+            onEdit={(id, rect) => switchWorkspace("editor", id, rect)}
+            onSelect={selectEditorPage}
             onDelete={(id) => {
               commit(removeSlide(deck, id));
               notify("ページを削除しました。「もとに戻す」で戻せます。");
@@ -893,7 +934,7 @@ export default function App() {
             addElement={addElement}
             onInsert={insertEditorLine}
             onCreate={createEditorPage}
-            onBack={() => setView("map")}
+            onBack={(rect) => switchWorkspace("map", slide.id, rect)}
             onImagePicker={() => imageRef.current?.click()}
             onFileDrop={(file) => {
               void addImage(file);
@@ -914,6 +955,12 @@ export default function App() {
             direction={direction}
             go={go}
             exitPresent={exitPresent}
+          />
+        )}
+        {flight && (
+          <WorkspaceTransition
+            flight={flight}
+            done={() => setFlight(undefined)}
           />
         )}
         {notice && (

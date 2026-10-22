@@ -69,6 +69,7 @@ export function Canvas({
   editable = false,
   zoom = 1,
   touchNavigation = false,
+  gestureEpoch = 0,
 }: {
   slide: Slide;
   selected?: string;
@@ -77,6 +78,7 @@ export function Canvas({
   editable?: boolean;
   zoom?: number;
   touchNavigation?: boolean;
+  gestureEpoch?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<Element>();
@@ -119,6 +121,11 @@ export function Canvas({
     setDraft(undefined);
     setGuides({ x: false, y: false });
   }
+  useEffect(() => {
+    // A second finger claims navigation, cancelling pending taps and handle drags
+    // without unmounting a text editor or interrupting an IME composition.
+    cancelDrag();
+  }, [gestureEpoch]);
   function start(
     event: React.PointerEvent,
     element: Element,

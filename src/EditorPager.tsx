@@ -4,6 +4,7 @@ import type { Deck, Slide } from "./model";
 import { editorNeighbor, W, H } from "./model";
 import { Canvas } from "./Canvas";
 import { useSlidePan } from "./useSlidePan";
+import { usePinch } from "./usePinch";
 const PagePreview = memo(Canvas);
 
 export function EditorPager({
@@ -11,22 +12,52 @@ export function EditorPager({
   slide,
   zoom,
   onNavigate,
+  onMap,
+  onPinchStart,
   children,
 }: {
   deck: Deck;
   slide: Slide;
   zoom: number;
   onNavigate: (dx: number, dy: number) => unknown;
+  onMap: (rect?: DOMRect) => void;
+  onPinchStart: () => void;
   children: ReactNode;
 }) {
   const width = W * zoom,
     height = H * zoom;
-  const { viewport, pan, handlers } = useSlidePan({
+  const { viewport, pan, handlers, cancel } = useSlidePan({
     slideId: slide.id,
     width,
     height,
     neighbor: (dx, dy) => editorNeighbor(deck, slide, dx, dy),
     navigate: onNavigate,
+    pinching: () => pinch.current,
+  });
+  const pinch = usePinch(viewport, {
+    start(point) {
+      cancel();
+      onPinchStart();
+      const node = viewport.current!;
+      const rect = node.getBoundingClientRect();
+      node.style.transition = "none";
+      node.style.transformOrigin = `${point.x - rect.x}px ${point.y - rect.y}px`;
+    },
+    change({ ratio }) {
+      viewport.current!.style.transform = `scale(${Math.max(0.35, Math.min(1, ratio))})`;
+    },
+    end({ ratio }, cancelled) {
+      const node = viewport.current!;
+      if (!cancelled && ratio < 0.72) {
+        onMap(node.getBoundingClientRect());
+      } else {
+        node.style.transition = matchMedia("(prefers-reduced-motion: reduce)")
+          .matches
+          ? "none"
+          : "transform 120ms ease-out";
+        node.style.transform = "";
+      }
+    },
   });
   const transform = (offset: number) =>
     pan?.axis === "y"

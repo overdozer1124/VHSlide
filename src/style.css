@@ -2530,3 +2530,135 @@ h1 span {
     padding: 6px;
   }
 }
+
+/* The map owns pinch zoom, while native one-finger scrolling remains available. */
+.mapping .map-scroll {
+  touch-action: pan-x pan-y;
+}
+.map-grid[data-pinching="true"] {
+  will-change: transform;
+}
+.map-grid[data-pinching="true"] .column-heading,
+.map-grid[data-pinching="true"] .row-axis {
+  position: relative;
+}
+.mapping .grid-cell {
+  padding-right: var(--map-gap, 24px);
+}
+.map-find {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  border: 1px solid #d8e1d3;
+  border-radius: 5px;
+}
+.map-find input {
+  width: 64px;
+  min-width: 0;
+  padding: 4px 7px;
+  font-size: 12px;
+  background: transparent;
+}
+.map-find .icon-button {
+  width: 28px;
+  height: 28px;
+}
+.map-find + .map-zoom {
+  margin-left: 0;
+}
+.map-find-error {
+  padding: 3px 12px;
+  font-size: 11px;
+  color: #a33b32;
+}
+.map-numbers-toggle[aria-pressed="true"] {
+  background: #dcebd3;
+  color: #173d38;
+}
+.mapping .map-grid[data-mini="true"] .card-footer {
+  height: 18px;
+  padding: 0 2px;
+}
+.mapping .map-grid[data-mini="true"] .page-number {
+  font-size: 9px;
+  padding: 0;
+}
+.mapping .map-grid[data-mini="true"] .card-tool,
+.mapping .map-grid[data-mini="true"] .column-heading .icon-button {
+  display: none;
+}
+.mapping .map-grid[data-mini="true"] .column-heading {
+  padding: 0 2px;
+}
+.mapping .map-grid[data-mini="true"] .add-dot {
+  display: none;
+}
+.mapping .map-grid[data-numbers="true"] .card-footer,
+.mapping .map-grid[data-numbers="true"] .add-dot,
+.mapping .map-grid[data-numbers="true"] .start-badge,
+.mapping .map-grid[data-numbers="true"] .column-heading .icon-button,
+.mapping .map-grid[data-numbers="true"] .empty-cell > *,
+.mapping .map-grid[data-numbers="true"] .vertical-label {
+  display: none;
+}
+.mapping .map-grid[data-numbers="true"] .column-heading {
+  padding: 0 4px;
+  justify-content: center;
+}
+.mapping .map-grid[data-numbers="true"] .thumbnail {
+  display: block;
+  width: 100%;
+}
+.number-tile {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  background: #f2f6ed;
+  color: #365b48;
+}
+.active-card .number-tile {
+  background: #365f4b;
+  color: white;
+  font-weight: 700;
+}
+.workspace-flight {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 960px;
+  height: 540px;
+  transform-origin: 0 0;
+  z-index: 250;
+  pointer-events: none;
+  overflow: hidden;
+  box-shadow: 0 6px 24px #173d3820;
+  will-change: transform;
+}
+@media (max-width: 760px) {
+  .map-find {
+    order: 3;
+    margin-left: 0;
+  }
+  .map-find input {
+    width: 48px;
+  }
+  .map-find + .map-zoom {
+    margin-left: auto;
+  }
+  .map-zoom {
+    gap: 0;
+  }
+  .map-zoom .icon-button {
+    width: 28px;
+  }
+  .map-pinch-hint {
+    display: none;
+  }
+}
+.workspace-transition-editor .editor-page-current,
+.workspace-transition-map .active-card .thumbnail {
+  visibility: hidden;
+}

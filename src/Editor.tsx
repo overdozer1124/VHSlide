@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowLeft,
@@ -34,7 +34,7 @@ interface EditorProps {
   updateSlide: (patch: Partial<Slide>) => void;
   updateElement: (patch: Partial<Element>) => void;
   addElement: (type: "text" | "shape", shape?: Shape) => void;
-  onBack: () => void;
+  onBack: (rect?: DOMRect) => void;
   onImagePicker: () => void;
   onFileDrop: (file: File) => void;
   onSelectSlide: (id: string) => void;
@@ -68,13 +68,14 @@ export function Editor({
   menuOpen,
   historyActions,
 }: EditorProps) {
+  const [gestureEpoch, setGestureEpoch] = useState(0);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const zoom = useFitCanvas(workspaceRef);
   const element = slide.elements.find((e) => e.id === selected);
   return (
     <main className="editor-main">
       <div className="editor-toolbar">
-        <button className="quiet back-map" onClick={onBack}>
+        <button className="quiet back-map" onClick={() => onBack()}>
           <ArrowLeft size={17} />
           全体マップへ
         </button>
@@ -158,6 +159,8 @@ export function Editor({
             slide={slide}
             zoom={zoom}
             onNavigate={onNavigate}
+            onMap={onBack}
+            onPinchStart={() => setGestureEpoch((epoch) => epoch + 1)}
           >
             <Canvas
               slide={slide}
@@ -166,6 +169,7 @@ export function Editor({
               selected={selected}
               onSelect={setSelected}
               touchNavigation
+              gestureEpoch={gestureEpoch}
               onChange={(e) =>
                 updateSlide({
                   elements: slide.elements.map((original) =>

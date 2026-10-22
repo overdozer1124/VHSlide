@@ -97,6 +97,33 @@ test("recovers unsent text from this browser after reopening the app", async ({
     }
     await page.locator(".editor-workspace .element").first().click();
     await expect(text).toContainText("recover-me");
+    // Pinching over an active Quill textbox must also preserve unsent Yjs text.
+    const box = (await page.locator(".editor-pager").boundingBox())!;
+    const textBox = (await text.boundingBox())!;
+    const cx = textBox.x + textBox.width / 2;
+    const cy = textBox.y + textBox.height / 2;
+    const radius = Math.min(45, textBox.width * 0.35, box.width * 0.2);
+    for (const [type, spread] of [
+      ["touchStart", radius],
+      ["touchMove", radius * 0.5],
+      ["touchEnd", 0],
+    ] as const) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: spread
+          ? [
+              { id: 1, x: cx - spread, y: cy },
+              { id: 2, x: cx + spread, y: cy },
+            ]
+          : [],
+      });
+    }
+    await expect(page.locator(".map-scroll")).toBeVisible();
+    await page
+      .getByRole("button", { name: "ページを編集", exact: true })
+      .click();
+    await page.locator(".editor-workspace .element").first().click();
+    await expect(text).toContainText("recover-me");
   }
   // Let the browser's durable transaction complete, then leave without reconnecting.
   await page.waitForTimeout(300);

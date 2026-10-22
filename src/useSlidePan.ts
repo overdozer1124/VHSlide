@@ -32,6 +32,7 @@ export function useSlidePan(options: {
   height: number;
   neighbor: (dx: number, dy: number) => Slide | undefined;
   navigate: (dx: number, dy: number) => unknown;
+  pinching?: () => boolean;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const latest = useRef(options);
@@ -180,8 +181,12 @@ export function useSlidePan(options: {
     const node = viewport.current;
     if (!node) return;
     function wheel(event: WheelEvent) {
-      // Ctrl+wheel is a trackpad pinch; leave browser zoom available.
-      if (event.ctrlKey || (event.target as Element).closest(EDIT_HANDLE))
+      // Pinches belong to the map/editor zoom gesture.
+      if (
+        event.ctrlKey ||
+        latest.current.pinching?.() ||
+        (event.target as Element).closest(EDIT_HANDLE)
+      )
         return;
       event.preventDefault();
       if (gesture.current?.source === "touch") return;
@@ -274,8 +279,13 @@ export function useSlidePan(options: {
   return {
     viewport,
     pan,
+    cancel: reset,
     handlers: {
       onPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
+        if (latest.current.pinching?.()) {
+          event.stopPropagation();
+          return;
+        }
         // Ignore the compatibility click after a swipe, not the next real tap.
         suppressClickUntil.current = 0;
         if (!settling.current && currentPan.current?.settling) reset();
@@ -304,6 +314,10 @@ export function useSlidePan(options: {
         };
       },
       onPointerMoveCapture(event: ReactPointerEvent<HTMLDivElement>) {
+        if (latest.current.pinching?.()) {
+          event.stopPropagation();
+          return;
+        }
         const g = gesture.current;
         if (!g || g.source !== "touch" || g.pointerId !== event.pointerId)
           return;
