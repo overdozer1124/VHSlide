@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  memo,
-} from "react";
+import { useLayoutEffect, useMemo, useRef, useState, memo } from "react";
 import type { CSSProperties } from "react";
 import {
   ArrowDown,
@@ -29,7 +22,7 @@ import { usePinch } from "./usePinch";
 import type { PinchPoint } from "./usePinch";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const ThumbnailCanvas = memo(Canvas);
-const STANDARD_SCALE = 0.8;
+const STANDARD_SCALE = 1;
 const SMALL_SCALE = 0.6;
 
 interface MapViewProps {
@@ -175,18 +168,19 @@ function MapViewComponent({
       grid.dataset.pinching = "true";
     },
     change(sample) {
+      if (numbers && sample.direction === "in") return;
       const a = anchor.current!;
       const ratio = Math.max(0.12, Math.min(5, sample.ratio));
       gridRef.current!.style.transform = `translate(${sample.x - a.point.x}px, ${sample.y - a.point.y}px) scale(${ratio})`;
     },
-    end(sample, cancelled) {
+    end(sample) {
       const a = anchor.current!;
       delete gridRef.current!.dataset.pinching;
-      if (cancelled) {
+      if (!sample.direction) {
         gridRef.current!.style.transform = "";
         return;
       }
-      if (!numbers && a.scale * sample.ratio >= 1.5 && a.id) {
+      if (a.scale === STANDARD_SCALE && sample.direction === "out" && a.id) {
         const tile = gridRef.current!.querySelector(
           `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
         );
@@ -197,19 +191,15 @@ function MapViewComponent({
         onEdit(a.id, rect);
         return;
       }
-      // Commit a single display step. Continuous transforms above still follow
-      // the fingers, but releasing never leaves dozens of tiny thumbnails.
-      const next = numbers
-        ? sample.ratio > 1.18
-          ? SMALL_SCALE
-          : 0
-        : sample.ratio < 0.85
+      // Always complete the display step chosen by the initial pinch direction.
+      const next =
+        sample.direction === "in"
           ? a.scale === STANDARD_SCALE
             ? SMALL_SCALE
             : 0
-          : sample.ratio > 1.15
-            ? STANDARD_SCALE
-            : a.scale;
+          : numbers
+            ? SMALL_SCALE
+            : STANDARD_SCALE;
       keepAnchor(next, sample);
     },
   });
@@ -283,15 +273,17 @@ function MapViewComponent({
     );
     scrollRef.current.scrollLeft = 0;
   }
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!visible) return;
     if (skipFocusScroll.current) {
       skipFocusScroll.current = false;
       return;
     }
-    activeCard.current?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
+    const thumbnail = activeCard.current?.querySelector(".thumbnail");
+    thumbnail?.scrollIntoView({
+      block: "center",
+      inline: "center",
+      behavior: "instant",
     });
   }, [activeId, numbers, visible]);
   return (
@@ -366,9 +358,9 @@ function MapViewComponent({
             </button>
             <button
               className="map-scale-reset"
-              aria-label="表示サイズを80%に戻す"
+              aria-label="表示サイズを100%に戻す"
               title="標準の表示サイズに戻す"
-              onClick={() => onScale(0.8)}
+              onClick={() => onScale(STANDARD_SCALE)}
             >
               {numbers ? "番号" : `${Math.round(scale * 100)}%`}
             </button>

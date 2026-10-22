@@ -81,7 +81,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState("この端末に自動保存");
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
-  const [mapScale, setMapScale] = useState(0.8);
+  const [mapScale, setMapScale] = useState(1);
   const [flight, setFlight] = useState<WorkspaceFlight>();
   const [moving, setMoving] = useState<GridMove>();
   const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();

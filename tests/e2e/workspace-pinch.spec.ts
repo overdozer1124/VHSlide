@@ -19,26 +19,27 @@ async function points(
           ],
   });
 }
-async function wheel(surface: Locator, deltaY: number) {
-  await surface.evaluate((node, deltaY) => {
+async function wheel(surface: Locator, deltas: number | number[]) {
+  await surface.evaluate((node, deltas) => {
     const b = node.getBoundingClientRect();
-    node.dispatchEvent(
-      new WheelEvent("wheel", {
-        bubbles: true,
-        cancelable: true,
-        ctrlKey: true,
-        deltaY,
-        clientX: b.x + b.width / 2,
-        clientY: b.y + b.height / 2,
-      }),
-    );
-  }, deltaY);
+    for (const deltaY of Array.isArray(deltas) ? deltas : [deltas])
+      node.dispatchEvent(
+        new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          deltaY,
+          clientX: b.x + b.width / 2,
+          clientY: b.y + b.height / 2,
+        }),
+      );
+  }, deltas);
 }
 async function noFlight(page: Page) {
   await expect(page.locator(".workspace-flight")).toHaveCount(0);
 }
 
-test("pinch follows the fingers, reverses, opens the focused slide, and returns without changing content", async ({
+test("a pinch completes its initial direction even after reversing or interruption, without changing slide content", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "touch", "実際の2本指タッチ");
@@ -59,20 +60,12 @@ test("pinch follows the fingers, reverses, opens the focused slide, and returns 
   await expect
     .poll(async () => (await tile.boundingBox())!.width)
     .toBeGreaterThan(b.width * 1.4);
-  // Holding and reversing must not switch views or leave the map enlarged.
-  await page.waitForTimeout(160);
-  await expect(page.locator(".editor-pager")).toHaveCount(0);
+  const enlarged = (await tile.boundingBox())!.width;
   await points(cdp, "touchMove", x, y, 35);
+  await expect
+    .poll(async () => (await tile.boundingBox())!.width)
+    .toBeCloseTo(enlarged, 0);
   await points(cdp, "touchEnd", x, y, 0);
-  await expect(
-    page.getByRole("button", { name: "表示サイズを80%に戻す", exact: true }),
-  ).toHaveText("80%");
-  const b2 = (await tile.boundingBox())!;
-  const x2 = b2.x + b2.width / 2,
-    y2 = b2.y + b2.height / 2;
-  await points(cdp, "touchStart", x2, y2, 35);
-  await points(cdp, "touchMove", x2, y2, 75);
-  await points(cdp, "touchEnd", x2, y2, 0);
   await expect(
     page.getByRole("textbox", { name: "ページの名前", exact: true }),
   ).toHaveValue("自然がいっぱい");
@@ -82,18 +75,15 @@ test("pinch follows the fingers, reverses, opens the focused slide, and returns 
   const ex = e.x + e.width / 2,
     ey = e.y + e.height / 2;
   await points(cdp, "touchStart", ex, ey, 100);
-  await points(cdp, "touchMove", ex, ey, 70);
+  // A short pinch-in also commits; returning the fingers is not cancellation.
+  await points(cdp, "touchMove", ex, ey, 90);
+  const shrunk = (await pager.boundingBox())!.width;
+  expect(shrunk).toBeLessThan(e.width);
+  await points(cdp, "touchMove", ex, ey, 110);
   await expect
     .poll(async () => (await pager.boundingBox())!.width)
-    .toBeLessThan(e.width * 0.8);
-  await points(cdp, "touchMove", ex, ey, 100);
-  await points(cdp, "touchEnd", ex, ey, 0);
-  await expect
-    .poll(async () => (await pager.boundingBox())!.width)
-    .toBeCloseTo(e.width, 0);
-  await points(cdp, "touchStart", ex, ey, 100);
-  await points(cdp, "touchMove", ex, ey, 50);
-  await points(cdp, "touchEnd", ex, ey, 0);
+    .toBeCloseTo(shrunk, 0);
+  await points(cdp, "touchCancel", ex, ey, 0);
   await expect(page.locator(".map-scroll")).toBeVisible();
   await noFlight(page);
   await expect(tile).toHaveAttribute("aria-current", "page");
@@ -124,14 +114,14 @@ test("trackpad pinch navigates both ways; numbered overview finds page 40.10 and
     name: "1.1 まちの紹介｜はじめにを編集",
     exact: true,
   });
-  await wheel(first, -100);
+  await wheel(first, [-8, 16]);
   await expect(page.locator(".editor-pager")).toBeVisible();
   await noFlight(page);
-  await wheel(page.locator(".editor-pager"), 70);
+  await wheel(page.locator(".editor-pager"), [8, -16]);
   await expect(page.locator(".map-scroll")).toBeVisible();
   await noFlight(page);
   const reset = page.getByRole("button", {
-    name: "表示サイズを80%に戻す",
+    name: "表示サイズを100%に戻す",
     exact: true,
   });
   await page.getByRole("button", { name: "マップを縮小", exact: true }).click();
@@ -178,7 +168,7 @@ test("trackpad pinch navigates both ways; numbered overview finds page 40.10 and
   await expect(selected).toHaveAttribute("aria-current", "page");
 });
 
-test("map pinch cancels safely and one finger still scrolls the large map", async ({
+test("two-finger jitter does not zoom and one finger still scrolls the large map", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "touch", "タッチスクロールとの共存");
@@ -193,11 +183,11 @@ test("map pinch cancels safely and one finger still scrolls the large map", asyn
   const x = b.x + b.width / 2,
     y = b.y + b.height / 2;
   await points(cdp, "touchStart", x, y, 30);
-  await points(cdp, "touchMove", x, y, 60);
+  await points(cdp, "touchMove", x, y, 30.3);
   await points(cdp, "touchCancel", x, y, 0);
   await expect(
-    page.getByRole("button", { name: "表示サイズを80%に戻す", exact: true }),
-  ).toHaveText("80%");
+    page.getByRole("button", { name: "表示サイズを100%に戻す", exact: true }),
+  ).toHaveText("100%");
   await expect
     .poll(async () => (await tile.boundingBox())!.width)
     .toBeCloseTo(b.width, 0);
@@ -232,7 +222,7 @@ test("pinching the map switches between standard, smaller, and numbered views wi
   await page.goto("/");
   const cdp = await page.context().newCDPSession(page);
   const reset = page.getByRole("button", {
-    name: "表示サイズを80%に戻す",
+    name: "表示サイズを100%に戻す",
     exact: true,
   });
   const first = page.locator(".thumbnail").first();
@@ -240,7 +230,7 @@ test("pinching the map switches between standard, smaller, and numbered views wi
     [0.65, "60%"],
     [0.65, "番号"],
     [1.35, "60%"],
-    [1.35, "80%"],
+    [1.35, "100%"],
   ] as const) {
     const box = (await first.boundingBox())!;
     const x = box.x + box.width / 2,
@@ -251,5 +241,73 @@ test("pinching the map switches between standard, smaller, and numbered views wi
     await points(cdp, "touchEnd", x, y, 0);
     await expect(reset).toHaveText(expected);
     await expect(page.locator(".editor-pager")).toHaveCount(0);
+  }
+});
+
+test("pinching back to the map centers an interior thumbnail and clamps edge thumbnails to the map", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "ピンチ復帰時の中央表示");
+  await page.setViewportSize({ width: 1366, height: 600 });
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles("public/samples/vhslide-10x40.json");
+  await expect(page.locator(".slide-card")).toHaveCount(400);
+  const cdp = await page.context().newCDPSession(page);
+  const map = page.locator(".map-scroll");
+  for (const number of ["20.6", "1.1", "40.10"]) {
+    const [row, column] = number.split(".").map(Number);
+    const card = page
+      .locator(`.grid-row`)
+      .nth(row - 1)
+      .locator(".slide-card")
+      .nth(column - 1);
+    await card.locator(".thumbnail").click();
+    await noFlight(page);
+    const box = (await page.locator(".editor-pager").boundingBox())!;
+    const x = box.x + box.width / 2,
+      y = box.y + box.height / 2;
+    await points(cdp, "touchStart", x, y, 90);
+    await points(cdp, "touchMove", x, y, 83);
+    await points(cdp, "touchMove", x, y, 95);
+    await points(cdp, "touchEnd", x, y, 0);
+    await expect(map).toBeVisible();
+    await noFlight(page);
+    await expect(card.locator(".slide-canvas")).toHaveCount(1);
+    const position = await card.locator(".thumbnail").evaluate((node) => {
+      const viewport = document.querySelector<HTMLElement>(".map-scroll")!;
+      const v = viewport.getBoundingClientRect(),
+        b = node.getBoundingClientRect();
+      return {
+        dx:
+          b.x +
+          b.width / 2 -
+          v.x -
+          viewport.clientLeft -
+          viewport.clientWidth / 2,
+        dy:
+          b.y +
+          b.height / 2 -
+          v.y -
+          viewport.clientTop -
+          viewport.clientHeight / 2,
+        left: viewport.scrollLeft,
+        top: viewport.scrollTop,
+        maxLeft: viewport.scrollWidth - viewport.clientWidth,
+        maxTop: viewport.scrollHeight - viewport.clientHeight,
+      };
+    });
+    if (number === "20.6") {
+      expect(Math.abs(position.dx)).toBeLessThanOrEqual(2);
+      expect(Math.abs(position.dy)).toBeLessThanOrEqual(2);
+    } else if (number === "1.1") {
+      expect(position.left).toBeLessThanOrEqual(1);
+      expect(position.top).toBeLessThanOrEqual(1);
+    } else {
+      expect(position.maxLeft - position.left).toBeLessThanOrEqual(1);
+      expect(position.maxTop - position.top).toBeLessThanOrEqual(1);
+    }
   }
 });

@@ -329,7 +329,7 @@ test("trackpad wheel gestures follow both axes, reverse, settle once, and keep s
         bubbles: true,
         cancelable: true,
         ctrlKey: true,
-        deltaY: 10,
+        deltaY: 1,
       }),
     ),
   );

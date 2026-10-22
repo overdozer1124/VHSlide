@@ -2,7 +2,10 @@ import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 
 export type PinchPoint = { x: number; y: number };
-export type PinchSample = PinchPoint & { ratio: number };
+export type PinchSample = PinchPoint & {
+  ratio: number;
+  direction?: "in" | "out";
+};
 
 /** Own only two-finger pinches (including Chrome's ctrl+wheel trackpad events).
  * One-finger scrolling/paging and ordinary wheel events stay with their owners. */
@@ -22,6 +25,7 @@ export function usePinch(
     if (!node) return;
     let source: "touch" | "wheel" | undefined;
     let distance = 1;
+    let wheelRatio = 1;
     let sample: PinchSample = { x: 0, y: 0, ratio: 1 };
     let timer: ReturnType<typeof setTimeout> | undefined;
     let suppressUntil = 0;
@@ -33,6 +37,28 @@ export function usePinch(
         touches[0].clientY - touches[1].clientY,
       ),
     });
+    function report(next: PinchSample) {
+      // Ignore two-finger taps and tiny sensor jitter. Once zoom has begun,
+      // keep its first direction and furthest extent even if the fingers reverse.
+      const direction =
+        sample.direction ??
+        (Math.abs(Math.log(next.ratio)) >= 0.045
+          ? next.ratio < 1
+            ? "in"
+            : "out"
+          : undefined);
+      sample = {
+        ...next,
+        direction,
+        ratio:
+          direction === "in"
+            ? Math.min(sample.ratio, next.ratio)
+            : direction === "out"
+              ? Math.max(sample.ratio, next.ratio)
+              : 1,
+      };
+      latest.current.change(sample);
+    }
     function finish(cancelled: boolean) {
       clearTimeout(timer);
       if (!source) return;
@@ -56,12 +82,11 @@ export function usePinch(
       event.preventDefault();
       if (event.touches.length !== 2) return finish(true);
       const point = measure(event.touches);
-      sample = {
+      report({
         x: point.x,
         y: point.y,
         ratio: Math.max(0.08, Math.min(8, point.distance / distance)),
-      };
-      latest.current.change(sample);
+      });
     }
     function end(event: TouchEvent) {
       if (source === "touch" && event.touches.length < 2) {
@@ -77,6 +102,7 @@ export function usePinch(
       if (!source) {
         source = "wheel";
         active.current = true;
+        wheelRatio = 1;
         sample = { x: event.clientX, y: event.clientY, ratio: 1 };
         latest.current.start(sample);
       }
@@ -86,14 +112,11 @@ export function usePinch(
           : event.deltaMode === 2
             ? node!.clientHeight
             : 1;
-      sample = {
-        ...sample,
-        ratio: Math.max(
-          0.08,
-          Math.min(8, sample.ratio * Math.exp(-event.deltaY * unit * 0.008)),
-        ),
-      };
-      latest.current.change(sample);
+      wheelRatio = Math.max(
+        0.08,
+        Math.min(8, wheelRatio * Math.exp(-event.deltaY * unit * 0.008)),
+      );
+      report({ x: sample.x, y: sample.y, ratio: wheelRatio });
       clearTimeout(timer);
       timer = setTimeout(() => {
         active.current = false;

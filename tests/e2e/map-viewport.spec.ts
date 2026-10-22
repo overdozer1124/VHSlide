@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("Chromebook map shows two full rows, fits ten topics, and returns to the selected page", async ({
+test("Chromebook map starts at 100%, shows two full rows at 60%, fits ten topics, and restores the selected page", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "desktop", "Chromebookの画面サイズ");
@@ -22,6 +22,15 @@ test("Chromebook map shows two full rows, fits ten topics, and returns to the se
   const bounds = (await map.boundingBox())!;
   expect(bounds.y).toBeLessThanOrEqual(145);
   expect(bounds.height).toBeGreaterThanOrEqual(400);
+  await expect(
+    page.getByRole("button", { name: "表示サイズを100%に戻す", exact: true }),
+  ).toHaveText("100%");
+  const standardWidth = (await page
+    .locator(".slide-card")
+    .first()
+    .boundingBox())!.width;
+  expect(standardWidth).toBeCloseTo(244, 0);
+  await page.getByRole("button", { name: "マップを縮小", exact: true }).click();
   for (const card of [
     page.locator(".slide-card").nth(0),
     page.locator(".slide-card").nth(10),
@@ -42,7 +51,7 @@ test("Chromebook map shows two full rows, fits ten topics, and returns to the se
   );
   await page.screenshot({ path: info.outputPath("ten-topics-map.png") });
   const scale = await page
-    .getByRole("button", { name: "表示サイズを80%に戻す", exact: true })
+    .getByRole("button", { name: "表示サイズを100%に戻す", exact: true })
     .textContent();
   await page
     .getByRole("button", { name: "40.10 まとめ｜おわりにを編集", exact: true })
@@ -52,7 +61,7 @@ test("Chromebook map shows two full rows, fits ten topics, and returns to the se
   ).toHaveValue("40.10 まとめ｜おわりに");
   await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "表示サイズを80%に戻す", exact: true }),
+    page.getByRole("button", { name: "表示サイズを100%に戻す", exact: true }),
   ).toHaveText(scale!);
   const active = (await page.locator(".active-card").boundingBox())!;
   expect(active.y).toBeGreaterThanOrEqual(bounds.y);
@@ -75,7 +84,7 @@ test("map zoom and editing remain usable on a narrow touch screen", async ({
   await page.setViewportSize({ width: 390, height: 640 });
   await page.goto("/");
   const reset = page.getByRole("button", {
-    name: "表示サイズを80%に戻す",
+    name: "表示サイズを100%に戻す",
     exact: true,
   });
   const card = page.locator(".slide-card").first();
@@ -85,7 +94,7 @@ test("map zoom and editing remain usable on a narrow touch screen", async ({
     .poll(async () => (await card.boundingBox())!.width)
     .toBeLessThan(width);
   await page.getByRole("button", { name: "マップを拡大", exact: true }).tap();
-  await expect(reset).toHaveText("80%");
+  await expect(reset).toHaveText("100%");
   await page.getByRole("button", { name: "横をおさめる", exact: true }).tap();
   await expect
     .poll(() =>
@@ -178,12 +187,12 @@ test("a thousand pages render nearby thumbnails only, keep their grid positions,
   await expect(first.locator(".slide-canvas")).toHaveCount(1);
   await expect(last.locator(".slide-canvas")).toHaveCount(0);
   const reset = page.getByRole("button", {
-    name: "表示サイズを80%に戻す",
+    name: "表示サイズを100%に戻す",
     exact: true,
   });
   const down = page.getByRole("button", { name: "マップを縮小", exact: true });
   const up = page.getByRole("button", { name: "マップを拡大", exact: true });
-  await expect(reset).toHaveText("80%");
+  await expect(reset).toHaveText("100%");
   await expect(up).toBeDisabled();
   await page.getByRole("button", { name: "横をおさめる", exact: true }).click();
   await expect(reset).toHaveText("番号");
@@ -221,7 +230,7 @@ test("a thousand pages render nearby thumbnails only, keep their grid positions,
     }),
   ).toBeVisible();
   await up.click();
-  await expect(reset).toHaveText("80%");
+  await expect(reset).toHaveText("100%");
   await expect(up).toBeDisabled();
   expect(
     await page.evaluate(

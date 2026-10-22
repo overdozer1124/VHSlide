@@ -46,9 +46,9 @@ export function EditorPager({
     change({ ratio }) {
       viewport.current!.style.transform = `scale(${Math.max(0.35, Math.min(1, ratio))})`;
     },
-    end({ ratio }, cancelled) {
+    end({ direction }) {
       const node = viewport.current!;
-      if (!cancelled && ratio < 0.72) {
+      if (direction === "in") {
         onMap(node.getBoundingClientRect());
       } else {
         node.style.transition = matchMedia("(prefers-reduced-motion: reduce)")
