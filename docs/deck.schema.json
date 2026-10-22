@@ -39,7 +39,7 @@
     },
     "rowSelections": {
       "type": "array",
-      "maxItems": 100,
+      "maxItems": 1000,
       "uniqueItems": true,
       "items": {
         "type": "string",
@@ -47,6 +47,33 @@
         "maxLength": 100
       },
       "description": "各段で最後に選択したスライドID。段の移動に追従する任意のUI状態。"
+    },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "description": "省略時はmainというIDのシート1。スライドはsheetIdで所属を指定する。各シートには(0,0)のページが必要。",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        }
+      }
+    },
+    "activeSheetId": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "利用者ごとの表示中シートID。共同編集相手には同期しない。"
     }
   },
   "$defs": {
@@ -127,6 +154,12 @@
               }
             ]
           }
+        },
+        "sheetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "所属シート。省略時はmain。"
         }
       }
     },

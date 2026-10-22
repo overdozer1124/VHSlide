@@ -287,6 +287,42 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await expect(
       other.locator(".editor-workspace img.slide-image"),
     ).toHaveCount(1);
+    // The selected sheet is personal, while its content and tab order are shared.
+    await page
+      .getByRole("button", { name: "空のシートを追加", exact: true })
+      .click();
+    await expect(other.getByRole("tab")).toHaveCount(2);
+    await expect(
+      other.getByRole("tab", { name: "シート1", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "文字", exact: true }).click();
+    const sheetText = page.getByRole("textbox", {
+      name: "スライド内の文字",
+      exact: true,
+    });
+    await sheetText.fill("別シートの共同編集");
+    await sheetText.press("Escape");
+    await other.getByRole("tab", { name: "シート2", exact: true }).click();
+    await expect(other.locator(".editor-workspace")).toContainText(
+      "別シートの共同編集",
+    );
+    await other.getByRole("tab", { name: "シート1", exact: true }).click();
+    await expect(other.locator(".editor-workspace")).toContainText("offline");
+    await page
+      .getByRole("button", { name: "シートの操作", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "シートを左へ移動", exact: true })
+      .click();
+    await page.getByRole("button", { name: "閉じる", exact: true }).click();
+    await expect
+      .poll(() => other.getByRole("tab").allTextContents())
+      .toEqual(["シート2", "シート1"]);
+    await other.reload();
+    await saved(other);
+    await expect(
+      other.getByRole("tab", { name: "シート1", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
     await page
       .getByRole("button", { name: `${name}-friendの参加を解除`, exact: true })

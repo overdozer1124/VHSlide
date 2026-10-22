@@ -52,6 +52,28 @@ function patchFields(
 export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
   doc.transact(() => {
     changeText(doc.getText("title"), before.title, after.title);
+    const sheets = doc.getMap<Fields>("sheets");
+    for (const old of before.sheets ?? [])
+      if (!(after.sheets ?? []).some((s) => s.id === old.id))
+        sheets.delete(old.id);
+    (after.sheets ?? []).forEach((sheet, rank) => {
+      const old = before.sheets?.find((s) => s.id === sheet.id);
+      let target = sheets.get(sheet.id);
+      if (!target) {
+        if (
+          old &&
+          ![...doc.getMap<Fields>("slides").values()].some(
+            (s) => (s.get("sheetId") ?? "main") === sheet.id,
+          )
+        )
+          return;
+        target = new Y.Map();
+        sheets.set(sheet.id, target);
+      }
+      if (!old || old.name !== sheet.name) target.set("name", sheet.name);
+      if (!old || before.sheets?.indexOf(old) !== rank)
+        target.set("rank", rank);
+    });
     const slides = doc.getMap<Fields>("slides");
     for (const old of before.slides)
       if (!after.slides.some((s) => s.id === old.id)) slides.delete(old.id);
@@ -69,6 +91,10 @@ export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
       changeText(target.get("title") as Y.Text, old?.title ?? "", slide.title);
       if (!old || old.x !== slide.x || old.y !== slide.y)
         target.set("position", { x: slide.x, y: slide.y });
+      if (!old || old.sheetId !== slide.sheetId) {
+        if (slide.sheetId === undefined) target.delete("sheetId");
+        else target.set("sheetId", slide.sheetId);
+      }
       if (!old || old.background !== slide.background)
         target.set("background", slide.background);
       const elements = fields(target.get("elements"));
@@ -111,6 +137,30 @@ export function createSharedDeck(deck: Deck): Y.Doc {
 /** Deterministically place simultaneous additions into distinct, fixed grid cells. */
 export function readSharedDeck(doc: Y.Doc): Deck {
   const slides: Slide[] = [];
+  const sheets = [...doc.getMap<Fields>("sheets")]
+    .map(([id, s]) => ({
+      id,
+      name: String(s.get("name")),
+      rank: Number(s.get("rank")),
+    }))
+    .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
+    .map(({ id, name }) => ({ id, name }));
+  const pageSheets = new Set(
+    [...doc.getMap<Fields>("slides").values()].map(
+      (s) => (s.get("sheetId") ?? "main") as string,
+    ),
+  );
+  if (sheets.length || [...pageSheets].some((id) => id !== "main")) {
+    for (const id of pageSheets)
+      if (!sheets.some((sheet) => sheet.id === id)) {
+        const recovered = {
+          id,
+          name: id === "main" ? "シート1" : "復元したシート",
+        };
+        if (id === "main") sheets.unshift(recovered);
+        else sheets.push(recovered);
+      }
+  }
   for (const [id, value] of doc.getMap("slides")) {
     const s = fields(value);
     const position = s.get("position") as { x: number; y: number };
@@ -136,8 +186,16 @@ export function readSharedDeck(doc: Y.Doc): Deck {
         (a, b) => a.rank - b.rank || a.element.id.localeCompare(b.element.id),
       )
       .map((e) => e.element);
+    if (
+      sheets.length &&
+      !sheets.some((sheet) => sheet.id === (s.get("sheetId") ?? "main"))
+    )
+      continue;
     slides.push({
       id,
+      ...(s.get("sheetId") === undefined
+        ? {}
+        : { sheetId: s.get("sheetId") as string }),
       ...position,
       title: text(s.get("title")),
       background: s.get("background") as string,
@@ -147,7 +205,7 @@ export function readSharedDeck(doc: Y.Doc): Deck {
   const occupied = new Set<string>();
   slides.sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id));
   for (const s of slides) {
-    while (occupied.has(`${s.x},${s.y}`)) {
+    while (occupied.has(`${s.sheetId ?? "main"}:${s.x},${s.y}`)) {
       s.x++;
       if (s.x >= 100) {
         s.x = 0;
@@ -155,18 +213,28 @@ export function readSharedDeck(doc: Y.Doc): Deck {
       }
       if (s.y >= 100) throw new Error("縦・横は100マスまでです。");
     }
-    occupied.add(`${s.x},${s.y}`);
+    occupied.add(`${s.sheetId ?? "main"}:${s.x},${s.y}`);
   }
-  if (!occupied.has("0,0"))
-    slides.unshift({
-      id: "cloud-start",
-      x: 0,
-      y: 0,
-      title: "はじめのページ",
-      background: "#ffffff",
-      elements: [],
-    });
-  return { version: 1, title: doc.getText("title").toString(), slides };
+  for (const sheet of sheets.length
+    ? sheets
+    : [{ id: "main", name: "シート1" }]) {
+    if (!occupied.has(`${sheet.id}:0,0`))
+      slides.unshift({
+        id: `cloud-start-${sheet.id}`,
+        ...(sheet.id === "main" ? {} : { sheetId: sheet.id }),
+        x: 0,
+        y: 0,
+        title: "はじめのページ",
+        background: "#ffffff",
+        elements: [],
+      });
+  }
+  return {
+    version: 1,
+    title: doc.getText("title").toString(),
+    slides,
+    ...(sheets.length ? { sheets } : {}),
+  };
 }
 export function sharedText(
   doc: Y.Doc,

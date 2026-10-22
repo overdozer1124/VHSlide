@@ -14,6 +14,7 @@ import {
   Hash,
   LocateFixed,
   Search,
+  Filter,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
 import { bounds, W, H } from "./model";
@@ -26,6 +27,10 @@ import { MapZoomSettings } from "./MapZoomSettings";
 import { closestZoom } from "./workspacePreferences";
 import { useMapTouchDrag } from "./useMapTouchDrag";
 import type { MapDrop } from "./useMapTouchDrag";
+
+import { MapFilterPanel } from "./MapFilterPanel";
+import { balancedGrid, emptyFilter, matchesFilter } from "./mapFilter";
+import type { MapFilter } from "./mapFilter";
 
 interface MapViewProps {
   visible: boolean;
@@ -65,9 +70,35 @@ function MapViewComponent({
   onScale,
   onOpenMenu,
 }: MapViewProps) {
+  const [filter, setFilter] = useState<MapFilter>();
+  const [draftFilter, setDraftFilter] = useState(emptyFilter);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filtered = filter !== undefined;
+  const displaySlides = useMemo(
+    () =>
+      filter
+        ? deck.slides
+            .filter((s) => matchesFilter(s, filter))
+            .sort((a, b) => a.y - b.y || a.x - b.x)
+        : deck.slides,
+    [deck.slides, filter],
+  );
   const size = bounds(deck),
-    cols = Math.max(3, size.cols),
-    rows = Math.max(2, size.rows);
+    packed = balancedGrid(displaySlides.length),
+    cols = filtered ? packed.cols : Math.max(3, size.cols),
+    rows = filtered ? packed.rows : Math.max(2, size.rows);
+  const positions = useMemo(
+    () =>
+      new Map(
+        displaySlides.map((s, i) => [
+          s.id,
+          filtered
+            ? { x: i % cols, y: Math.floor(i / cols) }
+            : { x: s.x, y: s.y },
+        ]),
+      ),
+    [displaySlides, filtered, cols],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({
@@ -101,8 +132,14 @@ function MapViewComponent({
   }
   const skipFocusScroll = useRef(false);
   const cells = useMemo(
-    () => new Map(deck.slides.map((s) => [`${s.x},${s.y}`, s])),
-    [deck.slides],
+    () =>
+      new Map(
+        displaySlides.map((s) => {
+          const p = positions.get(s.id)!;
+          return [`${p.x},${p.y}`, s];
+        }),
+      ),
+    [displaySlides, positions],
   );
   const levels = zoomSteps.map((percent) => percent / 100);
   const defaultScale = closestZoom(zoomSteps) / 100;
@@ -167,9 +204,10 @@ function MapViewComponent({
       if (!nearest || !grid.contains(nearest)) {
         let target: Slide | undefined,
           best = Infinity;
-        for (const page of deck.slides) {
-          const left = rect.x + 32 + page.x * (cardWidth + gap);
-          const top = rect.y + 46 + page.y * (cardHeight + gap);
+        for (const page of displaySlides) {
+          const p = positions.get(page.id)!;
+          const left = rect.x + 32 + p.x * (cardWidth + gap);
+          const top = rect.y + 46 + p.y * (cardHeight + gap);
           const distance = Math.hypot(
             Math.max(left - point.x, 0, point.x - left - cardWidth),
             Math.max(top - point.y, 0, point.y - top - cardHeight),
@@ -228,7 +266,7 @@ function MapViewComponent({
     },
   });
   useMapTouchDrag(scrollRef, {
-    enabled: visible,
+    enabled: visible && !filtered && !filterOpen,
     start: (source) => onMove(source),
     hit(point, source) {
       const target = document
@@ -333,7 +371,7 @@ function MapViewComponent({
       inline: "center",
       behavior: "instant",
     });
-  }, [activeId, scale, visible]);
+  }, [activeId, scale, visible, filtered, cols]);
   return (
     <main
       className="map-main"
@@ -348,12 +386,39 @@ function MapViewComponent({
               全体マップ
             </h1>
             <span className="map-stats">
-              {deck.slides.length}ページ{" "}
+              {filtered
+                ? `${displaySlides.length} / ${deck.slides.length}`
+                : deck.slides.length}
+              ページ{" "}
               <span>
                 ／ {size.cols}話題・{size.rows}段
               </span>
             </span>
           </div>
+          <button
+            className="quiet filter-toggle"
+            aria-label="マップをフィルタ"
+            aria-expanded={filterOpen}
+            onClick={() => {
+              setDraftFilter(filter ?? emptyFilter());
+              setFilterOpen(!filterOpen);
+              onMove(undefined);
+            }}
+          >
+            <Filter size={16} />
+            フィルタ
+          </button>
+          {filtered && (
+            <button
+              className="quiet"
+              onClick={() => {
+                setFilter(undefined);
+                setFilterOpen(false);
+              }}
+            >
+              フィルタ解除
+            </button>
+          )}
           <form
             className="map-find"
             onSubmit={(event) => {
@@ -361,7 +426,11 @@ function MapViewComponent({
               const match = find.trim().match(/^(\d+)[.．・,、-](\d+)$/);
               const target =
                 match &&
-                cells.get(`${Number(match[2]) - 1},${Number(match[1]) - 1}`);
+                displaySlides.find(
+                  (s) =>
+                    s.x === Number(match[2]) - 1 &&
+                    s.y === Number(match[1]) - 1,
+                );
               if (target) {
                 onSelect(target.id);
                 setFindError("");
@@ -454,6 +523,24 @@ function MapViewComponent({
             </button>
           </div>
         </div>
+        {filterOpen && (
+          <MapFilterPanel
+            deck={deck}
+            value={draftFilter}
+            onChange={setDraftFilter}
+            onApply={() => {
+              setFilter(draftFilter);
+              setFilterOpen(false);
+              onMove(undefined);
+            }}
+            onClose={() => setFilterOpen(false)}
+          />
+        )}
+        {filtered && (
+          <div className="filtered-note">
+            絞り込み表示 · 元のスライド番号で表示しています
+          </div>
+        )}
         {findError && (
           <div className="map-find-error" role="status">
             {findError}
@@ -502,44 +589,51 @@ function MapViewComponent({
               className="axis-horizontal"
               style={{ gridColumn: `2 / ${cols + 2}` }}
             >
-              <span>次の話題へ</span>
+              <span>{filtered ? "フィルタしたページ" : "次の話題へ"}</span>
               <span className="axis-line" />
               <ArrowRight size={15} />
             </div>
             <div />
             <div />
             <>
-              {Array.from({ length: cols }, (_, x) => (
-                <div className="column-heading" key={x}>
-                  <span className="column-num">
-                    {String(x + 1).padStart(2, "0")}
-                  </span>
-                  <span>{x === 0 ? "はじまり" : `話題 ${x + 1}`}</span>
-                  <button
-                    draggable
-                    data-map-drag-source="column"
-                    data-x={x}
-                    data-y={0}
-                    data-map-drag-handle
-                    onDragStart={() => onMove({ mode: "column", x, y: 0 })}
-                    onDragEnd={() => {
-                      onMove(undefined);
-                      hint();
-                    }}
-                    className="icon-button"
-                    title="この話題をまとめて移動"
-                    aria-label={`話題${x + 1}を移動`}
-                    onClick={() => onMove({ mode: "column", x, y: 0 })}
-                  >
-                    <GripVertical size={16} />
-                  </button>
-                </div>
-              ))}
+              {Array.from({ length: cols }, (_, x) =>
+                filtered ? (
+                  <div key={x} />
+                ) : (
+                  <div className="column-heading" key={x}>
+                    <span className="column-num">
+                      {String(x + 1).padStart(2, "0")}
+                    </span>
+                    <span>{x === 0 ? "はじまり" : `話題 ${x + 1}`}</span>
+                    <button
+                      draggable
+                      data-map-drag-source="column"
+                      data-x={x}
+                      data-y={0}
+                      data-map-drag-handle
+                      onDragStart={() => onMove({ mode: "column", x, y: 0 })}
+                      onDragEnd={() => {
+                        onMove(undefined);
+                        hint();
+                      }}
+                      className="icon-button"
+                      title="この話題をまとめて移動"
+                      aria-label={`話題${x + 1}を移動`}
+                      onClick={() => onMove({ mode: "column", x, y: 0 })}
+                    >
+                      <GripVertical size={16} />
+                    </button>
+                  </div>
+                ),
+              )}
             </>
             <div />
             {Array.from({ length: rows }, (_, y) => (
               <div className="grid-row" key={y}>
-                <div className="row-axis">
+                <div
+                  className="row-axis"
+                  style={filtered ? { visibility: "hidden" } : undefined}
+                >
                   <button
                     className="row-move"
                     draggable
@@ -639,7 +733,9 @@ function MapViewComponent({
                           <div
                             ref={s.id === activeId ? activeCard : undefined}
                             data-page-id={s.id}
-                            data-map-drag-source="slide"
+                            data-map-drag-source={
+                              filtered || filterOpen ? undefined : "slide"
+                            }
                             data-x={x}
                             data-y={y}
                             style={
@@ -651,8 +747,12 @@ function MapViewComponent({
                             onContextMenu={(event) =>
                               onOpenMenu(event, { pageId: s.id })
                             }
-                            draggable
+                            draggable={!filtered && !filterOpen}
                             onDragStart={(e) => {
+                              if (filtered || filterOpen) {
+                                e.preventDefault();
+                                return;
+                              }
                               e.dataTransfer.setData("text/plain", s.id);
                               onMove({ mode: "slide", x, y });
                             }}
@@ -675,7 +775,7 @@ function MapViewComponent({
                               aria-current={
                                 s.id === activeId ? "page" : undefined
                               }
-                              title={`${y + 1}.${x + 1} ${s.title}${s.id === activeId ? "（いまのページ）" : ""}`}
+                              title={`${s.y + 1}.${s.x + 1} ${s.title}${s.id === activeId ? "（いまのページ）" : ""}`}
                               aria-label={`${s.title}を${moving ? "移動先にする" : "編集"}`}
                               onClick={() => {
                                 if (moving) dropAt(x, y);
@@ -687,7 +787,7 @@ function MapViewComponent({
                                   className="number-tile"
                                   style={{ height: thumbHeight }}
                                 >
-                                  {y + 1}.{x + 1}
+                                  {s.y + 1}.{s.x + 1}
                                 </span>
                               ) : detailed ? (
                                 <ThumbnailCanvas
@@ -702,7 +802,7 @@ function MapViewComponent({
                             {detailed && (
                               <div className="card-footer">
                                 <span className="page-number">
-                                  {y + 1}.{x + 1}
+                                  {s.y + 1}.{s.x + 1}
                                 </span>
                                 <span className="card-title">{s.title}</span>
                                 <>
@@ -716,6 +816,12 @@ function MapViewComponent({
                                     <MoreHorizontal size={14} />
                                   </button>
                                   <button
+                                    style={{
+                                      display:
+                                        filtered || filterOpen
+                                          ? "none"
+                                          : undefined,
+                                    }}
                                     className="card-tool"
                                     data-map-drag-handle
                                     aria-label={`${s.title}を移動`}
@@ -736,7 +842,7 @@ function MapViewComponent({
                               </div>
                             )}
                           </div>
-                          {detailed && (
+                          {detailed && !filtered && (
                             <>
                               <button
                                 className="add-right add-dot"
@@ -757,6 +863,8 @@ function MapViewComponent({
                             </>
                           )}
                         </>
+                      ) : filtered ? (
+                        <div />
                       ) : (
                         <button
                           className="empty-cell"
@@ -766,7 +874,7 @@ function MapViewComponent({
                             else onAddCell(x, y);
                           }}
                         >
-                          {detailed && (
+                          {detailed && !filtered && (
                             <>
                               <Plus size={19} />
                               <span>
@@ -814,6 +922,11 @@ function MapViewComponent({
             ))}
           </div>
         </div>
+        {filtered && !displaySlides.length && (
+          <p className="filter-empty">
+            一致するページがありません。フィルタを解除するか、条件を変更してください。
+          </p>
+        )}
         <div className="map-bottom">
           <span>
             <span className="keyboard-key">↔</span> よこは「次の話題」

@@ -7,7 +7,7 @@ import type { Deck } from "./model";
 export type ThumbnailAction =
   | { kind: "duplicate-page"; id: string }
   | { kind: "delete-page"; id: string }
-  | { kind: "duplicate-row"; y: number }
+  | { kind: "duplicate-row"; y: number; count?: number }
   | { kind: "delete-row"; y: number };
 export interface ThumbnailTarget {
   pageId?: string;
@@ -36,6 +36,7 @@ export function ThumbnailMenu({
   onAction: (action: ThumbnailAction) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [copies, setCopies] = useState(5);
   const [position, setPosition] = useState({ left: menu.left, top: menu.top });
   const page = deck.slides.find((s) => s.id === menu.pageId);
   const count = deck.slides.filter((s) => s.y === menu.row).length;
@@ -89,6 +90,11 @@ export function ThumbnailMenu({
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
         event.stopPropagation();
+        if (
+          (event.target as HTMLElement).matches("input") &&
+          event.key !== "Escape"
+        )
+          return;
         if (["Escape", "Tab"].includes(event.key)) {
           event.preventDefault();
           dismiss(true);
@@ -150,6 +156,30 @@ export function ThumbnailMenu({
             <Layers size={16} />
             この段をまとめて複製
           </button>
+          <div className="row-copy-count">
+            <label>
+              複製する段の数
+              <input
+                type="number"
+                min={1}
+                max={99}
+                aria-label="複製する段の数"
+                value={copies}
+                onChange={(e) => setCopies(Number(e.target.value))}
+              />
+            </label>
+            <button
+              role="menuitem"
+              disabled={
+                !count || !Number.isInteger(copies) || copies < 1 || copies > 99
+              }
+              onClick={() =>
+                act({ kind: "duplicate-row", y: menu.row!, count: copies })
+              }
+            >
+              指定数の段を複製
+            </button>
+          </div>
           <button
             role="menuitem"
             className="menu-delete"

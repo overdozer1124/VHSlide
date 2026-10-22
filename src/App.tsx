@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { flushSync } from "react-dom";
 import { WorkspaceTransition } from "./WorkspaceTransition";
 import type { WorkspaceFlight } from "./WorkspaceTransition";
@@ -57,6 +57,14 @@ import type {
 import { CloudWorkspace, portableDeck } from "./cloud";
 import { CloudPanel } from "./CloudPanel";
 import { CloudDocument } from "./CloudContext";
+import {
+  activeSheet,
+  sheetList,
+  sheetDeck,
+  mergeSheet,
+  changeSheet,
+} from "./workbook";
+import { SheetTabs } from "./SheetTabs";
 const KEY = "vhslide-deck-v1";
 function initial(): { deck: Deck; error?: string } {
   try {
@@ -72,7 +80,17 @@ function initial(): { deck: Deck; error?: string } {
 }
 export default function App() {
   const [boot] = useState(initial);
-  const [deck, setDeck] = useState(boot.deck);
+  const [workbook, setWorkbookState] = useState(boot.deck);
+  const latestWorkbook = useRef(workbook);
+  latestWorkbook.current = workbook;
+  function setWorkbook(next: Deck) {
+    latestWorkbook.current = next;
+    setWorkbookState(next);
+  }
+  const deck = useMemo(() => sheetDeck(workbook), [workbook]);
+  function setDeck(next: Deck) {
+    setWorkbook(mergeSheet(latestWorkbook.current, next));
+  }
   const [cloud] = useState(() => new CloudWorkspace());
   const [, cloudChanged] = useState(0);
   const [past, setPast] = useState<Deck[]>([]),
@@ -101,7 +119,7 @@ export default function App() {
   latestSlideId.current = slide.id;
   cloud.onState = () => cloudChanged((revision) => revision + 1);
   cloud.onDeck = (shared, reset) => {
-    let preferences: Partial<Deck> = latestDeck.current;
+    let preferences: Partial<Deck> = latestWorkbook.current;
     if (reset) {
       try {
         preferences = parseDeck(
@@ -120,9 +138,9 @@ export default function App() {
       ...shared,
       rowSelections: preferences.rowSelections,
       linkedRows: preferences.linkedRows,
+      activeSheetId: preferences.activeSheetId,
     };
-    latestDeck.current = next;
-    setDeck(next);
+    setWorkbook(next);
   };
   useEffect(() => {
     cloud.onState = () => cloudChanged((revision) => revision + 1);
@@ -135,8 +153,7 @@ export default function App() {
   function returnToLocal() {
     cloud.detach();
     const next = initial().deck;
-    latestDeck.current = next;
-    setDeck(next);
+    setWorkbook(next);
     setPast([]);
     setFuture([]);
     setActiveId(next.slides[0].id);
@@ -145,20 +162,59 @@ export default function App() {
     cloud.panel = false;
     cloud.onState();
   }
-  function commit(next: Deck, basedOn = deck) {
+  function commitWorkbook(next: Deck, before = latestWorkbook.current) {
     try {
+      const previous = latestWorkbook.current;
+      if (next.slides.length > MAX_SLIDES)
+        throw new Error(`作品全体で${MAX_SLIDES}ページまでです。`);
       serializeDeck(next);
+      if (cloud.doc) next = cloud.apply(before, next);
+      else setPast((p) => [...p.slice(-39), previous]);
+      setFuture([]);
+      setWorkbook(next);
+      latestDeck.current = sheetDeck(next);
+      return true;
     } catch (error) {
       notify((error as Error).message);
       return false;
     }
-    const previous = latestDeck.current;
-    if (cloud.doc) next = cloud.apply(basedOn, next);
-    else setPast((p) => [...p.slice(-39), previous]);
-    latestDeck.current = next;
-    setFuture([]);
-    setDeck(next);
-    return true;
+  }
+  function commit(next: Deck, basedOn = deck) {
+    try {
+      return commitWorkbook(
+        mergeSheet(latestWorkbook.current, next),
+        mergeSheet(latestWorkbook.current, basedOn),
+      );
+    } catch (error) {
+      notify((error as Error).message);
+      return false;
+    }
+  }
+  function selectSheet(id: string) {
+    const next = { ...latestWorkbook.current, activeSheetId: id };
+    setWorkbook(next);
+    setActiveId(sheetDeck(next).slides[0].id);
+    setSelected(undefined);
+    setMoving(undefined);
+    setThumbnailMenu(undefined);
+    setFlight(undefined);
+  }
+  function sheetAction(
+    action: Parameters<typeof changeSheet>[1],
+    id: string,
+    name?: string,
+  ) {
+    try {
+      const next = changeSheet(latestWorkbook.current, action, id, name);
+      if (commitWorkbook(next)) {
+        setActiveId(sheetDeck(next).slides[0].id);
+        setSelected(undefined);
+        setMoving(undefined);
+        setFlight(undefined);
+      }
+    } catch (error) {
+      notify((error as Error).message);
+    }
   }
   const editorNavigationActive = useRef(false);
   function selectEditorPage(id: string) {
@@ -241,7 +297,7 @@ export default function App() {
         next = duplicateSlide(current, action.id);
         chosen = next.slides.at(-1);
       } else if (action.kind === "duplicate-row") {
-        next = duplicateRowGroup(current, action.y);
+        next = duplicateRowGroup(current, action.y, action.count ?? 1);
         chosen =
           rowPage(next, action.y + 1, slide.x) ?? rowPage(next, action.y + 1);
       } else {
@@ -305,8 +361,8 @@ export default function App() {
       return;
     }
     if (!past.length) return;
-    setFuture((f) => [deck, ...f]);
-    setDeck(past[past.length - 1]);
+    setFuture((f) => [workbook, ...f]);
+    setWorkbook(past[past.length - 1]);
     setPast((p) => p.slice(0, -1));
   }
   function redo() {
@@ -315,8 +371,8 @@ export default function App() {
       return;
     }
     if (!future.length) return;
-    setPast((p) => [...p, deck]);
-    setDeck(future[0]);
+    setPast((p) => [...p, workbook]);
+    setWorkbook(future[0]);
     setFuture((f) => f.slice(1));
   }
   function updateSlide(patch: Partial<Slide>) {
@@ -345,7 +401,7 @@ export default function App() {
     try {
       localStorage.setItem(
         cloud.active ? `vhslide-cloud-deck:${cloud.active.id}` : KEY,
-        JSON.stringify(deck),
+        JSON.stringify(workbook),
       );
       setSaveStatus("この端末に保存済み");
     } catch {
@@ -354,7 +410,7 @@ export default function App() {
         "自動保存できません。画像を減らすか、JSONファイルを保存してください。",
       );
     }
-  }, [deck, protectSaved]);
+  }, [workbook, protectSaved]);
   useEffect(() => {
     if (!notice || protectSaved) return;
     const id = setTimeout(() => setNotice(""), 6500);
@@ -534,12 +590,12 @@ export default function App() {
           throw new Error("追加先の作品が切り替わりました。");
       }
       // File decoding is asynchronous: preserve edits and page navigation made in the meantime.
-      const current = latestDeck.current;
+      const current = latestWorkbook.current;
       const target = current.slides.find((s) => s.id === targetId);
       if (!target) throw new Error("追加先のページが削除されました。");
       if (target.elements.length >= 200)
         throw new Error("1ページの要素は200個までです。");
-      commit(
+      commitWorkbook(
         {
           ...current,
           slides: current.slides.map((s) =>
@@ -566,8 +622,8 @@ export default function App() {
         setPast([]);
         setFuture([]);
         latestDeck.current = next;
-        setDeck(next);
-      } else commit(next);
+        setWorkbook(next);
+      } else commitWorkbook(next);
       setProtectSaved(false);
       setActiveId(next.slides[0].id);
       setView("map");
@@ -579,7 +635,7 @@ export default function App() {
   }
   async function download() {
     try {
-      const portable = cloud.active ? await portableDeck(deck) : deck;
+      const portable = cloud.active ? await portableDeck(workbook) : workbook;
       const url = URL.createObjectURL(
         new Blob([serializeDeck(portable)], { type: "application/json" }),
       );
@@ -820,7 +876,7 @@ export default function App() {
                       title: "あたらしい作品",
                       slides: [blank(0, 0)],
                     };
-                    commit(next);
+                    commitWorkbook(next);
                     setActiveId(next.slides[0].id);
                     setSelected(undefined);
                     setView("map");
@@ -910,10 +966,11 @@ export default function App() {
           </aside>
         )}
         {cloud.panel && (
-          <CloudPanel cloud={cloud} deck={deck} onLocal={returnToLocal} />
+          <CloudPanel cloud={cloud} deck={workbook} onLocal={returnToLocal} />
         )}
         {view !== "present" && (
           <MapView
+            key={activeSheet(workbook).id}
             visible={view === "map"}
             deck={deck}
             activeId={activeId}
@@ -1001,6 +1058,14 @@ export default function App() {
             direction={direction}
             go={go}
             exitPresent={exitPresent}
+          />
+        )}
+        {view !== "present" && (
+          <SheetTabs
+            sheets={sheetList(workbook)}
+            activeId={activeSheet(workbook).id}
+            onSelect={selectSheet}
+            onAction={sheetAction}
           />
         )}
         {flight && (

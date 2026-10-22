@@ -27,6 +27,7 @@ export function useMapTouchDrag(
           start: Point;
           point: Point;
           active: boolean;
+          grip: boolean;
         }
       | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -116,6 +117,7 @@ export function useMapTouchDrag(
         start: point,
         point,
         active: false,
+        grip,
       };
       if (grip) {
         event.preventDefault();
@@ -146,6 +148,17 @@ export function useMapTouchDrag(
         return;
       }
       event.preventDefault();
+      if (
+        drag.grip &&
+        Math.hypot(drag.point.x - drag.start.x, drag.point.y - drag.start.y) < 8
+      ) {
+        // A grip also remains a tap-to-pick move control. A new tap elsewhere
+        // chooses the destination; suppress only this release-generated click.
+        suppressUntil = performance.now() + 500;
+        reset();
+        latest.current.hover(undefined);
+        return;
+      }
       const { source, point } = drag;
       const target = latest.current.hit(point, source);
       suppressUntil = performance.now() + 500;

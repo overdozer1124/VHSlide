@@ -30,6 +30,7 @@ export interface Element {
 }
 export interface Slide {
   id: string;
+  sheetId?: string;
   x: number;
   y: number;
   title: string;
@@ -44,6 +45,8 @@ export interface Deck {
   rowSelections?: string[];
   /** Show the same topic in every editor row; independent choices are retained. */
   linkedRows?: boolean;
+  sheets?: { id: string; name: string }[];
+  activeSheetId?: string;
 }
 export const uid = (): string => {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -240,11 +243,16 @@ export function rowPage(
 export function rememberRowPage(deck: Deck, id: string): Deck {
   const chosen = deck.slides.find((s) => s.id === id);
   if (!chosen) return deck;
-  const seenRows = new Set<number>();
+  const seenRows = new Set<string>();
   const rowSelections = (deck.rowSelections ?? []).filter((remembered) => {
     const page = deck.slides.find((s) => s.id === remembered);
-    if (!page || page.y === chosen.y || seenRows.has(page.y)) return false;
-    seenRows.add(page.y);
+    if (
+      !page ||
+      page.y === chosen.y ||
+      seenRows.has(`${page.sheetId ?? "main"}:${page.y}`)
+    )
+      return false;
+    seenRows.add(`${page.sheetId ?? "main"}:${page.y}`);
     return true;
   });
   return { ...deck, rowSelections: [...rowSelections, id] };
@@ -385,19 +393,24 @@ export function duplicateSlide(deck: Deck, id: string): Deck {
   };
 }
 /** Copy an entire row immediately below itself, preserving its gaps and selection. */
-export function duplicateRowGroup(deck: Deck, y: number): Deck {
+export function duplicateRowGroup(deck: Deck, y: number, count = 1): Deck {
   const source = deck.slides.filter((s) => s.y === y);
   if (!source.length) throw new Error("複製する段にページがありません。");
-  if (deck.slides.length + source.length > MAX_SLIDES)
+  if (!Number.isInteger(count) || count < 1 || count > 99)
+    throw new Error("複製する数は1〜99で指定してください。");
+  if (deck.slides.length + source.length * count > MAX_SLIDES)
     throw new Error(`ページは${MAX_SLIDES}枚までです。`);
-  if (bounds(deck).rows >= 100) throw new Error("縦・横は100マスまでです。");
-  const copies = source.map((s) => copySlide(s, s.x, y + 1));
+  if (bounds(deck).rows + count > 100)
+    throw new Error("縦・横は100マスまでです。");
+  const copies = Array.from({ length: count }, (_, i) =>
+    source.map((s) => copySlide(s, s.x, y + i + 1)),
+  ).flat();
   const chosen = rowPage(deck, y);
   const chosenCopy = copies.find((s) => s.x === chosen?.x);
   const next = {
     ...deck,
     slides: [
-      ...deck.slides.map((s) => (s.y > y ? { ...s, y: s.y + 1 } : s)),
+      ...deck.slides.map((s) => (s.y > y ? { ...s, y: s.y + count } : s)),
       ...copies,
     ],
   };
@@ -447,6 +460,19 @@ export function parseDeck(input: string): Deck {
     d.slides.length > MAX_SLIDES
   )
     fail();
+  let sheets: Deck["sheets"];
+  if (d.sheets !== undefined) {
+    if (!Array.isArray(d.sheets) || !d.sheets.length || d.sheets.length > 50)
+      fail();
+    const seen = new Set<string>();
+    sheets = d.sheets.map((sheet: any) => {
+      const sheetId = str(sheet?.id, 100),
+        name = str(sheet?.name, 80);
+      if (!sheetId || !name.trim() || seen.has(sheetId)) fail();
+      seen.add(sheetId);
+      return { id: sheetId, name };
+    });
+  }
   const ids = new Set<string>(),
     cells = new Set<string>();
   const id = (v: unknown) => {
@@ -459,11 +485,19 @@ export function parseDeck(input: string): Deck {
     if (!s || !Array.isArray(s.elements) || s.elements.length > 200) fail();
     const x = num(s.x, 0, 99),
       y = num(s.y, 0, 99),
-      cell = `${x},${y}`;
+      sheetId = s.sheetId === undefined ? "main" : str(s.sheetId, 100),
+      cell = `${sheetId}:${x},${y}`;
+    if (
+      sheets
+        ? !sheets.some((sheet) => sheet.id === sheetId)
+        : sheetId !== "main"
+    )
+      fail();
     if (!Number.isInteger(x) || !Number.isInteger(y) || cells.has(cell)) fail();
     cells.add(cell);
     return {
       id: id(s.id),
+      ...(s.sheetId === undefined ? {} : { sheetId }),
       x,
       y,
       title: str(s.title, 200),
@@ -528,24 +562,32 @@ export function parseDeck(input: string): Deck {
       }),
     };
   });
-  if (!cells.has("0,0")) fail();
+  for (const sheet of sheets ?? [{ id: "main" }])
+    if (!cells.has(`${sheet.id}:0,0`)) fail();
   const result: Deck = { version: 1, title: str(d.title, 200), slides };
+  if (sheets) result.sheets = sheets;
+  if (d.activeSheetId !== undefined) {
+    const active = str(d.activeSheetId, 100);
+    if ((sheets ?? [{ id: "main" }]).some((sheet) => sheet.id === active))
+      result.activeSheetId = active;
+  }
   if (d.linkedRows !== undefined) result.linkedRows = bool(d.linkedRows);
   if (d.rowSelections !== undefined) {
     if (
       !Array.isArray(d.rowSelections) ||
-      d.rowSelections.length > 100 ||
+      d.rowSelections.length > MAX_SLIDES ||
       !d.rowSelections.every(
         (id: unknown) => typeof id === "string" && id.length <= 100,
       )
     )
       fail();
     // Stale IDs can result from deletion or swapping. Recover the valid choices.
-    const seenRows = new Set<number>();
+    const seenRows = new Set<string>();
     result.rowSelections = d.rowSelections.filter((id: string) => {
       const page = slides.find((s) => s.id === id);
-      if (!page || seenRows.has(page.y)) return false;
-      seenRows.add(page.y);
+      if (!page || seenRows.has(`${page.sheetId ?? "main"}:${page.y}`))
+        return false;
+      seenRows.add(`${page.sheetId ?? "main"}:${page.y}`);
       return true;
     });
   }

@@ -254,7 +254,7 @@ export class CloudWorkspace {
     this.active = { id: result.id, owner: result.owner };
     this.doc = doc;
     this.undoManager = new Y.UndoManager(
-      [doc.getMap("slides"), doc.getText("title")],
+      [doc.getMap("slides"), doc.getMap("sheets"), doc.getText("title")],
       {
         // Only this browser's UI/Quill edits enter its history. Remote updates
         // arrive with the "server" origin and must never be undoable here.
@@ -295,6 +295,7 @@ export class CloudWorkspace {
       ...readSharedDeck(this.doc),
       rowSelections: next.rowSelections,
       linkedRows: next.linkedRows,
+      activeSheetId: next.activeSheetId,
     };
   }
   private connect() {
