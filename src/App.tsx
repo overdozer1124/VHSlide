@@ -627,10 +627,56 @@ export default function App() {
     setView("present");
     void document.documentElement.requestFullscreen?.().catch(() => {});
   }
+  const cloudPresence =
+    cloud.active && view !== "present" ? (
+      <div className="cloud-presence">
+        <Cloud size={14} />
+        <span>{cloud.status}</span>
+        <span>{cloud.members.length}人が参加中</span>
+        <span className="cloud-participants">
+          {cloud.members.map((member) => member.name).join("、")}
+        </span>
+        {cloud.error && <span role="alert">{cloud.error}</span>}
+      </div>
+    ) : null;
   const iconSize = 17;
+  const historyActions = (
+    <div className="history">
+      <button
+        className="icon-button"
+        aria-label="もとに戻す"
+        title="もとに戻す (Ctrl+Z)"
+        disabled={
+          cloud.undoManager ? !cloud.undoManager.canUndo() : !past.length
+        }
+        onClick={undo}
+      >
+        <Undo2 size={18} />
+      </button>
+      <button
+        className="icon-button"
+        aria-label="やり直す"
+        disabled={
+          cloud.undoManager ? !cloud.undoManager.canRedo() : !future.length
+        }
+        onClick={redo}
+      >
+        <Redo2 size={18} />
+      </button>
+      <span className="small-divider" />
+      <button
+        className="quiet"
+        aria-label="使い方"
+        onClick={() => setHelp((h) => !h)}
+      >
+        <CircleHelp size={17} />
+        <span>使い方</span>
+      </button>
+    </div>
+  );
   return (
     <CloudDocument.Provider value={cloud.doc}>
-      <div className="app-shell">
+      <div className={`app-shell ${view === "editor" ? "editing" : ""}`}>
         <input
           ref={jsonRef}
           type="file"
@@ -677,6 +723,7 @@ export default function App() {
                 value={deck.title}
                 onChange={(e) => commit({ ...deck, title: e.target.value })}
               />
+              {view === "editor" && cloudPresence}
               <span className="save-state">
                 <Check size={14} />
                 {cloud.active ? cloud.status : saveStatus}
@@ -685,6 +732,8 @@ export default function App() {
                 {cloud.available && (
                   <button
                     className="quiet cloud-open"
+                    aria-label="クラウド"
+                    title="クラウド"
                     onClick={() => {
                       cloud.panel = true;
                       cloud.error = "";
@@ -701,6 +750,8 @@ export default function App() {
                 )}
                 <button
                   className="quiet new-deck"
+                  aria-label="新しく"
+                  title="新しく"
                   onClick={() => {
                     if (cloud.active) returnToLocal();
                     const next: Deck = {
@@ -722,6 +773,8 @@ export default function App() {
                 </button>
                 <button
                   className="quiet"
+                  aria-label="開く"
+                  title="開く"
                   onClick={() => jsonRef.current?.click()}
                 >
                   <Upload size={iconSize} />
@@ -729,70 +782,45 @@ export default function App() {
                 </button>
                 <button
                   className="button outline"
+                  aria-label="保存"
                   onClick={() => void download()}
                 >
                   <Download size={iconSize} />
                   <span>保存</span>
                 </button>
-                <button className="button primary" onClick={startPresent}>
+                <button
+                  className="button primary"
+                  aria-label="発表する"
+                  onClick={startPresent}
+                >
                   <Presentation size={iconSize} />
                   <span>発表する</span>
                 </button>
               </div>
             </header>
-            <nav className="view-bar">
-              <div className="view-tabs">
-                <button
-                  className={view === "map" ? "active" : ""}
-                  onClick={() => setView("map")}
-                >
-                  <LayoutGrid size={16} />
-                  全体マップ
-                </button>
-                <button
-                  className={view === "editor" ? "active" : ""}
-                  onClick={() => {
-                    setView("editor");
-                    setSelected(undefined);
-                  }}
-                >
-                  <Type size={16} />
-                  ページを編集
-                </button>
-              </div>
-              <div className="history">
-                <button
-                  className="icon-button"
-                  aria-label="もとに戻す"
-                  title="もとに戻す (Ctrl+Z)"
-                  disabled={
-                    cloud.undoManager
-                      ? !cloud.undoManager.canUndo()
-                      : !past.length
-                  }
-                  onClick={undo}
-                >
-                  <Undo2 size={18} />
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label="やり直す"
-                  disabled={
-                    cloud.undoManager
-                      ? !cloud.undoManager.canRedo()
-                      : !future.length
-                  }
-                  onClick={redo}
-                >
-                  <Redo2 size={18} />
-                </button>
-                <span className="small-divider" />
-                <button className="quiet" onClick={() => setHelp((h) => !h)}>
-                  <CircleHelp size={17} />
-                  <span>使い方</span>
-                </button>
-              </div>
-            </nav>
+            {view !== "editor" && (
+              <nav className="view-bar">
+                <div className="view-tabs">
+                  <button
+                    className={view === "map" ? "active" : ""}
+                    onClick={() => setView("map")}
+                  >
+                    <LayoutGrid size={16} />
+                    全体マップ
+                  </button>
+                  <button
+                    onClick={() => {
+                      setView("editor");
+                      setSelected(undefined);
+                    }}
+                  >
+                    <Type size={16} />
+                    ページを編集
+                  </button>
+                </div>
+                {historyActions}
+              </nav>
+            )}
           </>
         )}
         {help && view !== "present" && (
@@ -804,7 +832,7 @@ export default function App() {
                 <br />
                 並べ替えはドラッグ、または「移動」→移動先をタップ。発表中は矢印キー・スワイプでも進めます。
                 <br />
-                編集中のページ移動は、スライドの余白を1本指、文字・画像の上を2本指で上下左右にスワイプします。
+                編集中は文字・画像の上でも1本指でスワイプしてページを移動できます。タッチパッドは2本指で操作します。要素はタップして選び、移動ハンドルで動かします。
               </p>
               <small>
                 データはこのブラウザに保存されます。授業の終わりにはJSONファイルも保存しましょう。
@@ -819,17 +847,7 @@ export default function App() {
             </button>
           </aside>
         )}
-        {cloud.active && view !== "present" && (
-          <div className="cloud-presence">
-            <Cloud size={14} />
-            <span>{cloud.status}</span>
-            <span>{cloud.members.length}人が参加中</span>
-            <span className="cloud-participants">
-              {cloud.members.map((member) => member.name).join("、")}
-            </span>
-            {cloud.error && <span role="alert">{cloud.error}</span>}
-          </div>
-        )}
+        {view === "map" && cloudPresence}
         {cloud.panel && (
           <CloudPanel cloud={cloud} deck={deck} onLocal={returnToLocal} />
         )}
@@ -883,6 +901,7 @@ export default function App() {
             onToggleLinkedRows={toggleLinkedRows}
             onOpenMenu={openThumbnailMenu}
             menuOpen={!!thumbnailMenu}
+            historyActions={historyActions}
           />
         )}
         {view === "present" && (

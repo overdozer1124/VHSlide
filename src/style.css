@@ -1086,8 +1086,36 @@ h1 span {
 .element {
   position: absolute;
 }
-.slide-canvas.swipe-enabled {
+.editor-pager {
+  overflow: hidden;
   touch-action: none;
+  overscroll-behavior: contain;
+  isolation: isolate;
+}
+.editor-pager .inline-text,
+.editor-pager .ql-editor {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+.editor-page-current,
+.editor-page-preview {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.editor-page-preview {
+  pointer-events: none;
+}
+.editor-pager[data-pan-phase="settling"] > div {
+  transition: transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.editor-pager[data-pan-phase="dragging"] {
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-pager[data-pan-phase="settling"] > div {
+    transition: none;
+  }
 }
 .editable .element {
   touch-action: none;
@@ -2089,4 +2117,166 @@ h1 span {
 }
 .cloud-text .ql-editor p {
   margin: 0;
+}
+
+/* Editing keeps the document header and tools in two compact rows. */
+.editing .app-header {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 16px;
+  gap: 14px;
+  flex-wrap: nowrap;
+}
+.editing .brand {
+  font-size: 20px;
+}
+.editing .brand-icon {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  margin-right: 8px;
+}
+.editing .beta {
+  display: none;
+}
+.editing .deck-title {
+  width: 220px;
+  font-size: 12px;
+  flex: 1;
+  min-width: 60px;
+}
+.editing .header-actions {
+  gap: 6px;
+  flex-shrink: 0;
+}
+.editing .header-actions .button {
+  padding: 7px 12px;
+}
+.editing .editor-main {
+  height: calc(100dvh - 48px);
+  min-height: 0;
+}
+.editing .editor-toolbar {
+  min-height: 44px;
+  padding: 3px 12px;
+  gap: 10px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+.editing .editor-toolbar > button,
+.editing .shape-picker {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 5px 7px;
+}
+.editing .editor-toolbar .history {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.editing .editor-toolbar .history .quiet {
+  padding: 5px;
+}
+.editing .editor-toolbar .small-divider {
+  margin: 0 2px;
+}
+.editing .canvas-title {
+  padding: 8px 20px;
+}
+.editing .canvas-hint {
+  bottom: 10px;
+  text-align: center;
+  width: calc(100% - 24px);
+}
+@media (max-width: 1000px) {
+  .editing .save-state {
+    display: none;
+  }
+  .editing .header-actions .quiet span {
+    display: none;
+  }
+  .editing .header-actions .quiet {
+    padding: 7px;
+  }
+}
+@media (max-width: 760px) {
+  .editing .app-header {
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .editing .deck-title {
+    order: initial;
+    flex-basis: auto;
+  }
+  .editing .header-actions .button {
+    padding: 7px;
+  }
+  .editing .header-actions .button span,
+  .editing .brand > span:not(.brand-icon) {
+    display: none;
+  }
+  .editing .brand {
+    font-size: 0;
+  }
+  .editing .brand-icon {
+    margin: 0;
+  }
+  .editing .editor-toolbar {
+    gap: 3px;
+    padding: 3px 5px;
+    flex-wrap: wrap;
+  }
+  .editing .editor-toolbar .history {
+    margin-left: auto;
+  }
+  .editing .editor-toolbar .history .quiet span {
+    display: none;
+  }
+  .editing .back-map {
+    font-size: 0;
+  }
+  .editing .back-map svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+@media (max-width: 760px) and (min-height: 600px) {
+  .editing .editor-main {
+    height: auto;
+    min-height: calc(100dvh - 48px);
+  }
+}
+.editable .element-move-handle {
+  width: calc(32px / var(--canvas-zoom, 1));
+  height: calc(32px / var(--canvas-zoom, 1));
+  top: calc(-38px / var(--canvas-zoom, 1));
+}
+.editable .element-move-handle svg {
+  width: calc(18px / var(--canvas-zoom, 1));
+  height: calc(18px / var(--canvas-zoom, 1));
+}
+.editable .resize-handle {
+  width: calc(24px / var(--canvas-zoom, 1));
+  height: calc(24px / var(--canvas-zoom, 1));
+  bottom: calc(-8px / var(--canvas-zoom, 1));
+  right: calc(-8px / var(--canvas-zoom, 1));
+}
+.editing .app-header:has(.cloud-presence) .save-state {
+  display: none;
+}
+.editing .cloud-presence {
+  padding: 0;
+  background: none;
+  gap: 7px;
+  font-size: 10px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.editing .cloud-presence .cloud-participants {
+  display: none;
+}
+@media (max-width: 900px) {
+  .editing .cloud-presence > svg,
+  .editing .cloud-presence > span:nth-of-type(2) {
+    display: none;
+  }
 }

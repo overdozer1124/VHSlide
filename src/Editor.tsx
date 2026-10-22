@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import type { ReactNode } from "react";
 import {
   ArrowLeft,
   ImagePlus,
@@ -10,6 +11,7 @@ import {
 import type { Deck, Element, Shape, Slide } from "./model";
 import { H, W } from "./model";
 import { Canvas } from "./Canvas";
+import { EditorPager } from "./EditorPager";
 import { useFitCanvas } from "./useFitCanvas";
 import { SlideRail } from "./SlideRail";
 import type { RailDragSource } from "./RailDrag";
@@ -43,6 +45,7 @@ interface EditorProps {
   onToggleLinkedRows: () => void;
   onOpenMenu: OpenThumbnailMenu;
   menuOpen: boolean;
+  historyActions: ReactNode;
 }
 export function Editor({
   deck,
@@ -63,6 +66,7 @@ export function Editor({
   onToggleLinkedRows,
   onOpenMenu,
   menuOpen,
+  historyActions,
 }: EditorProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const zoom = useFitCanvas(workspaceRef);
@@ -115,7 +119,7 @@ export function Editor({
           <Link2 size={17} />
           縦の連動 <span>{deck.linkedRows ? "オン" : "オフ"}</span>
         </button>
-        <span className="toolbar-note">画像は貼り付け・ドロップもできます</span>
+        {historyActions}
       </div>
       <div className="editor-layout">
         <SlideRail
@@ -149,29 +153,33 @@ export function Editor({
               {slide.y + 1}.{slide.x + 1} / 16:9
             </span>
           </div>
-          <Canvas
+          <EditorPager
+            deck={deck}
             slide={slide}
             zoom={zoom}
-            editable
-            selected={selected}
-            onSelect={setSelected}
             onNavigate={onNavigate}
-            onChange={(e) =>
-              updateSlide({
-                elements: slide.elements.map((original) =>
-                  original.id === e.id ? e : original,
-                ),
-              })
-            }
-          />
+          >
+            <Canvas
+              slide={slide}
+              zoom={zoom}
+              editable
+              selected={selected}
+              onSelect={setSelected}
+              touchNavigation
+              onChange={(e) =>
+                updateSlide({
+                  elements: slide.elements.map((original) =>
+                    original.id === e.id ? e : original,
+                  ),
+                })
+              }
+            />
+          </EditorPager>
           <div className="canvas-hint">
             <span>
               {element
-                ? "枠内をクリックで文字入力 · ドラッグで移動 · 右下でサイズ変更"
-                : "文字・画像・図形を選んで、あなたらしいページに。"}
-            </span>
-            <span>
-              ページ移動：余白は1本指、文字・画像の上は2本指で上下左右にスワイプ
+                ? "文字はタップで入力 · 移動ハンドルで動かす · 右下でサイズ変更"
+                : "ページ移動：どこでも1本指でスワイプ · タッチパッドは2本指"}
             </span>
           </div>
         </div>

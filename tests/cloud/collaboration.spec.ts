@@ -52,6 +52,8 @@ test("recovers unsent text from this browser after reopening the app", async ({
   await saved(page);
   const url = page.url();
   await openEditor(page);
+  const layout = (await page.locator(".editor-layout").boundingBox())!;
+  expect(layout.y).toBeLessThanOrEqual(104);
   await page.locator(".editor-workspace .element").first().click();
   const text = page.getByRole("textbox", {
     name: "スライド内の文字",
@@ -70,10 +72,11 @@ test("recovers unsent text from this browser after reopening the app", async ({
       .boundingBox())!;
     const cdp = await page.context().newCDPSession(page);
     for (const dx of [-85, 85]) {
+      const target = dx < 0 ? (await text.boundingBox())! : canvas;
       const start = {
         id: 1,
-        x: canvas.x + canvas.width * 0.95,
-        y: canvas.y + canvas.height * 0.8,
+        x: target.x + target.width * (dx < 0 ? 0.7 : 0.95),
+        y: target.y + target.height * (dx < 0 ? 0.5 : 0.8),
       };
       await cdp.send("Input.dispatchTouchEvent", {
         type: "touchStart",

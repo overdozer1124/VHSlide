@@ -38,15 +38,29 @@ const fixture: Deck = {
           fontSize: 24,
           color: "#173d38",
         },
+        {
+          id: `image-${i}`,
+          type: "image",
+          x: 650,
+          y: 40,
+          w: 200,
+          h: 140,
+          src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+        },
       ],
     };
   }),
 };
 const title = (page: Page) =>
   page.getByRole("textbox", { name: "ページの名前", exact: true });
-const canvas = (page: Page) => page.locator(".editor-workspace .slide-canvas");
+const pager = (page: Page) => page.locator(".editor-pager");
+const canvas = (page: Page) =>
+  page.locator(".editor-page-current .slide-canvas");
 const saved = (page: Page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("vhslide-deck-v1")!));
+async function idle(page: Page) {
+  await expect(pager(page)).toHaveAttribute("data-pan-phase", "idle");
+}
 async function open(page: Page) {
   await page.addInitScript(
     (deck) => localStorage.setItem("vhslide-deck-v1", JSON.stringify(deck)),
@@ -54,162 +68,183 @@ async function open(page: Page) {
   );
   await page.goto("/");
   await page.getByRole("button", { name: "1.1を編集", exact: true }).click();
+  await idle(page);
+  const workspace = (await page.locator(".editor-workspace").boundingBox())!;
+  const fittedWidth =
+    Math.max(
+      0.1,
+      Math.min((workspace.width - 48) / 960, (workspace.height - 85) / 540),
+    ) * 960;
+  await expect
+    .poll(async () => (await canvas(page).boundingBox())!.width)
+    .toBeCloseTo(fittedWidth, 0);
   return page.context().newCDPSession(page);
 }
 type Point = { x: number; y: number; id: number };
-async function gesture(
-  cdp: CDPSession,
-  start: Point[],
-  dx: number,
-  dy: number,
-  options: {
-    cancel?: boolean;
-    spread?: number;
-    separateRelease?: boolean;
-  } = {},
-) {
-  // Add the second finger separately, as on a physical touchscreen.
-  for (let i = 1; i <= start.length; i++)
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: start.slice(0, i),
-    });
-  let end = start;
-  for (let step = 1; step <= 6; step++) {
-    end = start.map((p, i) => ({
-      ...p,
-      x: p.x + (dx * step) / 6 + (i ? ((options.spread ?? 0) * step) / 6 : 0),
-      y: p.y + (dy * step) / 6,
-    }));
+async function move(cdp: CDPSession, start: Point, dx: number, dy: number) {
+  for (let step = 1; step <= 6; step++)
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: end,
+      touchPoints: [
+        {
+          ...start,
+          x: start.x + (dx * step) / 6,
+          y: start.y + (dy * step) / 6,
+        },
+      ],
     });
-  }
-  if (options.separateRelease && !options.cancel)
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [end[1]],
-    });
+}
+async function gesture(
+  page: Page,
+  cdp: CDPSession,
+  start: Point,
+  dx: number,
+  dy: number,
+  cancel = false,
+) {
+  await idle(page);
   await cdp.send("Input.dispatchTouchEvent", {
-    type: options.cancel ? "touchCancel" : "touchEnd",
+    type: "touchStart",
+    touchPoints: [start],
+  });
+  await move(cdp, start, dx, dy);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: cancel ? "touchCancel" : "touchEnd",
     touchPoints: [],
   });
+  await idle(page);
 }
 async function swipe(page: Page, cdp: CDPSession, dx: number, dy: number) {
   const b = (await canvas(page).boundingBox())!;
   await gesture(
+    page,
     cdp,
-    [{ id: 1, x: b.x + b.width * 0.5, y: b.y + b.height * 0.8 }],
+    { id: 1, x: b.x + b.width * 0.5, y: b.y + b.height * 0.8 },
     dx,
     dy,
   );
 }
+async function offset(page: Page) {
+  return page.locator(".editor-page-current").evaluate((node) => {
+    const m = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+    return { x: m.m41, y: m.m42 };
+  });
+}
 
-test.beforeEach(({}, info) =>
-  test.skip(info.project.name !== "touch", "実タッチのスワイプ操作"),
-);
-
-test("canvas swipes navigate all four directions, remember row choices and obey linked rows and edges", async ({
+test("one-finger swipes over text, images and shapes navigate without changing their geometry", async ({
   page,
-}) => {
+}, info) => {
+  test.skip(info.project.name !== "touch", "実タッチの操作");
   const cdp = await open(page);
-  await swipe(page, cdp, -85, 0);
-  await expect(title(page)).toHaveValue("1.2");
-  await swipe(page, cdp, 85, 0);
+  const before = (await saved(page)).slides;
+  for (const selector of [".slide-image", ".slide-text", "svg"]) {
+    const node = page
+      .locator(`.editor-page-current .element ${selector}`)
+      .first();
+    const b = (await node.boundingBox())!;
+    await gesture(
+      page,
+      cdp,
+      { id: 1, x: b.x + b.width * 0.6, y: b.y + b.height * 0.5 },
+      -95,
+      0,
+    );
+    await expect(title(page)).toHaveValue("1.2");
+    expect((await saved(page)).slides).toEqual(before);
+    await swipe(page, cdp, 95, 0);
+    await expect(title(page)).toHaveValue("1.1");
+  }
+});
+
+test("pages follow the finger, stay still while held, and return when the finger returns", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実タッチの操作");
+  const cdp = await open(page);
+  const b = (await canvas(page).boundingBox())!;
+  const start = { id: 1, x: b.x + b.width * 0.6, y: b.y + b.height * 0.8 };
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [start],
+  });
+  await move(cdp, start, -95, 0);
+  await expect(pager(page)).toHaveAttribute("data-pan-phase", "dragging");
+  await expect.poll(() => offset(page)).toEqual({ x: -95, y: 0 });
+  await expect(page.locator(".editor-page-preview")).toBeVisible();
   await expect(title(page)).toHaveValue("1.1");
-  await swipe(page, cdp, -85, 0);
-  await swipe(page, cdp, 0, -85);
+  // Holding a finger never triggers the trackpad's idle timer.
+  await page.waitForTimeout(300);
+  expect(await offset(page)).toEqual({ x: -95, y: 0 });
+  await move(cdp, start, -30, 0);
+  await expect.poll(() => offset(page)).toEqual({ x: -30, y: 0 });
+  await move(cdp, start, 0, 0);
+  await expect.poll(() => offset(page)).toEqual({ x: 0, y: 0 });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await idle(page);
+  await expect(title(page)).toHaveValue("1.1");
+  await expect(page.locator(".editor-page-preview")).toHaveCount(0);
+  expect((await saved(page)).slides).toEqual(fixture.slides);
+});
+
+test("four directions obey row choices and linked rows; edges and cancelled gestures bounce back", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実タッチの操作");
+  const cdp = await open(page);
+  await swipe(page, cdp, -95, 0);
+  await expect(title(page)).toHaveValue("1.2");
+  await swipe(page, cdp, 0, -95);
   await expect(title(page)).toHaveValue("2.3");
-  await swipe(page, cdp, 0, 85);
+  await swipe(page, cdp, 0, 95);
   await expect(title(page)).toHaveValue("1.2");
   await page.getByRole("switch", { name: "縦の連動" }).click();
-  await swipe(page, cdp, 0, -85);
+  await swipe(page, cdp, 0, -95);
   await expect(title(page)).toHaveValue("2.2");
-  await swipe(page, cdp, 0, 85);
-  await swipe(page, cdp, 85, 0);
+  await swipe(page, cdp, 0, 95);
+  await swipe(page, cdp, 95, 0);
   await expect(title(page)).toHaveValue("1.1");
-  await swipe(page, cdp, 85, 0);
-  await swipe(page, cdp, 0, 85);
+  await swipe(page, cdp, 95, 0);
+  await swipe(page, cdp, 0, 95);
   await expect(title(page)).toHaveValue("1.1");
-  expect((await saved(page)).slides).toEqual(fixture.slides);
-});
-
-test("two fingers over an object navigate once without moving it; one finger still drags and resizes", async ({
-  page,
-}) => {
-  const cdp = await open(page);
   const b = (await canvas(page).boundingBox())!;
-  const shape = page.locator(".editor-workspace .element").first();
-  const s = (await shape.boundingBox())!;
-  const start = [
-    { id: 1, x: s.x + s.width * 0.4, y: s.y + s.height / 2 },
-    { id: 2, x: s.x + s.width * 0.7, y: s.y + s.height / 2 },
-  ];
-  await gesture(cdp, start, -85, 0, { separateRelease: true });
-  await expect(title(page)).toHaveValue("1.2");
-  expect((await saved(page)).slides).toEqual(fixture.slides);
-  await swipe(page, cdp, 85, 0);
-  await gesture(cdp, [start[0]], 65, 0);
-  await expect(title(page)).toHaveValue("1.1");
-  await expect
-    .poll(async () => (await saved(page)).slides[0].elements[0].x)
-    .toBeGreaterThan(340);
-  const handle = (await page
-    .getByRole("button", { name: "要素のサイズを変更" })
-    .boundingBox())!;
-  await gesture(
-    cdp,
-    [
-      {
-        id: 1,
-        x: handle.x + handle.width / 2,
-        y: handle.y + handle.height / 2,
-      },
-    ],
-    30,
-    20,
-  );
-  await expect
-    .poll(async () => (await saved(page)).slides[0].elements[0].w)
-    .toBeGreaterThan(280);
-  // Background swipes still work after manipulating an object.
-  await gesture(
-    cdp,
-    [{ id: 1, x: b.x + b.width * 0.5, y: b.y + b.height * 0.8 }],
-    -85,
-    0,
-  );
-  await expect(title(page)).toHaveValue("1.2");
-});
-
-test("taps, diagonal gestures, cancelled touches and pinches do not switch pages or save accidental changes", async ({
-  page,
-}) => {
-  const cdp = await open(page);
-  const b = (await canvas(page).boundingBox())!;
-  const start = [{ id: 1, x: b.x + b.width * 0.4, y: b.y + b.height * 0.8 }];
-  await gesture(cdp, start, -15, 0);
-  await gesture(cdp, start, -65, -65);
-  await gesture(cdp, start, -85, 0, { cancel: true });
-  await gesture(
-    cdp,
-    [...start, { ...start[0], id: 2, x: start[0].x + 70 }],
-    -85,
-    0,
-    { spread: 65 },
-  );
+  const start = { id: 1, x: b.x + b.width * 0.6, y: b.y + b.height * 0.8 };
+  await gesture(page, cdp, start, -95, 0, true);
+  await gesture(page, cdp, start, -12, 0);
+  await gesture(page, cdp, start, -60, -60);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [start],
+  });
+  const pair = [start, { ...start, id: 2, x: start.x + 60 }];
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: pair,
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: pair.map((point, i) => ({
+      ...point,
+      x: point.x - 95 + i * 60,
+    })),
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await idle(page);
   await expect(title(page)).toHaveValue("1.1");
   expect((await saved(page)).slides).toEqual(fixture.slides);
-  await swipe(page, cdp, -85, 0);
-  await expect(title(page)).toHaveValue("1.2");
 });
 
-test("inline text selection stays editable and a canvas swipe keeps the entered text", async ({
+test("touch taps edit text, explicit handles move and resize, and swiping an active textbox preserves its text", async ({
   page,
-}) => {
+}, info) => {
+  test.skip(info.project.name !== "touch", "実タッチの操作");
   const cdp = await open(page);
-  await page.locator(".editor-workspace .element").nth(1).tap();
+  await page.locator(".editor-page-current .element").nth(1).tap();
   const input = page.getByRole("textbox", {
     name: "スライド内の文字",
     exact: true,
@@ -218,14 +253,111 @@ test("inline text selection stays editable and a canvas swipe keeps the entered 
   await input.fill("入力を残す");
   const b = (await input.boundingBox())!;
   await gesture(
+    page,
     cdp,
-    [{ id: 1, x: b.x + b.width * 0.7, y: b.y + b.height / 2 }],
-    -60,
+    { id: 1, x: b.x + b.width * 0.7, y: b.y + b.height / 2 },
+    -95,
+    0,
+  );
+  await expect(title(page)).toHaveValue("1.2");
+  expect((await saved(page)).slides[0].elements[1].text).toBe("入力を残す");
+  await swipe(page, cdp, 95, 0);
+  await page.locator(".editor-page-current .element").first().tap();
+  const handle = (await page
+    .getByRole("button", { name: "要素を移動", exact: true })
+    .boundingBox())!;
+  await gesture(
+    page,
+    cdp,
+    { id: 1, x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 },
+    40,
     0,
   );
   await expect(title(page)).toHaveValue("1.1");
-  await expect(input).toBeVisible();
-  await swipe(page, cdp, -85, 0);
+  await expect
+    .poll(async () => (await saved(page)).slides[0].elements[0].x)
+    .toBeGreaterThan(340);
+  const resize = (await page
+    .getByRole("button", { name: "要素のサイズを変更" })
+    .boundingBox())!;
+  await gesture(
+    page,
+    cdp,
+    { id: 1, x: resize.x + resize.width / 2, y: resize.y + resize.height / 2 },
+    30,
+    20,
+  );
+  await expect
+    .poll(async () => (await saved(page)).slides[0].elements[0].w)
+    .toBeGreaterThan(280);
+  await expect(title(page)).toHaveValue("1.1");
+});
+
+test("trackpad wheel gestures follow both axes, reverse, settle once, and ignore momentum and pinch zoom", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "ノートPCのタッチパッド操作");
+  await open(page);
+  const b = (await canvas(page).boundingBox())!;
+  await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.5);
+  await page.mouse.wheel(45, 0);
+  await expect.poll(() => offset(page)).toEqual({ x: -45, y: 0 });
+  await page.mouse.wheel(-45, 0);
+  await idle(page);
+  await expect(title(page)).toHaveValue("1.1");
+  await page.waitForTimeout(210);
+  await page.mouse.wheel(95, 0);
+  await expect(pager(page)).toHaveAttribute("data-pan-phase", "settling");
+  // Momentum arriving during settling must not queue another page change.
+  await page.mouse.wheel(100, 0);
+  await page.mouse.wheel(50, 0);
+  await idle(page);
   await expect(title(page)).toHaveValue("1.2");
-  expect((await saved(page)).slides[0].elements[1].text).toBe("入力を残す");
+  await page.waitForTimeout(210);
+  await page.mouse.wheel(0, 95);
+  await expect(title(page)).toHaveValue("2.3");
+  await page.waitForTimeout(210);
+  await page.mouse.wheel(0, -95);
+  await expect(title(page)).toHaveValue("1.2");
+  await canvas(page).evaluate((node) =>
+    node.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
+        deltaY: 100,
+      }),
+    ),
+  );
+  await idle(page);
+  await expect(title(page)).toHaveValue("1.2");
+  expect((await saved(page)).slides).toEqual(fixture.slides);
+});
+
+test("Chromebook layouts devote at most 104 pixels to the header and tools", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Chromebookの画面サイズ");
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await open(page);
+  for (const size of [
+    { width: 1366, height: 768 },
+    { width: 1280, height: 720 },
+  ]) {
+    await page.setViewportSize(size);
+    const layout = (await page.locator(".editor-layout").boundingBox())!;
+    expect(layout.y).toBeLessThanOrEqual(104);
+    expect(layout.height).toBeGreaterThanOrEqual(size.height - 104);
+    expect(layout.y + layout.height).toBeLessThanOrEqual(size.height);
+    await expect(
+      page.getByRole("button", { name: "もとに戻す", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "全体マップへ", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "文字", exact: true }),
+    ).toBeVisible();
+  }
+  await page.screenshot({ path: info.outputPath("compact-editor.png") });
 });

@@ -3,7 +3,6 @@ import type { Element, Slide } from "./model";
 import { W, H } from "./model";
 import { InlineText } from "./InlineText";
 import { Move } from "lucide-react";
-import { useCanvasSwipe } from "./useCanvasSwipe";
 export function ElementView({ element: e }: { element: Element }) {
   if (e.type === "text")
     return (
@@ -69,7 +68,7 @@ export function Canvas({
   onChange,
   editable = false,
   zoom = 1,
-  onNavigate,
+  touchNavigation = false,
 }: {
   slide: Slide;
   selected?: string;
@@ -77,7 +76,7 @@ export function Canvas({
   onChange?: (e: Element) => void;
   editable?: boolean;
   zoom?: number;
-  onNavigate?: (dx: number, dy: number) => unknown;
+  touchNavigation?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<Element>();
@@ -87,10 +86,12 @@ export function Canvas({
     if (!editable) return;
     if (selected !== previousSelection.current) {
       const element = slide.elements.find((e) => e.id === selected);
-      setEditingId(
-        element?.type === "text" && element.text === "ここにことばを入力"
-          ? element.id
-          : undefined,
+      setEditingId((current) =>
+        current === selected
+          ? current
+          : element?.type === "text" && element.text === "ここにことばを入力"
+            ? element.id
+            : undefined,
       );
       previousSelection.current = selected;
     }
@@ -98,6 +99,12 @@ export function Canvas({
       setEditingId(undefined);
   }, [selected, slide.id, slide.elements, editable, editingId]);
   const [guides, setGuides] = useState({ x: false, y: false });
+  const touchTap = useRef<{
+    element: Element;
+    pointerId: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const drag = useRef<{
     element: Element;
     px: number;
@@ -108,14 +115,10 @@ export function Canvas({
   } | null>(null);
   function cancelDrag() {
     drag.current = null;
+    touchTap.current = null;
     setDraft(undefined);
     setGuides({ x: false, y: false });
   }
-  const swipe = useCanvasSwipe(
-    slide.id,
-    editable ? onNavigate : undefined,
-    cancelDrag,
-  );
   function start(
     event: React.PointerEvent,
     element: Element,
@@ -125,6 +128,21 @@ export function Canvas({
     if (!editable || event.button !== 0) return;
     event.stopPropagation();
     event.preventDefault();
+    touchTap.current = null;
+    if (
+      touchNavigation &&
+      event.pointerType === "touch" &&
+      !resize &&
+      allowTyping
+    ) {
+      touchTap.current = {
+        element,
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      };
+      return;
+    }
     setEditingId(undefined);
     onSelect?.(element.id);
     const scale = ref.current!.getBoundingClientRect().width / W;
@@ -159,7 +177,18 @@ export function Canvas({
     setGuides({ x: gx, y: gy });
     setDraft(e);
   }
-  function end() {
+  function end(event: React.PointerEvent) {
+    const tap = touchTap.current;
+    touchTap.current = null;
+    if (
+      tap &&
+      tap.pointerId === event.pointerId &&
+      Math.hypot(event.clientX - tap.x, event.clientY - tap.y) < 8
+    ) {
+      onSelect?.(tap.element.id);
+      setEditingId(tap.element.type === "text" ? tap.element.id : undefined);
+      return;
+    }
     if (drag.current && draft) {
       const before = drag.current.element;
       const changed = (["x", "y", "w", "h"] as const).some(
@@ -188,9 +217,14 @@ export function Canvas({
     <div className="canvas-scale" style={{ width: W * zoom, height: H * zoom }}>
       <div
         ref={ref}
-        className={`slide-canvas ${editable ? "editable" : ""} ${editable && onNavigate ? "swipe-enabled" : ""}`}
-        {...swipe}
-        style={{ background: slide.background, transform: `scale(${zoom})` }}
+        className={`slide-canvas ${editable ? "editable" : ""}`}
+        style={
+          {
+            background: slide.background,
+            transform: `scale(${zoom})`,
+            "--canvas-zoom": zoom,
+          } as React.CSSProperties
+        }
         onPointerDown={() => onSelect?.()}
       >
         {slide.elements.map((original) => {
@@ -238,7 +272,7 @@ export function Canvas({
               ) : (
                 <ElementView element={e} />
               )}
-              {editable && selected === e.id && e.type === "text" && (
+              {editable && selected === e.id && (
                 <button
                   className="element-move-handle"
                   aria-label="要素を移動"
