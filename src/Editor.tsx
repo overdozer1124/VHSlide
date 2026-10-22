@@ -155,6 +155,7 @@ export function Editor({
             editable
             selected={selected}
             onSelect={setSelected}
+            onNavigate={onNavigate}
             onChange={(e) =>
               updateSlide({
                 elements: slide.elements.map((original) =>
@@ -164,9 +165,14 @@ export function Editor({
             }
           />
           <div className="canvas-hint">
-            {element
-              ? "枠内をクリックで文字入力 · ドラッグで移動 · 右下でサイズ変更"
-              : "文字・画像・図形を選んで、あなたらしいページに。"}
+            <span>
+              {element
+                ? "枠内をクリックで文字入力 · ドラッグで移動 · 右下でサイズ変更"
+                : "文字・画像・図形を選んで、あなたらしいページに。"}
+            </span>
+            <span>
+              ページ移動：余白は1本指、文字・画像の上は2本指で上下左右にスワイプ
+            </span>
           </div>
         </div>
         <aside className="inspector">

@@ -63,6 +63,38 @@ test("recovers unsent text from this browser after reopening the app", async ({
   await text.press("End");
   await page.keyboard.type(" recover-me");
   await expect(text).toContainText("recover-me");
+  if (info.project.name === "cloud-touch") {
+    // Leaving a Quill editor by swiping must keep its unsent Yjs text.
+    const canvas = (await page
+      .locator(".editor-workspace .slide-canvas")
+      .boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    for (const dx of [-85, 85]) {
+      const start = {
+        id: 1,
+        x: canvas.x + canvas.width * 0.95,
+        y: canvas.y + canvas.height * 0.8,
+      };
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [start],
+      });
+      for (let step = 1; step <= 6; step++)
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ ...start, x: start.x + (dx * step) / 6 }],
+        });
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await expect(
+        page.getByRole("textbox", { name: "ページの名前", exact: true }),
+      ).toHaveValue(dx < 0 ? "自然がいっぱい" : "わたしたちのまち");
+    }
+    await page.locator(".editor-workspace .element").first().click();
+    await expect(text).toContainText("recover-me");
+  }
   // Let the browser's durable transaction complete, then leave without reconnecting.
   await page.waitForTimeout(300);
   await page.goto("about:blank");

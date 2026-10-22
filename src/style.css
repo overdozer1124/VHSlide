@@ -1058,6 +1058,10 @@ h1 span {
   font-size: 11px;
 }
 .canvas-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   position: absolute;
   bottom: 14px;
   font-size: 10px;
@@ -1081,6 +1085,9 @@ h1 span {
 }
 .element {
   position: absolute;
+}
+.slide-canvas.swipe-enabled {
+  touch-action: none;
 }
 .editable .element {
   touch-action: none;

@@ -3,6 +3,7 @@ import type { Element, Slide } from "./model";
 import { W, H } from "./model";
 import { InlineText } from "./InlineText";
 import { Move } from "lucide-react";
+import { useCanvasSwipe } from "./useCanvasSwipe";
 export function ElementView({ element: e }: { element: Element }) {
   if (e.type === "text")
     return (
@@ -68,6 +69,7 @@ export function Canvas({
   onChange,
   editable = false,
   zoom = 1,
+  onNavigate,
 }: {
   slide: Slide;
   selected?: string;
@@ -75,6 +77,7 @@ export function Canvas({
   onChange?: (e: Element) => void;
   editable?: boolean;
   zoom?: number;
+  onNavigate?: (dx: number, dy: number) => unknown;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<Element>();
@@ -103,6 +106,16 @@ export function Canvas({
     scale: number;
     allowTyping: boolean;
   } | null>(null);
+  function cancelDrag() {
+    drag.current = null;
+    setDraft(undefined);
+    setGuides({ x: false, y: false });
+  }
+  const swipe = useCanvasSwipe(
+    slide.id,
+    editable ? onNavigate : undefined,
+    cancelDrag,
+  );
   function start(
     event: React.PointerEvent,
     element: Element,
@@ -175,7 +188,8 @@ export function Canvas({
     <div className="canvas-scale" style={{ width: W * zoom, height: H * zoom }}>
       <div
         ref={ref}
-        className={`slide-canvas ${editable ? "editable" : ""}`}
+        className={`slide-canvas ${editable ? "editable" : ""} ${editable && onNavigate ? "swipe-enabled" : ""}`}
+        {...swipe}
         style={{ background: slide.background, transform: `scale(${zoom})` }}
         onPointerDown={() => onSelect?.()}
       >
@@ -212,11 +226,7 @@ export function Canvas({
               onPointerDown={(event) => start(event, e)}
               onPointerMove={move}
               onPointerUp={end}
-              onPointerCancel={() => {
-                drag.current = null;
-                setDraft(undefined);
-                setGuides({ x: false, y: false });
-              }}
+              onPointerCancel={cancelDrag}
             >
               {editable && editingId === e.id && e.type === "text" ? (
                 <InlineText
