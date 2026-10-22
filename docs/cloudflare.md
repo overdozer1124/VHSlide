@@ -2,6 +2,8 @@
 
 VHSlideの画面、Googleサインイン、共同編集、写真の永続保存をCloudflare WorkersとSQLite型Durable Objectsで動かします。R2・D1・KV・Containersは使いません。Railway用のサーバーも引き続き利用できます。
 
+公開先は [vhslide.overdozer1124.workers.dev](https://vhslide.overdozer1124.workers.dev) です。`wrangler.jsonc`の公開用GoogleクライアントIDと`PUBLIC_ORIGIN`もこの公開先に合わせて保存しています。別の環境へ公開する場合は、自分のIDとURLへ置き換えてください。
+
 ## 料金について最初に確認すること
 
 **この構成はCloudflareアカウントのWorkersプランがFreeであることを前提とします。Workers Paidへ変更しないでください。** ドメインのFree/Proプランとは別の設定です。既にWorkers Paidを契約しているアカウントでは、このコードでも利用量による課金が発生します。コードや容量制限だけでPaidアカウントの請求を止めるものではありません。
@@ -75,7 +77,7 @@ GoogleクライアントIDは公開用の識別子です。CloudflareのAPIト�
 
 7. ブラウザを再読み込みし、「クラウド」→Googleサインイン→作品をクラウドへ保存→招待リンクを作成、の順に確認します。別のアカウントで招待を開き、同時編集・写真入りJSONの保存・翌日の再表示を試してください。
 
-このチャットのクラウド環境にはCloudflareの接続情報が設定されていません。デプロイ用コードとローカル検証を用意し、実アカウントへの公開は上記の手順で行います。Wranglerの`--dry-run`は公開やアカウントのプラン変更を行いません。
+自動デプロイでは、環境のシークレット設定に`CLOUDFLARE_API_TOKEN`、環境変数に`CLOUDFLARE_ACCOUNT_ID`を登録します。トークンはチャットやリポジトリへ書かないでください。Wranglerの`--dry-run`は公開やアカウントのプラン変更を行いません。
 
 ## ローカル開発・検証
 
@@ -85,7 +87,7 @@ npm run test:cloudflare       # Workers実行系でJWT・権限・40接続・写
 npm run test:cloudflare:e2e   # ビルド・cf:check後、PC/タッチでブラウザ検証
 ```
 
-`cf:dev`の保存先はローカルの`.wrangler`内です。本番のデータとは共有しません。ローカルで実際のGoogleサインインを使う場合は、Googleに`http://localhost:8787`も登録し、ローカル用設定で`PUBLIC_ORIGIN`をそのURLに合わせます。
+`cf:dev`は`PUBLIC_ORIGIN`を`http://localhost:8787`へ上書きして起動します。保存先はローカルの`.wrangler`内で、本番のデータとは共有しません。ローカルで実際のGoogleサインインを使う場合は、Googleに`http://localhost:8787`も登録してください。
 
 テストはMiniflare/workerdのSQLite型Durable Objectsを使います。Googleの外部通信はテスト用JWKSで置き換えますが、JWTの署名・発行者・audience検証は本番のコードを通します。テスト用の署名鍵・トークン発行は`tests/cloudflare`内にだけあり、本番Workerには含まれません。ローカル実行では本番の日次無料枠・CPU時間の消費や課金停止そのものは再現されません。
 

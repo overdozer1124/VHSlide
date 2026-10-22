@@ -9,7 +9,10 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/healthz"],
   },
-  "vars": { "GOOGLE_CLIENT_ID": "", "PUBLIC_ORIGIN": "" },
+  "vars": {
+    "GOOGLE_CLIENT_ID": "187339871113-2j074eot6i41e2ts1g3129ch87vhjru1.apps.googleusercontent.com",
+    "PUBLIC_ORIGIN": "https://vhslide.overdozer1124.workers.dev",
+  },
   "durable_objects": {
     "bindings": [
       { "name": "DIRECTORY", "class_name": "Directory" },

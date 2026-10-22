@@ -18,7 +18,7 @@
     "test:cloud": "playwright test --config playwright.cloud.config.ts",
     "format": "prettier --write src server cloudflare tests docs README.md *.ts *.json index.html",
     "cf:check": "tsc -p tsconfig.cloudflare.json && wrangler deploy --dry-run --outdir .wrangler-build",
-    "cf:dev": "npm run build && wrangler dev --port 8787",
+    "cf:dev": "npm run build && wrangler dev --port 8787 --var PUBLIC_ORIGIN:http://localhost:8787",
     "cf:deploy": "npm run build && tsc -p tsconfig.cloudflare.json && wrangler deploy",
     "test:cloudflare": "npm run cf:check && node --test tests/cloudflare/*.test.ts",
     "test:cloudflare:e2e": "playwright test --config playwright.cloudflare.config.ts"
