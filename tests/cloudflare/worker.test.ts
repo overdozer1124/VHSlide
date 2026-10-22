@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { Miniflare } from "miniflare";
 import * as Y from "yjs";
 import { harness } from "./harness.ts";
-import { sample } from "../../src/model.ts";
+import { blank, sample } from "../../src/model.ts";
 import {
   fromBase64,
   readSharedDeck,
@@ -161,11 +161,30 @@ test("checks real JWT signatures/audience, session cookies, origin and membershi
   peer.doc.destroy();
 });
 
-test("imports all 400 pages and keeps private photos through a runtime restart", async () => {
-  const deck = JSON.parse(
+test("stores 1000 pages and private photos through a runtime restart and rejects page 1001", async () => {
+  const source = JSON.parse(
     await readFile("public/samples/vhslide-10x40.json", "utf8"),
   );
+  const deck = {
+    ...source,
+    rowSelections: [],
+    slides: Array.from({ length: 1000 }, (_, i) => {
+      const original = source.slides[i % source.slides.length];
+      return {
+        ...original,
+        id: `page-${i}`,
+        x: i % 20,
+        y: Math.floor(i / 20),
+        elements: original.elements.map((element: object, j: number) => ({
+          ...element,
+          id: `element-${i}-${j}`,
+        })),
+      };
+    }),
+  };
   const id = await create(deck);
+  const excessive = { ...deck, slides: [...deck.slides, blank(99, 99)] };
+  assert.equal((await request("/api/decks", "POST", excessive)).status, 400);
   const png = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
     "base64",
@@ -191,7 +210,7 @@ test("imports all 400 pages and keeps private photos through a runtime restart",
   };
   const doc = new Y.Doc();
   Y.applyUpdate(doc, fromBase64(restored.state));
-  assert.equal(readSharedDeck(doc).slides.length, 400);
+  assert.equal(readSharedDeck(doc).slides.length, 1000);
   assert.deepEqual(Buffer.from(await (await request(src)).arrayBuffer()), png);
   doc.destroy();
 });

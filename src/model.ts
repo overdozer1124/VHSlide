@@ -1,4 +1,4 @@
-export const MAX_SLIDES = 400;
+export const MAX_SLIDES = 1000;
 export const MAX_FILE_BYTES = 25_000_000;
 export const W = 960,
   H = 540;

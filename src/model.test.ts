@@ -20,7 +20,7 @@ import {
 } from "./model";
 import type { Deck } from "./model";
 describe("fixed grid and portable document", () => {
-  it("imports the complete 10 by 40 sample and rejects a 401st page", () => {
+  it("imports the complete 10 by 40 sample", () => {
     const d = parseDeck(
       readFileSync("public/samples/vhslide-10x40.json", "utf8"),
     );
@@ -28,10 +28,26 @@ describe("fixed grid and portable document", () => {
     expect(new Set(d.slides.map((s) => s.x)).size).toBe(10);
     expect(new Set(d.slides.map((s) => s.y)).size).toBe(40);
     expect(d.slides.at(-1)).toMatchObject({ x: 9, y: 39 });
+    expect(
+      parseDeck(JSON.stringify(insert(d, d.slides[0], "right"))).slides,
+    ).toHaveLength(401);
+  });
+  it("accepts the 1000th page and rejects import or insertion of a 1001st page", () => {
+    const d: Deck = {
+      version: 1,
+      title: "1000 pages",
+      slides: Array.from({ length: 999 }, (_, i) =>
+        blank(i % 20, Math.floor(i / 20)),
+      ),
+    };
+    const full = insert(d, d.slides[0], "right");
+    expect(parseDeck(JSON.stringify(full)).slides).toHaveLength(1000);
     expect(() =>
-      parseDeck(JSON.stringify({ ...d, slides: [...d.slides, blank(10, 0)] })),
+      parseDeck(
+        JSON.stringify({ ...full, slides: [...full.slides, blank(99, 99)] }),
+      ),
     ).toThrow();
-    expect(() => insert(d, d.slides[0], "right")).toThrow("400枚");
+    expect(() => insert(full, full.slides[0], "right")).toThrow("1000枚");
   });
   it("inserts a topic by shifting all deeper columns and keeping fixed coordinates", () => {
     const d = sample(),
@@ -206,13 +222,13 @@ describe("linked rows and thumbnail actions", () => {
     const full: Deck = {
       version: 1,
       title: "full",
-      slides: Array.from({ length: 400 }, (_, i) =>
+      slides: Array.from({ length: 1000 }, (_, i) =>
         blank(i % 10, Math.floor(i / 10)),
       ),
     };
     const before = JSON.stringify(full);
-    expect(() => duplicateSlide(full, full.slides[0].id)).toThrow("400枚");
-    expect(() => duplicateRowGroup(full, 0)).toThrow("400枚");
+    expect(() => duplicateSlide(full, full.slides[0].id)).toThrow("1000枚");
+    expect(() => duplicateRowGroup(full, 0)).toThrow("1000枚");
     expect(JSON.stringify(full)).toBe(before);
     const edge: Deck = {
       version: 1,
@@ -285,12 +301,12 @@ describe("editor grid-line insertion", () => {
     const full: Deck = {
       version: 1,
       title: "full",
-      slides: Array.from({ length: 400 }, (_, i) =>
+      slides: Array.from({ length: 1000 }, (_, i) =>
         blank(i % 10, Math.floor(i / 10)),
       ),
     };
     expect(() => insertGridLine(full, "row", 1, 0)).toThrow(
-      "ページは400枚までです。",
+      "ページは1000枚までです。",
     );
   });
 });
