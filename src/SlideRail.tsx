@@ -291,6 +291,7 @@ export function SlideRail({
     >
       <aside
         className="slide-rail two-d-rail"
+        id="editor-thumbnails"
         ref={railRef}
         aria-label="縦横のページ一覧"
         onPointerLeave={(e) => {

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -27,13 +27,75 @@ export function PresentationView({
 }: PresentationProps) {
   const presentRef = useRef<HTMLDivElement>(null),
     touch = useRef<{ x: number; y: number } | null>(null);
-  const zoom = useFitCanvas(presentRef, 180);
+  const zoom = useFitCanvas(presentRef, 0, 0);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const nearEdge = useRef(false);
+  const currentCell = useRef<HTMLSpanElement>(null);
+  const cells = useMemo(
+    () => new Map(deck.slides.map((page) => [`${page.x},${page.y}`, page])),
+    [deck.slides],
+  );
+  function reveal(duration = 2000) {
+    clearTimeout(hideTimer.current);
+    setControlsVisible(true);
+    if (!nearEdge.current)
+      hideTimer.current = setTimeout(() => setControlsVisible(false), duration);
+  }
+  function hide() {
+    clearTimeout(hideTimer.current);
+    setControlsVisible(false);
+  }
+  useEffect(() => {
+    hideTimer.current = setTimeout(() => setControlsVisible(false), 1800);
+    return () => clearTimeout(hideTimer.current);
+  }, []);
+  useEffect(() => {
+    currentCell.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [slide.id]);
   const size = bounds(deck);
   return (
     <div
       className="present-mode"
+      style={{ background: slide.background }}
+      data-controls-visible={controlsVisible}
+      onPointerMove={(event) => {
+        if (event.pointerType === "touch") return;
+        const box = event.currentTarget.getBoundingClientRect();
+        const edge =
+          !!(event.target as Element).closest(".present-top,.present-bottom") ||
+          event.clientY - box.top < 64 ||
+          box.bottom - event.clientY < 135;
+        if (edge) {
+          nearEdge.current = true;
+          reveal();
+        } else if (nearEdge.current || controlsVisible) {
+          nearEdge.current = false;
+          clearTimeout(hideTimer.current);
+          hideTimer.current = setTimeout(() => setControlsVisible(false), 350);
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "touch") return;
+        nearEdge.current = false;
+        hide();
+      }}
+      onFocusCapture={(event) => {
+        if (event.target.matches(":focus-visible")) reveal();
+      }}
+      onKeyDownCapture={() => reveal()}
       ref={presentRef}
       onTouchStart={(e) => {
+        if (
+          (e.target as Element).closest("button,.minimap") ||
+          e.touches.length !== 1
+        ) {
+          touch.current = null;
+          return;
+        }
         touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }}
       onTouchEnd={(e) => {
@@ -41,13 +103,20 @@ export function PresentationView({
         const dx = e.changedTouches[0].clientX - touch.current.x,
           dy = e.changedTouches[0].clientY - touch.current.y;
         if (Math.max(Math.abs(dx), Math.abs(dy)) > 60) {
+          hide();
           if (Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1, 0);
           else go(0, dy < 0 ? 1 : -1);
+        } else if (Math.max(Math.abs(dx), Math.abs(dy)) < 10) {
+          if (controlsVisible) hide();
+          else reveal(2500);
         }
         touch.current = null;
       }}
+      onTouchCancel={() => {
+        touch.current = null;
+      }}
     >
-      <div className="present-top">
+      <div className="present-top" aria-label="発表の操作">
         <span>
           VHSlide <span className="present-deck-title">/ {deck.title}</span>
         </span>
@@ -82,10 +151,11 @@ export function PresentationView({
         >
           {Array.from({ length: size.rows }, (_, y) =>
             Array.from({ length: size.cols }, (_, x) => {
-              const s = deck.slides.find((s) => s.x === x && s.y === y);
+              const s = cells.get(`${x},${y}`);
               return (
                 <span
                   key={`${x}-${y}`}
+                  ref={s?.id === slide.id ? currentCell : undefined}
                   className={`${s ? "occupied" : ""} ${s?.id === slide.id ? "current" : ""}`}
                   title={s?.title}
                 />
@@ -99,7 +169,10 @@ export function PresentationView({
             {slide.y + 1}.{slide.x + 1} 現在地
           </span>
         </div>
-        <span className="present-caption">{slide.title}</span>
+        <span className="present-caption">
+          {slide.title}
+          <small>マウスを上下の端へ · タッチは画面をタップ</small>
+        </span>
         <div className="navigation-pad">
           <button
             aria-label="上のページ"

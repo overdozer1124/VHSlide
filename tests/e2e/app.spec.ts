@@ -283,6 +283,7 @@ test("touch taps and directional swipe navigate the story", async ({
     );
   });
   await expect(page.locator(".minimap-caption")).toHaveText("2.1 現在地");
+  await page.locator(".present-mode").tap();
   await page.getByRole("button", { name: "次の話題", exact: true }).tap();
   await expect(page.locator(".minimap-caption")).toHaveText("2.2 現在地");
 });

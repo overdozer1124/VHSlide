@@ -4,6 +4,7 @@ import { H, W } from "./model";
 export function useFitCanvas(
   ref: RefObject<HTMLDivElement | null>,
   verticalSpace = 85,
+  horizontalSpace = 48,
 ) {
   const [zoom, setZoom] = useState(0.5);
   useEffect(() => {
@@ -14,7 +15,7 @@ export function useFitCanvas(
         Math.max(
           0.1,
           Math.min(
-            (entry.contentRect.width - 48) / W,
+            (entry.contentRect.width - horizontalSpace) / W,
             (entry.contentRect.height - verticalSpace) / H,
           ),
         ),
@@ -22,6 +23,6 @@ export function useFitCanvas(
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [ref, verticalSpace]);
+  }, [ref, verticalSpace, horizontalSpace]);
   return zoom;
 }

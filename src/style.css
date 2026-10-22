@@ -2644,3 +2644,205 @@ h1 span {
 .workspace-transition-map .active-card .thumbnail {
   visibility: hidden;
 }
+
+/* Workspace preferences never change the saved slide data. */
+.map-zoom-settings {
+  position: relative;
+}
+.mapping .map-toolbar {
+  overflow: visible;
+  position: relative;
+  z-index: 8;
+}
+.zoom-settings-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(350px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid #dbe5d6;
+  border-radius: 9px;
+  background: white;
+  box-shadow: 0 8px 28px #173d3826;
+  z-index: 80;
+  color: #365545;
+}
+.zoom-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.zoom-settings-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 8px;
+  font-size: 12px;
+}
+.zoom-settings-panel input {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #b9cbb1;
+  border-radius: 5px;
+  font-size: 15px;
+}
+.zoom-settings-panel p {
+  margin: 8px 0;
+  color: #73836c;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.zoom-settings-panel .zoom-settings-error {
+  color: #ac3f33;
+}
+.zoom-presets,
+.zoom-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.zoom-presets button {
+  padding: 5px 8px;
+  background: #f0f5eb;
+  border-radius: 4px;
+  font-size: 10px;
+}
+.zoom-settings-actions {
+  margin-top: 14px;
+  justify-content: space-between;
+}
+.zoom-settings-actions .button,
+.zoom-settings-actions .quiet {
+  padding: 7px 9px;
+  font-size: 11px;
+}
+.mapping .map-grid[data-micro="true"] .card-tool,
+.mapping .map-grid[data-micro="true"] .column-heading .icon-button {
+  display: none;
+}
+.mapping .map-grid[data-micro="true"] .column-heading {
+  padding: 0 2px;
+}
+.mapping .map-grid[data-micro="true"] .page-number {
+  font-size: 8px;
+  padding: 0;
+}
+.editor-panel-toggles {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  border-left: 1px solid #e1e7de;
+  padding-left: 5px;
+}
+.editor-panel-toggles button {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 30px;
+}
+.editor-main[data-focused="true"] .canvas-hint {
+  display: none;
+}
+@media (max-width: 760px) {
+  .editor-layout[data-rail-collapsed="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-layout[data-rail-collapsed="true"] .editor-workspace {
+    grid-column: 1;
+  }
+  .editing .editor-main[data-inspector-collapsed="true"] {
+    height: calc(100dvh - 48px);
+    min-height: 0;
+  }
+  .editor-layout[data-inspector-collapsed="true"] {
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .editor-layout[data-inspector-collapsed="true"] .editor-workspace,
+  .editor-layout[data-inspector-collapsed="true"] .slide-rail {
+    height: 100%;
+    min-height: 0;
+  }
+  .map-zoom-settings .zoom-settings-panel {
+    position: fixed;
+    top: 140px;
+    left: auto;
+    right: 12px;
+    max-height: calc(100dvh - 155px);
+    overflow: auto;
+  }
+}
+.present-slide {
+  box-shadow: none;
+}
+.present-top,
+.present-bottom {
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  z-index: 3;
+}
+.present-top {
+  transform: translateY(-8px);
+  background: linear-gradient(#000b, #0000);
+  padding-bottom: 28px;
+}
+.present-bottom {
+  transform: translateY(8px);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 24px 16px;
+  background: linear-gradient(#0000, #000b);
+}
+.present-mode[data-controls-visible="true"] .present-top,
+.present-mode[data-controls-visible="true"] .present-bottom,
+.present-mode:has(:focus-visible) .present-top,
+.present-mode:has(:focus-visible) .present-bottom {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.present-top .quiet,
+.present-caption {
+  color: #f3f7f0;
+}
+.present-deck-title {
+  color: #d2ddce;
+}
+.present-caption small {
+  display: block;
+  margin-top: 5px;
+  font-size: 9px;
+  color: #d2ddce;
+}
+@media (prefers-reduced-motion: reduce) {
+  .present-top,
+  .present-bottom {
+    transition: none;
+  }
+}
+.zoom-settings-panel {
+  max-height: calc(100dvh - 170px);
+  overflow: auto;
+}
+@media (max-width: 480px) {
+  .mapping .map-find {
+    order: 0;
+    margin-left: auto;
+  }
+  .mapping .map-zoom {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+}
+.editor-main[data-focused="true"] .canvas-title {
+  padding: 2px 16px;
+}

@@ -43,6 +43,7 @@ import {
   W,
 } from "./model";
 import { MapView } from "./MapView";
+import { closestZoom, useWorkspacePreferences } from "./workspacePreferences";
 import { Editor } from "./Editor";
 import { PresentationView } from "./PresentationView";
 import { ThumbnailMenu } from "./ThumbnailMenu";
@@ -81,7 +82,10 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState("この端末に自動保存");
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
-  const [mapScale, setMapScale] = useState(1);
+  const [preferences, setPreferences] = useWorkspacePreferences();
+  const [mapScale, setMapScale] = useState(
+    () => closestZoom(preferences.zoomSteps) / 100,
+  );
   const [flight, setFlight] = useState<WorkspaceFlight>();
   const [moving, setMoving] = useState<GridMove>();
   const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();
@@ -916,6 +920,13 @@ export default function App() {
                 commit({ ...deck, slides: [...deck.slides, blank(x, y)] });
               else notify(`ページは${MAX_SLIDES}枚までです。`);
             }}
+            zoomSteps={preferences.zoomSteps}
+            onZoomSteps={(steps) => {
+              setPreferences((previous) => ({ ...previous, zoomSteps: steps }));
+              setMapScale((current) =>
+                current === 0 ? 0 : closestZoom(steps, current * 100) / 100,
+              );
+            }}
             scale={mapScale}
             onScale={setMapScale}
             onOpenMenu={openThumbnailMenu}
@@ -947,6 +958,20 @@ export default function App() {
             onOpenMenu={openThumbnailMenu}
             menuOpen={!!thumbnailMenu}
             historyActions={historyActions}
+            railCollapsed={preferences.railCollapsed}
+            inspectorCollapsed={preferences.inspectorCollapsed}
+            onToggleRail={() =>
+              setPreferences((previous) => ({
+                ...previous,
+                railCollapsed: !previous.railCollapsed,
+              }))
+            }
+            onToggleInspector={() =>
+              setPreferences((previous) => ({
+                ...previous,
+                inspectorCollapsed: !previous.inspectorCollapsed,
+              }))
+            }
           />
         )}
         {view === "present" && (

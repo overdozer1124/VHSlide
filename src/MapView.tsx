@@ -22,11 +22,13 @@ import { usePinch } from "./usePinch";
 import type { PinchPoint } from "./usePinch";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const ThumbnailCanvas = memo(Canvas);
-const STANDARD_SCALE = 1;
-const SMALL_SCALE = 0.6;
+import { MapZoomSettings } from "./MapZoomSettings";
+import { closestZoom } from "./workspacePreferences";
 
 interface MapViewProps {
   visible: boolean;
+  zoomSteps: number[];
+  onZoomSteps: (steps: number[]) => void;
   deck: Deck;
   activeId: string;
   moving?: GridMove;
@@ -43,6 +45,8 @@ interface MapViewProps {
 }
 function MapViewComponent({
   visible,
+  zoomSteps,
+  onZoomSteps,
   deck,
   activeId,
   moving,
@@ -80,6 +84,13 @@ function MapViewComponent({
     () => new Map(deck.slides.map((s) => [`${s.x},${s.y}`, s])),
     [deck.slides],
   );
+  const levels = zoomSteps.map((percent) => percent / 100);
+  const defaultScale = closestZoom(zoomSteps) / 100;
+  const largestScale = levels[levels.length - 1];
+  const smallerScale =
+    [...levels].reverse().find((level) => level < scale - 0.0001) ?? 0;
+  const largerScale =
+    levels.find((level) => level > scale + 0.0001) ?? largestScale;
   const numbers = scale === 0;
   const gap = numbers ? 8 : 24;
   const thumbWidth = numbers
@@ -120,7 +131,7 @@ function MapViewComponent({
     const a = anchor.current;
     if (a?.id) pending.current = { id: a.id, point, rx: a.rx, ry: a.ry };
     gridRef.current!.style.transform = "";
-    skipFocusScroll.current = (next === 0) !== numbers;
+    skipFocusScroll.current = next !== scale;
     onScale(next);
     if (next === scale) restoreAnchor();
   }
@@ -180,7 +191,7 @@ function MapViewComponent({
         gridRef.current!.style.transform = "";
         return;
       }
-      if (a.scale === STANDARD_SCALE && sample.direction === "out" && a.id) {
+      if (a.scale === largestScale && sample.direction === "out" && a.id) {
         const tile = gridRef.current!.querySelector(
           `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
         );
@@ -192,14 +203,7 @@ function MapViewComponent({
         return;
       }
       // Always complete the display step chosen by the initial pinch direction.
-      const next =
-        sample.direction === "in"
-          ? a.scale === STANDARD_SCALE
-            ? SMALL_SCALE
-            : 0
-          : numbers
-            ? SMALL_SCALE
-            : STANDARD_SCALE;
+      const next = sample.direction === "in" ? smallerScale : largerScale;
       keepAnchor(next, sample);
     },
   });
@@ -256,20 +260,18 @@ function MapViewComponent({
     };
   }, [cardWidth, cardHeight, gap, pinching, visible]);
   function zoomOut() {
-    onScale(scale === STANDARD_SCALE ? SMALL_SCALE : 0);
+    onScale(smallerScale);
   }
   function zoomIn() {
-    onScale(numbers ? SMALL_SCALE : STANDARD_SCALE);
+    onScale(largerScale);
   }
   function fitColumns() {
     if (!scrollRef.current) return;
     const width = scrollRef.current.clientWidth - 24 - 32 - 32;
     onScale(
-      cols * (242 * STANDARD_SCALE + 2 + 24) <= width
-        ? STANDARD_SCALE
-        : cols * (242 * SMALL_SCALE + 2 + 24) <= width
-          ? SMALL_SCALE
-          : 0,
+      [...levels]
+        .reverse()
+        .find((level) => cols * (242 * level + 2 + 24) <= width) ?? 0,
     );
     scrollRef.current.scrollLeft = 0;
   }
@@ -285,7 +287,7 @@ function MapViewComponent({
       inline: "center",
       behavior: "instant",
     });
-  }, [activeId, numbers, visible]);
+  }, [activeId, scale, visible]);
   return (
     <main
       className="map-main"
@@ -358,9 +360,9 @@ function MapViewComponent({
             </button>
             <button
               className="map-scale-reset"
-              aria-label="表示サイズを100%に戻す"
-              title="標準の表示サイズに戻す"
-              onClick={() => onScale(STANDARD_SCALE)}
+              aria-label={`表示サイズを${Math.round(defaultScale * 100)}%に戻す`}
+              title={`標準の${Math.round(defaultScale * 100)}%に戻す`}
+              onClick={() => onScale(defaultScale)}
             >
               {numbers ? "番号" : `${Math.round(scale * 100)}%`}
             </button>
@@ -368,7 +370,7 @@ function MapViewComponent({
               className="icon-button"
               aria-label="マップを拡大"
               title="マップを拡大"
-              disabled={scale === STANDARD_SCALE}
+              disabled={scale === largestScale}
               onClick={zoomIn}
             >
               <ZoomIn size={17} />
@@ -378,7 +380,7 @@ function MapViewComponent({
               aria-label="番号だけの一覧"
               aria-pressed={numbers}
               title="番号だけの一覧"
-              onClick={() => onScale(numbers ? SMALL_SCALE : 0)}
+              onClick={() => onScale(numbers ? levels[0] : 0)}
             >
               <Hash size={17} />
             </button>
@@ -399,6 +401,7 @@ function MapViewComponent({
             >
               <LocateFixed size={17} />
             </button>
+            <MapZoomSettings steps={zoomSteps} onApply={onZoomSteps} />
             <button className="quiet map-fit" onClick={fitColumns}>
               <Maximize2 size={15} />
               横をおさめる
@@ -433,7 +436,8 @@ function MapViewComponent({
             ref={gridRef}
             data-numbers={numbers}
             data-compact={scale <= 0.6}
-            data-tiny={numbers}
+            data-tiny={numbers || scale < 0.4}
+            data-micro={!numbers && scale < 0.25}
             style={
               {
                 gridTemplateColumns: `32px repeat(${cols}, ${cardWidth + gap}px) 32px`,
