@@ -9,6 +9,7 @@ type Pan = {
   direction: number;
   target?: Slide;
   settling: boolean;
+  duration?: number;
 };
 type Gesture = {
   source: "touch" | "wheel";
@@ -41,15 +42,36 @@ export function useSlidePan(options: {
   const settling = useRef(false);
   const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const wheelTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const wheelBlockedUntil = useRef(0);
+  const wheelCommitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const frame = useRef<number>(undefined);
+  const wheelMotion = useRef({ magnitude: 0, peak: 0, falling: 0 });
+  const wheelTail = useRef<{
+    axis: Axis;
+    direction: number;
+    magnitude: number;
+    lastAt: number;
+    decayed: boolean;
+  } | null>(null);
   const suppressClickUntil = useRef(0);
-  function display(next: Pan | null) {
+  function display(next: Pan | null, coalesce = false) {
     currentPan.current = next;
-    setPan(next);
+    if (coalesce) {
+      if (frame.current === undefined)
+        frame.current = requestAnimationFrame(() => {
+          frame.current = undefined;
+          setPan(currentPan.current);
+        });
+    } else {
+      if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+      frame.current = undefined;
+      setPan(next);
+    }
   }
   function reset() {
     clearTimeout(settleTimer.current);
     clearTimeout(wheelTimer.current);
+    clearTimeout(wheelCommitTimer.current);
+    wheelCommitTimer.current = undefined;
     gesture.current = null;
     settling.current = false;
     display(null);
@@ -71,21 +93,26 @@ export function useSlidePan(options: {
       g.axis === "y" ? direction : 0,
     );
     const size = g.axis === "x" ? latest.current.width : latest.current.height;
-    display({
-      axis: g.axis,
-      direction,
-      target,
-      offset: target
-        ? Math.max(-size, Math.min(size, raw))
-        : Math.max(-60, Math.min(60, raw * 0.18)),
-      settling: false,
-    });
+    display(
+      {
+        axis: g.axis,
+        direction,
+        target,
+        offset: target
+          ? Math.max(-size, Math.min(size, raw))
+          : Math.max(-60, Math.min(60, raw * 0.18)),
+        settling: false,
+      },
+      g.source === "wheel",
+    );
   }
   function finish(cancelled = false) {
     const g = gesture.current,
       p = currentPan.current;
     gesture.current = null;
     clearTimeout(wheelTimer.current);
+    clearTimeout(wheelCommitTimer.current);
+    wheelCommitTimer.current = undefined;
     if (!g || !p) return;
     const size = p.axis === "x" ? latest.current.width : latest.current.height;
     const commit =
@@ -94,12 +121,25 @@ export function useSlidePan(options: {
       Math.abs(p.offset) >= Math.min(72, size * 0.2);
     settling.current = true;
     if (g.source === "wheel")
-      wheelBlockedUntil.current = performance.now() + 400;
-    display({ ...p, settling: true, offset: commit ? -p.direction * size : 0 });
+      wheelTail.current = {
+        axis: p.axis,
+        direction: p.direction,
+        magnitude: wheelMotion.current.magnitude,
+        lastAt: performance.now(),
+        decayed: wheelMotion.current.falling > 0,
+      };
     const duration = window.matchMedia("(prefers-reduced-motion: reduce)")
       .matches
       ? 0
-      : 220;
+      : g.source === "wheel"
+        ? 160
+        : 220;
+    display({
+      ...p,
+      settling: true,
+      duration,
+      offset: commit ? -p.direction * size : 0,
+    });
     settleTimer.current = setTimeout(() => {
       if (commit && latest.current.slideId === g.slideId) {
         // Blur only after settling: removing the touch target or closing the
@@ -125,6 +165,9 @@ export function useSlidePan(options: {
     return () => {
       clearTimeout(settleTimer.current);
       clearTimeout(wheelTimer.current);
+      clearTimeout(wheelCommitTimer.current);
+      if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+      frame.current = undefined;
       gesture.current = null;
     };
   }, [options.slideId, options.width, options.height]);
@@ -139,10 +182,36 @@ export function useSlidePan(options: {
       event.preventDefault();
       if (gesture.current?.source === "touch") return;
       const now = performance.now();
-      if (settling.current || now < wheelBlockedUntil.current) {
-        wheelBlockedUntil.current = now + 180;
-        return;
+      const factor = event.deltaMode === 1 ? 16 : 1;
+      const dx =
+          event.deltaX *
+          (event.deltaMode === 2 ? latest.current.width : factor),
+        dy =
+          event.deltaY *
+          (event.deltaMode === 2 ? latest.current.height : factor);
+      if (!dx && !dy) return;
+      const axis: Axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      const delta = axis === "x" ? dx : dy;
+      const magnitude = Math.abs(delta);
+      const tail = wheelTail.current;
+      if (tail) {
+        // Ignore the old gesture's inertia, but accept a fresh stroke or reversal
+        // without waiting for a long Windows momentum stream to end.
+        const fresh =
+          !settling.current &&
+          (now - tail.lastAt > 100 ||
+            (magnitude >= 8 &&
+              (axis !== tail.axis || Math.sign(delta) !== tail.direction)) ||
+            (tail.decayed && magnitude >= Math.max(16, tail.magnitude * 2.5)));
+        if (!fresh) {
+          tail.decayed ||= magnitude < tail.magnitude * 0.8;
+          tail.magnitude = magnitude;
+          tail.lastAt = now;
+          return;
+        }
+        wheelTail.current = null;
       }
+      if (settling.current) return;
       let g = gesture.current;
       if (!g) {
         g = {
@@ -156,18 +225,35 @@ export function useSlidePan(options: {
           text: false,
         };
         gesture.current = g;
+        wheelMotion.current = { magnitude: 0, peak: 0, falling: 0 };
       }
-      const factor =
-        event.deltaMode === 1
-          ? 16
-          : event.deltaMode === 2
-            ? latest.current.height
-            : 1;
-      g.dx -= event.deltaX * factor;
-      g.dy -= event.deltaY * factor;
+      const motion = wheelMotion.current;
+      motion.falling =
+        magnitude < motion.magnitude * 0.85 ? motion.falling + 1 : 0;
+      motion.magnitude = magnitude;
+      motion.peak = Math.max(motion.peak, magnitude);
+      g.dx -= dx;
+      g.dy -= dy;
       update(g);
       clearTimeout(wheelTimer.current);
-      wheelTimer.current = setTimeout(() => finish(), 140);
+      const p = currentPan.current;
+      const size =
+        p?.axis === "x" ? latest.current.width : latest.current.height;
+      const ready =
+        !!p?.target && Math.abs(p.offset) >= Math.min(72, size * 0.2);
+      if (ready) {
+        // A sustained stream must not postpone navigation indefinitely.
+        if (wheelCommitTimer.current === undefined)
+          wheelCommitTimer.current = setTimeout(() => finish(), 120);
+        if (motion.falling >= 2 && magnitude < motion.peak * 0.7) {
+          finish();
+          return;
+        }
+      } else {
+        clearTimeout(wheelCommitTimer.current);
+        wheelCommitTimer.current = undefined;
+      }
+      wheelTimer.current = setTimeout(() => finish(), 80);
     }
     node.addEventListener("wheel", wheel, { passive: false });
     return () => node.removeEventListener("wheel", wheel);

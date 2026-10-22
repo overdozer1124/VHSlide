@@ -301,7 +301,9 @@ test("trackpad wheel gestures follow both axes, reverse, settle once, and ignore
   const b = (await canvas(page).boundingBox())!;
   await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.5);
   await page.mouse.wheel(45, 0);
-  await expect.poll(() => offset(page)).toEqual({ x: -45, y: 0 });
+  await expect
+    .poll(() => offset(page), { intervals: [16, 16, 32] })
+    .toEqual({ x: -45, y: 0 });
   await page.mouse.wheel(-45, 0);
   await idle(page);
   await expect(title(page)).toHaveValue("1.1");
@@ -333,6 +335,75 @@ test("trackpad wheel gestures follow both axes, reverse, settle once, and ignore
   await expect(title(page)).toHaveValue("1.2");
   expect((await saved(page)).slides).toEqual(fixture.slides);
 });
+
+for (const streamKind of ["decaying", "steady"] as const) {
+  test(`long ${streamKind} Windows-style wheel inertia does not delay paging or swallow the next stroke`, async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== "desktop", "ノートPCのタッチパッド操作");
+    await open(page);
+    await pager(page).evaluate((node, streamKind) => {
+      const probe = {
+        sent: 0,
+        done: false,
+        beforeReverse: "",
+        firstNavigationMs: 0,
+      };
+      (window as any).__wheelProbe = probe;
+      const started = performance.now();
+      // Precision touchpads can emit small momentum events for well over a second.
+      const deltas =
+        streamKind === "steady" ? [8] : [42, 34, 26, 18, 12, 8, 5, 3, 2, 1];
+      const stream = setInterval(() => {
+        if (
+          !probe.firstNavigationMs &&
+          document.querySelector<HTMLInputElement>(
+            '[aria-label="ページの名前"]',
+          )!.value === "1.2"
+        )
+          probe.firstNavigationMs = performance.now() - started;
+        node.dispatchEvent(
+          new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            deltaX: deltas[Math.min(probe.sent, deltas.length - 1)],
+            deltaMode: 0,
+          }),
+        );
+        if (++probe.sent === 90) {
+          clearInterval(stream);
+          probe.beforeReverse = document.querySelector<HTMLInputElement>(
+            '[aria-label="ページの名前"]',
+          )!.value;
+          // A fresh reverse stroke must work immediately, even before a quiet gap.
+          // Some Windows drivers report wheel distances in lines rather than pixels.
+          node.dispatchEvent(
+            new WheelEvent("wheel", {
+              bubbles: true,
+              cancelable: true,
+              deltaX: -6,
+              deltaMode: 1,
+            }),
+          );
+          probe.done = true;
+        }
+      }, 16);
+    }, streamKind);
+    await expect(title(page)).toHaveValue("1.2", { timeout: 650 });
+    const early = await page.evaluate(() => (window as any).__wheelProbe);
+    expect(early.done).toBe(false);
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__wheelProbe.done))
+      .toBe(true);
+    const result = await page.evaluate(() => (window as any).__wheelProbe);
+    expect(result.beforeReverse).toBe("1.2");
+    expect(result.firstNavigationMs).toBeGreaterThan(0);
+    expect(result.firstNavigationMs).toBeLessThan(650);
+    await expect(title(page)).toHaveValue("1.1");
+    await idle(page);
+    expect((await saved(page)).slides).toEqual(fixture.slides);
+  });
+}
 
 test("Chromebook layouts devote at most 104 pixels to the header and tools", async ({
   page,

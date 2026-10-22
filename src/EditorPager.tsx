@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { memo } from "react";
 import type { Deck, Slide } from "./model";
 import { editorNeighbor, W, H } from "./model";
@@ -36,7 +36,13 @@ export function EditorPager({
     <div
       ref={viewport}
       className="editor-pager canvas-scale"
-      style={{ width, height }}
+      style={
+        {
+          width,
+          height,
+          "--page-settle-duration": `${pan?.duration ?? 220}ms`,
+        } as CSSProperties
+      }
       {...handlers}
       data-pan-phase={pan ? (pan.settling ? "settling" : "dragging") : "idle"}
       data-pan-axis={pan?.axis}
