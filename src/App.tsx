@@ -1114,6 +1114,13 @@ export default function App() {
             menuOpen={!!thumbnailMenu}
             historyActions={historyActions}
             railCollapsed={preferences.railCollapsed}
+            railNumbers={preferences.railNumbers}
+            onToggleRailNumbers={() =>
+              setPreferences((previous) => ({
+                ...previous,
+                railNumbers: !previous.railNumbers,
+              }))
+            }
             railScale={preferences.railScale}
             onRailScale={(railScale) =>
               setPreferences((previous) => ({ ...previous, railScale }))

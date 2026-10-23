@@ -3,6 +3,8 @@ import type { CSSProperties, PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
+  Grid2X2,
+  PanelsTopLeft,
   ChevronRight,
   GripVertical,
   MoreHorizontal,
@@ -43,6 +45,8 @@ import {
 
 interface SlideRailProps {
   filtered?: boolean;
+  numbers: boolean;
+  onToggleNumbers: () => void;
   scale: number;
   onScale: (scale: number) => void;
   deck: Deck;
@@ -64,6 +68,8 @@ interface SlideRailProps {
 /** A resizable column, with a temporary horizontal view of each grid row. */
 export function SlideRail({
   filtered = false,
+  numbers,
+  onToggleNumbers,
   scale,
   onScale,
   deck,
@@ -280,7 +286,7 @@ export function SlideRail({
     );
     observer.observe(preview);
     return () => observer.disconnect();
-  }, [filtered, rowIndexes[0]]);
+  }, [filtered, rowIndexes[0], numbers]);
   function finishResize(event: PointerEvent<HTMLDivElement>, cancel = false) {
     const drag = resizeDrag.current;
     if (!drag || event.pointerId !== drag.id) return;
@@ -300,7 +306,7 @@ export function SlideRail({
     if (item.top < viewport.top) pane.scrollTop -= viewport.top - item.top;
     else if (item.bottom > viewport.bottom)
       pane.scrollTop += item.bottom - viewport.bottom;
-  }, [slide.id, slide.y]);
+  }, [slide.id, slide.y, numbers]);
   useEffect(() => {
     if (openRow === null) return;
     if (
@@ -401,9 +407,20 @@ export function SlideRail({
       >
         <div className="rail-heading">
           <strong>ページ一覧</strong>
-          <span>
-            横にひらく <ArrowRight size={12} />
-          </span>
+          <button
+            className="rail-view-toggle"
+            aria-label="行番号一覧"
+            aria-pressed={numbers}
+            title={numbers ? "サムネイル一覧に戻す" : "行番号一覧に切り替え"}
+            disabled={!!dragging}
+            onClick={() => {
+              close();
+              onToggleNumbers();
+            }}
+          >
+            {numbers ? <PanelsTopLeft size={13} /> : <Grid2X2 size={13} />}
+            {numbers ? "サムネイル" : "行番号一覧"}
+          </button>
         </div>
         <div
           className="rail-scroll"
@@ -426,160 +443,208 @@ export function SlideRail({
             else close();
           }}
         >
-          {!filtered && (
-            <RowInsertDrop y={0} active={dragging?.kind === "row"} />
-          )}
-          {rowIndexes.map((y) => {
-            const cell =
-              rowPage(deck, y, slide.x) ??
-              (filtered ? deck.slides.find((s) => s.y === y) : undefined);
-            return (
-              <RailRowFrame
-                x={cell?.x ?? 0}
-                y={y}
-                hasPages={!filtered && deck.slides.some((s) => s.y === y)}
-                shifted={rowInsertTarget !== null && y >= rowInsertTarget}
-                key={y}
-                onPointerEnter={(e) => {
-                  if (e.pointerType === "mouse") hover(y);
-                }}
-                onPointerLeave={(e) => {
-                  if (e.pointerType === "mouse") delayClose();
-                }}
-              >
-                {(dragProps) => (
-                  <>
-                    <button
-                      {...dragProps}
-                      ref={(node) => {
-                        if (node) triggers.current.set(y, node);
-                        else triggers.current.delete(y);
-                      }}
-                      className={`rail-trigger ${slide.y === y ? "rail-active" : ""}`}
-                      aria-label={`${y + 1}段目の横のページをひらく`}
-                      aria-expanded={openRow === y}
-                      aria-controls={
-                        openRow === y ? "editor-row-pages" : undefined
+          {numbers ? (
+            <div
+              className="rail-number-grid"
+              aria-label="行番号一覧からジャンプ"
+            >
+              {rowIndexes.map((y) => {
+                const cell =
+                  rowPage(deck, y, slide.x) ??
+                  deck.slides.find((s) => s.y === y);
+                return (
+                  <button
+                    key={y}
+                    ref={(node) => {
+                      if (node) triggers.current.set(y, node);
+                      else triggers.current.delete(y);
+                    }}
+                    className="rail-row-number"
+                    aria-label={`${y + 1}行目へ移動`}
+                    aria-current={slide.y === y ? "page" : undefined}
+                    title={`${y + 1}行目${cell ? `：${cell.title}` : "（空の行）"}`}
+                    disabled={!cell}
+                    onClick={() => {
+                      if (cell) select(cell.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (arrow(event)) return;
+                      if (event.key === "ArrowRight") {
+                        event.preventDefault();
+                        show(y, true);
                       }
-                      onContextMenu={(event) => {
-                        if (
-                          pointer.current === "touch" ||
-                          draggingRef.current
-                        ) {
-                          event.preventDefault();
-                          return;
-                        }
-                        cancelTimers();
-                        onOpenMenu(event, {
-                          pageId: cell?.id,
-                          ...(filtered ? {} : { row: y }),
-                        });
-                      }}
-                      onPointerDown={(e) => {
-                        pointer.current = e.pointerType;
-                      }}
-                      onFocus={(e) => {
-                        if (suppressFocus.current) {
-                          suppressFocus.current = false;
-                          return;
-                        }
-                        if (e.currentTarget.matches(":focus-visible")) show(y);
-                      }}
-                      onKeyDown={(e) => {
-                        if (arrow(e)) return;
-                        if (["ArrowRight", "Enter", " "].includes(e.key)) {
-                          e.preventDefault();
-                          show(y, true);
-                        }
-                      }}
-                      onClick={() => {
-                        show(y);
-                        if (pointer.current === "mouse" && cell)
-                          select(cell.id);
-                      }}
-                    >
-                      <span className="rail-coordinate">
-                        <span>
-                          {y + 1}.{cell ? cell.x + 1 : "—"}
-                        </span>
-                        {!filtered && (
-                          <span
-                            className="rail-drag-hint"
-                            data-touch-drag-handle
-                            title="ここをドラッグで段ごと移動"
-                          >
-                            <GripVertical size={11} />
-                            <ChevronRight size={13} />
-                          </span>
-                        )}
-                      </span>
-                      <span
-                        className="rail-preview"
-                        ref={y === rowIndexes[0] ? previewRef : undefined}
-                      >
-                        {cell ? (
-                          <Canvas slide={cell} zoom={thumbWidth / W} />
-                        ) : (
-                          <span className="rail-empty">空のマス</span>
-                        )}
-                      </span>
-                      <span className="rail-page-title">
-                        {cell?.title ?? "横のページを確認"}
-                      </span>
-                    </button>
-                    <button
-                      className="thumbnail-more rail-more"
-                      aria-label={`${y + 1}段目のメニュー`}
-                      title="ページ・段の複製や削除"
-                      onClick={(event) => {
-                        cancelTimers();
-                        onOpenMenu(event, {
-                          pageId: cell?.id,
-                          ...(filtered ? {} : { row: y }),
-                        });
-                      }}
-                    >
-                      <MoreHorizontal size={15} />
-                    </button>
-                    {!filtered && (
-                      <RowInsertDrop
-                        y={y + 1}
-                        active={dragging?.kind === "row"}
-                      >
+                    }}
+                  >
+                    {y + 1}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <>
+              {!filtered && (
+                <RowInsertDrop y={0} active={dragging?.kind === "row"} />
+              )}
+              {rowIndexes.map((y) => {
+                const cell =
+                  rowPage(deck, y, slide.x) ??
+                  (filtered ? deck.slides.find((s) => s.y === y) : undefined);
+                return (
+                  <RailRowFrame
+                    x={cell?.x ?? 0}
+                    y={y}
+                    hasPages={!filtered && deck.slides.some((s) => s.y === y)}
+                    shifted={rowInsertTarget !== null && y >= rowInsertTarget}
+                    key={y}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === "mouse") hover(y);
+                    }}
+                    onPointerLeave={(e) => {
+                      if (e.pointerType === "mouse") delayClose();
+                    }}
+                  >
+                    {(dragProps) => (
+                      <>
                         <button
-                          className="rail-insert-row"
-                          aria-label={`${y + 1}段目の下に行を挿入`}
-                          title="ここに詳しい段を追加"
-                          onClick={() => insert("row", y + 1, cell?.x ?? 0)}
+                          {...dragProps}
+                          ref={(node) => {
+                            if (node) triggers.current.set(y, node);
+                            else triggers.current.delete(y);
+                          }}
+                          className={`rail-trigger ${slide.y === y ? "rail-active" : ""}`}
+                          aria-label={`${y + 1}段目の横のページをひらく`}
+                          aria-expanded={openRow === y}
+                          aria-controls={
+                            openRow === y ? "editor-row-pages" : undefined
+                          }
+                          onContextMenu={(event) => {
+                            if (
+                              pointer.current === "touch" ||
+                              draggingRef.current
+                            ) {
+                              event.preventDefault();
+                              return;
+                            }
+                            cancelTimers();
+                            onOpenMenu(event, {
+                              pageId: cell?.id,
+                              ...(filtered ? {} : { row: y }),
+                            });
+                          }}
+                          onPointerDown={(e) => {
+                            pointer.current = e.pointerType;
+                          }}
+                          onFocus={(e) => {
+                            if (suppressFocus.current) {
+                              suppressFocus.current = false;
+                              return;
+                            }
+                            if (e.currentTarget.matches(":focus-visible"))
+                              show(y);
+                          }}
+                          onKeyDown={(e) => {
+                            if (arrow(e)) return;
+                            if (["ArrowRight", "Enter", " "].includes(e.key)) {
+                              e.preventDefault();
+                              show(y, true);
+                            }
+                          }}
+                          onClick={() => {
+                            show(y);
+                            if (pointer.current === "mouse" && cell)
+                              select(cell.id);
+                          }}
                         >
-                          <span />
-                          <Plus size={15} />
-                          <span />
+                          <span className="rail-coordinate">
+                            <span>
+                              {y + 1}.{cell ? cell.x + 1 : "—"}
+                            </span>
+                            {!filtered && (
+                              <span
+                                className="rail-drag-hint"
+                                data-touch-drag-handle
+                                title="ここをドラッグで段ごと移動"
+                              >
+                                <GripVertical size={11} />
+                                <ChevronRight size={13} />
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className="rail-preview"
+                            ref={y === rowIndexes[0] ? previewRef : undefined}
+                          >
+                            {cell ? (
+                              <Canvas slide={cell} zoom={thumbWidth / W} />
+                            ) : (
+                              <span className="rail-empty">空のマス</span>
+                            )}
+                          </span>
+                          <span className="rail-page-title">
+                            {cell?.title ?? "横のページを確認"}
+                          </span>
                         </button>
-                      </RowInsertDrop>
+                        <button
+                          className="thumbnail-more rail-more"
+                          aria-label={`${y + 1}段目のメニュー`}
+                          title="ページ・段の複製や削除"
+                          onClick={(event) => {
+                            cancelTimers();
+                            onOpenMenu(event, {
+                              pageId: cell?.id,
+                              ...(filtered ? {} : { row: y }),
+                            });
+                          }}
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
+                        {!filtered && (
+                          <RowInsertDrop
+                            y={y + 1}
+                            active={dragging?.kind === "row"}
+                          >
+                            <button
+                              className="rail-insert-row"
+                              aria-label={`${y + 1}段目の下に行を挿入`}
+                              title="ここに詳しい段を追加"
+                              onClick={() => insert("row", y + 1, cell?.x ?? 0)}
+                            >
+                              <span />
+                              <Plus size={15} />
+                              <span />
+                            </button>
+                          </RowInsertDrop>
+                        )}
+                      </>
                     )}
-                  </>
+                  </RailRowFrame>
+                );
+              })}
+              {!filtered &&
+                dragging &&
+                (dragging.kind === "row" || rows < 100) && (
+                  <NewRowDrop
+                    group={dragging.kind === "row"}
+                    x={
+                      dragging.kind === "page"
+                        ? (deck.slides.find((s) => s.id === dragging.id)?.x ??
+                          slide.x)
+                        : slide.x
+                    }
+                    y={rows}
+                  />
                 )}
-              </RailRowFrame>
-            );
-          })}
-          {!filtered && dragging && (dragging.kind === "row" || rows < 100) && (
-            <NewRowDrop
-              group={dragging.kind === "row"}
-              x={
-                dragging.kind === "page"
-                  ? (deck.slides.find((s) => s.id === dragging.id)?.x ??
-                    slide.x)
-                  : slide.x
-              }
-              y={rows}
-            />
+            </>
           )}
         </div>
         <div className="rail-footnote">
-          {filtered
-            ? "フィルタしたページを表示中"
-            : "段ごと移動 ↕ · 重ねて入れ替え · 間に挿入"}
+          {numbers
+            ? filtered
+              ? "対象の行番号を押して移動"
+              : "行番号を押して移動"
+            : filtered
+              ? "フィルタしたページを表示中"
+              : "段ごと移動 ↕ · 重ねて入れ替え · 間に挿入"}
         </div>
         <div
           className="rail-resize-handle"

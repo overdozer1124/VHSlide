@@ -3334,3 +3334,63 @@ h1 span {
     padding-bottom: 4px;
   }
 }
+
+/* Row navigation keeps long decks within a few compact columns. */
+.two-d-rail .rail-heading {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+}
+.rail-view-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px;
+  font-size: 10px;
+  border: 1px solid #cddac8;
+  border-radius: 6px;
+  color: #48654a;
+  background: #f8faf5;
+}
+.rail-view-toggle[aria-pressed="true"] {
+  background: #e4eedb;
+  border-color: #759865;
+}
+.rail-number-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(30px, 1fr));
+  gap: 4px;
+  padding: 2px 1px 8px;
+}
+.rail-row-number {
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 1px;
+  border: 1px solid #d8e2d1;
+  border-radius: 5px;
+  background: #f8faf5;
+  color: #526e56;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.rail-row-number:hover {
+  background: #edf4e5;
+  border-color: #a4bc93;
+}
+.rail-row-number[aria-current="page"] {
+  background: #395e50;
+  border-color: #395e50;
+  color: white;
+  font-weight: 700;
+}
+.rail-row-number:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.rail-row-number:focus-visible,
+.rail-view-toggle:focus-visible {
+  outline: 2px solid #395e50;
+  outline-offset: 1px;
+}

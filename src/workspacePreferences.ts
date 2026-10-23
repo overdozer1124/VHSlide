@@ -11,6 +11,7 @@ type Preferences = {
   railCollapsed: boolean;
   inspectorCollapsed: boolean;
   railScale: number;
+  railNumbers: boolean;
 };
 export function parseZoomSteps(text: string): number[] {
   const values = text
@@ -40,6 +41,7 @@ function initial(): Preferences {
     railCollapsed: false,
     inspectorCollapsed: false,
     railScale: 100,
+    railNumbers: false,
   };
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "null");
@@ -52,6 +54,7 @@ function initial(): Preferences {
     return {
       zoomSteps: parseZoomSteps(stored.zoomSteps.join(",")),
       railCollapsed: stored.railCollapsed === true,
+      railNumbers: stored.railNumbers === true,
       inspectorCollapsed: stored.inspectorCollapsed === true,
       railScale:
         typeof stored.railScale === "number" &&
