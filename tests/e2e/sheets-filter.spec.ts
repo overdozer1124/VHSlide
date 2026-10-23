@@ -68,9 +68,7 @@ test("filters a column into a balanced grid, retains real numbers, zooms and pin
   await start(page);
   const before = await data(page);
   await button(page, "マップをフィルタ").click();
-  await page
-    .getByRole("textbox", { name: "フィルタする列", exact: true })
-    .fill("1");
+  await button(page, "フィルタする列1").click();
   await button(page, "フィルタを適用").click();
   await expect(page.locator(".slide-card")).toHaveCount(4);
   const boxes = await Promise.all(
@@ -115,15 +113,9 @@ test("filters a column into a balanced grid, retains real numbers, zooms and pin
   await button(page, "フィルタ解除").click();
   await expect(page.locator(".slide-card")).toHaveCount(8);
   await button(page, "マップをフィルタ").click();
-  await page
-    .getByRole("textbox", { name: "フィルタする行", exact: true })
-    .fill("3");
-  await page
-    .getByRole("checkbox", { name: "1.1 ページ1.1", exact: true })
-    .check();
-  await page
-    .getByRole("checkbox", { name: "4.2 ページ4.2", exact: true })
-    .check();
+  await button(page, "フィルタする行3").click();
+  await button(page, "フィルタ選択: 1.1 ページ1.1").click();
+  await button(page, "フィルタ選択: 4.2 ページ4.2").click();
   await button(page, "フィルタを適用").click();
   await expect(page.locator(".slide-card")).toHaveCount(4);
 });

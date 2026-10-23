@@ -1,29 +1,59 @@
 import type { Slide } from "./model";
-export type MapFilter = { ids: string[]; rows: number[]; columns: number[] };
+export type MapFilter = {
+  ids: string[];
+  rows: number[];
+  columns: number[];
+  excludedIds?: string[];
+};
 export const emptyFilter = (): MapFilter => ({
   ids: [],
   rows: [],
   columns: [],
 });
 export const matchesFilter = (s: Slide, filter: MapFilter) =>
-  filter.ids.includes(s.id) ||
-  filter.rows.includes(s.y) ||
-  filter.columns.includes(s.x);
+  !filter.excludedIds?.includes(s.id) &&
+  (filter.ids.includes(s.id) ||
+    filter.rows.includes(s.y) ||
+    filter.columns.includes(s.x));
+export function toggleFilterSlide(filter: MapFilter, slide: Slide): MapFilter {
+  const selected = matchesFilter(slide, filter);
+  return {
+    ...filter,
+    ids: selected
+      ? filter.ids.filter((id) => id !== slide.id)
+      : [...new Set([...filter.ids, slide.id])],
+    excludedIds: selected
+      ? [...new Set([...(filter.excludedIds ?? []), slide.id])]
+      : filter.excludedIds?.filter((id) => id !== slide.id),
+  };
+}
+export function groupSelection(
+  slides: Slide[],
+  filter: MapFilter,
+): boolean | "mixed" {
+  const count = slides.filter((s) => matchesFilter(s, filter)).length;
+  return count && count < slides.length ? "mixed" : !!count;
+}
+export function toggleFilterGroup(
+  filter: MapFilter,
+  slides: Slide[],
+  axis: "rows" | "columns",
+  index: number,
+): MapFilter {
+  const ids = new Set(slides.map((s) => s.id));
+  const selected = groupSelection(slides, filter) === true;
+  return {
+    ...filter,
+    [axis]: selected
+      ? filter[axis].filter((n) => n !== index)
+      : [...new Set([...filter[axis], index])],
+    ids: selected ? filter.ids.filter((id) => !ids.has(id)) : filter.ids,
+    excludedIds: selected
+      ? [...new Set([...(filter.excludedIds ?? []), ...ids])]
+      : filter.excludedIds?.filter((id) => !ids.has(id)),
+  };
+}
 export function balancedGrid(count: number) {
   const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
   return { cols, rows: Math.max(1, Math.ceil(count / cols)) };
-}
-export function filterNumbers(text: string): number[] {
-  if (!text.trim()) return [];
-  const result = new Set<number>();
-  for (const part of text.split(/[,、\s]+/).filter(Boolean)) {
-    const match = part.match(/^(\d+)(?:[-〜~](\d+))?$/);
-    if (!match) throw new Error("番号は「1,3,5-8」のように入力してください。");
-    const first = Number(match[1]),
-      last = Number(match[2] ?? match[1]);
-    if (first < 1 || last > 100 || first > last)
-      throw new Error("番号は1〜100の範囲で指定してください。");
-    for (let n = first; n <= last; n++) result.add(n - 1);
-  }
-  return [...result];
 }

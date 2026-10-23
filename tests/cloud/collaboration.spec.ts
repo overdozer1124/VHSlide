@@ -323,6 +323,51 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await expect(
       other.getByRole("tab", { name: "シート1", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
+    // Filtering is personal and must never trim the shared document or export.
+    await page.getByRole("tab", { name: "シート1", exact: true }).click();
+    await page
+      .getByRole("button", { name: "全体マップへ", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "マップをフィルタ", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "フィルタする列2", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "フィルタを適用", exact: true })
+      .click();
+    await expect(page.locator(".slide-card")).toHaveCount(2);
+    await expect(other.locator(".slide-card")).toHaveCount(5);
+    await page
+      .getByRole("button", { name: "自然がいっぱいを編集", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "1段目の横のページをひらく", exact: true })
+      .click();
+    await expect(page.locator(".row-page")).toHaveCount(1);
+    await page
+      .getByRole("button", { name: "1.2 自然がいっぱいを編集", exact: true })
+      .click();
+    await page.getByRole("button", { name: "文字", exact: true }).click();
+    const filteredInput = page.getByRole("textbox", {
+      name: "スライド内の文字",
+      exact: true,
+    });
+    await filteredInput.fill("フィルタ内の共同編集");
+    await filteredInput.press("Escape");
+    await other
+      .getByRole("button", { name: "自然がいっぱいを編集", exact: true })
+      .click();
+    await expect(other.locator(".editor-workspace")).toContainText(
+      "フィルタ内の共同編集",
+    );
+    const fullDownload = page.waitForEvent("download");
+    await page.getByRole("button", { name: "保存", exact: true }).click();
+    const fullFile = await fullDownload,
+      fullExport = JSON.parse(await readFile((await fullFile.path())!, "utf8"));
+    expect(fullExport.slides).toHaveLength(6);
+    expect(fullExport.sheets).toHaveLength(2);
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
     await page
       .getByRole("button", { name: `${name}-friendの参加を解除`, exact: true })

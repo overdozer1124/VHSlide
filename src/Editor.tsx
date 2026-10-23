@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowLeft,
+  Filter,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -38,6 +39,10 @@ const colors = [
 ];
 interface EditorProps {
   deck: Deck;
+  navigationDeck: Deck;
+  filtered: boolean;
+  filterAvailable: boolean;
+  onToggleFilter: () => void;
   slide: Slide;
   selected?: string;
   setSelected: (id?: string) => void;
@@ -70,6 +75,10 @@ interface EditorProps {
 }
 export function Editor({
   deck,
+  navigationDeck,
+  filtered,
+  filterAvailable,
+  onToggleFilter,
   slide,
   selected,
   setSelected,
@@ -198,6 +207,22 @@ export function Editor({
             )}
           </button>
         </div>
+        {filterAvailable && (
+          <button
+            className="tool-button editor-filter-toggle"
+            aria-label="編集画面にもフィルタを適用"
+            aria-pressed={filtered}
+            title={
+              filtered
+                ? `${navigationDeck.slides.length}ページに絞り込み中（押すと解除）`
+                : "押すと選択したページだけを編集"
+            }
+            onClick={onToggleFilter}
+          >
+            <Filter size={18} />
+            <span>編集も絞り込み</span>
+          </button>
+        )}
         {historyActions}
       </div>
       <div
@@ -209,7 +234,8 @@ export function Editor({
           <SlideRail
             scale={railScale}
             onScale={onRailScale}
-            deck={deck}
+            deck={navigationDeck}
+            filtered={filtered}
             slide={slide}
             onSelectSlide={onSelectSlide}
             onInsert={onInsert}
@@ -241,7 +267,7 @@ export function Editor({
             </span>
           </div>
           <EditorPager
-            deck={deck}
+            deck={navigationDeck}
             slide={slide}
             zoom={zoom}
             onNavigate={onNavigate}

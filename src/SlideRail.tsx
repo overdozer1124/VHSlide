@@ -42,6 +42,7 @@ import {
 } from "./workspacePreferences";
 
 interface SlideRailProps {
+  filtered?: boolean;
   scale: number;
   onScale: (scale: number) => void;
   deck: Deck;
@@ -62,6 +63,7 @@ interface SlideRailProps {
 
 /** A resizable column, with a temporary horizontal view of each grid row. */
 export function SlideRail({
+  filtered = false,
   scale,
   onScale,
   deck,
@@ -130,6 +132,9 @@ export function SlideRail({
     return hits.sort((a, b) => Number(isInsert(b.id)) - Number(isInsert(a.id)));
   };
   const { rows, cols } = bounds(deck);
+  const rowIndexes = filtered
+    ? [...new Set(deck.slides.map((s) => s.y))].sort((a, b) => a - b)
+    : Array.from({ length: rows }, (_, y) => y);
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [position, setPosition] = useState({ left: 180, top: 220, width: 720 });
   const [thumbWidth, setThumbWidth] = useState(140);
@@ -275,7 +280,7 @@ export function SlideRail({
     );
     observer.observe(preview);
     return () => observer.disconnect();
-  }, []);
+  }, [filtered, rowIndexes[0]]);
   function finishResize(event: PointerEvent<HTMLDivElement>, cancel = false) {
     const drag = resizeDrag.current;
     if (!drag || event.pointerId !== drag.id) return;
@@ -298,7 +303,10 @@ export function SlideRail({
   }, [slide.id, slide.y]);
   useEffect(() => {
     if (openRow === null) return;
-    if (openRow >= rows) {
+    if (
+      openRow >= rows ||
+      (filtered && !deck.slides.some((s) => s.y === openRow))
+    ) {
       close();
       return;
     }
@@ -418,14 +426,18 @@ export function SlideRail({
             else close();
           }}
         >
-          <RowInsertDrop y={0} active={dragging?.kind === "row"} />
-          {Array.from({ length: rows }, (_, y) => {
-            const cell = rowPage(deck, y, slide.x);
+          {!filtered && (
+            <RowInsertDrop y={0} active={dragging?.kind === "row"} />
+          )}
+          {rowIndexes.map((y) => {
+            const cell =
+              rowPage(deck, y, slide.x) ??
+              (filtered ? deck.slides.find((s) => s.y === y) : undefined);
             return (
               <RailRowFrame
                 x={cell?.x ?? 0}
                 y={y}
-                hasPages={deck.slides.some((s) => s.y === y)}
+                hasPages={!filtered && deck.slides.some((s) => s.y === y)}
                 shifted={rowInsertTarget !== null && y >= rowInsertTarget}
                 key={y}
                 onPointerEnter={(e) => {
@@ -458,7 +470,10 @@ export function SlideRail({
                           return;
                         }
                         cancelTimers();
-                        onOpenMenu(event, { pageId: cell?.id, row: y });
+                        onOpenMenu(event, {
+                          pageId: cell?.id,
+                          ...(filtered ? {} : { row: y }),
+                        });
                       }}
                       onPointerDown={(e) => {
                         pointer.current = e.pointerType;
@@ -487,18 +502,20 @@ export function SlideRail({
                         <span>
                           {y + 1}.{cell ? cell.x + 1 : "—"}
                         </span>
-                        <span
-                          className="rail-drag-hint"
-                          data-touch-drag-handle
-                          title="ここをドラッグで段ごと移動"
-                        >
-                          <GripVertical size={11} />
-                          <ChevronRight size={13} />
-                        </span>
+                        {!filtered && (
+                          <span
+                            className="rail-drag-hint"
+                            data-touch-drag-handle
+                            title="ここをドラッグで段ごと移動"
+                          >
+                            <GripVertical size={11} />
+                            <ChevronRight size={13} />
+                          </span>
+                        )}
                       </span>
                       <span
                         className="rail-preview"
-                        ref={y === 0 ? previewRef : undefined}
+                        ref={y === rowIndexes[0] ? previewRef : undefined}
                       >
                         {cell ? (
                           <Canvas slide={cell} zoom={thumbWidth / W} />
@@ -516,29 +533,37 @@ export function SlideRail({
                       title="ページ・段の複製や削除"
                       onClick={(event) => {
                         cancelTimers();
-                        onOpenMenu(event, { pageId: cell?.id, row: y });
+                        onOpenMenu(event, {
+                          pageId: cell?.id,
+                          ...(filtered ? {} : { row: y }),
+                        });
                       }}
                     >
                       <MoreHorizontal size={15} />
                     </button>
-                    <RowInsertDrop y={y + 1} active={dragging?.kind === "row"}>
-                      <button
-                        className="rail-insert-row"
-                        aria-label={`${y + 1}段目の下に行を挿入`}
-                        title="ここに詳しい段を追加"
-                        onClick={() => insert("row", y + 1, cell?.x ?? 0)}
+                    {!filtered && (
+                      <RowInsertDrop
+                        y={y + 1}
+                        active={dragging?.kind === "row"}
                       >
-                        <span />
-                        <Plus size={15} />
-                        <span />
-                      </button>
-                    </RowInsertDrop>
+                        <button
+                          className="rail-insert-row"
+                          aria-label={`${y + 1}段目の下に行を挿入`}
+                          title="ここに詳しい段を追加"
+                          onClick={() => insert("row", y + 1, cell?.x ?? 0)}
+                        >
+                          <span />
+                          <Plus size={15} />
+                          <span />
+                        </button>
+                      </RowInsertDrop>
+                    )}
                   </>
                 )}
               </RailRowFrame>
             );
           })}
-          {dragging && (dragging.kind === "row" || rows < 100) && (
+          {!filtered && dragging && (dragging.kind === "row" || rows < 100) && (
             <NewRowDrop
               group={dragging.kind === "row"}
               x={
@@ -552,7 +577,9 @@ export function SlideRail({
           )}
         </div>
         <div className="rail-footnote">
-          段ごと移動 ↕ · 重ねて入れ替え · 間に挿入
+          {filtered
+            ? "フィルタしたページを表示中"
+            : "段ごと移動 ↕ · 重ねて入れ替え · 間に挿入"}
         </div>
         <div
           className="rail-resize-handle"
@@ -651,19 +678,27 @@ export function SlideRail({
             </div>
             <div className="row-page-scroll">
               <div className="row-page-items">
-                <PageInsertDrop
-                  x={0}
-                  y={openRow}
-                  active={dragging?.kind === "page"}
-                />
-                {Array.from({ length: cols }, (_, x) => {
+                {!filtered && (
+                  <PageInsertDrop
+                    x={0}
+                    y={openRow}
+                    active={dragging?.kind === "page"}
+                  />
+                )}
+                {(filtered
+                  ? deck.slides
+                      .filter((s) => s.y === openRow)
+                      .map((s) => s.x)
+                      .sort((a, b) => a - b)
+                  : Array.from({ length: cols }, (_, x) => x)
+                ).map((x) => {
                   const cell = cells.get(`${x},${openRow}`);
                   return (
                     <PageDragFrame
                       key={x}
                       x={x}
                       y={openRow}
-                      page={cell}
+                      page={filtered ? undefined : cell}
                       shifted={
                         insertTarget?.y === openRow && x >= insertTarget.x
                       }
@@ -718,7 +753,7 @@ export function SlideRail({
                                 {openRow + 1}.{x + 1}
                               </span>
                               <span>{cell?.title ?? "ページを追加"}</span>
-                              {cell && (
+                              {cell && !filtered && (
                                 <span
                                   className="page-drag-grip"
                                   data-touch-drag-handle
@@ -745,20 +780,22 @@ export function SlideRail({
                               <MoreHorizontal size={15} />
                             </button>
                           )}
-                          <PageInsertDrop
-                            x={x + 1}
-                            y={openRow}
-                            active={dragging?.kind === "page"}
-                          >
-                            <button
-                              className="row-insert-column"
-                              aria-label={`${x + 1}番目の話題の右に列を挿入`}
-                              title="ここに新しい話題を挿入"
-                              onClick={() => insert("column", x + 1, openRow)}
+                          {!filtered && (
+                            <PageInsertDrop
+                              x={x + 1}
+                              y={openRow}
+                              active={dragging?.kind === "page"}
                             >
-                              <Plus size={17} />
-                            </button>
-                          </PageInsertDrop>
+                              <button
+                                className="row-insert-column"
+                                aria-label={`${x + 1}番目の話題の右に列を挿入`}
+                                title="ここに新しい話題を挿入"
+                                onClick={() => insert("column", x + 1, openRow)}
+                              >
+                                <Plus size={17} />
+                              </button>
+                            </PageInsertDrop>
+                          )}
                         </>
                       )}
                     </PageDragFrame>
@@ -767,7 +804,9 @@ export function SlideRail({
               </div>
             </div>
             <div className="row-flyout-hint">
-              長押し・つまみで移動 · 重ねて入れ替え · 間に置いて挿入
+              {filtered
+                ? "フィルタしたページだけを表示しています"
+                : "長押し・つまみで移動 · 重ねて入れ替え · 間に置いて挿入"}
             </div>
           </div>,
           document.body,

@@ -29,11 +29,22 @@ import { useMapTouchDrag } from "./useMapTouchDrag";
 import type { MapDrop } from "./useMapTouchDrag";
 
 import { MapFilterPanel } from "./MapFilterPanel";
-import { balancedGrid, emptyFilter, matchesFilter } from "./mapFilter";
+import {
+  balancedGrid,
+  emptyFilter,
+  matchesFilter,
+  toggleFilterSlide,
+  toggleFilterGroup,
+  groupSelection,
+} from "./mapFilter";
 import type { MapFilter } from "./mapFilter";
 
 interface MapViewProps {
   visible: boolean;
+  filter?: MapFilter;
+  onFilterChange: (value?: MapFilter) => void;
+  filterEditor: boolean;
+  onFilterEditorChange: (value: boolean) => void;
   zoomSteps: number[];
   onZoomSteps: (steps: number[]) => void;
   deck: Deck;
@@ -53,6 +64,10 @@ interface MapViewProps {
 }
 function MapViewComponent({
   visible,
+  filter,
+  onFilterChange: setFilter,
+  filterEditor,
+  onFilterEditorChange,
   zoomSteps,
   onZoomSteps,
   deck,
@@ -70,18 +85,18 @@ function MapViewComponent({
   onScale,
   onOpenMenu,
 }: MapViewProps) {
-  const [filter, setFilter] = useState<MapFilter>();
   const [draftFilter, setDraftFilter] = useState(emptyFilter);
   const [filterOpen, setFilterOpen] = useState(false);
-  const filtered = filter !== undefined;
+  const [draftEditor, setDraftEditor] = useState(filterEditor);
+  const filtered = filter !== undefined && !filterOpen;
   const displaySlides = useMemo(
     () =>
-      filter
+      filtered && filter
         ? deck.slides
             .filter((s) => matchesFilter(s, filter))
             .sort((a, b) => a.y - b.y || a.x - b.x)
         : deck.slides,
-    [deck.slides, filter],
+    [deck.slides, filter, filtered],
   );
   const size = bounds(deck),
     packed = balancedGrid(displaySlides.length),
@@ -249,7 +264,12 @@ function MapViewComponent({
         gridRef.current!.style.transform = "";
         return;
       }
-      if (a.scale === largestScale && sample.direction === "out" && a.id) {
+      if (
+        !filterOpen &&
+        a.scale === largestScale &&
+        sample.direction === "out" &&
+        a.id
+      ) {
         const tile = gridRef.current!.querySelector(
           `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
         );
@@ -375,6 +395,7 @@ function MapViewComponent({
   return (
     <main
       className="map-main"
+      data-filter-selecting={filterOpen}
       hidden={!visible}
       style={visible ? undefined : { display: "none" }}
     >
@@ -401,6 +422,7 @@ function MapViewComponent({
             aria-expanded={filterOpen}
             onClick={() => {
               setDraftFilter(filter ?? emptyFilter());
+              setDraftEditor(filterEditor);
               setFilterOpen(!filterOpen);
               onMove(undefined);
             }}
@@ -528,8 +550,11 @@ function MapViewComponent({
             deck={deck}
             value={draftFilter}
             onChange={setDraftFilter}
+            editor={draftEditor}
+            onEditorChange={setDraftEditor}
             onApply={() => {
               setFilter(draftFilter);
+              onFilterEditorChange(draftEditor);
               setFilterOpen(false);
               onMove(undefined);
             }}
@@ -601,28 +626,57 @@ function MapViewComponent({
                   <div key={x} />
                 ) : (
                   <div className="column-heading" key={x}>
-                    <span className="column-num">
-                      {String(x + 1).padStart(2, "0")}
-                    </span>
-                    <span>{x === 0 ? "はじまり" : `話題 ${x + 1}`}</span>
-                    <button
-                      draggable
-                      data-map-drag-source="column"
-                      data-x={x}
-                      data-y={0}
-                      data-map-drag-handle
-                      onDragStart={() => onMove({ mode: "column", x, y: 0 })}
-                      onDragEnd={() => {
-                        onMove(undefined);
-                        hint();
-                      }}
-                      className="icon-button"
-                      title="この話題をまとめて移動"
-                      aria-label={`話題${x + 1}を移動`}
-                      onClick={() => onMove({ mode: "column", x, y: 0 })}
-                    >
-                      <GripVertical size={16} />
-                    </button>
+                    {filterOpen ? (
+                      <button
+                        className="filter-axis-button"
+                        aria-label={`フィルタする列${x + 1}`}
+                        aria-pressed={groupSelection(
+                          deck.slides.filter((s) => s.x === x),
+                          draftFilter,
+                        )}
+                        disabled={!deck.slides.some((s) => s.x === x)}
+                        onClick={() =>
+                          setDraftFilter(
+                            toggleFilterGroup(
+                              draftFilter,
+                              deck.slides.filter((s) => s.x === x),
+                              "columns",
+                              x,
+                            ),
+                          )
+                        }
+                      >
+                        {String(x + 1).padStart(2, "0")}　
+                        {x === 0 ? "はじまり" : `話題 ${x + 1}`}
+                      </button>
+                    ) : (
+                      <>
+                        <span className="column-num">
+                          {String(x + 1).padStart(2, "0")}
+                        </span>
+                        <span>{x === 0 ? "はじまり" : `話題 ${x + 1}`}</span>
+                        <button
+                          draggable
+                          data-map-drag-source="column"
+                          data-x={x}
+                          data-y={0}
+                          data-map-drag-handle
+                          onDragStart={() =>
+                            onMove({ mode: "column", x, y: 0 })
+                          }
+                          onDragEnd={() => {
+                            onMove(undefined);
+                            hint();
+                          }}
+                          className="icon-button"
+                          title="この話題をまとめて移動"
+                          aria-label={`話題${x + 1}を移動`}
+                          onClick={() => onMove({ mode: "column", x, y: 0 })}
+                        >
+                          <GripVertical size={16} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ),
               )}
@@ -636,18 +690,48 @@ function MapViewComponent({
                 >
                   <button
                     className="row-move"
-                    draggable
-                    data-map-drag-source="row"
+                    draggable={!filterOpen}
+                    data-map-drag-source={filterOpen ? undefined : "row"}
                     data-x={0}
                     data-y={y}
                     data-map-drag-handle
-                    onDragStart={() => onMove({ mode: "row", x: 0, y })}
+                    onDragStart={(e) => {
+                      if (filterOpen) {
+                        e.preventDefault();
+                        return;
+                      }
+                      onMove({ mode: "row", x: 0, y });
+                    }}
                     onDragEnd={() => {
                       onMove(undefined);
                       hint();
                     }}
-                    onClick={() => onMove({ mode: "row", x: 0, y })}
-                    aria-label={`高さ${y + 1}のページをまとめて移動`}
+                    onClick={() =>
+                      filterOpen
+                        ? setDraftFilter(
+                            toggleFilterGroup(
+                              draftFilter,
+                              deck.slides.filter((s) => s.y === y),
+                              "rows",
+                              y,
+                            ),
+                          )
+                        : onMove({ mode: "row", x: 0, y })
+                    }
+                    aria-label={
+                      filterOpen
+                        ? `フィルタする行${y + 1}`
+                        : `高さ${y + 1}のページをまとめて移動`
+                    }
+                    aria-pressed={
+                      filterOpen
+                        ? groupSelection(
+                            deck.slides.filter((s) => s.y === y),
+                            draftFilter,
+                          )
+                        : undefined
+                    }
+                    disabled={filterOpen && !deck.slides.some((s) => s.y === y)}
                     title="同じ高さのページを移動"
                   >
                     {String(y + 1).padStart(2, "0")}
@@ -733,6 +817,12 @@ function MapViewComponent({
                           <div
                             ref={s.id === activeId ? activeCard : undefined}
                             data-page-id={s.id}
+                            data-filter-selecting={filterOpen}
+                            data-filter-selected={
+                              filterOpen
+                                ? matchesFilter(s, draftFilter)
+                                : undefined
+                            }
                             data-map-drag-source={
                               filtered || filterOpen ? undefined : "slide"
                             }
@@ -745,7 +835,9 @@ function MapViewComponent({
                             }
                             className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
                             onContextMenu={(event) =>
-                              onOpenMenu(event, { pageId: s.id })
+                              filterOpen
+                                ? event.preventDefault()
+                                : onOpenMenu(event, { pageId: s.id })
                             }
                             draggable={!filtered && !filterOpen}
                             onDragStart={(e) => {
@@ -776,12 +868,33 @@ function MapViewComponent({
                                 s.id === activeId ? "page" : undefined
                               }
                               title={`${s.y + 1}.${s.x + 1} ${s.title}${s.id === activeId ? "（いまのページ）" : ""}`}
-                              aria-label={`${s.title}を${moving ? "移動先にする" : "編集"}`}
+                              aria-label={
+                                filterOpen
+                                  ? `フィルタ選択: ${s.y + 1}.${s.x + 1} ${s.title}`
+                                  : `${s.title}を${moving ? "移動先にする" : "編集"}`
+                              }
+                              aria-pressed={
+                                filterOpen
+                                  ? matchesFilter(s, draftFilter)
+                                  : undefined
+                              }
                               onClick={() => {
-                                if (moving) dropAt(x, y);
+                                if (filterOpen)
+                                  setDraftFilter(
+                                    toggleFilterSlide(draftFilter, s),
+                                  );
+                                else if (moving) dropAt(x, y);
                                 else onEdit(s.id);
                               }}
                             >
+                              {filterOpen && (
+                                <span
+                                  className="filter-card-check"
+                                  aria-hidden="true"
+                                >
+                                  {matchesFilter(s, draftFilter) ? "✓" : ""}
+                                </span>
+                              )}
                               {numbers ? (
                                 <span
                                   className="number-tile"
@@ -795,9 +908,12 @@ function MapViewComponent({
                                   zoom={thumbWidth / W}
                                 />
                               ) : null}
-                              {detailed && x === 0 && y === 0 && (
-                                <span className="start-badge">START</span>
-                              )}
+                              {detailed &&
+                                !filterOpen &&
+                                x === 0 &&
+                                y === 0 && (
+                                  <span className="start-badge">START</span>
+                                )}
                             </button>
                             {detailed && (
                               <div className="card-footer">
@@ -805,44 +921,46 @@ function MapViewComponent({
                                   {s.y + 1}.{s.x + 1}
                                 </span>
                                 <span className="card-title">{s.title}</span>
-                                <>
-                                  <button
-                                    className="card-tool"
-                                    aria-label={`${s.title}のページメニュー`}
-                                    onClick={(event) =>
-                                      onOpenMenu(event, { pageId: s.id })
-                                    }
-                                  >
-                                    <MoreHorizontal size={14} />
-                                  </button>
-                                  <button
-                                    style={{
-                                      display:
-                                        filtered || filterOpen
-                                          ? "none"
-                                          : undefined,
-                                    }}
-                                    className="card-tool"
-                                    data-map-drag-handle
-                                    aria-label={`${s.title}を移動`}
-                                    onClick={() =>
-                                      onMove({ mode: "slide", x, y })
-                                    }
-                                  >
-                                    <GripVertical size={14} />
-                                  </button>
-                                  <button
-                                    className="card-tool delete"
-                                    aria-label={`${s.title}を削除`}
-                                    onClick={() => onDelete(s.id)}
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </>
+                                {!filterOpen && (
+                                  <>
+                                    <button
+                                      className="card-tool"
+                                      aria-label={`${s.title}のページメニュー`}
+                                      onClick={(event) =>
+                                        onOpenMenu(event, { pageId: s.id })
+                                      }
+                                    >
+                                      <MoreHorizontal size={14} />
+                                    </button>
+                                    <button
+                                      style={{
+                                        display:
+                                          filtered || filterOpen
+                                            ? "none"
+                                            : undefined,
+                                      }}
+                                      className="card-tool"
+                                      data-map-drag-handle
+                                      aria-label={`${s.title}を移動`}
+                                      onClick={() =>
+                                        onMove({ mode: "slide", x, y })
+                                      }
+                                    >
+                                      <GripVertical size={14} />
+                                    </button>
+                                    <button
+                                      className="card-tool delete"
+                                      aria-label={`${s.title}を削除`}
+                                      onClick={() => onDelete(s.id)}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
-                          {detailed && !filtered && (
+                          {detailed && !filtered && !filterOpen && (
                             <>
                               <button
                                 className="add-right add-dot"
@@ -868,13 +986,14 @@ function MapViewComponent({
                       ) : (
                         <button
                           className="empty-cell"
+                          disabled={filterOpen}
                           aria-label={`${y + 1}.${x + 1}にページを${moving ? "移動" : "追加"}`}
                           onClick={() => {
                             if (moving) dropAt(x, y);
                             else onAddCell(x, y);
                           }}
                         >
-                          {detailed && !filtered && (
+                          {detailed && !filtered && !filterOpen && (
                             <>
                               <Plus size={19} />
                               <span>

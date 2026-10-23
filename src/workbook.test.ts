@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { sample, parseDeck, duplicateRowGroup, blank } from "./model";
 import { activeSheet, changeSheet, sheetDeck, mergeSheet } from "./workbook";
-import { balancedGrid, filterNumbers, matchesFilter } from "./mapFilter";
+import {
+  balancedGrid,
+  matchesFilter,
+  emptyFilter,
+  toggleFilterSlide,
+  toggleFilterGroup,
+  groupSelection,
+} from "./mapFilter";
 import {
   createSharedDeck,
   readSharedDeck,
@@ -67,8 +74,27 @@ describe("sheets and filtered maps", () => {
       expect(Math.abs(g.cols - g.rows)).toBeLessThanOrEqual(1);
     }
     expect(slides.map((s) => s.y)).toEqual([0, 1, 2, 3]);
-    expect(filterNumbers("1,3-5 8")).toEqual([0, 2, 3, 4, 7]);
-    expect(() => filterNumbers("100-102")).toThrow();
+  });
+
+  it("selects real rows and columns, supports individual exclusions, and toggles groups back off", () => {
+    const pages = Array.from({ length: 6 }, (_, i) =>
+      blank(i % 2, Math.floor(i / 2)),
+    );
+    const column = pages.filter((s) => s.x === 0),
+      row = pages.filter((s) => s.y === 1);
+    let filter = toggleFilterGroup(emptyFilter(), column, "columns", 0);
+    expect(pages.filter((s) => matchesFilter(s, filter))).toEqual(column);
+    filter = toggleFilterSlide(filter, column[1]);
+    expect(groupSelection(column, filter)).toBe("mixed");
+    expect(matchesFilter(column[1], filter)).toBe(false);
+    filter = toggleFilterGroup(filter, row, "rows", 1);
+    expect(row.every((s) => matchesFilter(s, filter))).toBe(true);
+    filter = toggleFilterGroup(filter, row, "rows", 1);
+    expect(row.some((s) => matchesFilter(s, filter))).toBe(false);
+    filter = toggleFilterGroup(filter, column, "columns", 0);
+    expect(column.every((s) => matchesFilter(s, filter))).toBe(true);
+    filter = toggleFilterGroup(filter, column, "columns", 0);
+    expect(pages.some((s) => matchesFilter(s, filter))).toBe(false);
   });
   it("merges simultaneous sheet additions and edits, preserving local-only sheet choice and own-only undo", () => {
     const base = sample(),

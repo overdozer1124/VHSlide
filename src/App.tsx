@@ -65,6 +65,8 @@ import {
   changeSheet,
 } from "./workbook";
 import { SheetTabs } from "./SheetTabs";
+import { matchesFilter } from "./mapFilter";
+import type { MapFilter } from "./mapFilter";
 const KEY = "vhslide-deck-v1";
 function initial(): { deck: Deck; error?: string } {
   try {
@@ -91,6 +93,40 @@ export default function App() {
   function setDeck(next: Deck) {
     setWorkbook(mergeSheet(latestWorkbook.current, next));
   }
+  const [viewFilters, setViewFilters] = useState<
+    Record<string, { filter?: MapFilter; editor: boolean }>
+  >({});
+  const sheetFilter = viewFilters[activeSheet(workbook).id];
+  const filterEditor = sheetFilter?.editor ?? true;
+  const editorFiltered = !!sheetFilter?.filter && filterEditor;
+  const navigationDeck = useMemo(
+    () =>
+      editorFiltered
+        ? {
+            ...deck,
+            slides: deck.slides.filter((s) =>
+              matchesFilter(s, sheetFilter!.filter!),
+            ),
+          }
+        : deck,
+    [deck, editorFiltered, sheetFilter?.filter],
+  );
+  const latestNavigationDeck = useRef(navigationDeck);
+  latestNavigationDeck.current = navigationDeck;
+  function setMapFilter(filter?: MapFilter) {
+    const id = activeSheet(workbook).id;
+    setViewFilters((previous) => ({
+      ...previous,
+      [id]: { editor: previous[id]?.editor ?? true, filter },
+    }));
+  }
+  function setFilterEditor(editor: boolean) {
+    const id = activeSheet(workbook).id;
+    setViewFilters((previous) => ({
+      ...previous,
+      [id]: { ...previous[id], editor },
+    }));
+  }
   const [cloud] = useState(() => new CloudWorkspace());
   const [, cloudChanged] = useState(0);
   const [past, setPast] = useState<Deck[]>([]),
@@ -112,7 +148,11 @@ export default function App() {
   const [direction, setDirection] = useState("right");
   const jsonRef = useRef<HTMLInputElement>(null),
     imageRef = useRef<HTMLInputElement>(null);
-  const slide = deck.slides.find((s) => s.id === activeId) ?? deck.slides[0];
+  const slide =
+    (view === "editor"
+      ? (navigationDeck.slides.find((s) => s.id === activeId) ??
+        navigationDeck.slides[0])
+      : deck.slides.find((s) => s.id === activeId)) ?? deck.slides[0];
   const latestDeck = useRef(deck);
   latestDeck.current = deck;
   const latestSlideId = useRef(slide.id);
@@ -121,6 +161,7 @@ export default function App() {
   cloud.onDeck = (shared, reset) => {
     let preferences: Partial<Deck> = latestWorkbook.current;
     if (reset) {
+      setViewFilters({});
       try {
         preferences = parseDeck(
           localStorage.getItem(`vhslide-cloud-deck:${cloud.active!.id}`) ?? "",
@@ -152,6 +193,7 @@ export default function App() {
   }, [cloud]);
   function returnToLocal() {
     cloud.detach();
+    setViewFilters({});
     const next = initial().deck;
     setWorkbook(next);
     setPast([]);
@@ -232,6 +274,19 @@ export default function App() {
     id = slide.id,
     from?: DOMRect,
   ) {
+    if (
+      destination === "editor" &&
+      editorFiltered &&
+      !navigationDeck.slides.some((s) => s.id === id)
+    ) {
+      if (!navigationDeck.slides.length) {
+        notify(
+          "フィルタ対象のページがありません。マップで条件を変更してください。",
+        );
+        return;
+      }
+      id = navigationDeck.slides[0].id;
+    }
     const target = deck.slides.find((page) => page.id === id);
     const source =
       from ??
@@ -246,6 +301,7 @@ export default function App() {
       active.blur();
     flushSync(() => {
       if (destination === "editor") selectEditorPage(id);
+      else setActiveId(id);
       setView(destination);
       setSelected(undefined);
       setMoving(undefined);
@@ -261,9 +317,10 @@ export default function App() {
   }
   function navigateEditor(dx: number, dy: number) {
     const current =
-      latestDeck.current.slides.find((s) => s.id === activeId) ??
-      latestDeck.current.slides[0];
-    const next = editorNeighbor(latestDeck.current, current, dx, dy);
+      latestNavigationDeck.current.slides.find((s) => s.id === activeId) ??
+      latestNavigationDeck.current.slides[0];
+    if (!current) return undefined;
+    const next = editorNeighbor(latestNavigationDeck.current, current, dx, dy);
     if (next) selectEditorPage(next.id);
     return next;
   }
@@ -272,7 +329,12 @@ export default function App() {
     const restored = current.linkedRows ? rowPage(current, slide.y) : undefined;
     if (!commit({ ...current, linkedRows: !current.linkedRows }, current))
       return;
-    if (restored) setActiveId(restored.id);
+    if (
+      restored &&
+      (!editorFiltered ||
+        navigationDeck.slides.some((s) => s.id === restored.id))
+    )
+      setActiveId(restored.id);
     setSelected(undefined);
   }
   const openThumbnailMenu: OpenThumbnailMenu = (event, target) => {
@@ -617,6 +679,7 @@ export default function App() {
       if (file.size > MAX_FILE_BYTES)
         throw new Error("ファイルは25MBまでです。");
       const next = parseDeck(await file.text());
+      setViewFilters({});
       if (cloud.active) {
         cloud.detach();
         setPast([]);
@@ -876,6 +939,7 @@ export default function App() {
                       title: "あたらしい作品",
                       slides: [blank(0, 0)],
                     };
+                    setViewFilters({});
                     commitWorkbook(next);
                     setActiveId(next.slides[0].id);
                     setSelected(undefined);
@@ -972,6 +1036,10 @@ export default function App() {
           <MapView
             key={activeSheet(workbook).id}
             visible={view === "map"}
+            filter={sheetFilter?.filter}
+            onFilterChange={setMapFilter}
+            filterEditor={filterEditor}
+            onFilterEditorChange={setFilterEditor}
             deck={deck}
             activeId={activeId}
             moving={moving}
@@ -1005,9 +1073,23 @@ export default function App() {
             onOpenMenu={openThumbnailMenu}
           />
         )}
-        {view === "editor" && (
+        {view === "editor" && !navigationDeck.slides.length && (
+          <main className="editor-main filtered-editor-empty">
+            {historyActions}
+            <p>フィルタ対象のページがありません。</p>
+            <button onClick={() => switchWorkspace("map")}>全体マップへ</button>
+            <button onClick={() => setFilterEditor(false)}>
+              すべてのページを編集
+            </button>
+          </main>
+        )}
+        {view === "editor" && navigationDeck.slides.length > 0 && (
           <Editor
             deck={deck}
+            navigationDeck={navigationDeck}
+            filtered={editorFiltered}
+            filterAvailable={!!sheetFilter?.filter}
+            onToggleFilter={() => setFilterEditor(!filterEditor)}
             slide={slide}
             selected={selected}
             setSelected={(id) => {
