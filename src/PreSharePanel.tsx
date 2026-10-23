@@ -19,21 +19,13 @@ export function PreSharePanel({
   recipients: Recipient[];
   onChange: (rows: Recipient[]) => void;
 }) {
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 2500);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
   const [expanded, setExpanded] = useState(false),
     [text, setText] = useState("");
   const [mode, setMode] = useState("rows"),
     [sheet, setSheet] = useState(activeSheet(deck).id);
   const [start, setStart] = useState(0),
     [manual, setManual] = useState(false);
-  const [common, setCommon] = useState<EditAccess>(defaultAccess),
-    [editing, setEditing] = useState<string>();
-  const [grant, setGrant] = useState<EditAccess>(defaultAccess);
+  const [common, setCommon] = useState<EditAccess>(defaultAccess);
   useEffect(() => {
     if (manual) return;
     const used = recipients.flatMap((r) =>
@@ -84,7 +76,6 @@ export function PreSharePanel({
         onClick={() => setExpanded(!expanded)}
       >
         共有するアカウントを追加
-        {recipients.length ? `（${recipients.length}件）` : ""}
       </button>
       {expanded && (
         <>
@@ -213,115 +204,6 @@ export function PreSharePanel({
           <small>
             保存後はこの作品のリンクを相手に伝えてください。登録されたアカウントでサインインすると作品を開けます。招待リンクから参加した場合も事前設定が適用されます。
           </small>
-          <input
-            aria-label="事前共有した作品のリンク"
-            readOnly
-            value={`${location.origin}/?room=${cloud.active!.id}`}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-          <button
-            className="quiet"
-            onClick={() =>
-              void navigator.clipboard
-                .writeText(`${location.origin}/?room=${cloud.active!.id}`)
-                .then(() => setCopied(true))
-                .catch(() => {
-                  cloud.error = "リンク欄を選択してコピーしてください。";
-                  cloud.onState();
-                })
-            }
-          >
-            作品リンクをコピー
-          </button>
-          <span role="status" aria-live="polite">
-            {copied ? "コピーしました" : ""}
-          </span>
-          {recipients.length > 0 && (
-            <div className="pre-share-list" aria-label="事前共有したアカウント">
-              <h4>事前共有したアカウント（登録順）</h4>
-              {recipients.map((r, index) => (
-                <div className="pre-share-account" key={r.email}>
-                  <strong>
-                    {index + 1}. {r.email}
-                  </strong>
-                  <small>
-                    {r.userId ? `${r.name ?? r.email}・参加済み` : "参加待ち"} ·{" "}
-                    {label(r.access)}
-                  </small>
-                  <button
-                    className="quiet"
-                    aria-label={`${r.email}の事前編集権限を設定`}
-                    onClick={() => {
-                      setEditing(editing === r.email ? undefined : r.email);
-                      setGrant(r.access);
-                    }}
-                  >
-                    編集権限を設定
-                  </button>
-                  <button
-                    className="quiet"
-                    disabled={cloud.busy}
-                    aria-label={`${r.email}の事前共有を解除`}
-                    onClick={() =>
-                      void cloud.run(async () => {
-                        onChange(
-                          (
-                            await api<{ recipients: Recipient[] }>(
-                              `/api/decks/${cloud.active!.id}/recipients/${encodeURIComponent(r.email)}`,
-                              { method: "DELETE" },
-                            )
-                          ).recipients,
-                        );
-                      })
-                    }
-                  >
-                    共有を解除
-                  </button>
-                  {editing === r.email && (
-                    <div className="member-permissions">
-                      <PermissionPicker
-                        deck={deck}
-                        value={grant}
-                        onChange={setGrant}
-                      />
-                      <button
-                        className="button primary"
-                        disabled={cloud.busy}
-                        onClick={() =>
-                          void cloud.run(async () => {
-                            onChange(
-                              (
-                                await api<{ recipients: Recipient[] }>(
-                                  `/api/decks/${cloud.active!.id}/recipients`,
-                                  {
-                                    method: "POST",
-                                    body: JSON.stringify({
-                                      recipients: [
-                                        { email: r.email, access: grant },
-                                      ],
-                                    }),
-                                  },
-                                )
-                              ).recipients,
-                            );
-                            setEditing(undefined);
-                          })
-                        }
-                      >
-                        事前編集権限を保存
-                      </button>
-                      <button
-                        className="quiet"
-                        onClick={() => setEditing(undefined)}
-                      >
-                        取り消す
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
     </section>

@@ -548,7 +548,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
     }),
   );
   await button(page, "作品リンクをコピー").click();
-  await expect(page.locator(".pre-sharing [role=status]")).toHaveText(
+  await expect(page.locator(".cloud-copy-feedback").first()).toHaveText(
     "コピーしました",
   );
   expect(
@@ -966,4 +966,185 @@ test("sticky color, presets and direct resize persist with mouse and touch", asy
   expect(palette.x + palette.width).toBeLessThanOrEqual(
     canvas.x + canvas.width + 1,
   );
+});
+
+test("cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(90000);
+  await page.setViewportSize(
+    info.project.name === "cloud-touch"
+      ? { width: 390, height: 740 }
+      : { width: 1366, height: 768 },
+  );
+  const owner = `manager-${info.project.name}`,
+    guest = `${owner}-guest`,
+    a = `${owner}-a@example.test`,
+    b = `${owner}-b@example.test`;
+  const button = (p: Page, name: string) =>
+    p.getByRole("button", { name, exact: true });
+  await signIn(page, owner);
+  await button(page, "この作品をクラウドに保存").click();
+  await saved(page);
+  await button(page, "クラウド").click();
+  const dialog = page.getByRole("dialog", {
+    name: "クラウドの作品",
+    exact: true,
+  });
+  await expect(page.locator(".app-shell")).toHaveAttribute("inert", "");
+  const bounds = (await dialog.boundingBox())!;
+  if (info.project.name === "cloud-desktop") {
+    expect(bounds.width).toBeGreaterThan(1000);
+    expect(bounds.x).toBeGreaterThan(0);
+  } else {
+    expect(bounds.width).toBe(390);
+    expect(bounds.x).toBe(0);
+  }
+  await page.getByRole("tab", { name: "作品一覧", exact: false }).click();
+  const card = page.locator(".cloud-deck").first();
+  await expect(card.locator(".cloud-deck-cta")).toHaveText("開く");
+  if (info.project.name === "cloud-desktop") await card.hover();
+  await page.screenshot({ path: info.outputPath("cloud-library-cards.png") });
+  await page
+    .getByRole("textbox", { name: "クラウドの作品を検索", exact: true })
+    .fill("存在しない作品");
+  await expect(page.locator(".cloud-deck")).toHaveCount(0);
+  await page
+    .getByRole("textbox", { name: "クラウドの作品を検索", exact: true })
+    .fill("");
+  await page.getByRole("tab", { name: "共有管理", exact: true }).click();
+  await button(page, "共有するアカウントを追加").click();
+  await page
+    .getByRole("textbox", { name: "事前共有するメールアドレス", exact: true })
+    .fill(`${a}\n${b}`);
+  await button(page, "事前共有を保存").click();
+  await expect(page.locator(".pre-share-account")).toHaveCount(2);
+  await button(page, "共有するアカウントを追加").click();
+  await expect(page.locator(".pre-share-account")).toHaveCount(2);
+  await button(page, "共同編集の招待リンクを作る").click();
+  const invite = await page
+    .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
+    .inputValue();
+  const context = await browser.newContext({
+      baseURL: "http://127.0.0.1:3187",
+      viewport: { width: 1366, height: 768 },
+    }),
+    other = await context.newPage();
+  try {
+    await signIn(other, guest, invite);
+    await saved(other);
+    await openEditor(other);
+    await expect(button(other, "文字")).toBeDisabled();
+    await button(page, "参加者一覧を更新").click();
+    await expect(page.locator(".sharing-person")).toHaveCount(3);
+    const select = (email: string) =>
+      page.getByRole("checkbox", { name: `${email}を選択`, exact: true });
+    const guestEmail = `${guest}@example.test`;
+    await select(a).check();
+    await select(guestEmail).check();
+    await button(page, "一括で権限を設定").click();
+    await page
+      .getByRole("combobox", { name: "編集の権限", exact: true })
+      .selectOption("all");
+    await button(page, "選択した2人に適用").click();
+    await expect(page.locator(".sharing-feedback")).toContainText(
+      "2件の権限を更新しました",
+    );
+    await expect(button(other, "文字")).toBeEnabled();
+    const room = new URL(page.url()).searchParams.get("room")!;
+    let recipients = (
+      await (await page.request.get(`/api/decks/${room}/recipients`)).json()
+    ).recipients;
+    expect(recipients.find((r: any) => r.email === a).access.mode).toBe("all");
+    expect(
+      recipients.find((r: any) => r.email === b).access.rows[0].index,
+    ).toBe(1);
+    await select(a).check();
+    await select(guestEmail).check();
+    await button(page, "一括で権限を設定").click();
+    await page
+      .getByRole("combobox", { name: "一括の割り当て方法", exact: true })
+      .selectOption("rows");
+    await page
+      .getByRole("combobox", {
+        name: "一括で割り当てを開始する行",
+        exact: true,
+      })
+      .selectOption("4");
+    await button(page, "選択した2人に適用").click();
+    await expect(page.locator(".sharing-feedback")).toContainText(
+      "2件の権限を更新しました",
+    );
+    await expect(
+      page.locator(".sharing-person").filter({ hasText: guestEmail }),
+    ).toContainText("6行目");
+    await expect(
+      page.locator(".sharing-person").filter({ hasText: a }),
+    ).toContainText("5行目");
+    await expect(button(other, "文字")).toBeDisabled();
+    await page
+      .getByRole("textbox", { name: "共有アカウントを検索", exact: true })
+      .fill(guestEmail);
+    await page
+      .getByRole("checkbox", {
+        name: "表示中のアカウントをすべて選択",
+        exact: true,
+      })
+      .check();
+    await page
+      .getByRole("textbox", { name: "共有アカウントを検索", exact: true })
+      .fill("");
+    await select(a).check();
+    await page.screenshot({
+      path: info.outputPath("cloud-sharing-selection.png"),
+    });
+    await button(page, "選択した共有を解除").click();
+    await expect(
+      page.getByRole("group", { name: "共有解除の確認", exact: true }),
+    ).toContainText("2人");
+    // Existing APIs preserve server-side authorization; simulate a dropped second request.
+    await page.route(`**/api/decks/${room}/members/**`, async (route) => {
+      if (route.request().method() === "DELETE")
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "接続を確認してください" }),
+        });
+      else await route.continue();
+    });
+    await button(page, "2人の共有を解除する").click();
+    await expect(page.locator(".sharing-feedback")).toContainText(
+      "2件中1件が完了",
+    );
+    await expect(select(guestEmail)).toBeChecked();
+    await expect(select(a)).toHaveCount(0);
+    await page.unroute(`**/api/decks/${room}/members/**`);
+    await button(page, "選択した共有を解除").click();
+    await button(page, "1人の共有を解除する").click();
+    await expect(page.locator(".sharing-feedback")).toContainText(
+      "1件の共有を解除しました",
+    );
+    await expect(page.locator(".sharing-person")).toHaveCount(1);
+    await expect(page.locator(".sharing-person")).toContainText(b);
+    await expect(other.locator(".cloud-presence")).toContainText("共有停止");
+    recipients = (
+      await (await page.request.get(`/api/decks/${room}/recipients`)).json()
+    ).recipients;
+    expect(recipients).toHaveLength(1);
+    expect(recipients[0].email).toBe(b);
+    expect(recipients[0].access.rows[0].index).toBe(1);
+    await button(page, "クラウドの作品を閉じる").focus();
+    await page.keyboard.press("Shift+Tab");
+    expect(
+      await page.evaluate(
+        () => !!document.activeElement?.closest(".cloud-panel"),
+      ),
+    ).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(".app-shell")).not.toHaveAttribute("inert", "");
+  } finally {
+    await context.close();
+  }
 });

@@ -545,7 +545,7 @@ export default function App() {
   }
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (updatesOpen) return;
+      if (updatesOpen || cloud.panel) return;
       if (
         (event.target as HTMLElement).closest(
           "input,textarea,select,[contenteditable],[role=menu]",
@@ -614,7 +614,7 @@ export default function App() {
   });
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
-      if (updatesOpen) return;
+      if (updatesOpen || cloud.panel) return;
       if (
         view !== "editor" ||
         (e.target as HTMLElement).closest("input,textarea")
@@ -927,7 +927,7 @@ export default function App() {
   return (
     <CloudDocument.Provider value={cloud.doc}>
       <div
-        inert={updatesOpen}
+        inert={updatesOpen || cloud.panel}
         onPointerDownCapture={() => {
           if (flight) flushSync(() => setFlight(undefined));
         }}
