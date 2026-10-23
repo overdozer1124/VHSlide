@@ -1061,6 +1061,20 @@ export default function App() {
           <MapView
             key={activeSheet(workbook).id}
             visible={view === "map"}
+            headingEditable={cloud.isHost}
+            accountsAvailable={!!cloud.active}
+            rowAccounts={cloud.rowAccounts[activeSheet(workbook).id]}
+            onHeadingChange={(patch) => {
+              if (!cloud.isHost) return;
+              const book = latestWorkbook.current,
+                current = activeSheet(book);
+              commitWorkbook({
+                ...book,
+                sheets: sheetList(book).map((sheet) =>
+                  sheet.id === current.id ? { ...sheet, ...patch } : sheet,
+                ),
+              });
+            }}
             filter={sheetFilter?.filter}
             onFilterChange={setMapFilter}
             filterEditor={filterEditor}

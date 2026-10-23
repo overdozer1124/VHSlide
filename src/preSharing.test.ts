@@ -70,3 +70,30 @@ describe("pre-shared accounts", () => {
       ).toThrow();
   });
 });
+
+it("builds row display names for pending and joined recipients without duplicating members or exposing email domains", async () => {
+  const { rowAccountNames } = await import("./preSharing");
+  const [pending, joined] = sequentialRecipients(
+    ["pending@school.example.jp", "joined@school.example.jp"],
+    "main",
+    0,
+  );
+  const rows = rowAccountNames(
+    [pending, { ...joined, userId: "joined", name: "山田 花子" }],
+    [
+      { id: "joined", name: "山田 花子", access: joined.access },
+      { id: "other", name: "佐藤 太郎", access: pending.access },
+      { id: "all", name: "先生", access: { ...defaultAccess(), mode: "all" } },
+    ],
+  );
+  expect(rows).toEqual({
+    main: { 0: ["pending", "佐藤 太郎"], 1: ["山田 花子"] },
+  });
+  expect(JSON.stringify(rows)).not.toContain("school.example.jp");
+  const safe = rowAccountNames(
+    sequentialRecipients(["safe@example.test"], "__proto__", 0),
+    [],
+  );
+  expect(Object.hasOwn(safe, "__proto__")).toBe(true);
+  expect(({} as Record<string, unknown>)["0"]).toBeUndefined();
+});

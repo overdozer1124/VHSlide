@@ -1,4 +1,8 @@
-import { normalizeEmail, parseRecipients } from "../src/preSharing.ts";
+import {
+  normalizeEmail,
+  parseRecipients,
+  rowAccountNames,
+} from "../src/preSharing.ts";
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
 import {
   AccessError,
@@ -652,6 +656,8 @@ export function createApplication(options: Options) {
                   peer.ws.send(
                     JSON.stringify({ type: "access", access: value.access }),
                   );
+            for (const peer of rooms.get(id)?.clients ?? [])
+              peer.ws.send(JSON.stringify({ type: "roster" }));
             return json(res, 200, { recipients: recipientList(id) });
           }
         }
@@ -691,7 +697,27 @@ export function createApplication(options: Options) {
             for (const peer of rooms.get(id)?.clients ?? [])
               if (peer.user.id === entry.user_id)
                 peer.ws.close(4003, "作品への参加が解除されました。");
+          for (const peer of rooms.get(id)?.clients ?? [])
+            peer.ws.send(JSON.stringify({ type: "roster" }));
           return json(res, 200, { recipients: recipientList(id) });
+        }
+        if (extra === "row-accounts" && method === "GET") {
+          const people = db
+            .prepare(
+              "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+            )
+            .all(id)
+            .map((value) => {
+              const person = value as unknown as User;
+              return {
+                id: person.id,
+                name: person.name,
+                access: permissions(id, person.id, access.owner),
+              };
+            });
+          return json(res, 200, {
+            rows: rowAccountNames(recipientList(id), people),
+          });
         }
         if (extra === "members" && method === "GET") {
           member(id, u, true);
@@ -744,6 +770,8 @@ export function createApplication(options: Options) {
           for (const peer of rooms.get(id)?.clients ?? [])
             if (peer.user.id === target)
               peer.ws.send(JSON.stringify({ type: "access", access: grant }));
+          for (const peer of rooms.get(id)?.clients ?? [])
+            peer.ws.send(JSON.stringify({ type: "roster" }));
           return json(res, 200, { access: grant });
         }
         if (

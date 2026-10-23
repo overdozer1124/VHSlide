@@ -1,7 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useState, memo } from "react";
+import { MapHeading } from "./MapHeading";
+import { activeSheet } from "./workbook";
+import type { Sheet } from "./model";
+import { UsersRound } from "lucide-react";
 import type { CSSProperties } from "react";
 import {
-  ArrowDown,
   ArrowRight,
   GripVertical,
   LayoutGrid,
@@ -41,6 +44,10 @@ import type { MapFilter } from "./mapFilter";
 
 interface MapViewProps {
   visible: boolean;
+  headingEditable: boolean;
+  accountsAvailable: boolean;
+  rowAccounts?: Record<string, string[]>;
+  onHeadingChange: (patch: Partial<Sheet>) => void;
   filter?: MapFilter;
   onFilterChange: (value?: MapFilter) => void;
   filterEditor: boolean;
@@ -64,6 +71,10 @@ interface MapViewProps {
 }
 function MapViewComponent({
   visible,
+  headingEditable,
+  accountsAvailable,
+  rowAccounts,
+  onHeadingChange,
   filter,
   onFilterChange: setFilter,
   filterEditor,
@@ -85,6 +96,7 @@ function MapViewComponent({
   onScale,
   onOpenMenu,
 }: MapViewProps) {
+  const sheet = activeSheet(deck);
   const [draftFilter, setDraftFilter] = useState(emptyFilter);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftEditor, setDraftEditor] = useState(filterEditor);
@@ -164,9 +176,17 @@ function MapViewComponent({
   const largerScale =
     levels.find((level) => level > scale + 0.0001) ?? largestScale;
   const numbers = scale === 0;
+  const rowHeaderWidth = numbers ? 48 : 80;
+  const headerHeight = 68;
   const gap = numbers ? 8 : 24;
   const thumbWidth = numbers
-      ? Math.max(44, Math.min(72, (viewportSize.width - 88) / cols - gap - 2))
+      ? Math.max(
+          44,
+          Math.min(
+            72,
+            (viewportSize.width - rowHeaderWidth - 16) / cols - gap - 2,
+          ),
+        )
       : 242 * scale,
     thumbHeight = numbers
       ? Math.max(20, Math.min(32, (viewportSize.height - 60) / rows))
@@ -221,8 +241,8 @@ function MapViewComponent({
           best = Infinity;
         for (const page of displaySlides) {
           const p = positions.get(page.id)!;
-          const left = rect.x + 32 + p.x * (cardWidth + gap);
-          const top = rect.y + 46 + p.y * (cardHeight + gap);
+          const left = rect.x + rowHeaderWidth + p.x * (cardWidth + gap);
+          const top = rect.y + headerHeight + p.y * (cardHeight + gap);
           const distance = Math.hypot(
             Math.max(left - point.x, 0, point.x - left - cardWidth),
             Math.max(top - point.y, 0, point.y - top - cardHeight),
@@ -330,16 +350,21 @@ function MapViewComponent({
       const next = {
         left: Math.max(
           0,
-          Math.floor((node.scrollLeft - 44) / (cardWidth + gap)) - 1,
+          Math.floor((node.scrollLeft - rowHeaderWidth) / (cardWidth + gap)) -
+            1,
         ),
         right:
-          Math.ceil((node.scrollLeft + width - 44) / (cardWidth + gap)) + 1,
+          Math.ceil(
+            (node.scrollLeft + width - rowHeaderWidth) / (cardWidth + gap),
+          ) + 1,
         top: Math.max(
           0,
-          Math.floor((node.scrollTop - 56) / (cardHeight + gap)) - 1,
+          Math.floor((node.scrollTop - headerHeight) / (cardHeight + gap)) - 1,
         ),
         bottom:
-          Math.ceil((node.scrollTop + height - 56) / (cardHeight + gap)) + 1,
+          Math.ceil(
+            (node.scrollTop + height - headerHeight) / (cardHeight + gap),
+          ) + 1,
       };
       setVisibleWindow((before) =>
         before.left === next.left &&
@@ -371,7 +396,7 @@ function MapViewComponent({
   }
   function fitColumns() {
     if (!scrollRef.current) return;
-    const width = scrollRef.current.clientWidth - 24 - 32 - 32;
+    const width = scrollRef.current.clientWidth - 80;
     onScale(
       [...levels]
         .reverse()
@@ -430,6 +455,22 @@ function MapViewComponent({
             <Filter size={16} />
             フィルタ
           </button>
+          {accountsAvailable && !filtered && (
+            <button
+              className="quiet map-row-accounts"
+              role="switch"
+              aria-label="行に共有相手の名前を表示"
+              aria-checked={!!sheet.showRowAccounts}
+              disabled={!headingEditable}
+              title="共有相手の名前を縦書きで表示（参加前はメールアドレスの@より前）"
+              onClick={() =>
+                onHeadingChange({ showRowAccounts: !sheet.showRowAccounts })
+              }
+            >
+              <UsersRound size={16} />
+              行に名前 <span>{sheet.showRowAccounts ? "オン" : "オフ"}</span>
+            </button>
+          )}
           {filtered && (
             <button
               className="quiet"
@@ -600,7 +641,8 @@ function MapViewComponent({
             data-micro={!numbers && scale < 0.25}
             style={
               {
-                gridTemplateColumns: `32px repeat(${cols}, ${cardWidth + gap}px) 32px`,
+                gridTemplateColumns: `${rowHeaderWidth}px repeat(${cols}, ${cardWidth + gap}px) 0px`,
+                "--map-header-width": `${rowHeaderWidth}px`,
                 "--map-card-width": `${cardWidth}px`,
                 "--map-card-height": `${cardHeight}px`,
                 "--map-row-height": `${cardHeight + gap}px`,
@@ -619,7 +661,9 @@ function MapViewComponent({
               <ArrowRight size={15} />
             </div>
             <div />
-            <div />
+            <div className="map-axis-corner" aria-hidden="true">
+              行 / 列
+            </div>
             <>
               {Array.from({ length: cols }, (_, x) =>
                 filtered ? (
@@ -647,14 +691,29 @@ function MapViewComponent({
                         }
                       >
                         {String(x + 1).padStart(2, "0")}　
-                        {x === 0 ? "はじまり" : `話題 ${x + 1}`}
+                        {sheet.columnLabels?.[x] ||
+                          (x === 0 ? "はじまり" : `話題 ${x + 1}`)}
                       </button>
                     ) : (
                       <>
                         <span className="column-num">
                           {String(x + 1).padStart(2, "0")}
                         </span>
-                        <span>{x === 0 ? "はじまり" : `話題 ${x + 1}`}</span>
+                        <MapHeading
+                          label={`列${x + 1}の見出し`}
+                          value={
+                            sheet.columnLabels?.[x] ||
+                            (x === 0 ? "はじまり" : `話題 ${x + 1}`)
+                          }
+                          placeholder="列の名前"
+                          editable={headingEditable}
+                          onChange={(text) => {
+                            const labels = { ...sheet.columnLabels };
+                            if (text) labels[x] = text;
+                            else delete labels[x];
+                            onHeadingChange({ columnLabels: labels });
+                          }}
+                        />
                         <button
                           draggable
                           data-map-drag-source="column"
@@ -681,11 +740,15 @@ function MapViewComponent({
                 ),
               )}
             </>
-            <div />
+            <div className="map-heading-end" />
             {Array.from({ length: rows }, (_, y) => (
               <div className="grid-row" key={y}>
                 <div
                   className="row-axis"
+                  title={
+                    sheet.rowLabels?.[y] ||
+                    (sheet.showRowAccounts ? rowAccounts?.[y]?.join("・") : "")
+                  }
                   style={filtered ? { visibility: "hidden" } : undefined}
                 >
                   <button
@@ -736,10 +799,26 @@ function MapViewComponent({
                   >
                     {String(y + 1).padStart(2, "0")}
                   </button>
-                  {y === 1 && (
-                    <span className="vertical-label">
-                      くわしく <ArrowDown size={14} />
-                    </span>
+                  {!filterOpen && !numbers && (
+                    <MapHeading
+                      vertical
+                      label={`行${y + 1}の見出し`}
+                      value={
+                        sheet.rowLabels?.[y] ||
+                        (sheet.showRowAccounts
+                          ? rowAccounts?.[y]?.join("・")
+                          : "") ||
+                        ""
+                      }
+                      placeholder={headingEditable ? "見出し" : ""}
+                      editable={headingEditable}
+                      onChange={(text) => {
+                        const labels = { ...sheet.rowLabels };
+                        if (text) labels[y] = text;
+                        else delete labels[y];
+                        onHeadingChange({ rowLabels: labels });
+                      }}
+                    />
                   )}
                 </div>
                 {Array.from({ length: cols }, (_, x) => {

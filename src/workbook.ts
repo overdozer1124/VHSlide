@@ -1,6 +1,6 @@
-import type { Deck } from "./model";
+import type { Deck, Sheet } from "./model";
 import { blank, MAX_SLIDES, uid } from "./model";
-export const sheetList = (book: Deck) =>
+export const sheetList = (book: Deck): Sheet[] =>
   book.sheets ?? [{ id: "main", name: "シート1" }];
 export const activeSheet = (book: Deck) =>
   sheetList(book).find((s) => s.id === book.activeSheetId) ??
@@ -83,7 +83,11 @@ export function changeSheet(
       suffix = 2;
     while (sheets.some((s) => s.name === newName))
       newName = `${baseName} (${suffix++})`;
-    sheets.splice(index + 1, 0, { id: newId, name: newName });
+    sheets.splice(index + 1, 0, {
+      ...(action === "duplicate" ? sheets[index] : {}),
+      id: newId,
+      name: newName,
+    });
     return {
       ...book,
       sheets,

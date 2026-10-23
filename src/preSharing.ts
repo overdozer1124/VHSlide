@@ -81,3 +81,31 @@ export function parseRecipients(
     return { email, access: parseAccess(item.access) };
   });
 }
+
+export type RowAccounts = Record<string, Record<string, string[]>>;
+/** Expose only display names attached to explicitly assigned rows, never emails
+ * or the rest of the permission settings, to other room participants. */
+export function rowAccountNames(
+  recipients: (Omit<Recipient, "name"> & { name?: string | null })[],
+  members: { id: string; name: string; access: EditAccess }[],
+): RowAccounts {
+  const result: RowAccounts = Object.create(null);
+  const claimed = new Set(
+    recipients.flatMap((r) => (r.userId ? [r.userId] : [])),
+  );
+  const people = [
+    ...recipients.map((r) => ({
+      name: r.name || r.email.split("@")[0],
+      access: r.access,
+    })),
+    ...members.filter((m) => !claimed.has(m.id)),
+  ];
+  for (const person of people) {
+    if (person.access.mode !== "scoped") continue;
+    for (const row of person.access.rows) {
+      const sheet = (result[row.sheetId] ??= Object.create(null));
+      (sheet[String(row.index)] ??= []).push(person.name);
+    }
+  }
+  return result;
+}

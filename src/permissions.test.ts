@@ -143,3 +143,13 @@ describe("host and scoped editing", () => {
     ).toThrow();
   });
 });
+
+it("reserves map headings and account-name settings for the host even with full slide editing access", () => {
+  const book = sample();
+  book.sheets = [{ id: "main", name: "シート1" }];
+  const changed = structuredClone(book);
+  changed.sheets![0].rowLabels = { 0: "変更" };
+  changed.sheets![0].showRowAccounts = true;
+  expect(() => assertDeckAccess(book, changed, all, false)).toThrow();
+  expect(() => assertDeckAccess(book, changed, all, true)).not.toThrow();
+});

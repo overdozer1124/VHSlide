@@ -173,3 +173,35 @@ describe("shared slide document", () => {
     expect(readSharedDeck(a).slides[0].background).toBe("#123456");
   });
 });
+
+it("persists per-sheet headings, shares independent row/column changes, and undoes only local headings", () => {
+  const base = sample();
+  base.sheets = [{ id: "main", name: "シート1" }];
+  const a = createSharedDeck(base),
+    b = new Y.Doc();
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a), "server");
+  const undo = new Y.UndoManager(a.getMap("sheets"), {
+    trackedOrigins: new Set([LOCAL_CHANGE]),
+  });
+  const row = structuredClone(base),
+    column = structuredClone(base);
+  row.sheets![0].rowLabels = { 0: "班の名前" };
+  row.sheets![0].showRowAccounts = true;
+  column.sheets![0].columnLabels = { 1: "調べたこと" };
+  applyDeckChange(a, base, row);
+  applyDeckChange(b, base, column);
+  Y.applyUpdate(a, Y.encodeStateAsUpdate(b), "server");
+  const merged = readSharedDeck(a);
+  expect(parseDeck(JSON.stringify(merged)).sheets?.[0]).toMatchObject({
+    rowLabels: { 0: "班の名前" },
+    columnLabels: { 1: "調べたこと" },
+    showRowAccounts: true,
+  });
+  undo.undo();
+  expect(readSharedDeck(a).sheets?.[0].rowLabels).toBeUndefined();
+  expect(readSharedDeck(a).sheets?.[0].columnLabels).toEqual({
+    1: "調べたこと",
+  });
+  a.destroy();
+  b.destroy();
+});

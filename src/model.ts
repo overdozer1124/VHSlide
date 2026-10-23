@@ -37,6 +37,13 @@ export interface Slide {
   background: string;
   elements: Element[];
 }
+export interface Sheet {
+  id: string;
+  name: string;
+  rowLabels?: Record<string, string>;
+  columnLabels?: Record<string, string>;
+  showRowAccounts?: boolean;
+}
 export interface Deck {
   version: 1;
   title: string;
@@ -45,7 +52,7 @@ export interface Deck {
   rowSelections?: string[];
   /** Show the same topic in every editor row; independent choices are retained. */
   linkedRows?: boolean;
-  sheets?: { id: string; name: string }[];
+  sheets?: Sheet[];
   activeSheetId?: string;
 }
 export const uid = (): string => {
@@ -470,7 +477,36 @@ export function parseDeck(input: string): Deck {
         name = str(sheet?.name, 80);
       if (!sheetId || !name.trim() || seen.has(sheetId)) fail();
       seen.add(sheetId);
-      return { id: sheetId, name };
+      const labels = (value: unknown): Record<string, string> => {
+        if (
+          !value ||
+          typeof value !== "object" ||
+          Array.isArray(value) ||
+          Object.keys(value).length > 100
+        )
+          fail();
+        const result: Record<string, string> = {};
+        for (const [key, text] of Object.entries(
+          value as Record<string, unknown>,
+        )) {
+          if (!/^(0|[1-9][0-9]?)$/.test(key)) fail();
+          result[key] = str(text, 80);
+        }
+        return result;
+      };
+      return {
+        id: sheetId,
+        name,
+        ...(sheet.rowLabels === undefined
+          ? {}
+          : { rowLabels: labels(sheet.rowLabels) }),
+        ...(sheet.columnLabels === undefined
+          ? {}
+          : { columnLabels: labels(sheet.columnLabels) }),
+        ...(sheet.showRowAccounts === undefined
+          ? {}
+          : { showRowAccounts: bool(sheet.showRowAccounts) }),
+      };
     });
   }
   const ids = new Set<string>(),

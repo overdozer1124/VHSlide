@@ -764,3 +764,92 @@ test("failed sticky autosaves keep the input and can be retried", async ({
   await openEditor(page);
   await expect(input).toHaveValue("通信が失敗しても入力を残す");
 });
+
+test("host edits shared map headings and row account names update vertically for guests", async ({
+  page,
+  browser,
+}, info) => {
+  const owner = `headings-${info.project.name}`,
+    guest = `${owner}-guest`;
+  const button = (p: Page, name: string) =>
+    p.getByRole("button", { name, exact: true });
+  await signIn(page, owner);
+  await button(page, "この作品をクラウドに保存").click();
+  await saved(page);
+  await button(page, "クラウド").click();
+  await button(page, "共有するアカウントを追加").click();
+  await page
+    .getByRole("textbox", { name: "事前共有するメールアドレス", exact: true })
+    .fill(`${guest}@example.test`);
+  await button(page, "事前共有を保存").click();
+  await expect(page.locator(".pre-share-account")).toHaveCount(1);
+  await button(page, "クラウドの作品を閉じる").click();
+  const toggle = page.getByRole("switch", {
+    name: "行に共有相手の名前を表示",
+    exact: true,
+  });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  const heading = (p: Page, name: string) =>
+    p.getByRole("textbox", { name, exact: true });
+  await expect(heading(page, "行1の見出し")).toHaveValue(guest);
+  await heading(page, "列2の見出し").fill("共同調査");
+  await heading(page, "列2の見出し").press("Enter");
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:3187",
+    viewport: { width: 1366, height: 768 },
+  });
+  const other = await context.newPage();
+  try {
+    await signIn(other, guest);
+    await button(other, "作品を開く：わたしたちのまちの、いいところ").click();
+    await saved(other);
+    await expect(heading(other, "列2の見出し")).toHaveValue("共同調査");
+    await expect(heading(other, "列2の見出し")).toHaveAttribute("readonly", "");
+    await expect(heading(other, "行1の見出し")).toHaveValue(guest);
+    await expect(heading(other, "行1の見出し")).toHaveCSS(
+      "writing-mode",
+      "vertical-rl",
+    );
+    await expect(
+      other.getByRole("switch", {
+        name: "行に共有相手の名前を表示",
+        exact: true,
+      }),
+    ).toBeDisabled();
+    await heading(page, "行1の見出し").fill("1班");
+    await heading(page, "行1の見出し").press("Enter");
+    await expect(heading(other, "行1の見出し")).toHaveValue("1班");
+    await heading(page, "行1の見出し").fill("");
+    await heading(page, "行1の見出し").press("Enter");
+    await expect(heading(other, "行1の見出し")).toHaveValue(guest);
+    // Moving the assignment changes the name's row on all clients without reloading.
+    const room = new URL(page.url()).searchParams.get("room")!;
+    const response = await page.request.post(`/api/decks/${room}/recipients`, {
+      headers: { Origin: "http://127.0.0.1:3187" },
+      data: {
+        recipients: [
+          {
+            email: `${guest}@example.test`,
+            access: {
+              mode: "scoped",
+              comment: true,
+              rows: [{ sheetId: "main", index: 1 }],
+              columns: [],
+              slides: [],
+            },
+          },
+        ],
+      },
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+    await expect(heading(other, "行1の見出し")).toHaveValue("");
+    await expect(heading(other, "行2の見出し")).toHaveValue(guest);
+    await page.screenshot({ path: info.outputPath("shared-row-headings.png") });
+    await other.reload();
+    await saved(other);
+    await expect(heading(other, "行2の見出し")).toHaveValue(guest);
+  } finally {
+    await context.close();
+  }
+});

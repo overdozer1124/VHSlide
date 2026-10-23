@@ -693,6 +693,14 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
     ["student-80@example.test", "student-81@example.test"],
   );
   assert.ok(list.every((r: any) => !r.userId));
+  const rowNames = (await (
+    await request(`/api/decks/${id}/row-accounts`)
+  ).json()) as any;
+  assert.deepEqual(rowNames.rows, {
+    main: { 0: ["student-80"], 1: ["student-81"] },
+  });
+  assert.ok(!JSON.stringify(rowNames).includes("example.test"));
+
   const outsider = await signIn("student-82");
   assert.ok(
     !(
@@ -703,6 +711,11 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
   );
   assert.equal(
     (await request(`/api/decks/${id}/recipients`, "GET", undefined, outsider))
+      .status,
+    404,
+  );
+  assert.equal(
+    (await request(`/api/decks/${id}/row-accounts`, "GET", undefined, outsider))
       .status,
     404,
   );

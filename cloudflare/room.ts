@@ -188,11 +188,18 @@ export class SlideRoom extends DurableObject<Env> {
       }
       return json({ ok: true });
     }
+    if (path === "/roster" && request.method === "POST") {
+      for (const ws of this.peers())
+        ws.send(JSON.stringify({ type: "roster" }));
+      return json({ ok: true });
+    }
     if (path === "/permissions" && request.method === "POST") {
       const data = await input(request, 1_500_000);
       for (const ws of this.peers())
         if ((ws.deserializeAttachment() as Peer).user.id === data.user)
           ws.send(JSON.stringify({ type: "access", access: data.access }));
+      for (const ws of this.peers())
+        ws.send(JSON.stringify({ type: "roster" }));
       return json({ ok: true });
     }
     if (path === "/comments" || /^\/comments\/[a-f0-9-]{36}$/.test(path)) {

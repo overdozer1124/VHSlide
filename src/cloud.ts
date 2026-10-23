@@ -4,6 +4,7 @@ import {
   defaultAccess,
   hostAccess,
 } from "./permissions";
+import type { RowAccounts } from "./preSharing";
 import type { EditAccess, SlideComment } from "./permissions";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
@@ -85,6 +86,29 @@ export class CloudWorkspace {
   active?: { id: string; owner: string };
   access: EditAccess = defaultAccess();
   comments: SlideComment[] = [];
+  rowAccounts: RowAccounts = {};
+  private rosterRequest = 0;
+  private rosterTimer?: ReturnType<typeof setTimeout>;
+  async refreshRowAccounts() {
+    const id = this.active?.id,
+      sequence = ++this.rosterRequest;
+    if (!id) return;
+    const data = await api<{ rows: RowAccounts }>(
+      `/api/decks/${id}/row-accounts`,
+    );
+    if (this.active?.id === id && sequence === this.rosterRequest) {
+      this.rowAccounts = data.rows;
+      this.emit();
+    }
+  }
+  private scheduleRoster() {
+    clearTimeout(this.rosterTimer);
+    this.rosterTimer = setTimeout(
+      () => void this.refreshRowAccounts().catch(() => {}),
+      200,
+    );
+  }
+
   get isHost() {
     return !this.active || this.active.owner === this.user?.id;
   }
@@ -389,7 +413,11 @@ export class CloudWorkspace {
           if (message.type === "hello")
             this.vector = fromBase64(message.vector);
           if (message.type === "ack") this.pending.delete(message.id);
-          if (message.type === "presence") this.members = message.members;
+          if (message.type === "presence") {
+            this.members = message.members;
+            this.scheduleRoster();
+          }
+          if (message.type === "roster") this.scheduleRoster();
           if (message.type === "error") {
             this.error = message.message;
             this.stopped = true;
@@ -497,6 +525,9 @@ export class CloudWorkspace {
     this.active = undefined;
     this.access = defaultAccess();
     this.commentsRequest++;
+    this.rosterRequest++;
+    clearTimeout(this.rosterTimer);
+    this.rowAccounts = {};
     this.comments = [];
     this.members = [];
     this.buffer = [];

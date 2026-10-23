@@ -1,4 +1,8 @@
-import { normalizeEmail, parseRecipients } from "../src/preSharing.ts";
+import {
+  normalizeEmail,
+  parseRecipients,
+  rowAccountNames,
+} from "../src/preSharing.ts";
 import { defaultAccess, hostAccess, parseAccess } from "../src/permissions.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
@@ -604,6 +608,7 @@ export class Directory extends DurableObject<Env> {
           await checked(
             await room(this.env, id).fetch(internal("/permissions", value)),
           );
+        await checked(await room(this.env, id).fetch(internal("/roster", {})));
         return json({ recipients: this.recipientList(id) });
       }
     }
@@ -646,7 +651,20 @@ export class Directory extends DurableObject<Env> {
             internal("/revoke", { user: entry.user_id }),
           ),
         );
+      await checked(await room(this.env, id).fetch(internal("/roster", {})));
       return json({ recipients: this.recipientList(id) });
+    }
+    if (extra === "row-accounts" && method === "GET") {
+      const members = rows<User>(
+        this.sql,
+        "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+        id,
+      ).map((member) => ({
+        id: member.id,
+        name: member.name,
+        access: this.permissions(id, member.id, work.owner),
+      }));
+      return json({ rows: rowAccountNames(this.recipientList(id), members) });
     }
     if (extra === "members" && method === "GET") {
       this.access(id, user, true);

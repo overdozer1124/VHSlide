@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import type { Deck, Element, Slide } from "./model.ts";
+import type { Deck, Element, Slide, Sheet } from "./model.ts";
 
 export const LOCAL_CHANGE = "vhslide-local";
 type Fields = Y.Map<unknown>;
@@ -70,6 +70,12 @@ export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
         target = new Y.Map();
         sheets.set(sheet.id, target);
       }
+      patchFields(
+        target,
+        (old ?? {}) as Record<string, unknown>,
+        sheet as unknown as Record<string, unknown>,
+        ["id", "name"],
+      );
       if (!old || old.name !== sheet.name) target.set("name", sheet.name);
       if (!old || before.sheets?.indexOf(old) !== rank)
         target.set("rank", rank);
@@ -142,9 +148,18 @@ export function readSharedDeck(doc: Y.Doc): Deck {
       id,
       name: String(s.get("name")),
       rank: Number(s.get("rank")),
+      ...(s.has("rowLabels")
+        ? { rowLabels: s.get("rowLabels") as Sheet["rowLabels"] }
+        : {}),
+      ...(s.has("columnLabels")
+        ? { columnLabels: s.get("columnLabels") as Sheet["columnLabels"] }
+        : {}),
+      ...(s.has("showRowAccounts")
+        ? { showRowAccounts: s.get("showRowAccounts") as boolean }
+        : {}),
     }))
     .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
-    .map(({ id, name }) => ({ id, name }));
+    .map(({ rank: _rank, ...sheet }) => sheet);
   const pageSheets = new Set(
     [...doc.getMap<Fields>("slides").values()].map(
       (s) => (s.get("sheetId") ?? "main") as string,

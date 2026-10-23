@@ -158,3 +158,35 @@ describe("sheets and filtered maps", () => {
     ).toContain("相手の入力");
   });
 });
+
+it("copies headings into a duplicated sheet, keeps empty sheets clean and rejects invalid header metadata", () => {
+  const book = sample();
+  book.sheets = [
+    {
+      id: "main",
+      name: "シート1",
+      rowLabels: { 0: "1班" },
+      columnLabels: { 1: "結果" },
+      showRowAccounts: true,
+    },
+  ];
+  const copy = changeSheet(book, "duplicate");
+  expect(copy.sheets?.[1]).toMatchObject({
+    rowLabels: { 0: "1班" },
+    columnLabels: { 1: "結果" },
+    showRowAccounts: true,
+  });
+  expect(changeSheet(book, "add").sheets?.[1].rowLabels).toBeUndefined();
+  expect(parseDeck(JSON.stringify(copy)).sheets).toEqual(copy.sheets);
+  for (const patch of [
+    { rowLabels: { 100: "範囲外" } },
+    { columnLabels: { 0: "あ".repeat(81) } },
+    { showRowAccounts: "yes" },
+  ]) {
+    expect(() =>
+      parseDeck(
+        JSON.stringify({ ...book, sheets: [{ ...book.sheets![0], ...patch }] }),
+      ),
+    ).toThrow();
+  }
+});
