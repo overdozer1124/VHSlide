@@ -44,6 +44,34 @@ describe("sheets and filtered maps", () => {
     ).toHaveLength(2);
     expect(() => changeSheet(original, "delete")).toThrow();
   });
+  it("moves sheets across several tabs atomically, keeps contents and active choice, and undoes once", () => {
+    let book = sample();
+    for (let i = 0; i < 3; i++) book = changeSheet(book, "add");
+    const ids = book.sheets!.map((s) => s.id);
+    const moved = changeSheet(book, "after", ids[0], ids[3]);
+    expect(moved.sheets!.map((s) => s.id)).toEqual([
+      ids[1],
+      ids[2],
+      ids[3],
+      ids[0],
+    ]);
+    expect(moved.slides).toBe(book.slides);
+    expect(moved.activeSheetId).toBe(book.activeSheetId);
+    expect(changeSheet(moved, "before", ids[0], ids[1]).sheets).toEqual(
+      book.sheets,
+    );
+    expect(changeSheet(book, "before", ids[0], ids[1])).toBe(book);
+    expect(changeSheet(book, "after", ids[0], ids[0])).toBe(book);
+    expect(() => changeSheet(book, "after", ids[0], "missing")).toThrow();
+    const doc = createSharedDeck(book);
+    const undo = new Y.UndoManager(doc.getMap("sheets"), {
+      trackedOrigins: new Set([LOCAL_CHANGE]),
+    });
+    applyDeckChange(doc, book, moved);
+    expect(readSharedDeck(doc).sheets).toEqual(moved.sheets);
+    undo.undo();
+    expect(readSharedDeck(doc).sheets).toEqual(book.sheets);
+  });
   it("duplicates an entire sparse row repeatedly with unique IDs, shifts following rows once, and rejects limits atomically", () => {
     const original = sample(),
       next = duplicateRowGroup(original, 0, 5);

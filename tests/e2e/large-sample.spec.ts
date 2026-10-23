@@ -80,7 +80,7 @@ test("adds page 1000, blocks page 1001, and restores the complete deck", async (
   await add.click();
   await expect(page.locator(".slide-card")).toHaveCount(1000);
   await add.click();
-  await expect(page.getByRole("status")).toHaveText("ページは1000枚までです。");
+  await expect(page.locator(".toast")).toHaveText("ページは1000枚までです。");
   await expect(page.locator(".slide-card")).toHaveCount(1000);
   await page.reload();
   await expect(page.locator(".slide-card")).toHaveCount(1000);
@@ -98,7 +98,7 @@ test("adds page 1000, blocks page 1001, and restores the complete deck", async (
       }),
     ),
   });
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator(".toast")).toHaveText(
     "対応するVHSlideファイルではありません。",
   );
   await expect(

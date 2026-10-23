@@ -3394,3 +3394,62 @@ h1 span {
   outline: 2px solid #395e50;
   outline-offset: 1px;
 }
+
+.sheet-tab-item {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.sheet-tab-item > button {
+  user-select: none;
+  touch-action: pan-x;
+  -webkit-touch-callout: none;
+}
+.sheet-tab-item[data-insert]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: #315d4e;
+  pointer-events: none;
+}
+.sheet-tab-item[data-insert="before"]::after {
+  left: 0;
+}
+.sheet-tab-item[data-insert="after"]::after {
+  right: 0;
+}
+.sheet-name-input {
+  width: 150px;
+  max-width: 50vw;
+  min-width: 70px;
+  margin: 2px;
+  padding: 3px 8px;
+  border: 2px solid #638c4c;
+  border-radius: 3px;
+  background: white;
+  font-size: 12px;
+  outline-offset: 1px;
+}
+.sheet-drag-preview {
+  padding: 7px 16px;
+  background: #fff;
+  border: 1px solid #638c4c;
+  border-radius: 4px;
+  box-shadow: 0 3px 12px #173d3833;
+  color: #315d4e;
+  font-size: 11px;
+}
+.sheet-menu {
+  max-height: calc(100dvh - 60px);
+  overflow-y: auto;
+}
+.sheet-menu > strong {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

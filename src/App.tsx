@@ -248,14 +248,20 @@ export default function App() {
   ) {
     try {
       const next = changeSheet(latestWorkbook.current, action, id, name);
-      if (commitWorkbook(next)) {
+      const switched =
+        activeSheet(next).id !== activeSheet(latestWorkbook.current).id;
+      if (next === latestWorkbook.current) return true;
+      if (!commitWorkbook(next)) return false;
+      if (switched) {
         setActiveId(sheetDeck(next).slides[0].id);
         setSelected(undefined);
         setMoving(undefined);
         setFlight(undefined);
       }
+      return true;
     } catch (error) {
       notify((error as Error).message);
+      return false;
     }
   }
   const editorNavigationActive = useRef(false);

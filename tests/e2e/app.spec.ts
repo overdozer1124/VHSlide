@@ -123,7 +123,7 @@ test("rejects invalid import without losing the current work", async ({
       mimeType: "application/json",
       buffer: Buffer.from('{"version":4,"slides":[]}'),
     });
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator(".toast")).toContainText(
     "対応するVHSlideファイルではありません",
   );
   await expect(

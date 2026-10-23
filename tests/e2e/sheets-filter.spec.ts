@@ -145,10 +145,11 @@ test("sheets add, duplicate, rename, reorder, delete and undo independently and 
   await expect(page.getByRole("tab")).toHaveCount(3);
   await expect(page.locator(".slide-card")).toHaveCount(1);
   await button(page, "シートの操作").click();
+  await button(page, "名前の変更").click();
   await page
-    .getByRole("textbox", { name: "シート名", exact: true })
+    .getByRole("textbox", { name: "シート名を編集", exact: true })
     .fill("別の練習");
-  await button(page, "名前を変更").click();
+  await page.keyboard.press("Enter");
   await button(page, "シートの操作").click();
   await button(page, "シートを左へ移動").click();
   await button(page, "閉じる").click();

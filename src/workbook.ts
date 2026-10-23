@@ -45,7 +45,15 @@ export function mergeSheet(book: Deck, next: Deck): Deck {
 }
 export function changeSheet(
   book: Deck,
-  action: "add" | "duplicate" | "delete" | "rename" | "left" | "right",
+  action:
+    | "add"
+    | "duplicate"
+    | "delete"
+    | "rename"
+    | "left"
+    | "right"
+    | "before"
+    | "after",
   id = activeSheet(book).id,
   name?: string,
 ): Deck {
@@ -106,6 +114,18 @@ export function changeSheet(
     if (sheets.some((s) => s.id !== id && s.name === name.trim()))
       throw new Error("同じ名前のシートがあります。");
     sheets[index] = { ...sheets[index], name: name.trim() };
+  } else if (action === "before" || action === "after") {
+    if (id === name) return book;
+    const target = sheets.find((sheet) => sheet.id === name);
+    if (!target) throw new Error("移動先のシートが見つかりません。");
+    const [moving] = sheets.splice(index, 1);
+    sheets.splice(
+      sheets.indexOf(target) + (action === "after" ? 1 : 0),
+      0,
+      moving,
+    );
+    if (sheets.every((sheet, i) => sheet.id === sheetList(book)[i].id))
+      return book;
   } else {
     const to = index + (action === "left" ? -1 : 1);
     if (to < 0 || to >= sheets.length) return book;
