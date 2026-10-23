@@ -1,3 +1,5 @@
+import { PreSharePanel } from "./PreSharePanel";
+import type { Recipient } from "./preSharing";
 import { PermissionPicker } from "./PermissionPicker";
 import { defaultAccess } from "./permissions";
 import type { EditAccess } from "./permissions";
@@ -39,6 +41,21 @@ export function CloudPanel({
   const [members, setMembers] = useState<
     (CloudUser & { access?: EditAccess })[]
   >([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  async function refreshSharing() {
+    const id = cloud.active?.id;
+    if (!id) return;
+    const [m, r] = await Promise.all([
+      api<{ members: (CloudUser & { access?: EditAccess })[] }>(
+        `/api/decks/${id}/members`,
+      ),
+      api<{ recipients: Recipient[] }>(`/api/decks/${id}/recipients`),
+    ]);
+    if (cloud.active?.id === id) {
+      setMembers(m.members);
+      setRecipients(r.recipients);
+    }
+  }
   const [editingMember, setEditingMember] = useState<string>();
   const [grant, setGrant] = useState<EditAccess>(defaultAccess);
   const [loginError, setLoginError] = useState("");
@@ -83,12 +100,9 @@ export function CloudPanel({
   useEffect(() => {
     setLink("");
     setMembers([]);
+    setRecipients([]);
     if (cloud.active?.owner === cloud.user?.id && cloud.active)
-      void api<{ members: (CloudUser & { access?: EditAccess })[] }>(
-        `/api/decks/${cloud.active.id}/members`,
-      )
-        .then((result) => setMembers(result.members))
-        .catch(() => {});
+      void refreshSharing().catch(() => {});
   }, [cloud.active?.id, cloud.user?.id]);
   const own = cloud.active && cloud.active.owner === cloud.user?.id;
   return (
@@ -239,24 +253,25 @@ export function CloudPanel({
                     </button>
                     <button
                       className="quiet"
-                      onClick={() =>
-                        void cloud.run(async () => {
-                          setMembers(
-                            (
-                              await api<{
-                                members: (CloudUser & {
-                                  access?: EditAccess;
-                                })[];
-                              }>(`/api/decks/${cloud.active!.id}/members`)
-                            ).members,
-                          );
-                        })
-                      }
+                      onClick={() => void cloud.run(refreshSharing)}
                     >
                       参加者一覧を更新
                     </button>
+                    <PreSharePanel
+                      cloud={cloud}
+                      deck={deck}
+                      recipients={recipients}
+                      onChange={(rows) => {
+                        setRecipients(rows);
+                        void refreshSharing().catch(() => {});
+                      }}
+                    />
                     {members
-                      .filter((member) => member.id !== cloud.user?.id)
+                      .filter(
+                        (member) =>
+                          member.id !== cloud.user?.id &&
+                          !recipients.some((r) => r.userId === member.id),
+                      )
                       .map((member) => (
                         <div className="cloud-member" key={member.id}>
                           <span>
@@ -358,6 +373,13 @@ export function CloudPanel({
               </div>
             )}
             <h3>保存した作品・参加した作品</h3>
+            <button
+              className="quiet"
+              disabled={cloud.busy}
+              onClick={() => void cloud.run(() => cloud.refresh())}
+            >
+              作品一覧を更新
+            </button>
             <div className="cloud-deck-list">
               {cloud.decks.length ? (
                 cloud.decks.map((saved) => (

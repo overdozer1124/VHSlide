@@ -553,3 +553,229 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   state.destroy();
   check.destroy();
 });
+
+test("pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection", async () => {
+  const id = await create();
+  const grant = (row: number) => ({
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: row }],
+    columns: [],
+    slides: [],
+  });
+  const preset = {
+    recipients: [
+      { email: "STUDENT-80@example.test", access: grant(0) },
+      { email: "student-81@example.test", access: grant(1) },
+    ],
+  };
+  const added = await request(`/api/decks/${id}/recipients`, "POST", preset);
+  assert.equal(added.status, 200, await added.clone().text());
+  const list = ((await added.json()) as any).recipients;
+  assert.deepEqual(
+    list.map((r: any) => r.email),
+    ["student-80@example.test", "student-81@example.test"],
+  );
+  assert.ok(list.every((r: any) => !r.userId));
+  const outsider = await login("student-82");
+  assert.ok(
+    !(
+      (await (
+        await request("/api/decks", "GET", undefined, outsider)
+      ).json()) as any
+    ).decks.some((d: any) => d.id === id),
+  );
+  assert.equal(
+    (await request(`/api/decks/${id}/recipients`, "GET", undefined, outsider))
+      .status,
+    404,
+  );
+  assert.equal(
+    (await request(`/api/decks/${id}/recipients`, "POST", preset, outsider))
+      .status,
+    404,
+  );
+  const a = await login("student-80"),
+    b = await login("student-81");
+  assert.ok(
+    (
+      (await (await request("/api/decks", "GET", undefined, a)).json()) as any
+    ).decks.some((d: any) => d.id === id),
+  );
+  assert.deepEqual(
+    (
+      (await (
+        await request(`/api/decks/${id}`, "GET", undefined, a)
+      ).json()) as any
+    ).access.rows,
+    grant(0).rows,
+  );
+  const invitation = await request(`/api/decks/${id}/invite`, "POST");
+  const token = new URL(
+    ((await invitation.json()) as any).url,
+  ).searchParams.get("join");
+  assert.equal(
+    (await request(`/api/invites/${token}/accept`, "POST", undefined, b))
+      .status,
+    200,
+  );
+  assert.deepEqual(
+    (
+      (await (
+        await request(`/api/decks/${id}`, "GET", undefined, b)
+      ).json()) as any
+    ).access.rows,
+    grant(1).rows,
+  );
+  const first = await connect(id, a),
+    second = await connect(id, b),
+    deck = readSharedDeck(first.doc),
+    slide = deck.slides[0];
+  const v = Y.encodeStateVector(first.doc);
+  sharedText(first.doc, slide.id, slide.elements[0].id)!.insert(0, "my row ");
+  first.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "own-row",
+      update: toBase64(Y.encodeStateAsUpdate(first.doc, v)),
+    }),
+  );
+  await until(() =>
+    first.messages.some((m) => m.type === "ack" && m.id === "own-row"),
+  );
+  await until(() =>
+    sharedText(second.doc, slide.id, slide.elements[0].id)!
+      .toString()
+      .startsWith("my row"),
+  );
+  const bad = Y.encodeStateVector(second.doc);
+  sharedText(second.doc, slide.id, slide.elements[0].id)!.insert(
+    0,
+    "other row ",
+  );
+  second.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "other-row",
+      update: toBase64(Y.encodeStateAsUpdate(second.doc, bad)),
+    }),
+  );
+  await until(() =>
+    second.messages.some((m) => m.type === "error" && m.code === "forbidden"),
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/recipients`, "POST", {
+        recipients: [{ email: "student-80@example.test", access: grant(1) }],
+      })
+    ).status,
+    200,
+  );
+  await until(() =>
+    first.messages.some(
+      (m) => m.type === "access" && m.access.rows[0]?.index === 1,
+    ),
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/members/student-80`, "PATCH", {
+        ...grant(0),
+        mode: "all",
+      })
+    ).status,
+    200,
+  );
+  let current = (
+    (await (await request(`/api/decks/${id}/recipients`)).json()) as any
+  ).recipients;
+  assert.equal(current[0].access.mode, "all");
+  assert.equal(
+    (await request(`/api/decks/${id}/members/student-80`, "DELETE")).status,
+    200,
+  );
+  assert.ok(
+    !(
+      (await (await request("/api/decks", "GET", undefined, a)).json()) as any
+    ).decks.some((d: any) => d.id === id),
+  );
+  assert.equal(
+    (await request(`/api/invites/${token}/accept`, "POST", undefined, a))
+      .status,
+    200,
+  );
+  assert.equal(
+    (
+      (await (
+        await request(`/api/decks/${id}`, "GET", undefined, a)
+      ).json()) as any
+    ).access.mode,
+    "none",
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/recipients`, "POST", {
+        recipients: [{ email: "student-83@example.test", access: grant(0) }],
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/recipients/${encodeURIComponent("student-83@example.test")}`,
+        "DELETE",
+      )
+    ).status,
+    200,
+  );
+  const removed = await login("student-83");
+  assert.ok(
+    !(
+      (await (
+        await request("/api/decks", "GET", undefined, removed)
+      ).json()) as any
+    ).decks.some((d: any) => d.id === id),
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/recipients`, "POST", {
+        recipients: [{ email: "owner@example.test", access: grant(0) }],
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/recipients`, "POST", {
+        recipients: [
+          { email: "student-84@example.test", access: grant(0) },
+          { email: "invalid", access: grant(0) },
+        ],
+      })
+    ).status,
+    400,
+  );
+  current = (
+    (await (await request(`/api/decks/${id}/recipients`)).json()) as any
+  ).recipients;
+  assert.deepEqual(
+    current.map((r: any) => r.email),
+    ["student-81@example.test"],
+  );
+  first.doc.destroy();
+  second.doc.destroy();
+  await mf.dispose();
+  mf = fixture.start();
+  const restored = (
+    (await (await request(`/api/decks/${id}/recipients`)).json()) as any
+  ).recipients;
+  assert.deepEqual(restored, current);
+  assert.deepEqual(
+    (
+      (await (
+        await request(`/api/decks/${id}`, "GET", undefined, b)
+      ).json()) as any
+    ).access.rows,
+    grant(1).rows,
+  );
+});

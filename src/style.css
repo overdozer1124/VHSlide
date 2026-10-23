@@ -3624,3 +3624,61 @@ h1 span {
   margin-left: 8px;
   text-decoration: underline;
 }
+.pre-sharing {
+  display: grid;
+  gap: 10px;
+  margin-block: 12px;
+  padding-block: 10px;
+  border-block: 1px solid #d8e2d1;
+}
+.pre-sharing label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.pre-sharing textarea,
+.pre-sharing > input,
+.pre-sharing select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cddac8;
+  border-radius: 4px;
+  padding: 7px;
+  background: white;
+  font-size: 12px;
+}
+.pre-sharing .permission-picker label {
+  display: flex;
+}
+.pre-share-preview {
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  background: #f1f6ec;
+  border: 1px solid #d8e2d1;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.pre-share-preview ol {
+  margin: 8px 0;
+  padding-left: 23px;
+}
+.pre-share-preview li {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.pre-share-preview li > * {
+  display: block;
+}
+.pre-share-account {
+  border-top: 1px solid #d8e2d1;
+  padding-block: 10px;
+}
+.pre-share-account > strong,
+.pre-share-account > small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.pre-share-list h4 {
+  margin-block: 12px 6px;
+}

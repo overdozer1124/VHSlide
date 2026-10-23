@@ -199,8 +199,8 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await expect(a).toBeFocused();
     await expect(b).toBeFocused();
     await Promise.all([
-      a.press("Home").then(() => page.keyboard.type("Alice ")),
-      b.press("Home").then(() => other.keyboard.type("Bob ")),
+      a.press("Home").then(() => page.keyboard.insertText("Alice ")),
+      b.press("Home").then(() => other.keyboard.insertText("Bob ")),
     ]);
     await expect(a).toContainText("Alice");
     await expect(a).toContainText("Bob");
@@ -503,5 +503,114 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
     );
   } finally {
     await context.close();
+  }
+});
+
+test("pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(90000);
+  const owner = `roster-${info.project.name}`,
+    a = `${owner}-a`,
+    b = `${owner}-b`;
+  const button = (p: Page, name: string) =>
+    p.getByRole("button", { name, exact: true });
+  await signIn(page, owner);
+  await button(page, "この作品をクラウドに保存").click();
+  await saved(page);
+  await button(page, "クラウド").click();
+  await button(page, "共同編集の招待リンクを作る").click();
+  const invite = await page
+    .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
+    .inputValue();
+  await button(page, "アカウントを事前共有").click();
+  const paste = page.getByRole("textbox", {
+    name: "事前共有するメールアドレス",
+    exact: true,
+  });
+  await paste.fill(
+    `${a.toUpperCase()}@EXAMPLE.TEST,\n児童B <${b}@example.test>\n${a}@example.test`,
+  );
+  const preview = page.getByRole("region", {
+    name: "事前共有のプレビュー",
+    exact: true,
+  });
+  await expect(preview.locator("li")).toHaveCount(2);
+  await expect(preview.locator("li").nth(0)).toContainText("1行目");
+  await expect(preview.locator("li").nth(1)).toContainText("2行目");
+  await page
+    .getByRole("combobox", { name: "割り当てを開始する行", exact: true })
+    .selectOption("99");
+  await expect(page.locator(".pre-sharing [role=alert]")).toContainText(
+    "100行を超えます",
+  );
+  await expect(button(page, "事前共有を保存")).toBeDisabled();
+  await page
+    .getByRole("combobox", { name: "割り当てを開始する行", exact: true })
+    .selectOption("0");
+  await preview.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath("pre-sharing-preview.png") });
+  await button(page, "事前共有を保存").click();
+  await expect(page.locator(".pre-share-account")).toHaveCount(2);
+  await expect(paste).toHaveValue("");
+  await page.reload();
+  await saved(page);
+  await button(page, "クラウド").click();
+  await button(page, "アカウントを事前共有").click();
+  await expect(page.locator(".pre-share-account")).toHaveCount(2);
+  await expect(
+    page.getByRole("combobox", { name: "割り当てを開始する行", exact: true }),
+  ).toHaveValue("2");
+  const ca = await browser.newContext({
+      baseURL: "http://127.0.0.1:3187",
+      viewport: { width: 1440, height: 1000 },
+    }),
+    cb = await browser.newContext({
+      baseURL: "http://127.0.0.1:3187",
+      viewport: { width: 1440, height: 1000 },
+    });
+  const pa = await ca.newPage(),
+    pb = await cb.newPage();
+  try {
+    await signIn(pa, a);
+    await button(pa, "作品を開く：わたしたちのまちの、いいところ").click();
+    await saved(pa);
+    await openEditor(pa);
+    await expect(button(pa, "文字")).toBeEnabled();
+    await expect(button(pa, "空のシートを追加")).toBeDisabled();
+    await pa.locator(".editor-workspace .element").first().click();
+    const text = pa.getByRole("textbox", {
+      name: "スライド内の文字",
+      exact: true,
+    });
+    await text.press("Home");
+    await pa.keyboard.type("assigned ");
+    await saved(pa);
+    await pa.keyboard.press("Escape");
+    await signIn(pb, b, invite);
+    await saved(pb);
+    await openEditor(pb);
+    await expect(button(pb, "文字")).toBeDisabled();
+    await button(pb, "2段目の横のページをひらく").click();
+    await expect(button(pb, "文字")).toBeEnabled();
+    await button(page, "参加者一覧を更新").click();
+    await expect(
+      page
+        .locator(".pre-share-account")
+        .filter({ hasText: `${a}@example.test` }),
+    ).toContainText("参加済み");
+    await button(page, `${a}@example.testの事前編集権限を設定`).click();
+    await page
+      .getByRole("combobox", { name: "編集の権限", exact: true })
+      .selectOption("none");
+    await button(page, "事前編集権限を保存").click();
+    await expect(button(pa, "文字")).toBeDisabled();
+    await button(page, `${b}@example.testの事前共有を解除`).click();
+    await expect(pb.locator(".cloud-presence")).toContainText("共有停止");
+    await expect(page.locator(".pre-share-account")).toHaveCount(1);
+  } finally {
+    await ca.close();
+    await cb.close();
   }
 });

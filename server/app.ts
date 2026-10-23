@@ -1,3 +1,4 @@
+import { normalizeEmail, parseRecipients } from "../src/preSharing.ts";
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
 import {
   AccessError,
@@ -118,6 +119,8 @@ export function createApplication(options: Options) {
     CREATE TABLE IF NOT EXISTS members (deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(deck,user_id));
     CREATE TABLE IF NOT EXISTS grants (deck TEXT NOT NULL, user_id TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(deck,user_id), FOREIGN KEY(deck,user_id) REFERENCES members(deck,user_id) ON DELETE CASCADE);
     CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, slide TEXT NOT NULL, author TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS recipients (deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, email TEXT NOT NULL, value TEXT NOT NULL, rank INTEGER NOT NULL, user_id TEXT, PRIMARY KEY(deck,email));
+    CREATE INDEX IF NOT EXISTS recipients_email ON recipients(email);
     CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE);
     CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, data BLOB NOT NULL);
     CREATE INDEX IF NOT EXISTS updates_deck ON updates(deck,seq);
@@ -209,6 +212,62 @@ export function createApplication(options: Options) {
       .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
       .get(id, user) as { value: string } | undefined;
     return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+  }
+  function recipientList(id: string) {
+    return (
+      db
+        .prepare(
+          "SELECT recipients.email,recipients.value,recipients.user_id,users.name FROM recipients LEFT JOIN users ON users.id=recipients.user_id WHERE deck=? ORDER BY recipients.rank,recipients.email",
+        )
+        .all(id) as unknown as {
+        email: string;
+        value: string;
+        user_id: string | null;
+        name: string | null;
+      }[]
+    ).map((r) => ({
+      email: r.email,
+      access: JSON.parse(r.value),
+      ...(r.user_id ? { userId: r.user_id, name: r.name } : {}),
+    }));
+  }
+  function claim(u: User) {
+    const pending = db
+      .prepare(
+        "SELECT recipients.deck,recipients.email,recipients.value FROM recipients JOIN decks ON decks.id=recipients.deck WHERE email=? AND user_id IS NULL AND decks.owner<>?",
+      )
+      .all(normalizeEmail(u.email), u.id) as unknown as {
+      deck: string;
+      email: string;
+      value: string;
+    }[];
+    for (const recipient of pending) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare("INSERT OR IGNORE INTO members VALUES(?,?)").run(
+          recipient.deck,
+          u.id,
+        );
+        db.prepare(
+          "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
+        ).run(recipient.deck, u.id, recipient.value);
+        db.prepare(
+          "UPDATE recipients SET user_id=? WHERE deck=? AND email=? AND user_id IS NULL",
+        ).run(u.id, recipient.deck, recipient.email);
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+      for (const peer of rooms.get(recipient.deck)?.clients ?? [])
+        if (peer.user.id === u.id)
+          peer.ws.send(
+            JSON.stringify({
+              type: "access",
+              access: JSON.parse(recipient.value),
+            }),
+          );
+    }
   }
   function room(id: string): Room {
     const existing = rooms.get(id);
@@ -390,6 +449,7 @@ export function createApplication(options: Options) {
       }
       if (path.startsWith("/api/")) {
         const u = user(req);
+        claim(u);
         if (method !== "GET") rateLimit(`api:${u.id}`, 120);
         if (path === "/api/decks" && method === "GET") {
           const decks = db
@@ -520,6 +580,119 @@ export function createApplication(options: Options) {
           db.prepare("DELETE FROM invites WHERE deck=?").run(id);
           return json(res, 200, { ok: true });
         }
+        if (extra === "recipients") {
+          member(id, u, true);
+          if (method === "GET")
+            return json(res, 200, { recipients: recipientList(id) });
+          if (method === "POST") {
+            let recipients;
+            try {
+              recipients = parseRecipients(
+                JSON.parse((await body(req, 1_500_000)).toString()),
+                u.email,
+              );
+            } catch (error) {
+              throw new HttpError(400, (error as Error).message);
+            }
+            const existing = recipientList(id);
+            insist(
+              new Set([
+                ...existing.map((r) => r.email),
+                ...recipients.map((r) => r.email),
+              ]).size <= 500,
+              413,
+              "事前共有は1作品500アカウントまでです。",
+            );
+            const notifications: { user: string; access: unknown }[] = [];
+            db.exec("BEGIN IMMEDIATE");
+            try {
+              let rank = (
+                db
+                  .prepare(
+                    "SELECT COALESCE(MAX(rank),-1) AS n FROM recipients WHERE deck=?",
+                  )
+                  .get(id) as { n: number }
+              ).n;
+              for (const recipient of recipients) {
+                const prior = existing.find((r) => r.email === recipient.email);
+                const known = db
+                  .prepare(
+                    "SELECT users.id FROM users JOIN members ON members.user_id=users.id WHERE members.deck=? AND lower(users.email)=?",
+                  )
+                  .all(id, recipient.email) as { id: string }[];
+                const target =
+                  prior?.userId ?? (known.length === 1 ? known[0].id : null);
+                db.prepare(
+                  "INSERT INTO recipients VALUES(?,?,?,?,?) ON CONFLICT(deck,email) DO UPDATE SET value=excluded.value,user_id=excluded.user_id",
+                ).run(
+                  id,
+                  recipient.email,
+                  JSON.stringify(recipient.access),
+                  ++rank,
+                  target,
+                );
+                if (target) {
+                  db.prepare(
+                    "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
+                  ).run(id, target, JSON.stringify(recipient.access));
+                  notifications.push({
+                    user: target,
+                    access: recipient.access,
+                  });
+                }
+              }
+              db.exec("COMMIT");
+            } catch (error) {
+              db.exec("ROLLBACK");
+              throw error;
+            }
+            for (const value of notifications)
+              for (const peer of rooms.get(id)?.clients ?? [])
+                if (peer.user.id === value.user)
+                  peer.ws.send(
+                    JSON.stringify({ type: "access", access: value.access }),
+                  );
+            return json(res, 200, { recipients: recipientList(id) });
+          }
+        }
+        if (extra?.startsWith("recipients/") && method === "DELETE") {
+          member(id, u, true);
+          const email = normalizeEmail(decodeURIComponent(extra.slice(11)));
+          const entry = db
+            .prepare("SELECT user_id FROM recipients WHERE deck=? AND email=?")
+            .get(id, email) as { user_id: string | null } | undefined;
+          insist(
+            !entry?.user_id || entry.user_id !== access.owner,
+            400,
+            "ホストの参加権限は解除できません。",
+          );
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            db.prepare("DELETE FROM recipients WHERE deck=? AND email=?").run(
+              id,
+              email,
+            );
+            if (entry?.user_id) {
+              db.prepare("DELETE FROM grants WHERE deck=? AND user_id=?").run(
+                id,
+                entry.user_id,
+              );
+              db.prepare("DELETE FROM members WHERE deck=? AND user_id=?").run(
+                id,
+                entry.user_id,
+              );
+            }
+            db.exec("COMMIT");
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+          if (entry?.user_id)
+            for (const peer of rooms.get(id)?.clients ?? [])
+              if (peer.user.id === entry.user_id)
+                peer.ws.close(4003, "作品への参加が解除されました。");
+          return json(res, 200, { recipients: recipientList(id) });
+        }
         if (extra === "members" && method === "GET") {
           member(id, u, true);
           return json(res, 200, {
@@ -565,6 +738,9 @@ export function createApplication(options: Options) {
           db.prepare(
             "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
           ).run(id, target, JSON.stringify(grant));
+          db.prepare(
+            "UPDATE recipients SET value=? WHERE deck=? AND user_id=?",
+          ).run(JSON.stringify(grant), id, target);
           for (const peer of rooms.get(id)?.clients ?? [])
             if (peer.user.id === target)
               peer.ws.send(JSON.stringify({ type: "access", access: grant }));
@@ -646,6 +822,10 @@ export function createApplication(options: Options) {
           member(id, u, true);
           const removed = decodeURIComponent(extra.slice(8));
           insist(removed !== u.id, 400, "作成者は参加者から削除できません。");
+          db.prepare("DELETE FROM recipients WHERE deck=? AND user_id=?").run(
+            id,
+            removed,
+          );
           db.prepare("DELETE FROM members WHERE deck=? AND user_id=?").run(
             id,
             removed,

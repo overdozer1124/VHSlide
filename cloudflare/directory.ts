@@ -1,3 +1,4 @@
+import { normalizeEmail, parseRecipients } from "../src/preSharing.ts";
 import { defaultAccess, hostAccess, parseAccess } from "../src/permissions.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
@@ -48,6 +49,8 @@ export class Directory extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS decks (id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL, updated INTEGER NOT NULL, status TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS members (deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(deck,user_id));
       CREATE TABLE IF NOT EXISTS grants (deck TEXT NOT NULL, user_id TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(deck,user_id), FOREIGN KEY(deck,user_id) REFERENCES members(deck,user_id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS recipients (deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, email TEXT NOT NULL, value TEXT NOT NULL, rank INTEGER NOT NULL, user_id TEXT, PRIMARY KEY(deck,email));
+      CREATE INDEX IF NOT EXISTS recipients_email ON recipients(email);
       CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, owner TEXT NOT NULL, bytes INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS members_user ON members(user_id);
@@ -123,10 +126,75 @@ export class Directory extends DurableObject<Env> {
     );
     return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
   }
+  private async claim(user: User) {
+    const pending = rows<{ deck: string; email: string; value: string }>(
+      this.sql,
+      "SELECT recipients.deck,recipients.email,recipients.value FROM recipients JOIN decks ON decks.id=recipients.deck WHERE recipients.email=? AND recipients.user_id IS NULL AND decks.status='ready' AND decks.owner<>?",
+      normalizeEmail(user.email),
+      user.id,
+    );
+    for (const recipient of pending) {
+      let value: string | undefined;
+      this.ctx.storage.transactionSync(() => {
+        const current = one<{ value: string }>(
+          this.sql,
+          "SELECT recipients.value FROM recipients JOIN decks ON decks.id=recipients.deck WHERE recipients.deck=? AND recipients.email=? AND recipients.user_id IS NULL AND decks.status='ready' AND decks.owner<>?",
+          recipient.deck,
+          recipient.email,
+          user.id,
+        );
+        if (!current) return;
+        value = current.value;
+        this.sql.exec(
+          "INSERT OR IGNORE INTO members VALUES(?,?)",
+          recipient.deck,
+          user.id,
+        );
+        this.sql.exec(
+          "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
+          recipient.deck,
+          user.id,
+          value,
+        );
+        this.sql.exec(
+          "UPDATE recipients SET user_id=? WHERE deck=? AND email=? AND user_id IS NULL",
+          user.id,
+          recipient.deck,
+          recipient.email,
+        );
+      });
+      if (value)
+        await checked(
+          await room(this.env, recipient.deck).fetch(
+            internal("/permissions", {
+              user: user.id,
+              access: JSON.parse(value),
+            }),
+          ),
+        );
+    }
+  }
+  private recipientList(id: string) {
+    return rows<{
+      email: string;
+      value: string;
+      user_id: string | null;
+      name: string | null;
+    }>(
+      this.sql,
+      "SELECT recipients.email,recipients.value,recipients.user_id,users.name FROM recipients LEFT JOIN users ON users.id=recipients.user_id WHERE deck=? ORDER BY recipients.rank,recipients.email",
+      id,
+    ).map((r) => ({
+      email: r.email,
+      access: JSON.parse(r.value),
+      ...(r.user_id ? { userId: r.user_id, name: r.name } : {}),
+    }));
+  }
   private removeWork(id: string) {
     this.ctx.storage.transactionSync(() => {
       this.sql.exec("DELETE FROM assets WHERE deck=?", id);
       this.sql.exec("DELETE FROM invites WHERE deck=?", id);
+      this.sql.exec("DELETE FROM recipients WHERE deck=?", id);
       this.sql.exec("DELETE FROM grants WHERE deck=?", id);
       this.sql.exec("DELETE FROM members WHERE deck=?", id);
       this.sql.exec("DELETE FROM decks WHERE id=?", id);
@@ -315,6 +383,7 @@ export class Directory extends DurableObject<Env> {
     }
     const identity = await this.identity(request),
       user = identity.user;
+    if (path !== "/api/logout") await this.claim(user);
     if (path === "/api/logout" && method === "POST") {
       this.sql.exec("DELETE FROM sessions WHERE hash=?", identity.session);
       const works = rows<{ deck: string }>(
@@ -473,6 +542,112 @@ export class Directory extends DurableObject<Env> {
           : json({ ok: true });
       }
     }
+    if (extra === "recipients") {
+      this.access(id, user, true);
+      if (method === "GET") return json({ recipients: this.recipientList(id) });
+      if (method === "POST") {
+        let recipients;
+        try {
+          recipients = parseRecipients(
+            await input(request, 1_500_000),
+            user.email,
+          );
+        } catch (error) {
+          throw new HttpError(400, (error as Error).message);
+        }
+        const existing = this.recipientList(id);
+        insist(
+          new Set([
+            ...existing.map((r) => r.email),
+            ...recipients.map((r) => r.email),
+          ]).size <= 500,
+          413,
+          "事前共有は1作品500アカウントまでです。",
+        );
+        const notifications: { user: string; access: unknown }[] = [];
+        this.ctx.storage.transactionSync(() => {
+          let rank = one<{ n: number }>(
+            this.sql,
+            "SELECT COALESCE(MAX(rank),-1) AS n FROM recipients WHERE deck=?",
+            id,
+          )!.n;
+          for (const recipient of recipients) {
+            const prior = existing.find((r) => r.email === recipient.email);
+            const known = rows<{ id: string }>(
+              this.sql,
+              "SELECT users.id FROM users JOIN members ON members.user_id=users.id WHERE members.deck=? AND lower(users.email)=?",
+              id,
+              recipient.email,
+            );
+            const target =
+              prior?.userId ?? (known.length === 1 ? known[0].id : null);
+            this.sql.exec(
+              "INSERT INTO recipients VALUES(?,?,?,?,?) ON CONFLICT(deck,email) DO UPDATE SET value=excluded.value,user_id=excluded.user_id",
+              id,
+              recipient.email,
+              JSON.stringify(recipient.access),
+              ++rank,
+              target,
+            );
+            if (target) {
+              this.sql.exec(
+                "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
+                id,
+                target,
+                JSON.stringify(recipient.access),
+              );
+              notifications.push({ user: target, access: recipient.access });
+            }
+          }
+        });
+        for (const value of notifications)
+          await checked(
+            await room(this.env, id).fetch(internal("/permissions", value)),
+          );
+        return json({ recipients: this.recipientList(id) });
+      }
+    }
+    if (extra?.startsWith("recipients/") && method === "DELETE") {
+      this.access(id, user, true);
+      const email = normalizeEmail(decodeURIComponent(extra.slice(11)));
+      const entry = one<{ user_id: string | null }>(
+        this.sql,
+        "SELECT user_id FROM recipients WHERE deck=? AND email=?",
+        id,
+        email,
+      );
+      insist(
+        !entry?.user_id || entry.user_id !== work.owner,
+        400,
+        "ホストの参加権限は解除できません。",
+      );
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec(
+          "DELETE FROM recipients WHERE deck=? AND email=?",
+          id,
+          email,
+        );
+        if (entry?.user_id) {
+          this.sql.exec(
+            "DELETE FROM grants WHERE deck=? AND user_id=?",
+            id,
+            entry.user_id,
+          );
+          this.sql.exec(
+            "DELETE FROM members WHERE deck=? AND user_id=?",
+            id,
+            entry.user_id,
+          );
+        }
+      });
+      if (entry?.user_id)
+        await checked(
+          await room(this.env, id).fetch(
+            internal("/revoke", { user: entry.user_id }),
+          ),
+        );
+      return json({ recipients: this.recipientList(id) });
+    }
     if (extra === "members" && method === "GET") {
       this.access(id, user, true);
       return json({
@@ -514,6 +689,12 @@ export class Directory extends DurableObject<Env> {
         target,
         JSON.stringify(access),
       );
+      this.sql.exec(
+        "UPDATE recipients SET value=? WHERE deck=? AND user_id=?",
+        JSON.stringify(access),
+        id,
+        target,
+      );
       await checked(
         await room(this.env, id).fetch(
           internal("/permissions", { user: target, access }),
@@ -543,6 +724,11 @@ export class Directory extends DurableObject<Env> {
       this.access(id, user, true);
       const removed = decodeURIComponent(extra.slice(8));
       insist(removed !== user.id, 400, "作成者は参加者から削除できません。");
+      this.sql.exec(
+        "DELETE FROM recipients WHERE deck=? AND user_id=?",
+        id,
+        removed,
+      );
       this.sql.exec(
         "DELETE FROM grants WHERE deck=? AND user_id=?",
         id,
