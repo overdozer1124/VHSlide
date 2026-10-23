@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { Deck, Slide } from "./model";
 import { bounds, W, rowPage } from "./model";
+import { ThumbnailFooter } from "./ThumbnailFooter";
 import { Canvas } from "./Canvas";
 import {
   DndContext,
@@ -45,6 +46,9 @@ import {
 
 interface SlideRailProps {
   filtered?: boolean;
+  footerLabel: (slide: Slide) => string;
+  footerEditable: (slide: Slide) => boolean;
+  onFooterChange: (id: string, text: string) => void;
   numbers: boolean;
   onToggleNumbers: () => void;
   scale: number;
@@ -68,6 +72,9 @@ interface SlideRailProps {
 /** A resizable column, with a temporary horizontal view of each grid row. */
 export function SlideRail({
   filtered = false,
+  footerLabel,
+  footerEditable,
+  onFooterChange,
   numbers,
   onToggleNumbers,
   scale,
@@ -580,10 +587,24 @@ export function SlideRail({
                               <span className="rail-empty">空のマス</span>
                             )}
                           </span>
-                          <span className="rail-page-title">
-                            {cell?.title ?? "横のページを確認"}
+                          <span
+                            className="rail-page-title"
+                            aria-hidden={!!cell}
+                            style={cell ? { visibility: "hidden" } : undefined}
+                          >
+                            {cell ? footerLabel(cell) : "横のページを確認"}
                           </span>
                         </button>
+                        {cell && (
+                          <div className="rail-footer-editor">
+                            <ThumbnailFooter
+                              slide={cell}
+                              label={footerLabel(cell)}
+                              editable={footerEditable(cell)}
+                              onChange={onFooterChange}
+                            />
+                          </div>
+                        )}
                         <button
                           className="thumbnail-more rail-more"
                           aria-label={`${y + 1}段目のメニュー`}
@@ -817,7 +838,13 @@ export function SlideRail({
                               <span>
                                 {openRow + 1}.{x + 1}
                               </span>
-                              <span>{cell?.title ?? "ページを追加"}</span>
+                              <span
+                                style={
+                                  cell ? { visibility: "hidden" } : undefined
+                                }
+                              >
+                                {cell ? footerLabel(cell) : "ページを追加"}
+                              </span>
                               {cell && !filtered && (
                                 <span
                                   className="page-drag-grip"
@@ -832,6 +859,15 @@ export function SlideRail({
                               <span className="row-editing-badge">編集中</span>
                             )}
                           </button>
+                          {cell && (
+                            <ThumbnailFooter
+                              className="flyout-footer-editor"
+                              slide={cell}
+                              label={footerLabel(cell)}
+                              editable={footerEditable(cell)}
+                              onChange={onFooterChange}
+                            />
+                          )}
                           {cell && (
                             <button
                               className="thumbnail-more page-more"

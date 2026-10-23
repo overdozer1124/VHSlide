@@ -29,6 +29,7 @@ export interface Element {
   stroke?: string;
 }
 export interface Slide {
+  footerLabel?: string;
   id: string;
   sheetId?: string;
   x: number;
@@ -537,6 +538,9 @@ export function parseDeck(input: string): Deck {
       x,
       y,
       title: str(s.title, 200),
+      ...(s.footerLabel === undefined
+        ? {}
+        : { footerLabel: str(s.footerLabel, 80) }),
       background: color(s.background),
       elements: s.elements.map((e: any): Element => {
         if (!e || !["text", "image", "shape"].includes(e.type)) return fail();

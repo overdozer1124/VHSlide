@@ -95,6 +95,10 @@ export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
         target.set("elements", new Y.Map());
       }
       changeText(target.get("title") as Y.Text, old?.title ?? "", slide.title);
+      if (old?.footerLabel !== slide.footerLabel) {
+        if (slide.footerLabel === undefined) target.delete("footerLabel");
+        else target.set("footerLabel", slide.footerLabel);
+      }
       if (!old || old.x !== slide.x || old.y !== slide.y)
         target.set("position", { x: slide.x, y: slide.y });
       if (!old || old.sheetId !== slide.sheetId) {
@@ -213,6 +217,9 @@ export function readSharedDeck(doc: Y.Doc): Deck {
         : { sheetId: s.get("sheetId") as string }),
       ...position,
       title: text(s.get("title")),
+      ...(s.has("footerLabel")
+        ? { footerLabel: String(s.get("footerLabel")) }
+        : {}),
       background: s.get("background") as string,
       elements,
     });

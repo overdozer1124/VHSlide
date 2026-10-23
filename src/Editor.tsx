@@ -25,6 +25,7 @@ import { Canvas } from "./Canvas";
 import { EditorPager } from "./EditorPager";
 import { useFitCanvas } from "./useFitCanvas";
 import type { CloudWorkspace } from "./cloud";
+import { thumbnailLabel } from "./ThumbnailFooter";
 import { SlideComments } from "./SlideComments";
 import { StickyNote } from "lucide-react";
 import { SlideRail } from "./SlideRail";
@@ -42,6 +43,7 @@ const colors = [
 ];
 interface EditorProps {
   editable: boolean;
+  onFooterChange: (id: string, text: string) => void;
   cloud?: CloudWorkspace;
   deck: Deck;
   navigationDeck: Deck;
@@ -82,6 +84,7 @@ interface EditorProps {
 }
 export function Editor({
   editable,
+  onFooterChange,
   cloud,
   deck,
   navigationDeck,
@@ -270,6 +273,9 @@ export function Editor({
         {!railCollapsed && (
           <SlideRail
             numbers={railNumbers}
+            footerLabel={(page) => thumbnailLabel(page, cloud?.accountLabels)}
+            footerEditable={(page) => cloud?.canEdit(page) ?? true}
+            onFooterChange={onFooterChange}
             onToggleNumbers={onToggleRailNumbers}
             scale={railScale}
             onScale={onRailScale}

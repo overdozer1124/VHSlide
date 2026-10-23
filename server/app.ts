@@ -1,7 +1,7 @@
 import {
   normalizeEmail,
   parseRecipients,
-  rowAccountNames,
+  sharedAccountNames,
 } from "../src/preSharing.ts";
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
 import {
@@ -131,6 +131,19 @@ export function createApplication(options: Options) {
     CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, owner TEXT NOT NULL, mime TEXT NOT NULL, bytes INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS assets_owner ON assets(owner);
   `);
+  const commentColumns = new Set(
+    (db.prepare("PRAGMA table_info(comments)").all() as { name: string }[]).map(
+      (c) => c.name,
+    ),
+  );
+  for (const [name, type] of [
+    ["color", "TEXT NOT NULL DEFAULT '#fff0a6'"],
+    ["w", "REAL NOT NULL DEFAULT 0.24"],
+    ["h", "REAL NOT NULL DEFAULT 0.30"],
+  ])
+    if (!commentColumns.has(name))
+      db.exec(`ALTER TABLE comments ADD COLUMN ${name} ${type}`);
+
   const storage = assetStorage(join(options.directory, "assets"));
   const rooms = new Map<string, Room>(),
     peers = new Set<Peer>(),
@@ -715,9 +728,14 @@ export function createApplication(options: Options) {
                 access: permissions(id, person.id, access.owner),
               };
             });
-          return json(res, 200, {
-            rows: rowAccountNames(recipientList(id), people),
-          });
+          return json(
+            res,
+            200,
+            sharedAccountNames(
+              recipientList(id),
+              people.filter((p) => p.id !== access.owner),
+            ),
+          );
         }
         if (extra === "members" && method === "GET") {
           member(id, u, true);
@@ -783,7 +801,7 @@ export function createApplication(options: Options) {
             return json(res, 200, {
               comments: db
                 .prepare(
-                  "SELECT id,slide,author,name,text,x,y,created FROM comments WHERE deck=? ORDER BY created,id",
+                  "SELECT id,slide,author,name,text,x,y,created,color,w,h FROM comments WHERE deck=? ORDER BY created,id",
                 )
                 .all(id),
             });
@@ -834,7 +852,7 @@ export function createApplication(options: Options) {
               "付箋は作品全体で2000枚までです。",
             );
             db.prepare(
-              "INSERT INTO comments VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,x=excluded.x,y=excluded.y",
+              "INSERT INTO comments(id,deck,slide,author,name,text,x,y,created,color,w,h) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,x=excluded.x,y=excluded.y,color=excluded.color,w=excluded.w,h=excluded.h",
             ).run(
               cid,
               id,
@@ -845,6 +863,9 @@ export function createApplication(options: Options) {
               value.x,
               value.y,
               Date.now(),
+              value.color ?? existing?.color ?? "#fff0a6",
+              value.w ?? existing?.w ?? 0.24,
+              value.h ?? existing?.h ?? 0.3,
             );
           } else if (method === "DELETE" && extra !== "comments") {
             const cid = extra.slice(9),

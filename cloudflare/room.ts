@@ -48,6 +48,18 @@ export class SlideRoom extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, mime TEXT NOT NULL, bytes INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS asset_chunks (asset TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(asset,part));
     `);
+    const columns = new Set(
+      rows<{ name: string }>(this.sql, "PRAGMA table_info(comments)").map(
+        (c) => c.name,
+      ),
+    );
+    for (const [name, type] of [
+      ["color", "TEXT NOT NULL DEFAULT '#fff0a6'"],
+      ["w", "REAL NOT NULL DEFAULT 0.24"],
+      ["h", "REAL NOT NULL DEFAULT 0.30"],
+    ])
+      if (!columns.has(name))
+        this.sql.exec(`ALTER TABLE comments ADD COLUMN ${name} ${type}`);
   }
   private id() {
     return one<{ value: string }>(
@@ -249,7 +261,7 @@ export class SlideRoom extends DurableObject<Env> {
           "付箋は作品全体で2000枚までです。",
         );
         this.sql.exec(
-          "INSERT INTO comments VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,x=excluded.x,y=excluded.y",
+          "INSERT INTO comments(id,slide,author,name,text,x,y,created,color,w,h) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,x=excluded.x,y=excluded.y,color=excluded.color,w=excluded.w,h=excluded.h",
           id,
           value.slide,
           data.user.id,
@@ -258,6 +270,9 @@ export class SlideRoom extends DurableObject<Env> {
           value.x,
           value.y,
           Date.now(),
+          value.color ?? existing?.color ?? "#fff0a6",
+          value.w ?? existing?.w ?? 0.24,
+          value.h ?? existing?.h ?? 0.3,
         );
       } else if (data.method === "DELETE") {
         const id = path.slice(10),

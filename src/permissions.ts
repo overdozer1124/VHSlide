@@ -108,12 +108,18 @@ export type SlideComment = {
   x: number;
   y: number;
   created: number;
+  color?: string;
+  w?: number;
+  h?: number;
 };
 export function parseComment(value: unknown): {
   slide: string;
   text: string;
   x: number;
   y: number;
+  color?: string;
+  w?: number;
+  h?: number;
 } {
   const v = value as SlideComment;
   if (
@@ -132,5 +138,19 @@ export function parseComment(value: unknown): {
     v.y > 1
   )
     throw new Error("付箋は1000文字以内で入力してください。");
-  return { slide: v.slide, text: v.text.trim(), x: v.x, y: v.y };
+  if (
+    (v.color !== undefined && !/^#[0-9a-f]{6}$/i.test(v.color)) ||
+    (v.w !== undefined && (!Number.isFinite(v.w) || v.w < 0.12 || v.w > 0.8)) ||
+    (v.h !== undefined && (!Number.isFinite(v.h) || v.h < 0.16 || v.h > 0.8))
+  )
+    throw new Error("付箋の色・サイズが正しくありません。");
+  return {
+    slide: v.slide,
+    text: v.text.trim(),
+    x: v.x,
+    y: v.y,
+    ...(v.color === undefined ? {} : { color: v.color }),
+    ...(v.w === undefined ? {} : { w: v.w }),
+    ...(v.h === undefined ? {} : { h: v.h }),
+  };
 }

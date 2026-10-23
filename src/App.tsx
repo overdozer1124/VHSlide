@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
 import { flushSync } from "react-dom";
 import { WorkspaceTransition } from "./WorkspaceTransition";
 import type { WorkspaceFlight } from "./WorkspaceTransition";
@@ -6,6 +6,7 @@ import {
   Check,
   Cloud,
   CircleHelp,
+  History,
   Download,
   LayoutGrid,
   Plus,
@@ -55,6 +56,7 @@ import type {
   OpenThumbnailMenu,
 } from "./ThumbnailMenu";
 import { CloudWorkspace, portableDeck } from "./cloud";
+import { thumbnailLabel } from "./ThumbnailFooter";
 import { CloudPanel } from "./CloudPanel";
 import { CloudDocument } from "./CloudContext";
 import {
@@ -67,6 +69,7 @@ import {
 import { SheetTabs } from "./SheetTabs";
 import { matchesFilter } from "./mapFilter";
 import type { MapFilter } from "./mapFilter";
+const ReleaseHistory = lazy(() => import("./ReleaseHistory"));
 const KEY = "vhslide-deck-v1";
 function initial(): { deck: Deck; error?: string } {
   try {
@@ -138,6 +141,31 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState("この端末に自動保存");
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
+  const [updatesOpen, setUpdatesOpen] = useState(
+    () => location.hash === "#updates",
+  );
+  useEffect(() => {
+    const sync = () => setUpdatesOpen(location.hash === "#updates");
+    window.addEventListener("popstate", sync);
+    window.addEventListener("hashchange", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hashchange", sync);
+    };
+  }, []);
+  function openUpdates() {
+    history.pushState(
+      null,
+      "",
+      `${location.pathname}${location.search}#updates`,
+    );
+    setUpdatesOpen(true);
+  }
+  function closeUpdates() {
+    history.replaceState(null, "", `${location.pathname}${location.search}`);
+    setUpdatesOpen(false);
+  }
+
   const [preferences, setPreferences] = useWorkspacePreferences();
   const [mapScale, setMapScale] = useState(
     () => closestZoom(preferences.zoomSteps) / 100,
@@ -231,6 +259,21 @@ export default function App() {
       notify((error as Error).message);
       return false;
     }
+  }
+  function changeFooter(id: string, text: string) {
+    const book = latestWorkbook.current,
+      page = book.slides.find((s) => s.id === id);
+    if (!page || !cloud.canEdit(page)) return;
+    commitWorkbook({
+      ...book,
+      slides: book.slides.map((s) => {
+        if (s.id !== id) return s;
+        const next = { ...s };
+        if (text) next.footerLabel = text;
+        else delete next.footerLabel;
+        return next;
+      }),
+    });
   }
   function selectSheet(id: string) {
     const next = { ...latestWorkbook.current, activeSheetId: id };
@@ -502,6 +545,7 @@ export default function App() {
   }
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (updatesOpen) return;
       if (
         (event.target as HTMLElement).closest(
           "input,textarea,select,[contenteditable],[role=menu]",
@@ -570,6 +614,7 @@ export default function App() {
   });
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
+      if (updatesOpen) return;
       if (
         view !== "editor" ||
         (e.target as HTMLElement).closest("input,textarea")
@@ -831,6 +876,14 @@ export default function App() {
     <div className="history">
       <button
         className="icon-button"
+        aria-label="更新履歴"
+        title="更新履歴"
+        onClick={openUpdates}
+      >
+        <History size={18} />
+      </button>
+      <button
+        className="icon-button"
         aria-label="もとに戻す"
         title={
           cloud.undoManager
@@ -873,6 +926,7 @@ export default function App() {
   return (
     <CloudDocument.Provider value={cloud.doc}>
       <div
+        inert={updatesOpen}
         onPointerDownCapture={() => {
           if (flight) flushSync(() => setFlight(undefined));
         }}
@@ -1062,6 +1116,9 @@ export default function App() {
             key={activeSheet(workbook).id}
             visible={view === "map"}
             headingEditable={cloud.isHost}
+            footerLabel={(page) => thumbnailLabel(page, cloud.accountLabels)}
+            footerEditable={(page) => cloud.canEdit(page)}
+            onFooterChange={changeFooter}
             accountsAvailable={!!cloud.active}
             rowAccounts={cloud.rowAccounts[activeSheet(workbook).id]}
             onHeadingChange={(patch) => {
@@ -1125,6 +1182,7 @@ export default function App() {
         {view === "editor" && navigationDeck.slides.length > 0 && (
           <Editor
             editable={cloud.canEdit(slide!)}
+            onFooterChange={changeFooter}
             cloud={cloud.active ? cloud : undefined}
             deck={deck}
             navigationDeck={navigationDeck}
@@ -1235,6 +1293,17 @@ export default function App() {
           </div>
         )}
       </div>
+      {updatesOpen && (
+        <Suspense
+          fallback={
+            <div className="release-history" role="status">
+              更新履歴を読み込み中…
+            </div>
+          }
+        >
+          <ReleaseHistory onClose={closeUpdates} />
+        </Suspense>
+      )}
     </CloudDocument.Provider>
   );
 }

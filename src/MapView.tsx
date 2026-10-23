@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, memo } from "react";
+import { ThumbnailFooter } from "./ThumbnailFooter";
 import { MapHeading } from "./MapHeading";
 import { activeSheet } from "./workbook";
 import type { Sheet } from "./model";
@@ -45,6 +46,9 @@ import type { MapFilter } from "./mapFilter";
 interface MapViewProps {
   visible: boolean;
   headingEditable: boolean;
+  footerLabel: (slide: Slide) => string;
+  footerEditable: (slide: Slide) => boolean;
+  onFooterChange: (id: string, text: string) => void;
   accountsAvailable: boolean;
   rowAccounts?: Record<string, string[]>;
   onHeadingChange: (patch: Partial<Sheet>) => void;
@@ -72,6 +76,9 @@ interface MapViewProps {
 function MapViewComponent({
   visible,
   headingEditable,
+  footerLabel,
+  footerEditable,
+  onFooterChange,
   accountsAvailable,
   rowAccounts,
   onHeadingChange,
@@ -999,7 +1006,12 @@ function MapViewComponent({
                                 <span className="page-number">
                                   {s.y + 1}.{s.x + 1}
                                 </span>
-                                <span className="card-title">{s.title}</span>
+                                <ThumbnailFooter
+                                  slide={s}
+                                  label={footerLabel(s)}
+                                  editable={!filterOpen && footerEditable(s)}
+                                  onChange={onFooterChange}
+                                />
                                 {!filterOpen && (
                                   <>
                                     <button

@@ -97,3 +97,60 @@ it("builds row display names for pending and joined recipients without duplicati
   expect(Object.hasOwn(safe, "__proto__")).toBe(true);
   expect(({} as Record<string, unknown>)["0"]).toBeUndefined();
 });
+
+it("collects row, column, page and whole-work assignees for automatic thumbnail footers", async () => {
+  const { sharedAccountNames } = await import("./preSharing");
+  const { thumbnailLabel } = await import("./ThumbnailFooter");
+  const labels = sharedAccountNames(
+    [],
+    [
+      {
+        id: "row",
+        name: "花子",
+        access: {
+          ...defaultAccess(),
+          mode: "scoped",
+          rows: [{ sheetId: "main", index: 0 }],
+        },
+      },
+      {
+        id: "col",
+        name: "太郎",
+        access: {
+          ...defaultAccess(),
+          mode: "scoped",
+          columns: [{ sheetId: "main", index: 1 }],
+        },
+      },
+      {
+        id: "page",
+        name: "次郎",
+        access: { ...defaultAccess(), mode: "scoped", slides: ["p"] },
+      },
+      { id: "all", name: "先生", access: { ...defaultAccess(), mode: "all" } },
+      { id: "viewer", name: "閲覧者", access: defaultAccess() },
+    ],
+  );
+  const slide = {
+    id: "p",
+    x: 1,
+    y: 0,
+    title: "ページ名",
+    background: "#ffffff",
+    elements: [],
+  };
+  expect(thumbnailLabel(slide, labels)).toBe("先生・花子・太郎・次郎");
+  expect(thumbnailLabel({ ...slide, footerLabel: "1班" }, labels)).toBe("1班");
+  expect(
+    thumbnailLabel(
+      { ...slide, sheetId: "other", id: "q" },
+      { ...labels, all: [] },
+    ),
+  ).toBe("ページ名");
+  expect(
+    thumbnailLabel(
+      { ...slide, id: "constructor", sheetId: "other" },
+      { rows: {}, columns: {}, slides: {}, all: [] },
+    ),
+  ).toBe("ページ名");
+});

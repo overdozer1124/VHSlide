@@ -217,8 +217,27 @@ test("stores 1000 pages and private photos through a runtime restart and rejects
     ).status,
     400,
   );
+  await request(
+    `/api/decks/${id}/comments/77777777-1234-4567-8901-123456789abc`,
+    "PUT",
+    {
+      slide: deck.slides[0].id,
+      text: "再起動後も付箋の見た目を保存",
+      x: 0.2,
+      y: 0.3,
+      color: "#d2edff",
+      w: 0.37,
+      h: 0.43,
+    },
+  );
   await mf.dispose();
   mf = fixture.start();
+  const notesAfter = (await (
+    await request(`/api/decks/${id}/comments`)
+  ).json()) as any;
+  assert.equal(notesAfter.comments[0].color, "#d2edff");
+  assert.equal(notesAfter.comments[0].w, 0.37);
+  assert.equal(notesAfter.comments[0].h, 0.43);
   const restored = (await (await request(`/api/decks/${id}`)).json()) as {
     state: string;
   };
@@ -434,7 +453,15 @@ test("host grants are enforced on live edits; read-only guests can comment but c
     await request(`/api/decks/${id}/comments`)
   ).json()) as any;
   const hostNote = both.comments.find((c: any) => c.author === "owner");
-  const edited = { slide: own.id, text: "直接編集した付箋", x: 0.12, y: 0.22 };
+  const edited = {
+    slide: own.id,
+    text: "直接編集した付箋",
+    x: 0.12,
+    y: 0.22,
+    color: "#ffd9e3",
+    w: 0.38,
+    h: 0.48,
+  };
   const ownNoteId = notes.comments[0].id;
   const draftId = "bbbbbbbb-1234-4567-8901-123456789abc";
   assert.equal(
@@ -505,6 +532,11 @@ test("host grants are enforced on live edits; read-only guests can comment but c
     await request(`/api/decks/${id}/comments`)
   ).json()) as any;
   assert.equal(changed.comments.length, 2, "retry must not create duplicates");
+  const styled = changed.comments.find((c: any) => c.id === ownNoteId);
+  assert.equal(styled.color, "#ffd9e3");
+  assert.equal(styled.w, 0.38);
+  assert.equal(styled.h, 0.48);
+
   assert.equal(
     changed.comments.find((c: any) => c.id === ownNoteId).text,
     edited.text,
@@ -533,12 +565,38 @@ test("host grants are enforced on live edits; read-only guests can comment but c
     ).status,
     200,
   );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/comments/${ownNoteId}`, "PUT", {
+        slide: own.id,
+        text: "旧クライアントの編集",
+        x: 0.2,
+        y: 0.3,
+      })
+    ).status,
+    200,
+  );
   changed = (await (await request(`/api/decks/${id}/comments`)).json()) as any;
   assert.equal(
     changed.comments.find((c: any) => c.id === ownNoteId).author,
     "friend",
     "host editing preserves authorship",
   );
+  assert.equal(
+    changed.comments.find((c: any) => c.id === ownNoteId).color,
+    "#ffd9e3",
+  );
+  for (const style of [{ color: "bad" }, { w: 0.81 }, { h: 0.1 }])
+    assert.equal(
+      (
+        await request(`/api/decks/${id}/comments/${ownNoteId}`, "PUT", {
+          ...edited,
+          ...style,
+        })
+      ).status,
+      400,
+    );
+
   assert.equal(
     (
       await request(

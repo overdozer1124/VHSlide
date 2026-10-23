@@ -4,7 +4,8 @@ import {
   defaultAccess,
   hostAccess,
 } from "./permissions";
-import type { RowAccounts } from "./preSharing";
+import { emptyAccountLabels } from "./preSharing";
+import type { AccountLabels, RowAccounts } from "./preSharing";
 import type { EditAccess, SlideComment } from "./permissions";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
@@ -87,17 +88,17 @@ export class CloudWorkspace {
   access: EditAccess = defaultAccess();
   comments: SlideComment[] = [];
   rowAccounts: RowAccounts = {};
+  accountLabels: AccountLabels = emptyAccountLabels();
   private rosterRequest = 0;
   private rosterTimer?: ReturnType<typeof setTimeout>;
   async refreshRowAccounts() {
     const id = this.active?.id,
       sequence = ++this.rosterRequest;
     if (!id) return;
-    const data = await api<{ rows: RowAccounts }>(
-      `/api/decks/${id}/row-accounts`,
-    );
+    const data = await api<AccountLabels>(`/api/decks/${id}/row-accounts`);
     if (this.active?.id === id && sequence === this.rosterRequest) {
       this.rowAccounts = data.rows;
+      this.accountLabels = { ...emptyAccountLabels(), ...data };
       this.emit();
     }
   }
@@ -528,6 +529,7 @@ export class CloudWorkspace {
     this.rosterRequest++;
     clearTimeout(this.rosterTimer);
     this.rowAccounts = {};
+    this.accountLabels = emptyAccountLabels();
     this.comments = [];
     this.members = [];
     this.buffer = [];

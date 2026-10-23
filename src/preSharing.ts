@@ -83,13 +83,32 @@ export function parseRecipients(
 }
 
 export type RowAccounts = Record<string, Record<string, string[]>>;
-/** Expose only display names attached to explicitly assigned rows, never emails
- * or the rest of the permission settings, to other room participants. */
-export function rowAccountNames(
-  recipients: (Omit<Recipient, "name"> & { name?: string | null })[],
-  members: { id: string; name: string; access: EditAccess }[],
-): RowAccounts {
-  const result: RowAccounts = Object.create(null);
+export type AccountLabels = {
+  rows: RowAccounts;
+  columns: RowAccounts;
+  slides: Record<string, string[]>;
+  all: string[];
+};
+export const emptyAccountLabels = (): AccountLabels => ({
+  rows: {},
+  columns: {},
+  slides: {},
+  all: [],
+});
+type DisplayRecipient = Omit<Recipient, "name"> & { name?: string | null };
+type DisplayMember = { id: string; name: string; access: EditAccess };
+/** Return only display names and their assigned positions, without contact
+ * addresses, account IDs or permission settings. */
+export function sharedAccountNames(
+  recipients: DisplayRecipient[],
+  members: DisplayMember[],
+): AccountLabels {
+  const result: AccountLabels = {
+    rows: Object.create(null),
+    columns: Object.create(null),
+    slides: Object.create(null),
+    all: [],
+  };
   const claimed = new Set(
     recipients.flatMap((r) => (r.userId ? [r.userId] : [])),
   );
@@ -101,11 +120,24 @@ export function rowAccountNames(
     ...members.filter((m) => !claimed.has(m.id)),
   ];
   for (const person of people) {
-    if (person.access.mode !== "scoped") continue;
-    for (const row of person.access.rows) {
-      const sheet = (result[row.sheetId] ??= Object.create(null));
-      (sheet[String(row.index)] ??= []).push(person.name);
+    if (person.access.mode === "all") {
+      result.all.push(person.name);
+      continue;
     }
+    if (person.access.mode !== "scoped") continue;
+    for (const axis of ["rows", "columns"] as const)
+      for (const row of person.access[axis]) {
+        const sheet = (result[axis][row.sheetId] ??= Object.create(null));
+        (sheet[String(row.index)] ??= []).push(person.name);
+      }
+    for (const id of person.access.slides)
+      (result.slides[id] ??= []).push(person.name);
   }
   return result;
+}
+export function rowAccountNames(
+  recipients: DisplayRecipient[],
+  members: DisplayMember[],
+): RowAccounts {
+  return sharedAccountNames(recipients, members).rows;
 }

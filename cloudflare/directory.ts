@@ -1,7 +1,7 @@
 import {
   normalizeEmail,
   parseRecipients,
-  rowAccountNames,
+  sharedAccountNames,
 } from "../src/preSharing.ts";
 import { defaultAccess, hostAccess, parseAccess } from "../src/permissions.ts";
 import { DurableObject } from "cloudflare:workers";
@@ -664,7 +664,12 @@ export class Directory extends DurableObject<Env> {
         name: member.name,
         access: this.permissions(id, member.id, work.owner),
       }));
-      return json({ rows: rowAccountNames(this.recipientList(id), members) });
+      return json(
+        sharedAccountNames(
+          this.recipientList(id),
+          members.filter((m) => m.id !== work.owner),
+        ),
+      );
     }
     if (extra === "members" && method === "GET") {
       this.access(id, user, true);

@@ -445,6 +445,15 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
     await expect(sticky).toBeFocused();
     await sticky.fill("ここをもっと説明してほしいです");
     await expect(other.locator(".sticky-note")).toContainText("保存済み");
+    await button(other, "付箋の色とサイズ").click();
+    await button(other, "ピンクの付箋").click();
+    await button(other, "付箋のサイズ：大").click();
+    await expect(other.locator(".sticky-note")).toHaveCSS(
+      "background-color",
+      "rgb(255, 217, 227)",
+    );
+    await expect(other.locator(".sticky-note")).toContainText("保存済み");
+
     await expect(
       other.getByRole("button", { name: "付箋を投稿", exact: true }),
     ).toHaveCount(0);
@@ -463,6 +472,10 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
     await openEditor(page);
     await expect(page.locator(".sticky-note textarea")).toHaveValue(
       "ここをもっと説明してほしいです",
+    );
+    await expect(page.locator(".sticky-note")).toHaveCSS(
+      "background-color",
+      "rgb(255, 217, 227)",
     );
     await page.screenshot({ path: info.outputPath("comments.png") });
     await other.locator(".editor-workspace .element").first().click();
@@ -823,6 +836,17 @@ test("host edits shared map headings and row account names update vertically for
     await heading(page, "行1の見出し").fill("");
     await heading(page, "行1の見出し").press("Enter");
     await expect(heading(other, "行1の見出し")).toHaveValue(guest);
+
+    const footer = (p: Page, position: string) =>
+      p.getByRole("textbox", { name: `${position}のフッター`, exact: true });
+    await expect(footer(other, "1.1")).toHaveValue(guest);
+    await expect(footer(other, "2.1")).toHaveAttribute("readonly", "");
+    await footer(other, "1.1").fill("わたしの調査");
+    await footer(other, "1.1").press("Enter");
+    await expect(footer(page, "1.1")).toHaveValue("わたしの調査");
+    await footer(other, "1.1").fill("");
+    await footer(other, "1.1").press("Enter");
+    await expect(footer(page, "1.1")).toHaveValue(guest);
     // Moving the assignment changes the name's row on all clients without reloading.
     const room = new URL(page.url()).searchParams.get("room")!;
     const response = await page.request.post(`/api/decks/${room}/recipients`, {
@@ -845,6 +869,8 @@ test("host edits shared map headings and row account names update vertically for
     expect(response.ok(), await response.text()).toBe(true);
     await expect(heading(other, "行1の見出し")).toHaveValue("");
     await expect(heading(other, "行2の見出し")).toHaveValue(guest);
+    await expect(footer(page, "2.1")).toHaveValue(guest);
+    await expect(footer(other, "1.1")).toHaveAttribute("readonly", "");
     await page.screenshot({ path: info.outputPath("shared-row-headings.png") });
     await other.reload();
     await saved(other);
@@ -852,4 +878,73 @@ test("host edits shared map headings and row account names update vertically for
   } finally {
     await context.close();
   }
+});
+
+test("sticky color, presets and direct resize persist with mouse and touch", async ({
+  page,
+}, info) => {
+  const button = (name: string) =>
+    page.getByRole("button", { name, exact: true });
+  await signIn(page, `sticky-style-${info.project.name}`);
+  await button("この作品をクラウドに保存").click();
+  await saved(page);
+  await openEditor(page);
+  await button("付箋を追加").click();
+  const note = page.locator(".sticky-note");
+  await page
+    .getByRole("textbox", { name: "付箋のコメント", exact: true })
+    .fill("色と大きさを変える");
+  await expect(note).toContainText("保存済み");
+  const before = (await note.boundingBox())!;
+  await button("付箋の色とサイズ").click();
+  await button("水色の付箋").click();
+  await button("付箋のサイズ：大").click();
+  await expect(note).toHaveCSS("background-color", "rgb(210, 237, 255)");
+  expect((await note.boundingBox())!.width).toBeGreaterThan(before.width + 15);
+  const grip = button("付箋のサイズを変更"),
+    r = (await grip.boundingBox())!,
+    x = r.x + r.width / 2,
+    y = r.y + r.height / 2;
+  const large = (await note.boundingBox())!.width;
+  if (info.project.name === "cloud-touch") {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ id: 1, x, y }],
+    });
+    for (let i = 1; i <= 5; i++)
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ id: 1, x: x + (45 * i) / 5, y: y + (25 * i) / 5 }],
+      });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } else {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 45, y + 25, { steps: 5 });
+    await page.mouse.up();
+  }
+  await expect
+    .poll(async () => (await note.boundingBox())!.width)
+    .toBeGreaterThan(large + 25);
+  await expect(note).toContainText("保存済み");
+  const width = (await note.boundingBox())!.width;
+  await page.screenshot({ path: info.outputPath("styled-sticky.png") });
+  await page.reload();
+  await saved(page);
+  await openEditor(page);
+  await expect(note).toHaveCSS("background-color", "rgb(210, 237, 255)");
+  expect((await note.boundingBox())!.width).toBeCloseTo(width, 0);
+  await button("付箋の色とサイズ").click();
+  await button("付箋のサイズ：小").click();
+  await button("付箋の色とサイズ").click();
+  const palette = (await page.locator(".sticky-palette").boundingBox())!,
+    canvas = (await page.locator(".editor-pager").boundingBox())!;
+  expect(palette.x).toBeGreaterThanOrEqual(canvas.x - 1);
+  expect(palette.x + palette.width).toBeLessThanOrEqual(
+    canvas.x + canvas.width + 1,
+  );
 });

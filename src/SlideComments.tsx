@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { GripHorizontal, Trash2 } from "lucide-react";
+import type { CSSProperties } from "react";
+import { GripHorizontal, Trash2, Palette, Scaling } from "lucide-react";
 import type { CloudWorkspace } from "./cloud";
 import type { Slide } from "./model";
 import type { SlideComment } from "./permissions";
 
 const contents = (note: SlideComment) =>
-  JSON.stringify([note.text, note.x, note.y]);
+  JSON.stringify([
+    note.text,
+    note.x,
+    note.y,
+    note.color ?? "#fff0a6",
+    note.w ?? 0.24,
+    note.h ?? 0.3,
+  ]);
 
 /** The draft lives on the sticky itself; no separate placement or posting step. */
 export function SlideComments({
@@ -85,6 +93,20 @@ function Sticky({
   removeDraft: () => void;
 }) {
   const [value, setValue] = useState(note);
+  const [palette, setPalette] = useState(false);
+  const [paletteBox, setPaletteBox] = useState({ left: 0, width: 222 });
+  const sizing = useRef<
+    | {
+        id: number;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        pw: number;
+        ph: number;
+      }
+    | undefined
+  >(undefined);
   const [status, setStatus] = useState(draft ? "入力すると自動保存" : "");
   const [error, setError] = useState("");
   const current = useRef(value),
@@ -97,6 +119,16 @@ function Sticky({
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const card = useRef<HTMLElement>(null);
   const room = useRef(cloud.active!.id).current;
+  const fill = value.color ?? "#fff0a6";
+  const ink =
+    [0.2126, 0.7152, 0.0722].reduce(
+      (sum, weight, i) =>
+        sum + (weight * parseInt(fill.slice(1 + i * 2, 3 + i * 2), 16)) / 255,
+      0,
+    ) < 0.5
+      ? "#ffffff"
+      : "#3f432f";
+
   const editable =
     cloud.access.comment && (cloud.isHost || note.author === cloud.user?.id);
   const canDelete = cloud.isHost || note.author === cloud.user?.id;
@@ -167,6 +199,7 @@ function Sticky({
     if (
       !running.current &&
       !drag.current &&
+      !sizing.current &&
       contents(current.current) === saved.current
     ) {
       current.current = note;
@@ -187,13 +220,22 @@ function Sticky({
       ref={card}
       className="sticky-note"
       aria-label={`付箋：${note.name}`}
-      style={{
-        left: `clamp(0px, ${value.x * 100}%, max(0px, calc(100% - var(--note-width))))`,
-        top: `clamp(0px, ${value.y * 100}%, max(0px, calc(100% - var(--note-height))))`,
-      }}
+      style={
+        {
+          "--note-width": `min(100%, max(120px, ${(value.w ?? 0.24) * 100}%))`,
+          "--note-height": `min(100%, max(120px, ${(value.h ?? 0.3) * 100}%))`,
+          background: fill,
+          color: ink,
+          left: `clamp(0px, ${value.x * 100}%, max(0px, calc(100% - var(--note-width))))`,
+          top: `clamp(0px, ${value.y * 100}%, max(0px, calc(100% - var(--note-height))))`,
+        } as CSSProperties
+      }
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") setPalette(false);
+      }}
     >
       <header>
         <button
@@ -266,6 +308,28 @@ function Sticky({
           <GripHorizontal size={18} />
           <span>移動</span>
         </button>
+        {editable && (
+          <button
+            className="sticky-appearance"
+            aria-label="付箋の色とサイズ"
+            aria-expanded={palette}
+            onClick={() => {
+              const c = card.current!.getBoundingClientRect(),
+                p = card.current!.parentElement!.getBoundingClientRect(),
+                width = Math.min(222, p.width);
+              setPaletteBox({
+                left: Math.max(
+                  p.left - c.left,
+                  Math.min(0, p.right - c.left - width),
+                ),
+                width,
+              });
+              setPalette((v) => !v);
+            }}
+          >
+            <Palette size={16} />
+          </button>
+        )}
         {canDelete && (
           <button
             className="sticky-delete"
@@ -291,6 +355,63 @@ function Sticky({
           </button>
         )}
       </header>
+      {palette && editable && (
+        <div
+          className="sticky-palette"
+          style={{
+            left: paletteBox.left,
+            width: paletteBox.width,
+            right: "auto",
+          }}
+          role="group"
+          aria-label="付箋の色とサイズの設定"
+        >
+          <div className="sticky-colors">
+            {[
+              ["黄色", "#fff0a6"],
+              ["ピンク", "#ffd9e3"],
+              ["水色", "#d2edff"],
+              ["緑", "#dff2c5"],
+              ["紫", "#e9dcff"],
+              ["白", "#ffffff"],
+            ].map(([name, color]) => (
+              <button
+                key={color}
+                aria-label={`${name}の付箋`}
+                aria-pressed={(value.color ?? "#fff0a6") === color}
+                style={{ background: color }}
+                onClick={() => change({ color }, true)}
+              />
+            ))}
+            <input
+              type="color"
+              aria-label="付箋の色を選ぶ"
+              value={value.color ?? "#fff0a6"}
+              onChange={(e) => change({ color: e.target.value })}
+              onBlur={() => void flush()}
+            />
+          </div>
+          <div className="sticky-sizes">
+            {[
+              ["小", 0.18, 0.24],
+              ["中", 0.24, 0.3],
+              ["大", 0.36, 0.46],
+            ].map(([label, w, h]) => (
+              <button
+                key={label}
+                aria-label={`付箋のサイズ：${label}`}
+                onClick={() => {
+                  change({ w: Number(w), h: Number(h) }, true);
+                  setPalette(false);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <small>右下をドラッグして自由に調整</small>
+        </div>
+      )}
       <textarea
         aria-label="付箋のコメント"
         placeholder="ここに入力…"
@@ -321,6 +442,72 @@ function Sticky({
         <span title={note.name}>{note.name}</span>
         <small role="status">{editable ? status : "閲覧のみ"}</small>
       </footer>
+      {editable && (
+        <button
+          className="sticky-resize"
+          aria-label="付箋のサイズを変更"
+          title="ドラッグでサイズを変更・矢印キーでも調整"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            setPalette(false);
+            e.preventDefault();
+            const r = card.current!.getBoundingClientRect(),
+              p = card.current!.parentElement!.getBoundingClientRect();
+            sizing.current = {
+              id: e.pointerId,
+              x: e.clientX,
+              y: e.clientY,
+              w: r.width,
+              h: r.height,
+              pw: p.width,
+              ph: p.height,
+            };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const d = sizing.current;
+            if (!d || d.id !== e.pointerId) return;
+            current.current = {
+              ...current.current,
+              w: Math.max(0.12, Math.min(0.8, (d.w + e.clientX - d.x) / d.pw)),
+              h: Math.max(0.16, Math.min(0.8, (d.h + e.clientY - d.y) / d.ph)),
+            };
+            setValue(current.current);
+          }}
+          onPointerUp={() => {
+            sizing.current = undefined;
+            void flush();
+          }}
+          onPointerCancel={() => {
+            sizing.current = undefined;
+            void flush();
+          }}
+          onLostPointerCapture={() => {
+            sizing.current = undefined;
+            void flush();
+          }}
+          onKeyDown={(e) => {
+            const keys: Record<string, [number, number]> = {
+              ArrowRight: [0.02, 0],
+              ArrowLeft: [-0.02, 0],
+              ArrowDown: [0, 0.02],
+              ArrowUp: [0, -0.02],
+            };
+            const d = keys[e.key];
+            if (!d) return;
+            e.preventDefault();
+            change(
+              {
+                w: Math.max(0.12, Math.min(0.8, (value.w ?? 0.24) + d[0])),
+                h: Math.max(0.16, Math.min(0.8, (value.h ?? 0.3) + d[1])),
+              },
+              true,
+            );
+          }}
+        >
+          <Scaling size={15} />
+        </button>
+      )}
       {error && (
         <div className="sticky-error" role="alert">
           {error}

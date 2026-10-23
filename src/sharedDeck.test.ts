@@ -205,3 +205,22 @@ it("persists per-sheet headings, shares independent row/column changes, and undo
   a.destroy();
   b.destroy();
 });
+
+it("shares custom thumbnail footer labels, preserves them in JSON and restores automatic labels when cleared", () => {
+  const base = sample(),
+    doc = createSharedDeck(base),
+    next = structuredClone(base);
+  next.slides[0].footerLabel = "わたしの調査";
+  applyDeckChange(doc, base, next);
+  expect(
+    parseDeck(JSON.stringify(readSharedDeck(doc))).slides[0].footerLabel,
+  ).toBe("わたしの調査");
+  const before = readSharedDeck(doc),
+    cleared = structuredClone(before);
+  delete cleared.slides[0].footerLabel;
+  applyDeckChange(doc, before, cleared);
+  expect(readSharedDeck(doc).slides[0].footerLabel).toBeUndefined();
+  next.slides[0].footerLabel = "あ".repeat(81);
+  expect(() => parseDeck(JSON.stringify(next))).toThrow();
+  doc.destroy();
+});
