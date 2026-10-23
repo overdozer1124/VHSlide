@@ -875,12 +875,13 @@ export default function App() {
   const historyActions = (
     <div className="history">
       <button
-        className="icon-button"
+        className="icon-button updates-button"
         aria-label="更新履歴"
         title="更新履歴"
         onClick={openUpdates}
       >
         <History size={18} />
+        <span>更新履歴</span>
       </button>
       <button
         className="icon-button"

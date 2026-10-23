@@ -239,6 +239,11 @@ p {
   background: #eaf0ec;
   color: #315d4e;
 }
+.updates-button {
+  gap: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+}
 .small-divider {
   height: 21px;
   width: 1px;

@@ -8,6 +8,13 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.35.1",
+    date: "2026-10-23",
+    title: "更新履歴のボタンをわかりやすく",
+    changes: ["更新履歴のアイコンの横に「更新履歴」の文字を表示。"],
+    retrospective: false,
+  },
+  {
     version: "0.35.0",
     date: "2026-10-23",
     title: "UIの文字を読みやすく・編集中の共有者を表示",
