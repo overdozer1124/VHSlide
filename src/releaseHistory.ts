@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.35.2",
+    date: "2026-10-23",
+    title: "全体マップのタッチ移動を安定化",
+    changes: [
+      "長押し中にブラウザ標準のドラッグが割り込み、移動できなくなる問題を修正。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.35.1",
     date: "2026-10-23",
     title: "更新履歴のボタンをわかりやすく",

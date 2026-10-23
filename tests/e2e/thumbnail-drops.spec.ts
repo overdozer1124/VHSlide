@@ -208,6 +208,59 @@ test("the full map supports dragging into a gap with the same insertion animatio
   await expect(page.locator(".editor-pager")).toBeVisible();
 });
 
+test("a held touch map drag blocks native drag takeover and keeps moving until release", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "ブラウザ標準ドラッグとの競合");
+  await page.goto("/");
+  const before = await data(page);
+  const card = page.locator('[data-map-cell="1,0"] .slide-card');
+  const drag = await start(
+    page,
+    card.locator(".thumbnail"),
+    true,
+    ".map-touch-preview",
+  );
+  await expect(card).toHaveAttribute("draggable", "false");
+  // Keep holding beyond the browser's native long-press drag threshold.
+  await page.waitForTimeout(750);
+  expect(
+    await card.evaluate(
+      (node) =>
+        !node.dispatchEvent(
+          new DragEvent("dragstart", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: new DataTransfer(),
+          }),
+        ),
+    ),
+  ).toBe(true);
+  await card.dispatchEvent("dragend");
+  await expect(page.locator(".map-touch-preview")).toBeVisible();
+  await drag.move(page.locator('[data-map-cell="0,1"] .thumbnail'));
+  await drag.end();
+  await expect(page.locator(".map-touch-preview")).toHaveCount(0);
+  await expect(card).toHaveAttribute("draggable", "true");
+  expect(
+    (await data(page)).slides.find((s: any) => s.title === "自然がいっぱい"),
+  ).toMatchObject({ x: 0, y: 1 });
+  await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+  expect((await data(page)).slides).toEqual(before.slides);
+  // Hybrid devices must still accept mouse HTML dragging after touch dragging.
+  const mouse = await start(
+    page,
+    card.locator(".thumbnail"),
+    false,
+    ".map-touch-preview",
+  );
+  await mouse.move(page.locator('[data-map-cell="0,1"] .thumbnail'));
+  await mouse.end();
+  expect(
+    (await data(page)).slides.find((s: any) => s.title === "自然がいっぱい"),
+  ).toMatchObject({ x: 0, y: 1 });
+});
+
 test("touch map grips start immediately, swap cards, and two-finger pinches still belong to zoom", async ({
   page,
 }, info) => {
