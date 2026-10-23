@@ -19,11 +19,13 @@ type Action = Parameters<typeof changeSheet>[1];
 type Target = { id: string; side: "before" | "after" };
 
 export function SheetTabs({
+  readOnly = false,
   sheets,
   activeId,
   onSelect,
   onAction,
 }: {
+  readOnly?: boolean;
   sheets: Sheet[];
   activeId: string;
   onSelect: (id: string) => void;
@@ -170,6 +172,7 @@ export function SheetTabs({
               key={s.id}
               sheet={s}
               active={s.id === activeId}
+              readOnly={readOnly}
               editing={s.id === editing}
               name={name}
               setName={setName}
@@ -184,14 +187,19 @@ export function SheetTabs({
                 if (activeId !== s.id) onSelect(s.id);
                 setMenu(undefined);
               }}
-              onRename={() => rename(s.id)}
-              onMenu={(x) => openMenu(s.id, x)}
+              onRename={() => {
+                if (!readOnly) rename(s.id);
+              }}
+              onMenu={(x) => {
+                if (!readOnly) openMenu(s.id, x);
+              }}
             />
           ))}
         </div>
         <button
           className="icon-button"
           aria-label="空のシートを追加"
+          disabled={readOnly}
           title="空のシートを追加"
           onClick={() => {
             setMenu(undefined);
@@ -203,6 +211,7 @@ export function SheetTabs({
         <button
           className="icon-button"
           aria-label="シートの操作"
+          disabled={readOnly}
           aria-expanded={!!current}
           data-sheet-menu-trigger
           onClick={() => {
@@ -288,6 +297,7 @@ export function SheetTabs({
   );
 }
 function SheetTab({
+  readOnly,
   sheet,
   active,
   editing,
@@ -300,6 +310,7 @@ function SheetTab({
   onRename,
   onMenu,
 }: {
+  readOnly: boolean;
   sheet: Sheet;
   active: boolean;
   editing: boolean;
@@ -314,7 +325,7 @@ function SheetTab({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: sheet.id,
-    disabled: editing,
+    disabled: editing || readOnly,
   });
   const { setNodeRef: setDropRef } = useDroppable({ id: sheet.id });
   const inputRef = useRef<HTMLInputElement>(null);
@@ -364,6 +375,7 @@ function SheetTab({
           {...attributes}
           {...listeners}
           role="tab"
+          aria-disabled={undefined}
           aria-selected={active}
           data-sheet-id={sheet.id}
           title="ダブルクリックで名前を変更・右クリックでメニュー・ドラッグで移動"

@@ -1,6 +1,13 @@
+import {
+  assertDeckAccess,
+  canEdit,
+  defaultAccess,
+  hostAccess,
+} from "./permissions";
+import type { EditAccess, SlideComment } from "./permissions";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
-import type { Deck } from "./model";
+import type { Deck, Slide } from "./model";
 import { parseDeck, serializeDeck } from "./model";
 import { cacheDocument, cachedDocument } from "./cloudCache";
 import {
@@ -76,6 +83,44 @@ export class CloudWorkspace {
   user: CloudUser | null = null;
   decks: CloudDeck[] = [];
   active?: { id: string; owner: string };
+  access: EditAccess = defaultAccess();
+  comments: SlideComment[] = [];
+  get isHost() {
+    return !this.active || this.active.owner === this.user?.id;
+  }
+  canEdit(slide: Slide) {
+    return !this.active || this.isHost || canEdit(this.access, slide);
+  }
+  private commentsRequest = 0;
+  async refreshComments() {
+    const sequence = ++this.commentsRequest;
+    const id = this.active?.id;
+    if (!id) return;
+    const result = await api<{ comments: SlideComment[] }>(
+      `/api/decks/${id}/comments`,
+    );
+    if (this.active?.id === id && sequence === this.commentsRequest) {
+      this.comments = result.comments;
+      this.emit();
+    }
+  }
+  async addComment(slide: string, text: string, x: number, y: number) {
+    await this.run(async () => {
+      await api(`/api/decks/${this.active!.id}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ slide, text, x, y }),
+      });
+      await this.refreshComments();
+    });
+  }
+  async deleteComment(id: string) {
+    await this.run(async () => {
+      await api(`/api/decks/${this.active!.id}/comments/${id}`, {
+        method: "DELETE",
+      });
+      await this.refreshComments();
+    });
+  }
   doc?: Y.Doc;
   undoManager?: Y.UndoManager;
   members: { id: string; name: string }[] = [];
@@ -229,9 +274,12 @@ export class CloudWorkspace {
       throw new Error(
         "現在の作品の保存を待つか、JSONを保存してから開き直してください。",
       );
-    const result = await api<{ id: string; owner: string; state: string }>(
-      `/api/decks/${encodeURIComponent(id)}`,
-    );
+    const result = await api<{
+      id: string;
+      owner: string;
+      state: string;
+      access: EditAccess;
+    }>(`/api/decks/${encodeURIComponent(id)}`);
     // Load the text editor before declaring the workspace ready, so its first
     // use also works if the connection drops immediately after opening a work.
     await import("./CloudText");
@@ -252,6 +300,10 @@ export class CloudWorkspace {
     parseDeck(JSON.stringify(readSharedDeck(doc)));
     this.detach();
     this.active = { id: result.id, owner: result.owner };
+    this.access =
+      result.owner === this.user?.id
+        ? hostAccess()
+        : (result.access ?? defaultAccess());
     this.doc = doc;
     this.undoManager = new Y.UndoManager(
       [doc.getMap("slides"), doc.getMap("sheets"), doc.getText("title")],
@@ -286,10 +338,12 @@ export class CloudWorkspace {
     this.stopped = false;
     this.attempts = 0;
     this.connect();
+    void this.refreshComments().catch(() => {});
     this.emit();
   }
   apply(before: Deck, next: Deck) {
     if (!this.doc) return next;
+    assertDeckAccess(before, next, this.access, this.isHost);
     applyDeckChange(this.doc, before, next);
     return {
       ...readSharedDeck(this.doc),
@@ -321,6 +375,7 @@ export class CloudWorkspace {
             this.buffer = [];
             this.pending.clear();
             this.connected = true;
+            void this.refreshComments().catch(() => {});
             this.attempts = 0;
             const difference = Y.encodeStateAsUpdate(doc, this.vector);
             if (difference.length > 2) this.buffer.push(difference);
@@ -328,6 +383,13 @@ export class CloudWorkspace {
           }
         } else {
           const message = JSON.parse(event.data);
+          if (message.type === "access") {
+            this.access = message.access;
+            this.undoManager?.clear();
+            this.onDeck(readSharedDeck(doc), false);
+          }
+          if (message.type === "comments")
+            void this.refreshComments().catch(() => {});
           if (message.type === "hello")
             this.vector = fromBase64(message.vector);
           if (message.type === "ack") this.pending.delete(message.id);
@@ -350,6 +412,16 @@ export class CloudWorkspace {
       if (this.socket !== ws) return;
       this.connected = false;
       this.members = [];
+      if (event.code === 4004 && this.active) {
+        const id = this.active.id;
+        this.error = "権限の変更に合わせて、クラウドの内容を読み直しています。";
+        void this.open(id, true).catch(() => {
+          this.stopped = true;
+          this.error = "権限を確認して作品を開き直してください。";
+          this.emit();
+        });
+        return;
+      }
       if ([4001, 4002, 4003].includes(event.code)) {
         this.stopped = true;
         this.error ||=
@@ -427,6 +499,9 @@ export class CloudWorkspace {
     this.doc = undefined;
     this.undoManager = undefined;
     this.active = undefined;
+    this.access = defaultAccess();
+    this.commentsRequest++;
+    this.comments = [];
     this.members = [];
     this.buffer = [];
     this.pending.clear();

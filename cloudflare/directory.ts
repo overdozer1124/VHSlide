@@ -1,3 +1,4 @@
+import { defaultAccess, hostAccess, parseAccess } from "../src/permissions.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -46,6 +47,7 @@ export class Directory extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS decks (id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL, updated INTEGER NOT NULL, status TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS members (deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(deck,user_id));
+      CREATE TABLE IF NOT EXISTS grants (deck TEXT NOT NULL, user_id TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(deck,user_id), FOREIGN KEY(deck,user_id) REFERENCES members(deck,user_id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, owner TEXT NOT NULL, bytes INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS members_user ON members(user_id);
@@ -111,10 +113,21 @@ export class Directory extends DurableObject<Env> {
     );
     return work;
   }
+  private permissions(id: string, user: string, owner: string) {
+    if (owner === user) return hostAccess();
+    const grant = one<{ value: string }>(
+      this.sql,
+      "SELECT value FROM grants WHERE deck=? AND user_id=?",
+      id,
+      user,
+    );
+    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+  }
   private removeWork(id: string) {
     this.ctx.storage.transactionSync(() => {
       this.sql.exec("DELETE FROM assets WHERE deck=?", id);
       this.sql.exec("DELETE FROM invites WHERE deck=?", id);
+      this.sql.exec("DELETE FROM grants WHERE deck=?", id);
       this.sql.exec("DELETE FROM members WHERE deck=?", id);
       this.sql.exec("DELETE FROM decks WHERE id=?", id);
     });
@@ -203,7 +216,15 @@ export class Directory extends DurableObject<Env> {
         401,
         "サインインし直すか、作品への参加権限を確認してください。",
       );
-      return json({ ok: true });
+      const work = one<Work>(
+        this.sql,
+        "SELECT * FROM decks WHERE id=?",
+        data.room,
+      )!;
+      return json({
+        access: this.permissions(data.room, data.user, work.owner),
+        host: work.owner === data.user,
+      });
     }
     if (path === "/internal/touched" && method === "POST") {
       const data = await input(request);
@@ -426,6 +447,7 @@ export class Directory extends DurableObject<Env> {
       return json({
         id,
         owner: work.owner,
+        access: this.permissions(id, user.id, work.owner),
         ...((await response.json()) as object),
       });
     }
@@ -458,13 +480,74 @@ export class Directory extends DurableObject<Env> {
           this.sql,
           "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
           id,
-        ),
+        ).map((member) => ({
+          ...member,
+          access: this.permissions(id, member.id, work.owner),
+        })),
       });
+    }
+    if (extra === "permissions" && method === "GET")
+      return json({ access: this.permissions(id, user.id, work.owner) });
+    if (extra?.startsWith("members/") && method === "PATCH") {
+      this.access(id, user, true);
+      const target = decodeURIComponent(extra.slice(8));
+      insist(
+        target !== work.owner &&
+          one(
+            this.sql,
+            "SELECT user_id FROM members WHERE deck=? AND user_id=?",
+            id,
+            target,
+          ),
+        400,
+        "参加者を選んでください。ホストの権限は変更できません。",
+      );
+      let access;
+      try {
+        access = parseAccess(await input(request, 1_500_000));
+      } catch {
+        throw new HttpError(400, "権限の設定が正しくありません。");
+      }
+      this.sql.exec(
+        "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
+        id,
+        target,
+        JSON.stringify(access),
+      );
+      await checked(
+        await room(this.env, id).fetch(
+          internal("/permissions", { user: target, access }),
+        ),
+      );
+      return json({ access });
+    }
+    if (extra === "comments" || /^comments\/[a-f0-9-]{36}$/.test(extra || "")) {
+      const access = this.permissions(id, user.id, work.owner);
+      insist(
+        method === "GET" ||
+          method === "DELETE" ||
+          (method === "POST" && access.comment),
+        403,
+        "コメントする権限がありません。",
+      );
+      return room(this.env, id).fetch(
+        internal(`/${extra}`, {
+          method,
+          user,
+          host: work.owner === user.id,
+          ...(method === "POST" ? { value: await input(request) } : {}),
+        }),
+      );
     }
     if (extra?.startsWith("members/") && method === "DELETE") {
       this.access(id, user, true);
       const removed = decodeURIComponent(extra.slice(8));
       insist(removed !== user.id, 400, "作成者は参加者から削除できません。");
+      this.sql.exec(
+        "DELETE FROM grants WHERE deck=? AND user_id=?",
+        id,
+        removed,
+      );
       this.sql.exec(
         "DELETE FROM members WHERE deck=? AND user_id=?",
         id,
@@ -475,13 +558,19 @@ export class Directory extends DurableObject<Env> {
       );
       return json({ ok: true });
     }
-    if (extra === "assets" && method === "POST")
+    if (extra === "assets" && method === "POST") {
+      insist(
+        this.permissions(id, user.id, work.owner).mode !== "none",
+        403,
+        "写真を追加する権限がありません。",
+      );
       return json(
         {
           src: await this.saveAsset(work, await body(request, 6_000_000), user),
         },
         201,
       );
+    }
     if (/^assets\/[a-f0-9-]{36}$/.test(extra || "") && method === "GET")
       return room(this.env, id).fetch(internal(`/${extra}`));
     if (

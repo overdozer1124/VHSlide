@@ -83,6 +83,19 @@ async function invite(id: string, cookie: string) {
     cookie,
   );
   assert.equal(accepted.status, 200);
+  const { user } = await (
+    await request("/api/session", "GET", undefined, cookie)
+  ).json();
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/members/${encodeURIComponent(user.id)}`,
+        "PATCH",
+        { mode: "all", comment: true, rows: [], columns: [], slides: [] },
+      )
+    ).status,
+    200,
+  );
   return token;
 }
 async function connect(id: string, cookie: string) {
@@ -260,6 +273,19 @@ test("40 authenticated peers merge simultaneous text edits and survive a server 
       200,
     );
   }
+  for (let i = 0; i < 40; i++)
+    assert.equal(
+      (
+        await request(`/api/decks/${id}/members/student-${i}`, "PATCH", {
+          mode: "all",
+          comment: true,
+          rows: [],
+          columns: [],
+          slides: [],
+        })
+      ).status,
+      200,
+    );
   const clients = await Promise.all(
     cookies.map((cookie) => connect(id, cookie)),
   );
@@ -341,4 +367,193 @@ test("sign-out revokes active sockets and persisted session access", async () =>
     401,
   );
   peer.doc.destroy();
+});
+
+test("host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes", async () => {
+  const id = await create();
+  const made = await request(`/api/decks/${id}/invite`, "POST");
+  const token = new URL((await made.json()).url).searchParams.get("join");
+  assert.equal(
+    (await request(`/api/invites/${token}/accept`, "POST", undefined, bob))
+      .status,
+    200,
+  );
+  const initial = (await (
+    await request(`/api/decks/${id}`, "GET", undefined, bob)
+  ).json()) as any;
+  assert.equal(initial.access.mode, "none");
+  const deck = sample(),
+    first = deck.slides[0];
+  const state = new Y.Doc();
+  Y.applyUpdate(state, fromBase64(initial.state));
+  const current = readSharedDeck(state),
+    own = current.slides[0],
+    protectedSlide = current.slides[1];
+  const setting = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 1 }],
+    columns: [{ sheetId: "main", index: 2 }],
+    slides: [
+      own.id,
+      ...Array.from(
+        { length: 999 },
+        (_, i) => `unused-${String(i).padStart(70, "0")}`,
+      ),
+    ],
+  };
+  assert.equal(
+    (await request(`/api/decks/${id}/members/bob`, "PATCH", setting, bob))
+      .status,
+    404,
+  );
+  assert.equal(
+    (await request(`/api/decks/${id}/members/alice`, "PATCH", setting)).status,
+    400,
+  );
+  const note = await request(
+    `/api/decks/${id}/comments`,
+    "POST",
+    { slide: own.id, text: "いいね", x: 0.3, y: 0.4 },
+    bob,
+  );
+  assert.equal(note.status, 200);
+  const notes = (await (
+    await request(`/api/decks/${id}/comments`)
+  ).json()) as any;
+  assert.equal(notes.comments[0].name, "bob");
+  assert.equal(notes.comments[0].author, "bob");
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/comments`, "POST", {
+        slide: own.id,
+        text: "先生の付箋",
+        x: 0.7,
+        y: 0.5,
+      })
+    ).status,
+    200,
+  );
+  const both = (await (
+    await request(`/api/decks/${id}/comments`)
+  ).json()) as any;
+  const hostNote = both.comments.find((c: any) => c.author === "alice");
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${hostNote.id}`,
+        "DELETE",
+        undefined,
+        bob,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${notes.comments[0].id}`,
+        "DELETE",
+        undefined,
+        bob,
+      )
+    ).status,
+    200,
+  );
+  const peer = await connect(id, bob);
+  assert.equal(
+    (await request(`/api/decks/${id}/members/bob`, "PATCH", setting)).status,
+    200,
+  );
+  await until(() => peer.messages.some((m) => m.type === "access"));
+  const vector = Y.encodeStateVector(peer.doc);
+  sharedText(peer.doc, own.id, own.elements[0].id)!.insert(0, "allowed");
+  peer.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "allowed",
+      update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
+    }),
+  );
+  await until(() =>
+    peer.messages.some((m) => m.type === "ack" && m.id === "allowed"),
+  );
+  const badVector = Y.encodeStateVector(peer.doc);
+  sharedText(
+    peer.doc,
+    protectedSlide.id,
+    protectedSlide.elements[0].id,
+  )!.insert(0, "forbidden");
+  peer.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "bad",
+      update: toBase64(Y.encodeStateAsUpdate(peer.doc, badVector)),
+    }),
+  );
+  await until(() =>
+    peer.messages.some((m) => m.type === "error" && m.code === "forbidden"),
+  );
+  const saved = (await (await request(`/api/decks/${id}`)).json()) as any;
+  const check = new Y.Doc();
+  Y.applyUpdate(check, fromBase64(saved.state));
+  assert.ok(
+    sharedText(check, own.id, own.elements[0].id)!
+      .toString()
+      .startsWith("allowed"),
+  );
+  assert.ok(
+    !sharedText(check, protectedSlide.id, protectedSlide.elements[0].id)!
+      .toString()
+      .includes("forbidden"),
+  );
+  const live = await connect(id, bob);
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/members/bob`, "PATCH", {
+        ...setting,
+        mode: "none",
+        comment: false,
+      })
+    ).status,
+    200,
+  );
+  const v = Y.encodeStateVector(live.doc);
+  sharedText(live.doc, own.id, own.elements[0].id)!.insert(0, "revoked");
+  live.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "revoked",
+      update: toBase64(Y.encodeStateAsUpdate(live.doc, v)),
+    }),
+  );
+  await until(() =>
+    live.messages.some((m) => m.type === "error" && m.code === "forbidden"),
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments`,
+        "POST",
+        { slide: own.id, text: "blocked", x: 0, y: 0 },
+        bob,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/assets`,
+        "POST",
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+        bob,
+      )
+    ).status,
+    403,
+  );
+  peer.doc.destroy();
+  live.doc.destroy();
+  state.destroy();
+  check.destroy();
 });

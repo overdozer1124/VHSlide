@@ -165,6 +165,24 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
   try {
     await signIn(other, `${name}-friend`, invitation);
     await saved(other);
+    await page.evaluate(async (user) => {
+      const room = new URL(location.href).searchParams.get("room");
+      const response = await fetch(
+        `/api/decks/${room}/members/${encodeURIComponent(user)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "all",
+            comment: true,
+            rows: [],
+            columns: [],
+            slides: [],
+          }),
+        },
+      );
+      if (!response.ok) throw new Error(await response.text());
+    }, `${name}-friend`);
     await expect(page.locator(".cloud-presence")).toContainText("2人が参加中");
     await openEditor(page);
     await openEditor(other);
@@ -374,6 +392,115 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
       .click();
     await expect(other.locator(".cloud-presence")).toContainText("共有停止");
     await page.screenshot({ path: info.outputPath("cloud-sharing.png") });
+  } finally {
+    await context.close();
+  }
+});
+
+test("host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(90000);
+  const owner = `permissions-${info.project.name}`,
+    guest = `${owner}-guest`;
+  const button = (p: Page, name: string) =>
+    p.getByRole("button", { name, exact: true });
+  await signIn(page, owner);
+  await button(page, "この作品をクラウドに保存").click();
+  await saved(page);
+  await button(page, "クラウド").click();
+  await button(page, "共同編集の招待リンクを作る").click();
+  const invite = await page
+    .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
+    .inputValue();
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:3187",
+    viewport: { width: 1440, height: 1000 },
+  });
+  const other = await context.newPage();
+  try {
+    await signIn(other, guest, invite);
+    await saved(other);
+    await openEditor(other);
+    await expect(
+      other.getByRole("textbox", { name: "ページの名前", exact: true }),
+    ).toHaveAttribute("readonly", "");
+    await expect(button(other, "文字")).toBeDisabled();
+    await expect(button(other, "空のシートを追加")).toBeDisabled();
+    await button(other, "付箋コメント").click();
+    await button(other, "付箋を貼る場所を選ぶ").click();
+    const area = (await other.locator(".slide-comments").boundingBox())!;
+    await other.mouse.click(
+      area.x + area.width * 0.3,
+      area.y + area.height * 0.3,
+    );
+    await other
+      .getByRole("textbox", { name: "付箋のコメント", exact: true })
+      .fill("ここをもっと説明してほしいです");
+    await button(other, "付箋を投稿").click();
+    await expect(other.locator(".comment-panel li")).toContainText(
+      "ここをもっと説明してほしいです",
+    );
+    await button(other, "付箋を閉じる").click();
+    await button(page, "参加者一覧を更新").click();
+    await button(page, `${guest}の編集権限を設定`).click();
+    await page
+      .getByRole("combobox", { name: "編集の権限", exact: true })
+      .selectOption("scoped");
+    await button(page, "編集を許可する行2").click();
+    await button(page, "編集を許可する列3").click();
+    await button(page, "編集を許可するスライド1.1 わたしたちのまち").click();
+    await page.screenshot({ path: info.outputPath("permissions.png") });
+    await button(page, "権限を保存").click();
+    await expect(button(other, "文字")).toBeEnabled();
+    await button(page, "クラウドの作品を閉じる").click();
+    await openEditor(page);
+    await button(page, "付箋コメント").click();
+    await expect(page.locator(".comment-panel li")).toContainText(
+      "ここをもっと説明してほしいです",
+    );
+    await page.screenshot({ path: info.outputPath("comments.png") });
+    await other.locator(".editor-workspace .element").first().click();
+    const text = other.getByRole("textbox", {
+      name: "スライド内の文字",
+      exact: true,
+    });
+    await expect(text).toBeFocused();
+    await text.press("Home");
+    await other.keyboard.type("guest edit ");
+    await saved(other);
+    await expect(page.locator(".editor-workspace")).toContainText("guest edit");
+    await other.keyboard.press("Escape");
+    await button(other, "1段目の横のページをひらく").click();
+    await button(other, "1.2 自然がいっぱいを編集").click();
+    await expect(button(other, "文字")).toBeDisabled();
+    await expect(
+      other.getByRole("textbox", { name: "ページの名前", exact: true }),
+    ).toHaveAttribute("readonly", "");
+    await button(other, "横のページ一覧を閉じる").click();
+    await button(page, "付箋を閉じる").click();
+    await button(page, "クラウド").click();
+    await button(page, `${guest}の編集権限を設定`).click();
+    await page
+      .getByRole("combobox", { name: "編集の権限", exact: true })
+      .selectOption("none");
+    await page
+      .getByRole("checkbox", { name: "付箋コメントを許可", exact: true })
+      .uncheck();
+    await button(page, "権限を保存").click();
+    await button(other, "付箋コメント").click();
+    await expect(
+      other.getByText("コメントの投稿は許可されていません。", { exact: true }),
+    ).toBeVisible();
+    await other.reload();
+    await saved(other);
+    await openEditor(other);
+    await expect(button(other, "文字")).toBeDisabled();
+    await button(other, "付箋コメント").click();
+    await expect(other.locator(".comment-panel li")).toContainText(
+      "ここをもっと説明してほしいです",
+    );
   } finally {
     await context.close();
   }

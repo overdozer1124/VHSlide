@@ -1,3 +1,12 @@
+import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
+import {
+  AccessError,
+  defaultAccess,
+  hostAccess,
+  parseAccess,
+  parseComment,
+} from "../src/permissions.ts";
+import type { SlideComment } from "../src/permissions.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -107,6 +116,8 @@ export function createApplication(options: Options) {
     CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS decks (id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL, state BLOB NOT NULL, updated INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS members (deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(deck,user_id));
+    CREATE TABLE IF NOT EXISTS grants (deck TEXT NOT NULL, user_id TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(deck,user_id), FOREIGN KEY(deck,user_id) REFERENCES members(deck,user_id) ON DELETE CASCADE);
+    CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, slide TEXT NOT NULL, author TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE);
     CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, data BLOB NOT NULL);
     CREATE INDEX IF NOT EXISTS updates_deck ON updates(deck,seq);
@@ -191,6 +202,13 @@ export function createApplication(options: Options) {
       "作品が見つからないか、参加する権限がありません。",
     );
     return found;
+  }
+  function permissions(id: string, user: string, owner: string) {
+    if (owner === user) return hostAccess();
+    const grant = db
+      .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
+      .get(id, user) as { value: string } | undefined;
+    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
   }
   function room(id: string): Room {
     const existing = rooms.get(id);
@@ -469,6 +487,7 @@ export function createApplication(options: Options) {
           return json(res, 200, {
             id,
             owner: access.owner,
+            access: permissions(id, u.id, access.owner),
             state: toBase64(Y.encodeStateAsUpdate(room(id).doc)),
           });
         if (!extra && method === "DELETE") {
@@ -508,8 +527,120 @@ export function createApplication(options: Options) {
               .prepare(
                 "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
               )
-              .all(id),
+              .all(id)
+              .map((value) => {
+                const user = value as unknown as User;
+                return {
+                  ...user,
+                  access: permissions(id, user.id, access.owner),
+                };
+              }),
           });
+        }
+        if (extra === "permissions" && method === "GET")
+          return json(res, 200, {
+            access: permissions(id, u.id, access.owner),
+          });
+        if (extra?.startsWith("members/") && method === "PATCH") {
+          member(id, u, true);
+          const target = decodeURIComponent(extra.slice(8));
+          insist(
+            target !== access.owner &&
+              db
+                .prepare(
+                  "SELECT user_id FROM members WHERE deck=? AND user_id=?",
+                )
+                .get(id, target),
+            400,
+            "参加者を選んでください。ホストの権限は変更できません。",
+          );
+          let grant;
+          try {
+            grant = parseAccess(
+              JSON.parse((await body(req, 1_500_000)).toString()),
+            );
+          } catch {
+            throw new HttpError(400, "権限の設定が正しくありません。");
+          }
+          db.prepare(
+            "INSERT INTO grants VALUES(?,?,?) ON CONFLICT(deck,user_id) DO UPDATE SET value=excluded.value",
+          ).run(id, target, JSON.stringify(grant));
+          for (const peer of rooms.get(id)?.clients ?? [])
+            if (peer.user.id === target)
+              peer.ws.send(JSON.stringify({ type: "access", access: grant }));
+          return json(res, 200, { access: grant });
+        }
+        if (
+          extra === "comments" ||
+          /^comments\/[a-f0-9-]{36}$/.test(extra || "")
+        ) {
+          const grant = permissions(id, u.id, access.owner);
+          if (extra === "comments" && method === "GET")
+            return json(res, 200, {
+              comments: db
+                .prepare(
+                  "SELECT id,slide,author,name,text,x,y,created FROM comments WHERE deck=? ORDER BY created,id",
+                )
+                .all(id),
+            });
+          if (extra === "comments" && method === "POST") {
+            insist(grant.comment, 403, "コメントする権限がありません。");
+            let value;
+            try {
+              value = parseComment(
+                JSON.parse((await body(req, 1_500_000)).toString()),
+              );
+            } catch {
+              throw new HttpError(
+                400,
+                "付箋は1000文字以内で入力してください。",
+              );
+            }
+            insist(
+              readSharedDeck(room(id).doc).slides.some(
+                (s) => s.id === value.slide,
+              ),
+              404,
+              "スライドが見つかりません。",
+            );
+            insist(
+              (
+                db
+                  .prepare("SELECT COUNT(*) AS n FROM comments WHERE deck=?")
+                  .get(id) as { n: number }
+              ).n < 2000,
+              413,
+              "付箋は作品全体で2000枚までです。",
+            );
+            db.prepare("INSERT INTO comments VALUES(?,?,?,?,?,?,?,?,?)").run(
+              randomUUID(),
+              id,
+              value.slide,
+              u.id,
+              u.name,
+              value.text,
+              value.x,
+              value.y,
+              Date.now(),
+            );
+          } else if (method === "DELETE" && extra !== "comments") {
+            const cid = extra.slice(9),
+              comment = db
+                .prepare("SELECT * FROM comments WHERE deck=? AND id=?")
+                .get(id, cid) as unknown as SlideComment | undefined;
+            insist(
+              comment && (access.owner === u.id || comment.author === u.id),
+              403,
+              "自分の付箋だけを削除できます。",
+            );
+            db.prepare("DELETE FROM comments WHERE deck=? AND id=?").run(
+              id,
+              cid,
+            );
+          } else throw new HttpError(404, "見つかりません。");
+          for (const peer of rooms.get(id)?.clients ?? [])
+            peer.ws.send(JSON.stringify({ type: "comments" }));
+          return json(res, 200, { ok: true });
         }
         if (extra?.startsWith("members/") && method === "DELETE") {
           member(id, u, true);
@@ -524,10 +655,16 @@ export function createApplication(options: Options) {
               peer.ws.close(4003, "作品への参加が解除されました。");
           return json(res, 200, { ok: true });
         }
-        if (extra === "assets" && method === "POST")
+        if (extra === "assets" && method === "POST") {
+          insist(
+            permissions(id, u.id, access.owner).mode !== "none",
+            403,
+            "写真を追加する権限がありません。",
+          );
           return json(res, 201, {
             src: await saveAsset(id, u, await body(req, 6_000_000)),
           });
+        }
         const asset = /^assets\/([a-f0-9-]{36})$/.exec(extra ?? "");
         if (asset && method === "GET") {
           const found = db
@@ -673,7 +810,7 @@ export function createApplication(options: Options) {
               401,
               "サインインし直してください。",
             );
-            member(id, u);
+            const work = member(id, u);
             rateLimit(`updates:${id}:${u.id}`, 1200);
             const message = JSON.parse(data.toString());
             insist(
@@ -688,7 +825,13 @@ export function createApplication(options: Options) {
             rateLimit(`update-bytes:${u.id}`, 8_000_000, update.length);
             candidate = new Y.Doc();
             Y.applyUpdate(candidate, Y.encodeStateAsUpdate(r.doc));
-            Y.applyUpdate(candidate, update);
+            applyAuthorizedUpdate(
+              r.doc,
+              candidate,
+              update,
+              permissions(id, u.id, work.owner),
+              work.owner === u.id,
+            );
             const deck = validate(candidate, id);
             db.exec("BEGIN IMMEDIATE");
             try {
@@ -721,13 +864,19 @@ export function createApplication(options: Options) {
             ws.send(
               JSON.stringify({
                 type: "error",
+                code: error instanceof AccessError ? "forbidden" : undefined,
                 message:
-                  error instanceof HttpError && error.status < 500
+                  error instanceof AccessError
                     ? error.message
-                    : "変更を保存できませんでした。JSONを保存してから作品を開き直してください。",
+                    : error instanceof HttpError && error.status < 500
+                      ? error.message
+                      : "変更を保存できませんでした。JSONを保存してから作品を開き直してください。",
               }),
             );
-            ws.close(4002, "変更の確認が必要です。");
+            ws.close(
+              error instanceof AccessError ? 4004 : 4002,
+              "変更の確認が必要です。",
+            );
           } finally {
             candidate?.destroy();
           }

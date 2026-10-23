@@ -1,3 +1,6 @@
+import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
+import { AccessError, parseComment } from "../src/permissions.ts";
+import type { EditAccess, SlideComment } from "../src/permissions.ts";
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import { parseDeck } from "../src/model.ts";
@@ -41,6 +44,7 @@ export class SlideRoom extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS snapshot (part INTEGER PRIMARY KEY, data BLOB NOT NULL);
       CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL);
+      CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, slide TEXT NOT NULL, author TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, mime TEXT NOT NULL, bytes INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS asset_chunks (asset TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(asset,part));
     `);
@@ -169,7 +173,7 @@ export class SlideRoom extends DurableObject<Env> {
       // Keep the schema for already queued events, but remove every persisted byte.
       this.ctx.storage.transactionSync(() => {
         this.sql.exec(
-          "DELETE FROM asset_chunks; DELETE FROM assets; DELETE FROM updates; DELETE FROM snapshot; DELETE FROM meta;",
+          "DELETE FROM comments; DELETE FROM asset_chunks; DELETE FROM assets; DELETE FROM updates; DELETE FROM snapshot; DELETE FROM meta;",
         );
       });
       await this.ctx.storage.deleteAlarm();
@@ -182,6 +186,72 @@ export class SlideRoom extends DurableObject<Env> {
         if (peer.session === data.session || peer.user.id === data.user)
           ws.close(4003, "作品への参加が解除されました。");
       }
+      return json({ ok: true });
+    }
+    if (path === "/permissions" && request.method === "POST") {
+      const data = await input(request, 1_500_000);
+      for (const ws of this.peers())
+        if ((ws.deserializeAttachment() as Peer).user.id === data.user)
+          ws.send(JSON.stringify({ type: "access", access: data.access }));
+      return json({ ok: true });
+    }
+    if (path === "/comments" || /^\/comments\/[a-f0-9-]{36}$/.test(path)) {
+      const data = await input(request);
+      if (path === "/comments" && data.method === "GET")
+        return json({
+          comments: rows<SlideComment>(
+            this.sql,
+            "SELECT * FROM comments ORDER BY created,id",
+          ),
+        });
+      if (path === "/comments" && data.method === "POST") {
+        let value;
+        try {
+          value = parseComment(data.value);
+        } catch {
+          insist(false, 400, "付箋は1000文字以内で入力してください。");
+        }
+        insist(
+          readSharedDeck(this.doc()).slides.some(
+            (slide) => slide.id === value.slide,
+          ),
+          404,
+          "スライドが見つかりません。",
+        );
+        insist(
+          one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM comments")!
+            .n < 2000,
+          413,
+          "付箋は作品全体で2000枚までです。",
+        );
+        const id = crypto.randomUUID();
+        this.sql.exec(
+          "INSERT INTO comments VALUES(?,?,?,?,?,?,?,?)",
+          id,
+          value.slide,
+          data.user.id,
+          data.user.name,
+          value.text,
+          value.x,
+          value.y,
+          Date.now(),
+        );
+      } else if (data.method === "DELETE") {
+        const id = path.slice(10),
+          comment = one<SlideComment>(
+            this.sql,
+            "SELECT * FROM comments WHERE id=?",
+            id,
+          );
+        insist(
+          comment && (data.host || comment.author === data.user.id),
+          403,
+          "自分の付箋だけを削除できます。",
+        );
+        this.sql.exec("DELETE FROM comments WHERE id=?", id);
+      } else return json({ error: "見つかりません。" }, 404);
+      for (const ws of this.peers())
+        ws.send(JSON.stringify({ type: "comments" }));
       return json({ ok: true });
     }
     const asset = /^\/assets\/([a-f0-9-]{36})$/.exec(path);
@@ -311,7 +381,7 @@ export class SlideRoom extends DurableObject<Env> {
           "操作が多いため、少し待ってからお試しください。",
         );
         ws.serializeAttachment(peer);
-        await checked(
+        const authorization = await checked(
           await directory(this.env).fetch(
             internal("/internal/authorize", {
               session: peer.session,
@@ -323,7 +393,17 @@ export class SlideRoom extends DurableObject<Env> {
         const current = this.doc();
         candidate = new Y.Doc();
         Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
-        Y.applyUpdate(candidate, update);
+        const rights = (await authorization.json()) as {
+          access: EditAccess;
+          host: boolean;
+        };
+        applyAuthorizedUpdate(
+          current,
+          candidate,
+          update,
+          rights.access,
+          rights.host,
+        );
         const deck = this.validate(candidate);
         const snapshot = this.updates >= 199;
         this.ctx.storage.transactionSync(() => {
@@ -364,8 +444,18 @@ export class SlideRoom extends DurableObject<Env> {
         const response = failure(error),
           value = (await response.json()) as { error: string };
         try {
-          ws.send(JSON.stringify({ type: "error", message: value.error }));
-          ws.close(4002, "JSONを保存してください。");
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message:
+                error instanceof AccessError ? error.message : value.error,
+              code: error instanceof AccessError ? "forbidden" : undefined,
+            }),
+          );
+          ws.close(
+            error instanceof AccessError ? 4004 : 4002,
+            "JSONを保存してください。",
+          );
         } catch {
           /* Socket already closed. */
         }

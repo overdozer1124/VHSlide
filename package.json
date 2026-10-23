@@ -12,7 +12,7 @@
     "start": "node server/index.ts",
     "dev:server": "node --watch server/index.ts",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "vitest run src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts && npm run test:server",
+    "test": "vitest run src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts && npm run test:server",
     "test:server": "node --test tests/server/*.test.ts",
     "test:e2e": "playwright test",
     "test:cloud": "playwright test --config playwright.cloud.config.ts",

@@ -1,3 +1,6 @@
+import { PermissionPicker } from "./PermissionPicker";
+import { defaultAccess } from "./permissions";
+import type { EditAccess } from "./permissions";
 import { useEffect, useRef, useState } from "react";
 import { Cloud, Copy, LogOut, Trash2, X } from "lucide-react";
 import type { Deck } from "./model";
@@ -33,7 +36,11 @@ export function CloudPanel({
 }) {
   const button = useRef<HTMLDivElement>(null);
   const [link, setLink] = useState("");
-  const [members, setMembers] = useState<CloudUser[]>([]);
+  const [members, setMembers] = useState<
+    (CloudUser & { access?: EditAccess })[]
+  >([]);
+  const [editingMember, setEditingMember] = useState<string>();
+  const [grant, setGrant] = useState<EditAccess>(defaultAccess);
   const [loginError, setLoginError] = useState("");
   useEffect(() => {
     if (cloud.user || !cloud.clientId) return;
@@ -77,7 +84,7 @@ export function CloudPanel({
     setLink("");
     setMembers([]);
     if (cloud.active?.owner === cloud.user?.id && cloud.active)
-      void api<{ members: CloudUser[] }>(
+      void api<{ members: (CloudUser & { access?: EditAccess })[] }>(
         `/api/decks/${cloud.active.id}/members`,
       )
         .then((result) => setMembers(result.members))
@@ -189,7 +196,7 @@ export function CloudPanel({
                       共同編集の招待リンクを作る
                     </button>
                     <small>
-                      リンクを開いてサインインした人が編集に参加できます。作り直すと以前のリンクは使えなくなります。
+                      新しく参加した人は閲覧・付箋コメントのみです。参加後、下の参加者一覧で編集権限を設定してください。作り直すと以前のリンクは使えなくなります。
                     </small>
                     {link && (
                       <div className="cloud-invite">
@@ -230,11 +237,86 @@ export function CloudPanel({
                     >
                       招待リンクを無効にする
                     </button>
+                    <button
+                      className="quiet"
+                      onClick={() =>
+                        void cloud.run(async () => {
+                          setMembers(
+                            (
+                              await api<{
+                                members: (CloudUser & {
+                                  access?: EditAccess;
+                                })[];
+                              }>(`/api/decks/${cloud.active!.id}/members`)
+                            ).members,
+                          );
+                        })
+                      }
+                    >
+                      参加者一覧を更新
+                    </button>
                     {members
                       .filter((member) => member.id !== cloud.user?.id)
                       .map((member) => (
                         <div className="cloud-member" key={member.id}>
-                          <span>{member.name}</span>
+                          <span>
+                            {member.name}
+                            <small>{member.email}</small>
+                          </span>
+                          <button
+                            className="quiet"
+                            aria-label={`${member.name}の編集権限を設定`}
+                            onClick={() => {
+                              setEditingMember(
+                                editingMember === member.id
+                                  ? undefined
+                                  : member.id,
+                              );
+                              setGrant(member.access ?? defaultAccess());
+                            }}
+                          >
+                            編集権限を設定
+                          </button>
+                          {editingMember === member.id && (
+                            <div className="member-permissions">
+                              <PermissionPicker
+                                deck={deck}
+                                value={grant}
+                                onChange={setGrant}
+                              />
+                              <button
+                                className="button primary"
+                                disabled={cloud.busy}
+                                onClick={() =>
+                                  void cloud.run(async () => {
+                                    await api(
+                                      `/api/decks/${cloud.active!.id}/members/${encodeURIComponent(member.id)}`,
+                                      {
+                                        method: "PATCH",
+                                        body: JSON.stringify(grant),
+                                      },
+                                    );
+                                    setMembers((items) =>
+                                      items.map((m) =>
+                                        m.id === member.id
+                                          ? { ...m, access: grant }
+                                          : m,
+                                      ),
+                                    );
+                                    setEditingMember(undefined);
+                                  })
+                                }
+                              >
+                                権限を保存
+                              </button>
+                              <button
+                                className="quiet"
+                                onClick={() => setEditingMember(undefined)}
+                              >
+                                取り消す
+                              </button>
+                            </div>
+                          )}
                           <button
                             className="quiet"
                             disabled={cloud.busy}
@@ -257,7 +339,14 @@ export function CloudPanel({
                       ))}
                   </>
                 ) : (
-                  <small>共有された作品を編集中です。</small>
+                  <small>
+                    共有された作品です。
+                    {cloud.access.mode === "none"
+                      ? "現在は閲覧のみです。編集の権限はホストが設定します。"
+                      : cloud.access.mode === "scoped"
+                        ? "ホストが指定した範囲を編集できます。"
+                        : "すべてのスライドを編集できます。"}
+                  </small>
                 )}
                 <button
                   className="quiet"

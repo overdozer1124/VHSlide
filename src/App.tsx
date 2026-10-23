@@ -64,6 +64,7 @@ import {
   mergeSheet,
   changeSheet,
 } from "./workbook";
+import { SlideComments } from "./SlideComments";
 import { SheetTabs } from "./SheetTabs";
 import { matchesFilter } from "./mapFilter";
 import type { MapFilter } from "./mapFilter";
@@ -246,6 +247,10 @@ export default function App() {
     id: string,
     name?: string,
   ) {
+    if (!cloud.isHost) {
+      notify("シートの設定はホストだけが変更できます。");
+      return false;
+    }
     try {
       const next = changeSheet(latestWorkbook.current, action, id, name);
       const switched =
@@ -615,6 +620,11 @@ export default function App() {
     setSelected(e.id);
   }
   async function addImage(file: File) {
+    const target = latestDeck.current.slides.find((s) => s.id === activeId);
+    if (target && !cloud.canEdit(target)) {
+      notify("このスライドは閲覧のみです。");
+      return;
+    }
     const targetId = slide.id;
     const roomId = cloud.active?.id;
     try {
@@ -801,6 +811,15 @@ export default function App() {
       <div className="cloud-presence">
         <Cloud size={14} />
         <span>{cloud.status}</span>
+        <span>
+          {cloud.isHost
+            ? "ホスト"
+            : cloud.access.mode === "none"
+              ? "閲覧のみ"
+              : cloud.access.mode === "scoped"
+                ? "指定範囲を編集"
+                : "スライドを編集"}
+        </span>
         <span>{cloud.members.length}人が参加中</span>
         <span className="cloud-participants">
           {cloud.members.map((member) => member.name).join("、")}
@@ -905,6 +924,7 @@ export default function App() {
               <input
                 className="deck-title"
                 aria-label="作品のタイトル"
+                readOnly={!cloud.isHost}
                 maxLength={200}
                 value={deck.title}
                 onChange={(e) => commit({ ...deck, title: e.target.value })}
@@ -1091,6 +1111,12 @@ export default function App() {
         )}
         {view === "editor" && navigationDeck.slides.length > 0 && (
           <Editor
+            editable={cloud.canEdit(slide!)}
+            comments={
+              cloud.active && slide ? (
+                <SlideComments cloud={cloud} slide={slide} />
+              ) : undefined
+            }
             deck={deck}
             navigationDeck={navigationDeck}
             filtered={editorFiltered}
@@ -1157,6 +1183,7 @@ export default function App() {
         )}
         {view !== "present" && (
           <SheetTabs
+            readOnly={!cloud.isHost}
             sheets={sheetList(workbook)}
             activeId={activeSheet(workbook).id}
             onSelect={selectSheet}

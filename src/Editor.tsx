@@ -38,6 +38,8 @@ const colors = [
   "#d6bc94",
 ];
 interface EditorProps {
+  editable: boolean;
+  comments?: ReactNode;
   deck: Deck;
   navigationDeck: Deck;
   filtered: boolean;
@@ -76,6 +78,8 @@ interface EditorProps {
   onToggleInspector: () => void;
 }
 export function Editor({
+  editable,
+  comments,
   deck,
   navigationDeck,
   filtered,
@@ -125,11 +129,19 @@ export function Editor({
           全体マップへ
         </button>
         <span className="small-divider" />
-        <button className="tool-button" onClick={() => addElement("text")}>
+        <button
+          className="tool-button"
+          disabled={!editable}
+          onClick={() => addElement("text")}
+        >
           <Type size={20} />
           文字
         </button>
-        <button className="tool-button" onClick={onImagePicker}>
+        <button
+          className="tool-button"
+          disabled={!editable}
+          onClick={onImagePicker}
+        >
           <ImagePlus size={20} />
           画像
         </button>
@@ -137,6 +149,7 @@ export function Editor({
           <Shapes size={20} />
           <select
             aria-label="図形を追加"
+            disabled={!editable}
             value=""
             onChange={(e) => {
               if (e.target.value) addElement("shape", e.target.value as Shape);
@@ -264,6 +277,7 @@ export function Editor({
           <div className="canvas-title">
             <input
               aria-label="ページの名前"
+              readOnly={!editable}
               maxLength={200}
               value={slide.title}
               onChange={(e) => updateSlide({ title: e.target.value })}
@@ -283,7 +297,7 @@ export function Editor({
             <Canvas
               slide={slide}
               zoom={zoom}
-              editable
+              editable={editable}
               selected={selected}
               onSelect={setSelected}
               touchNavigation
@@ -296,6 +310,7 @@ export function Editor({
                 })
               }
             />
+            {comments}
           </EditorPager>
           <div className="canvas-hint">
             <span>
@@ -307,258 +322,281 @@ export function Editor({
         </div>
         {!inspectorCollapsed && (
           <aside className="inspector" id="editor-inspector">
-            <h2>{element ? "選んだものを編集" : "ページのデザイン"}</h2>
-            {!element ? (
-              <>
-                <label>
-                  背景の色
-                  <input
-                    type="color"
-                    aria-label="背景の色"
-                    value={slide.background}
-                    onChange={(e) =>
-                      updateSlide({ background: e.target.value })
-                    }
-                  />
-                </label>
-                <div className="swatches">
-                  {colors.map((color) => (
-                    <button
-                      key={color}
-                      style={{ background: color }}
-                      aria-label={`背景を${color}に変更`}
-                      onClick={() => updateSlide({ background: color })}
-                    />
-                  ))}
-                </div>
-                <p className="inspector-note">
-                  キャンバスの中の文字や図形をタップすると、色や大きさを変えられます。
+            <fieldset disabled={!editable} className="inspector-fields">
+              {!editable && (
+                <p className="read-only-hint">
+                  閲覧のみ · 編集範囲はホストが設定します
                 </p>
-              </>
-            ) : (
-              <>
-                {element.type === "text" && (
-                  <>
-                    <p className="inspector-note inline-edit-note">
-                      文字の内容はキャンバス内で直接入力できます。文字の枠をクリックして編集します。
-                    </p>
-                    <label>
-                      文字の大きさ
-                      <input
-                        aria-label="文字の大きさ"
-                        type="number"
-                        min={12}
-                        max={120}
-                        value={element.fontSize}
-                        onChange={(e) =>
-                          updateElement({
-                            fontSize: Math.max(
-                              12,
-                              Math.min(120, Number(e.target.value) || 12),
-                            ),
-                          })
-                        }
+              )}
+              <h2>{element ? "選んだものを編集" : "ページのデザイン"}</h2>
+              {!element ? (
+                <>
+                  <label>
+                    背景の色
+                    <input
+                      type="color"
+                      aria-label="背景の色"
+                      value={slide.background}
+                      onChange={(e) =>
+                        updateSlide({ background: e.target.value })
+                      }
+                    />
+                  </label>
+                  <div className="swatches">
+                    {colors.map((color) => (
+                      <button
+                        key={color}
+                        style={{ background: color }}
+                        aria-label={`背景を${color}に変更`}
+                        onClick={() => updateSlide({ background: color })}
                       />
-                    </label>
-                    <div className="format-buttons">
-                      <button
-                        aria-pressed={!!element.bold}
-                        onClick={() => updateElement({ bold: !element.bold })}
-                      >
-                        <b>B</b> 太字
-                      </button>
-                      <button
-                        aria-pressed={!!element.bullets}
-                        onClick={() =>
-                          updateElement({ bullets: !element.bullets })
-                        }
-                      >
-                        ☷ 箇条書き
-                      </button>
-                    </div>
-                    <div className="text-alignment-controls">
-                      <div role="group" aria-label="文字の左右の位置">
-                        <span>左右の位置</span>
-                        <div className="text-alignment-buttons">
-                          {(
-                            [
-                              ["left", "左揃え", AlignLeft],
-                              ["center", "中央揃え", AlignCenter],
-                              ["right", "右揃え", AlignRight],
-                            ] as const
-                          ).map(([value, label, Icon]) => (
-                            <button
-                              key={value}
-                              aria-label={`文字を${label}`}
-                              aria-pressed={
-                                (element.textAlign ?? "left") === value
-                              }
-                              title={label}
-                              onClick={() =>
-                                updateElement({ textAlign: value })
-                              }
-                            >
-                              <Icon size={17} />
-                              <span>{label}</span>
-                            </button>
-                          ))}
-                        </div>
+                    ))}
+                  </div>
+                  <p className="inspector-note">
+                    キャンバスの中の文字や図形をタップすると、色や大きさを変えられます。
+                  </p>
+                </>
+              ) : (
+                <>
+                  {element.type === "text" && (
+                    <>
+                      <p className="inspector-note inline-edit-note">
+                        文字の内容はキャンバス内で直接入力できます。文字の枠をクリックして編集します。
+                      </p>
+                      <label>
+                        文字の大きさ
+                        <input
+                          aria-label="文字の大きさ"
+                          type="number"
+                          min={12}
+                          max={120}
+                          value={element.fontSize}
+                          onChange={(e) =>
+                            updateElement({
+                              fontSize: Math.max(
+                                12,
+                                Math.min(120, Number(e.target.value) || 12),
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                      <div className="format-buttons">
+                        <button
+                          aria-pressed={!!element.bold}
+                          onClick={() => updateElement({ bold: !element.bold })}
+                        >
+                          <b>B</b> 太字
+                        </button>
+                        <button
+                          aria-pressed={!!element.bullets}
+                          onClick={() =>
+                            updateElement({ bullets: !element.bullets })
+                          }
+                        >
+                          ☷ 箇条書き
+                        </button>
                       </div>
-                      <div role="group" aria-label="文字の上下の位置">
-                        <span>上下の位置</span>
-                        <div className="text-alignment-buttons">
-                          {(
-                            [
-                              ["top", "上揃え", AlignVerticalJustifyStart],
+                      <div className="text-alignment-controls">
+                        <div role="group" aria-label="文字の左右の位置">
+                          <span>左右の位置</span>
+                          <div className="text-alignment-buttons">
+                            {(
                               [
-                                "middle",
-                                "上下中央揃え",
-                                AlignVerticalJustifyCenter,
-                              ],
-                              ["bottom", "下揃え", AlignVerticalJustifyEnd],
-                            ] as const
-                          ).map(([value, label, Icon]) => (
-                            <button
-                              key={value}
-                              aria-label={`文字を${label}`}
-                              aria-pressed={
-                                (element.verticalAlign ?? "top") === value
-                              }
-                              title={label}
-                              onClick={() =>
-                                updateElement({ verticalAlign: value })
-                              }
-                            >
-                              <Icon size={17} />
-                              <span>
-                                {value === "middle" ? "中央揃え" : label}
-                              </span>
-                            </button>
-                          ))}
+                                ["left", "左揃え", AlignLeft],
+                                ["center", "中央揃え", AlignCenter],
+                                ["right", "右揃え", AlignRight],
+                              ] as const
+                            ).map(([value, label, Icon]) => (
+                              <button
+                                key={value}
+                                aria-label={`文字を${label}`}
+                                aria-pressed={
+                                  (element.textAlign ?? "left") === value
+                                }
+                                title={label}
+                                onClick={() =>
+                                  updateElement({ textAlign: value })
+                                }
+                              >
+                                <Icon size={17} />
+                                <span>{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div role="group" aria-label="文字の上下の位置">
+                          <span>上下の位置</span>
+                          <div className="text-alignment-buttons">
+                            {(
+                              [
+                                ["top", "上揃え", AlignVerticalJustifyStart],
+                                [
+                                  "middle",
+                                  "上下中央揃え",
+                                  AlignVerticalJustifyCenter,
+                                ],
+                                ["bottom", "下揃え", AlignVerticalJustifyEnd],
+                              ] as const
+                            ).map(([value, label, Icon]) => (
+                              <button
+                                key={value}
+                                aria-label={`文字を${label}`}
+                                aria-pressed={
+                                  (element.verticalAlign ?? "top") === value
+                                }
+                                title={label}
+                                onClick={() =>
+                                  updateElement({ verticalAlign: value })
+                                }
+                              >
+                                <Icon size={17} />
+                                <span>
+                                  {value === "middle" ? "中央揃え" : label}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <label>
-                      文字の色
-                      <input
-                        type="color"
-                        aria-label="文字の色"
-                        value={element.color}
-                        onChange={(e) =>
-                          updateElement({ color: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      ハイライト
-                      <input
-                        type="color"
-                        aria-label="ハイライトの色"
-                        value={element.highlight ?? "#ffffff"}
-                        onChange={(e) =>
-                          updateElement({ highlight: e.target.value })
-                        }
-                      />
-                    </label>
-                    {element.highlight && (
-                      <button
-                        className="quiet"
-                        onClick={() => updateElement({ highlight: undefined })}
-                      >
-                        ハイライトを消す
+                      <label>
+                        文字の色
+                        <input
+                          type="color"
+                          aria-label="文字の色"
+                          value={element.color}
+                          onChange={(e) =>
+                            updateElement({ color: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        ハイライト
+                        <input
+                          type="color"
+                          aria-label="ハイライトの色"
+                          value={element.highlight ?? "#ffffff"}
+                          onChange={(e) =>
+                            updateElement({ highlight: e.target.value })
+                          }
+                        />
+                      </label>
+                      {element.highlight && (
+                        <button
+                          className="quiet"
+                          onClick={() =>
+                            updateElement({ highlight: undefined })
+                          }
+                        >
+                          ハイライトを消す
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {element.type === "shape" && (
+                    <>
+                      <label>
+                        塗りの色
+                        <input
+                          type="color"
+                          aria-label="図形の塗り色"
+                          value={element.fill}
+                          onChange={(e) =>
+                            updateElement({ fill: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        枠線の色
+                        <input
+                          type="color"
+                          aria-label="図形の枠線色"
+                          value={element.stroke}
+                          onChange={(e) =>
+                            updateElement({ stroke: e.target.value })
+                          }
+                        />
+                      </label>
+                    </>
+                  )}
+                  <div className="inspector-section">
+                    <h3>枠の位置・重なり</h3>
+                    <div className="arrange-buttons">
+                      <button onClick={() => updateElement({ x: 0 })}>
+                        左
                       </button>
-                    )}
-                  </>
-                )}
-                {element.type === "shape" && (
-                  <>
-                    <label>
-                      塗りの色
-                      <input
-                        type="color"
-                        aria-label="図形の塗り色"
-                        value={element.fill}
-                        onChange={(e) =>
-                          updateElement({ fill: e.target.value })
+                      <button
+                        onClick={() =>
+                          updateElement({ x: (W - element.w) / 2 })
                         }
-                      />
-                    </label>
-                    <label>
-                      枠線の色
-                      <input
-                        type="color"
-                        aria-label="図形の枠線色"
-                        value={element.stroke}
-                        onChange={(e) =>
-                          updateElement({ stroke: e.target.value })
+                      >
+                        中央
+                      </button>
+                      <button
+                        onClick={() => updateElement({ x: W - element.w })}
+                      >
+                        右
+                      </button>
+                      <button onClick={() => updateElement({ y: 0 })}>
+                        上
+                      </button>
+                      <button
+                        onClick={() =>
+                          updateElement({ y: (H - element.h) / 2 })
                         }
-                      />
-                    </label>
-                  </>
-                )}
-                <div className="inspector-section">
-                  <h3>枠の位置・重なり</h3>
-                  <div className="arrange-buttons">
-                    <button onClick={() => updateElement({ x: 0 })}>左</button>
+                      >
+                        まん中
+                      </button>
+                      <button
+                        onClick={() => updateElement({ y: H - element.h })}
+                      >
+                        下
+                      </button>
+                    </div>
                     <button
-                      onClick={() => updateElement({ x: (W - element.w) / 2 })}
+                      className="wide-button"
+                      onClick={() =>
+                        updateSlide({
+                          elements: [
+                            ...slide.elements.filter((e) => e.id !== selected),
+                            element,
+                          ],
+                        })
+                      }
                     >
-                      中央
+                      最前面へ
                     </button>
-                    <button onClick={() => updateElement({ x: W - element.w })}>
-                      右
-                    </button>
-                    <button onClick={() => updateElement({ y: 0 })}>上</button>
                     <button
-                      onClick={() => updateElement({ y: (H - element.h) / 2 })}
+                      className="wide-button"
+                      onClick={() =>
+                        updateSlide({
+                          elements: [
+                            element,
+                            ...slide.elements.filter((e) => e.id !== selected),
+                          ],
+                        })
+                      }
                     >
-                      まん中
-                    </button>
-                    <button onClick={() => updateElement({ y: H - element.h })}>
-                      下
+                      最背面へ
                     </button>
                   </div>
                   <button
-                    className="wide-button"
-                    onClick={() =>
+                    className="danger-button"
+                    onClick={() => {
                       updateSlide({
-                        elements: [
-                          ...slide.elements.filter((e) => e.id !== selected),
-                          element,
-                        ],
-                      })
-                    }
+                        elements: slide.elements.filter(
+                          (e) => e.id !== selected,
+                        ),
+                      });
+                      setSelected(undefined);
+                    }}
                   >
-                    最前面へ
+                    <Trash2 size={16} />
+                    選んだものを削除
                   </button>
-                  <button
-                    className="wide-button"
-                    onClick={() =>
-                      updateSlide({
-                        elements: [
-                          element,
-                          ...slide.elements.filter((e) => e.id !== selected),
-                        ],
-                      })
-                    }
-                  >
-                    最背面へ
-                  </button>
-                </div>
-                <button
-                  className="danger-button"
-                  onClick={() => {
-                    updateSlide({
-                      elements: slide.elements.filter((e) => e.id !== selected),
-                    });
-                    setSelected(undefined);
-                  }}
-                >
-                  <Trash2 size={16} />
-                  選んだものを削除
-                </button>
-              </>
-            )}
+                </>
+              )}
+            </fieldset>
           </aside>
         )}
       </div>
