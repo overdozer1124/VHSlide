@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Slide } from "./model";
 import type { AccountLabels } from "./preSharing";
-export function thumbnailLabel(slide: Slide, accounts?: AccountLabels) {
-  if (slide.footerLabel?.trim()) return slide.footerLabel;
+export function thumbnailAccountNames(slide: Slide, accounts?: AccountLabels) {
   const sheet = slide.sheetId ?? "main";
   const ownNames = (
     map: Record<string, string[]> | undefined,
@@ -26,7 +25,11 @@ export function thumbnailLabel(slide: Slide, accounts?: AccountLabels) {
         ...ownNames(accounts.slides, slide.id),
       ]
     : [];
-  return [...new Set(names)].join("・") || slide.title;
+  return [...new Set(names)];
+}
+export function thumbnailLabel(slide: Slide, accounts?: AccountLabels) {
+  if (slide.footerLabel?.trim()) return slide.footerLabel;
+  return thumbnailAccountNames(slide, accounts).join("・") || slide.title;
 }
 export function ThumbnailFooter({
   slide,

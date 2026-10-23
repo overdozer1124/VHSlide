@@ -183,7 +183,7 @@ function MapViewComponent({
   const largerScale =
     levels.find((level) => level > scale + 0.0001) ?? largestScale;
   const numbers = scale === 0;
-  const rowHeaderWidth = numbers ? 48 : 80;
+  const rowHeaderWidth = numbers ? 48 : 56;
   const headerHeight = 68;
   const gap = numbers ? 8 : 24;
   const thumbWidth = numbers

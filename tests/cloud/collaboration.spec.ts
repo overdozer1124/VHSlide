@@ -844,6 +844,19 @@ test("host edits shared map headings and row account names update vertically for
     await footer(other, "1.1").fill("わたしの調査");
     await footer(other, "1.1").press("Enter");
     await expect(footer(page, "1.1")).toHaveValue("わたしの調査");
+    await openEditor(other);
+    const assignees = other.getByRole("group", {
+      name: "このスライドの共有者",
+      exact: true,
+    });
+    // The actual shared names stay visible even with a custom thumbnail label.
+    await expect(assignees).toContainText(guest);
+    await expect(assignees).not.toContainText("わたしの調査");
+    await expect(other.locator(".workspace-flight")).toHaveCount(0);
+    await other.screenshot({
+      path: info.outputPath("editor-shared-names.png"),
+    });
+    await button(other, "全体マップへ").click();
     await footer(other, "1.1").fill("");
     await footer(other, "1.1").press("Enter");
     await expect(footer(page, "1.1")).toHaveValue(guest);
@@ -871,6 +884,12 @@ test("host edits shared map headings and row account names update vertically for
     await expect(heading(other, "行2の見出し")).toHaveValue(guest);
     await expect(footer(page, "2.1")).toHaveValue(guest);
     await expect(footer(other, "1.1")).toHaveAttribute("readonly", "");
+    await openEditor(other);
+    await expect(assignees).toHaveCount(0);
+    await button(other, "2段目の横のページをひらく").click();
+    await button(other, "2.1 まちを歩いてみたらを編集").click();
+    await expect(assignees).toContainText(guest);
+    await button(other, "全体マップへ").click();
     await page.screenshot({ path: info.outputPath("shared-row-headings.png") });
     await other.reload();
     await saved(other);

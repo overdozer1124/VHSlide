@@ -8,6 +8,17 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.35.0",
+    date: "2026-10-23",
+    title: "UIの文字を読みやすく・編集中の共有者を表示",
+    changes: [
+      "メニュー・ボタン・一覧などの文字をひと回り大きくして読みやすく改善。",
+      "全体マップの行見出しを細くし、縦書きの文字を左右中央・上端揃えに調整。",
+      "編集エリアの上部にも、スライドに割り当てられた共有者名を表示。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.34.0",
     date: "2026-10-23",
     title: "付箋の見た目・サムネイルの表示名・更新履歴",

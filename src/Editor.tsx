@@ -18,6 +18,7 @@ import {
   Shapes,
   Trash2,
   Type,
+  Users,
 } from "lucide-react";
 import type { Deck, Element, Shape, Slide } from "./model";
 import { H, W } from "./model";
@@ -25,7 +26,7 @@ import { Canvas } from "./Canvas";
 import { EditorPager } from "./EditorPager";
 import { useFitCanvas } from "./useFitCanvas";
 import type { CloudWorkspace } from "./cloud";
-import { thumbnailLabel } from "./ThumbnailFooter";
+import { thumbnailAccountNames, thumbnailLabel } from "./ThumbnailFooter";
 import { SlideComments } from "./SlideComments";
 import { StickyNote } from "lucide-react";
 import { SlideRail } from "./SlideRail";
@@ -123,6 +124,9 @@ export function Editor({
   const workspaceRef = useRef<HTMLDivElement>(null);
   const focused = railCollapsed && inspectorCollapsed;
   const zoom = useFitCanvas(workspaceRef, focused ? 48 : 85, focused ? 16 : 48);
+  const assignees = thumbnailAccountNames(slide, cloud?.accountLabels).join(
+    "・",
+  );
   const element = slide.elements.find((e) => e.id === selected);
   return (
     <main
@@ -308,7 +312,18 @@ export function Editor({
               value={slide.title}
               onChange={(e) => updateSlide({ title: e.target.value })}
             />
-            <span>
+            {assignees && (
+              <span
+                className="canvas-assignees"
+                role="group"
+                aria-label="このスライドの共有者"
+                title={`共有：${assignees}`}
+              >
+                <Users size={16} aria-hidden="true" />
+                <span>共有：{assignees}</span>
+              </span>
+            )}
+            <span className="canvas-page-position">
               {slide.y + 1}.{slide.x + 1} / 16:9
             </span>
           </div>

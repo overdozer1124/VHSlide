@@ -100,7 +100,8 @@ it("builds row display names for pending and joined recipients without duplicati
 
 it("collects row, column, page and whole-work assignees for automatic thumbnail footers", async () => {
   const { sharedAccountNames } = await import("./preSharing");
-  const { thumbnailLabel } = await import("./ThumbnailFooter");
+  const { thumbnailLabel, thumbnailAccountNames } =
+    await import("./ThumbnailFooter");
   const labels = sharedAccountNames(
     [],
     [
@@ -141,6 +142,9 @@ it("collects row, column, page and whole-work assignees for automatic thumbnail 
   };
   expect(thumbnailLabel(slide, labels)).toBe("先生・花子・太郎・次郎");
   expect(thumbnailLabel({ ...slide, footerLabel: "1班" }, labels)).toBe("1班");
+  expect(
+    thumbnailAccountNames({ ...slide, footerLabel: "1班" }, labels),
+  ).toEqual(["先生", "花子", "太郎", "次郎"]);
   expect(
     thumbnailLabel(
       { ...slide, sheetId: "other", id: "q" },

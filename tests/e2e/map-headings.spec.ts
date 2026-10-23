@@ -23,6 +23,16 @@ test("editable map headings stay readable and meet the scrollport without gaps a
   await row.fill("8班の調査");
   await row.press("Enter");
   await expect(row).toHaveCSS("writing-mode", "vertical-rl");
+  const rowGeometry = await row.evaluate((node) => {
+    const field = node.getBoundingClientRect();
+    const axis = node.closest(".row-axis")!.getBoundingClientRect();
+    return {
+      width: axis.width,
+      centerOffset: field.x + field.width / 2 - (axis.x + axis.width / 2),
+    };
+  });
+  expect(rowGeometry.width).toBe(56);
+  expect(Math.abs(rowGeometry.centerOffset)).toBeLessThan(1);
   const saved = () =>
     page.evaluate(() => JSON.parse(localStorage.getItem("vhslide-deck-v1")!));
   expect((await saved()).sheets[0]).toMatchObject({

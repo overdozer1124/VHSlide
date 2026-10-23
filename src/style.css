@@ -12,7 +12,7 @@
   background: #f7f8fa;
   font-synthesis: none;
   font-weight: 400;
-  font-size: 14px;
+  font-size: 15px;
 }
 * {
   box-sizing: border-box;
@@ -110,7 +110,7 @@ p {
   transform: rotate(-4deg);
 }
 .beta {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1px;
   border: 1px solid #dce4df;
   border-radius: 4px;
@@ -127,7 +127,7 @@ p {
 .deck-title {
   border: 0;
   background: none;
-  font-size: 13px;
+  font-size: 15px;
   width: 260px;
   min-width: 70px;
   text-overflow: ellipsis;
@@ -135,7 +135,7 @@ p {
   font-weight: 600;
 }
 .save-state {
-  font-size: 10px;
+  font-size: 12px;
   color: #8b9990;
   display: flex;
   align-items: center;
@@ -155,7 +155,7 @@ p {
   gap: 8px;
   border-radius: 8px;
   padding: 10px 17px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -178,7 +178,7 @@ p {
   justify-content: center;
   padding: 8px;
   color: #6f7d76;
-  font-size: 12px;
+  font-size: 14px;
 }
 .quiet:hover {
   color: #315d4e;
@@ -203,7 +203,7 @@ p {
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 4px;
   position: relative;
   color: #8a958e;
@@ -257,7 +257,7 @@ p {
   margin-bottom: 31px;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 2.2px;
   color: #81978b;
   font-weight: 700;
@@ -275,7 +275,7 @@ h1 span {
 }
 .map-intro p {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 14px;
   color: #8b958e;
   letter-spacing: 0.3px;
 }
@@ -293,11 +293,11 @@ h1 span {
   letter-spacing: -2px;
 }
 .map-count > div {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .map-count small {
-  font-size: 9px;
+  font-size: 12px;
   color: #a1aba3;
 }
 .map-panel {
@@ -320,7 +320,7 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 .live-dot {
@@ -333,14 +333,14 @@ h1 span {
 .subtle {
   font-weight: 400;
   color: #a3aba5;
-  font-size: 10px;
+  font-size: 12px;
   margin-left: 7px;
 }
 .map-tip {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
+  font-size: 12px;
   color: #a1aba4;
 }
 .map-scroll {
@@ -363,7 +363,7 @@ h1 span {
   align-items: center;
   gap: 10px;
   justify-content: center;
-  font-size: 9px;
+  font-size: 12px;
   color: #9ba99a;
   padding: 0 80px;
 }
@@ -376,7 +376,7 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: 13px;
   height: 40px;
   padding: 0 33px 0 5px;
   color: #6b7f6b;
@@ -387,7 +387,7 @@ h1 span {
   color: #a4afa3;
 }
 .column-num {
-  font-size: 9px;
+  font-size: 12px;
   color: #93a58e;
   border: 1px solid #e0e8db;
   border-radius: 4px;
@@ -403,7 +403,7 @@ h1 span {
   color: #a6b19e;
 }
 .row-move {
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 70px;
   border: 1px solid #dfe6d8;
   border-radius: 4px;
@@ -417,7 +417,7 @@ h1 span {
   top: 100px;
   left: 4px;
   writing-mode: vertical-rl;
-  font-size: 9px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -461,7 +461,7 @@ h1 span {
   top: 9px;
   right: 10px;
   background: #fff9;
-  font-size: 6px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
   padding: 3px 5px;
@@ -476,13 +476,13 @@ h1 span {
   padding: 0 10px;
 }
 .page-number {
-  font-size: 8px;
+  font-size: 11px;
   color: #a1ad9a;
   border-right: 1px solid #e4e9df;
   padding-right: 8px;
 }
 .card-title {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -559,7 +559,7 @@ h1 span {
   color: #a9b49e;
 }
 .empty-cell span {
-  font-size: 10px;
+  font-size: 12px;
 }
 .empty-cell:hover {
   background: #eef4e8;
@@ -574,7 +574,7 @@ h1 span {
 .move-banner {
   background: #e7f0df;
   padding: 12px 25px;
-  font-size: 12px;
+  font-size: 14px;
   display: flex;
   justify-content: space-between;
 }
@@ -585,7 +585,7 @@ h1 span {
   padding: 16px 24px;
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 12px;
   color: #a0ac9b;
   border-top: 1px solid #e6ece1;
   background: #fff;
@@ -610,20 +610,20 @@ h1 span {
   align-items: center;
   gap: 17px;
   padding: 24px 2px;
-  font-size: 9px;
+  font-size: 12px;
   color: #a7b0a8;
 }
 .footer-brand {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 11px;
+  font-size: 13px;
   color: #7b907c;
   font-weight: 600;
 }
 .page-footer > .quiet {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 12px;
 }
 .help-panel {
   margin: 20px 38px 0;
@@ -633,7 +633,7 @@ h1 span {
   border-radius: 9px;
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 14px;
 }
 .help-panel p {
   line-height: 1.9;
@@ -653,7 +653,7 @@ h1 span {
   border-radius: 9px;
   box-shadow: 0 5px 25px #173d3833;
   padding: 15px 17px;
-  font-size: 12px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -671,7 +671,7 @@ h1 span {
   background: #fff3db;
   border: 1px solid #dfc78d;
   padding: 12px;
-  font-size: 12px;
+  font-size: 14px;
   border-radius: 8px;
 }
 .recovery-banner button {
@@ -700,7 +700,7 @@ h1 span {
   gap: 7px;
   padding: 8px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .tool-button:hover,
 .shape-picker:hover {
@@ -713,7 +713,7 @@ h1 span {
   cursor: pointer;
 }
 .toolbar-note {
-  font-size: 10px;
+  font-size: 12px;
   color: #99a296;
   margin-left: auto;
 }
@@ -722,7 +722,7 @@ h1 span {
   white-space: nowrap;
 }
 .row-link-toggle > span {
-  font-size: 10px;
+  font-size: 12px;
   padding: 1px 5px;
   border-radius: 4px;
   background: #edf1e9;
@@ -766,12 +766,12 @@ h1 span {
   flex-shrink: 0;
 }
 .rail-heading strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: #526e56;
 }
 .rail-heading > span {
-  font-size: 8px;
+  font-size: 11px;
   color: #8c9d82;
   display: flex;
   align-items: center;
@@ -812,7 +812,7 @@ h1 span {
   align-items: center;
   justify-content: space-between;
   color: #8c9d83;
-  font-size: 9px;
+  font-size: 12px;
   padding: 0 1px 5px;
 }
 .rail-active .rail-coordinate {
@@ -832,7 +832,7 @@ h1 span {
   pointer-events: none;
 }
 .rail-page-title {
-  font-size: 9px;
+  font-size: 12px;
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -848,7 +848,7 @@ h1 span {
   height: 100%;
   border: 1px dashed #cad6c0;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: 12px;
   color: #99a58e;
   background: #f2f6ee;
 }
@@ -874,7 +874,7 @@ h1 span {
   padding: 10px 5px;
   text-align: center;
   color: #94a288;
-  font-size: 9px;
+  font-size: 12px;
   flex-shrink: 0;
   border-top: 1px solid #e0e7d9;
 }
@@ -903,12 +903,12 @@ h1 span {
   gap: 16px;
 }
 .row-flyout-heading strong {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: #4a7042;
 }
 .row-flyout-heading span {
-  font-size: 10px;
+  font-size: 12px;
   color: #91a087;
   display: flex;
   align-items: center;
@@ -963,7 +963,7 @@ h1 span {
   align-items: center;
   justify-content: center;
   color: #a0ae94;
-  font-size: 10px;
+  font-size: 12px;
   background: #f1f6eb;
 }
 .row-page-empty {
@@ -976,14 +976,14 @@ h1 span {
   padding: 7px 6px;
 }
 .row-page-caption > span:first-child {
-  font-size: 8px;
+  font-size: 11px;
   color: #99a68e;
   flex-shrink: 0;
 }
 .row-page-caption > span:nth-child(2) {
   flex: 1;
   min-width: 0;
-  font-size: 9px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -997,7 +997,7 @@ h1 span {
   padding: 3px 5px;
   background: #315d4e;
   color: #fff;
-  font-size: 8px;
+  font-size: 11px;
 }
 .row-insert-column {
   width: 36px;
@@ -1022,7 +1022,7 @@ h1 span {
   border-radius: 6px;
 }
 .row-flyout-hint {
-  font-size: 9px;
+  font-size: 12px;
   color: #97a38c;
   padding: 8px 13px;
   border-top: 1px solid #e9eee5;
@@ -1049,19 +1049,48 @@ h1 span {
 }
 .canvas-title {
   display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   justify-content: space-between;
   padding: 10px 25px;
   color: #8b9787;
-  font-size: 10px;
+  font-size: 12px;
   position: absolute;
   top: 0;
 }
 .canvas-title input {
-  max-width: 60%;
+  flex: 1;
+  width: 0;
+  min-width: 0;
   background: none;
   border: 0;
-  font-size: 11px;
+  font-size: 13px;
+}
+.canvas-assignees {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 45%;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #e6efdf;
+  color: #36533c;
+  font-size: 14px;
+  font-weight: 600;
+}
+.canvas-assignees svg {
+  flex-shrink: 0;
+}
+.canvas-assignees > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-page-position {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .canvas-hint {
   display: flex;
@@ -1070,7 +1099,7 @@ h1 span {
   gap: 3px;
   position: absolute;
   bottom: 14px;
-  font-size: 10px;
+  font-size: 12px;
   color: #8e9d86;
 }
 .canvas-scale {
@@ -1202,7 +1231,7 @@ h1 span {
   overflow: auto;
 }
 .inspector h2 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   margin-bottom: 25px;
 }
@@ -1210,7 +1239,7 @@ h1 span {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 13px;
   margin: 18px 0;
   gap: 10px;
 }
@@ -1243,7 +1272,7 @@ h1 span {
   border: 1px solid #dce4d7;
   border-radius: 6px;
   padding: 9px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .swatches {
   display: grid;
@@ -1259,7 +1288,7 @@ h1 span {
 .inspector-note {
   color: #9aa491;
   line-height: 1.9;
-  font-size: 11px;
+  font-size: 13px;
   margin-top: 25px;
 }
 .format-buttons {
@@ -1271,7 +1300,7 @@ h1 span {
   border: 1px solid #dce4d7;
   padding: 8px 4px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .format-buttons button[aria-pressed="true"] {
   background: #e3eddc;
@@ -1281,7 +1310,7 @@ h1 span {
   display: grid;
   gap: 12px;
   margin: 18px 0;
-  font-size: 11px;
+  font-size: 13px;
 }
 .text-alignment-buttons {
   display: grid;
@@ -1297,7 +1326,7 @@ h1 span {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 12px;
   border: 1px solid #dce4d7;
   border-radius: 4px;
 }
@@ -1312,7 +1341,7 @@ h1 span {
   padding-top: 20px;
 }
 .inspector h3 {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: #8a9882;
   margin-bottom: 13px;
@@ -1327,7 +1356,7 @@ h1 span {
 .wide-button {
   border: 1px solid #e0e7d9;
   padding: 7px;
-  font-size: 10px;
+  font-size: 12px;
   border-radius: 4px;
 }
 .wide-button {
@@ -1339,7 +1368,7 @@ h1 span {
   gap: 7px;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 13px;
   color: #ad6760;
   margin-top: 24px;
   width: 100%;
@@ -1368,7 +1397,7 @@ h1 span {
   padding: 15px 24px;
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 14px;
   align-items: center;
 }
 .present-top > div {
@@ -1383,7 +1412,7 @@ h1 span {
 }
 .present-deck-title {
   color: #839487;
-  font-size: 11px;
+  font-size: 13px;
 }
 .present-slide {
   box-shadow: 0 12px 45px #0004;
@@ -1421,13 +1450,13 @@ h1 span {
   box-shadow: 0 0 0 1px #d7f3bd;
 }
 .minimap-caption {
-  font-size: 8px;
+  font-size: 11px;
   margin-top: 5px;
   color: #9fb096;
   white-space: nowrap;
 }
 .present-caption {
-  font-size: 10px;
+  font-size: 12px;
   color: #869d89;
   padding-bottom: 8px;
 }
@@ -1582,14 +1611,14 @@ h1 span {
   .deck-title {
     order: 3;
     flex-basis: 100%;
-    font-size: 11px;
+    font-size: 13px;
   }
   .header-actions {
     gap: 4px;
   }
   .button {
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 13px;
   }
   .header-actions .quiet {
     padding: 6px;
@@ -1605,7 +1634,7 @@ h1 span {
     gap: 20px;
   }
   .view-tabs button {
-    font-size: 11px;
+    font-size: 13px;
   }
   .history {
     gap: 0;
@@ -1617,7 +1646,7 @@ h1 span {
     padding: 28px 16px 0;
   }
   .eyebrow {
-    font-size: 7px;
+    font-size: 10px;
     letter-spacing: 1.4px;
     margin-bottom: 10px;
   }
@@ -1625,7 +1654,7 @@ h1 span {
     font-size: 23px;
   }
   .map-intro p {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.8;
     max-width: 270px;
     margin-top: 8px;
@@ -1637,7 +1666,7 @@ h1 span {
     font-size: 32px;
   }
   .map-count > div {
-    font-size: 9px;
+    font-size: 12px;
   }
   .map-intro {
     gap: 15px;
@@ -1657,7 +1686,7 @@ h1 span {
   }
   .map-bottom {
     padding: 14px;
-    font-size: 8px;
+    font-size: 11px;
   }
   .page-footer {
     gap: 12px;
@@ -1668,7 +1697,7 @@ h1 span {
   .help-panel {
     margin: 15px;
     padding: 16px;
-    font-size: 11px;
+    font-size: 13px;
   }
   .editor-main {
     height: auto;
@@ -1680,14 +1709,14 @@ h1 span {
     min-height: 56px;
   }
   .back-map {
-    font-size: 10px;
+    font-size: 12px;
   }
   .editor-toolbar .small-divider {
     margin: 0 3px;
   }
   .tool-button,
   .shape-picker {
-    font-size: 11px;
+    font-size: 13px;
     padding: 5px;
     gap: 4px;
   }
@@ -1707,7 +1736,7 @@ h1 span {
     align-items: flex-start;
   }
   .rail-heading > span {
-    font-size: 7px;
+    font-size: 10px;
   }
   .rail-scroll {
     padding: 3px 5px 0;
@@ -1716,13 +1745,13 @@ h1 span {
     padding: 5px 2px;
   }
   .rail-page-title {
-    font-size: 8px;
+    font-size: 11px;
   }
   .rail-coordinate {
-    font-size: 8px;
+    font-size: 11px;
   }
   .rail-footnote {
-    font-size: 8px;
+    font-size: 11px;
   }
   .editor-layout {
     display: grid;
@@ -1744,7 +1773,7 @@ h1 span {
     gap: 8px;
   }
   .row-flyout-heading span {
-    font-size: 8px;
+    font-size: 11px;
   }
   .row-page-scroll {
     padding: 10px 8px;
@@ -1794,12 +1823,12 @@ h1 span {
     width: 200px;
   }
   .canvas-hint {
-    font-size: 8px;
+    font-size: 11px;
     bottom: 8px;
   }
   .present-top {
     padding: 12px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .present-deck-title {
     display: none;
@@ -1817,7 +1846,7 @@ h1 span {
   }
   .recovery-banner {
     right: 20px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .recovery-banner button {
     margin: 8px 0 0;
@@ -1932,12 +1961,12 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: 13px;
   min-width: 144px;
   pointer-events: none;
 }
 .rail-drag-preview small {
-  font-size: 10px;
+  font-size: 12px;
   color: #839976;
 }
 .rail-new-row-drop {
@@ -1947,7 +1976,7 @@ h1 span {
   margin-bottom: 10px;
   text-align: center;
   color: #789366;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .rail-new-row-drop.rail-drop-over {
@@ -2001,7 +2030,7 @@ h1 span {
 .thumbnail-menu-title {
   padding: 7px 10px;
   color: #7b8b72;
-  font-size: 11px;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2014,7 +2043,7 @@ h1 span {
   min-height: 40px;
   padding: 8px 10px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
 }
 .thumbnail-menu button:hover,
@@ -2041,7 +2070,7 @@ h1 span {
   padding: 7px 24px;
   background: #edf4e7;
   color: #315d4e;
-  font-size: 11px;
+  font-size: 13px;
   flex-wrap: wrap;
 }
 .cloud-presence + .editor-main {
@@ -2086,24 +2115,24 @@ h1 span {
 }
 .cloud-panel h3 {
   margin: 24px 0 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 650;
 }
 .cloud-panel p {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.8;
   margin: 16px 0;
 }
 .cloud-panel small {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: #7b8b72;
   margin: 8px 0;
   line-height: 1.7;
 }
 .cloud-account {
   margin: 20px 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 .cloud-sharing {
   margin-top: 20px;
@@ -2112,7 +2141,7 @@ h1 span {
   padding: 16px;
 }
 .cloud-sharing strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 .cloud-sharing .quiet {
   margin-top: 8px;
@@ -2126,7 +2155,7 @@ h1 span {
 .cloud-invite input {
   min-width: 0;
   flex: 1;
-  font-size: 11px;
+  font-size: 13px;
   padding: 9px;
   border: 1px solid #dce5d5;
   border-radius: 5px;
@@ -2143,7 +2172,7 @@ h1 span {
   text-align: left;
 }
 .cloud-deck strong {
-  font-size: 13px;
+  font-size: 15px;
   display: block;
   overflow-wrap: anywhere;
 }
@@ -2199,7 +2228,7 @@ h1 span {
 }
 .workspace-mode .deck-title {
   width: 220px;
-  font-size: 12px;
+  font-size: 14px;
   flex: 1;
   min-width: 60px;
 }
@@ -2327,7 +2356,7 @@ h1 span {
   padding: 0;
   background: none;
   gap: 7px;
-  font-size: 10px;
+  font-size: 12px;
   flex-wrap: nowrap;
   white-space: nowrap;
 }
@@ -2361,7 +2390,7 @@ h1 span {
   gap: 22px;
 }
 .mapping .view-tabs button {
-  font-size: 11px;
+  font-size: 13px;
 }
 .mapping .map-main {
   max-width: none;
@@ -2388,6 +2417,9 @@ h1 span {
   gap: 12px;
   flex-wrap: wrap;
 }
+.mapping .map-toolbar .quiet {
+  padding-block: 6px;
+}
 .map-summary {
   display: flex;
   align-items: center;
@@ -2398,13 +2430,13 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: 0;
   line-height: 1.5;
   white-space: nowrap;
 }
 .map-stats {
-  font-size: 11px;
+  font-size: 13px;
   color: #7c8d80;
   white-space: nowrap;
 }
@@ -2423,7 +2455,7 @@ h1 span {
   min-width: 44px;
   padding: 6px 4px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .map-scale-reset:hover {
@@ -2461,7 +2493,7 @@ h1 span {
   z-index: 4;
   background: #f5f8f2;
   border-bottom: 1px solid #e5ebdf;
-  font-size: 10px;
+  font-size: 12px;
 }
 .mapping .column-num {
   padding: 1px 4px;
@@ -2478,7 +2510,7 @@ h1 span {
 }
 .mapping .vertical-label {
   top: calc(var(--map-thumb-height) / 2 + 16px);
-  font-size: 8px;
+  font-size: 11px;
   left: 2px;
 }
 .mapping .grid-cell {
@@ -2551,7 +2583,7 @@ h1 span {
   display: none;
 }
 .mapping .map-bottom {
-  padding: 4px 12px;
+  padding: 2px 12px;
   min-height: 28px;
   flex-shrink: 0;
 }
@@ -2585,7 +2617,7 @@ h1 span {
     display: none;
   }
   .map-fit {
-    font-size: 10px;
+    font-size: 12px;
     padding: 6px;
   }
 }
@@ -2615,7 +2647,7 @@ h1 span {
   width: 64px;
   min-width: 0;
   padding: 4px 7px;
-  font-size: 12px;
+  font-size: 14px;
   background: transparent;
 }
 .map-find .icon-button {
@@ -2627,7 +2659,7 @@ h1 span {
 }
 .map-find-error {
   padding: 3px 12px;
-  font-size: 11px;
+  font-size: 13px;
   color: #a33b32;
 }
 .map-numbers-toggle[aria-pressed="true"] {
@@ -2655,7 +2687,7 @@ h1 span {
   justify-content: center;
   align-items: center;
   width: 100%;
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   background: #f2f6ed;
   color: #365b48;
@@ -2731,14 +2763,14 @@ h1 span {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .zoom-settings-panel label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin: 12px 0 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .zoom-settings-panel input {
   width: 100%;
@@ -2750,7 +2782,7 @@ h1 span {
 .zoom-settings-panel p {
   margin: 8px 0;
   color: #73836c;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .zoom-settings-panel .zoom-settings-error {
@@ -2767,7 +2799,7 @@ h1 span {
   padding: 5px 8px;
   background: #f0f5eb;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .zoom-settings-actions {
   margin-top: 14px;
@@ -2776,7 +2808,7 @@ h1 span {
 .zoom-settings-actions .button,
 .zoom-settings-actions .quiet {
   padding: 7px 9px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .mapping .map-grid[data-micro="true"] .card-tool,
 .mapping .map-grid[data-micro="true"] .column-heading .icon-button {
@@ -2786,7 +2818,7 @@ h1 span {
   padding: 0 2px;
 }
 .mapping .map-grid[data-micro="true"] .page-number {
-  font-size: 8px;
+  font-size: 11px;
   padding: 0;
 }
 .editor-panel-toggles {
@@ -2877,7 +2909,7 @@ h1 span {
 .present-caption small {
   display: block;
   margin-top: 5px;
-  font-size: 9px;
+  font-size: 12px;
   color: #d2ddce;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3015,7 +3047,7 @@ h1 span {
   color: white;
   border-radius: 4px;
   padding: 3px 5px;
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
   z-index: 5;
@@ -3143,7 +3175,7 @@ h1 span {
 .sheet-tabs button {
   padding: 7px 16px;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 13px;
   border-bottom: 2px solid transparent;
 }
 .sheet-tabs button[aria-selected="true"] {
@@ -3164,7 +3196,7 @@ h1 span {
   border-radius: 8px;
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .sheet-menu button {
   padding: 7px;
@@ -3182,7 +3214,7 @@ h1 span {
 .row-copy-count {
   padding: 7px 10px;
   border-block: 1px solid #edf0ed;
-  font-size: 11px;
+  font-size: 13px;
 }
 .row-copy-count label {
   display: flex;
@@ -3208,7 +3240,7 @@ h1 span {
   flex-wrap: wrap;
   align-items: center;
   gap: 9px 16px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .filter-selection-bar > div:first-child {
   display: flex;
@@ -3233,7 +3265,7 @@ h1 span {
   margin-left: auto;
 }
 .filter-selection-actions button {
-  font-size: 11px;
+  font-size: 13px;
   padding: 6px 10px;
   border: 1px solid #d3dfca;
   border-radius: 5px;
@@ -3325,13 +3357,13 @@ h1 span {
   }
 }
 .filtered-note {
-  font-size: 11px;
+  font-size: 13px;
   padding: 6px 14px;
   background: #eef4e8;
 }
 .filter-empty {
   padding: 18px;
-  font-size: 12px;
+  font-size: 14px;
 }
 @media (min-width: 761px) and (max-height: 760px) {
   .mapping .map-main {
@@ -3353,7 +3385,7 @@ h1 span {
   gap: 5px;
   min-height: 30px;
   padding: 4px;
-  font-size: 10px;
+  font-size: 12px;
   border: 1px solid #cddac8;
   border-radius: 6px;
   color: #48654a;
@@ -3377,7 +3409,7 @@ h1 span {
   border-radius: 5px;
   background: #f8faf5;
   color: #526e56;
-  font-size: 12px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 .rail-row-number:hover {
@@ -3436,7 +3468,7 @@ h1 span {
   border: 2px solid #638c4c;
   border-radius: 3px;
   background: white;
-  font-size: 12px;
+  font-size: 14px;
   outline-offset: 1px;
 }
 .sheet-drag-preview {
@@ -3446,7 +3478,7 @@ h1 span {
   border-radius: 4px;
   box-shadow: 0 3px 12px #173d3833;
   color: #315d4e;
-  font-size: 11px;
+  font-size: 13px;
 }
 .sheet-menu {
   max-height: calc(100dvh - 60px);
@@ -3464,7 +3496,7 @@ h1 span {
   min-width: 0;
 }
 .read-only-hint {
-  font-size: 11px;
+  font-size: 13px;
   color: #786b44;
   background: #fff4cd;
   padding: 7px;
@@ -3475,7 +3507,7 @@ h1 span {
 }
 .cloud-member > span small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: #6c7e71;
 }
 .member-permissions {
@@ -3493,7 +3525,7 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .permission-picker select {
   padding: 6px;
@@ -3518,7 +3550,7 @@ h1 span {
 }
 .permission-grid button {
   min-height: 32px;
-  font-size: 11px;
+  font-size: 13px;
   border: 1px solid #d8e2d1;
   background: #f8faf5;
   border-radius: 4px;
@@ -3552,7 +3584,7 @@ h1 span {
   border-radius: 3px 3px 14px 3px;
   display: flex;
   flex-direction: column;
-  font-size: 14px;
+  font-size: 15px;
   cursor: default;
 }
 .sticky-note:focus-within {
@@ -3573,7 +3605,7 @@ h1 span {
   padding: 6px;
   cursor: grab;
   touch-action: none;
-  font-size: 10px;
+  font-size: 12px;
 }
 .sticky-grip:active {
   cursor: grabbing;
@@ -3604,7 +3636,7 @@ h1 span {
   justify-content: space-between;
   gap: 5px;
   padding: 5px 10px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .sticky-note footer span {
   overflow: hidden;
@@ -3613,7 +3645,7 @@ h1 span {
   max-width: 48%;
 }
 .sticky-note footer small {
-  font-size: 9px;
+  font-size: 12px;
 }
 .sticky-error {
   position: absolute;
@@ -3623,7 +3655,7 @@ h1 span {
   padding: 8px;
   background: #fff1ee;
   color: #8f3528;
-  font-size: 11px;
+  font-size: 13px;
   box-shadow: 0 3px 8px #173d3833;
 }
 .sticky-error button {
@@ -3640,7 +3672,7 @@ h1 span {
 .pre-sharing label {
   display: grid;
   gap: 5px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .pre-sharing textarea,
 .pre-sharing > input,
@@ -3651,7 +3683,7 @@ h1 span {
   border-radius: 4px;
   padding: 7px;
   background: white;
-  font-size: 12px;
+  font-size: 14px;
 }
 .pre-sharing .permission-picker label {
   display: flex;
@@ -3663,7 +3695,7 @@ h1 span {
   background: #f1f6ec;
   border: 1px solid #d8e2d1;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .pre-share-preview ol {
   margin: 8px 0;
@@ -3716,7 +3748,7 @@ h1 span {
   color: #48634d;
   border-right: 1px solid #d6e0d0;
   border-bottom: 1px solid #d6e0d0;
-  font-size: 13px;
+  font-size: 15px;
 }
 .mapping .column-heading,
 .mapping .map-heading-end {
@@ -3733,7 +3765,7 @@ h1 span {
   gap: 8px;
 }
 .mapping .column-num {
-  font-size: 14px;
+  font-size: 15px;
   color: #49634a;
 }
 .mapping .row-axis {
@@ -3783,11 +3815,13 @@ h1 span {
 .map-heading-input.vertical {
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  width: 100%;
+  width: 36px;
+  align-self: center;
   height: 0;
   min-height: 0;
-  line-height: 25px;
-  padding: 4px 10px;
+  line-height: 26px;
+  padding: 4px;
+  text-align: start;
   white-space: pre-wrap;
   overflow: auto;
   scrollbar-width: none;
@@ -3795,14 +3829,14 @@ h1 span {
 .map-heading-input.vertical::placeholder {
   font-weight: 400;
   color: #879a7b;
-  font-size: 12px;
+  font-size: 14px;
 }
 .map-row-accounts {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 14px;
   padding: 5px;
 }
 .map-row-accounts[aria-checked="true"] {
@@ -3821,13 +3855,13 @@ h1 span {
   display: none;
 }
 .mapping .map-grid[data-numbers="true"] .column-num {
-  font-size: 13px;
+  font-size: 15px;
 }
 .mapping .map-grid[data-numbers="true"] .row-axis {
   padding: 0 2px;
 }
 .mapping .map-grid[data-numbers="true"] .row-move {
-  font-size: 12px;
+  font-size: 14px;
   padding: 2px 4px;
 }
 .mapping .map-toolbar {
@@ -3881,10 +3915,10 @@ h1 span {
   min-height: 28px;
   background: #f0f4ec;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .sticky-palette small {
-  font-size: 10px;
+  font-size: 12px;
   color: #6c7d65;
 }
 .sticky-resize {
@@ -3911,7 +3945,7 @@ h1 span {
   border: 1px solid transparent;
   border-radius: 3px;
   color: inherit;
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
 }
 .thumbnail-footer-input:not([readonly]):hover {
@@ -3934,7 +3968,7 @@ h1 span {
   left: 0;
   width: 100%;
   height: 23px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .flyout-footer-editor {
   position: absolute;
@@ -3943,7 +3977,7 @@ h1 span {
   width: 80px;
   height: 22px;
   z-index: 2;
-  font-size: 11px;
+  font-size: 13px;
   transition: transform 160ms ease;
 }
 .release-history {
@@ -3969,7 +4003,7 @@ h1 span {
 }
 .release-history > header > span {
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 .release-history main {
@@ -3986,12 +4020,12 @@ h1 span {
   margin-bottom: 16px;
 }
 .release-history p {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.8;
 }
 .release-history .release-note {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: #74846c;
 }
 .release-history main > ol {
@@ -4023,7 +4057,7 @@ h1 span {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .release-meta strong {
   font-size: 16px;
@@ -4037,7 +4071,7 @@ h1 span {
   color: #395e31;
   border-radius: 4px;
   padding: 2px 7px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .release-history h2 {
   font-size: 18px;
@@ -4047,7 +4081,7 @@ h1 span {
 .release-history ul {
   list-style: disc;
   padding-left: 20px;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.9;
 }
 @media (max-width: 600px) {
