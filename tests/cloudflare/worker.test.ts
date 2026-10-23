@@ -434,6 +434,123 @@ test("host grants are enforced on live edits; read-only guests can comment but c
     await request(`/api/decks/${id}/comments`)
   ).json()) as any;
   const hostNote = both.comments.find((c: any) => c.author === "owner");
+  const edited = { slide: own.id, text: "直接編集した付箋", x: 0.12, y: 0.22 };
+  const ownNoteId = notes.comments[0].id;
+  const draftId = "bbbbbbbb-1234-4567-8901-123456789abc";
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${draftId}`,
+        "PUT",
+        edited,
+        friend,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${draftId}`,
+        "PUT",
+        edited,
+        friend,
+      )
+    ).status,
+    200,
+  );
+  const created = (await (
+    await request(`/api/decks/${id}/comments`)
+  ).json()) as any;
+  assert.equal(created.comments.length, 3, "new drafts are created only once");
+  assert.equal(
+    created.comments.find((c: any) => c.id === draftId).author,
+    "friend",
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${draftId}`,
+        "DELETE",
+        undefined,
+        friend,
+      )
+    ).status,
+    200,
+  );
+
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${ownNoteId}`,
+        "PUT",
+        edited,
+        friend,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${ownNoteId}`,
+        "PUT",
+        edited,
+        friend,
+      )
+    ).status,
+    200,
+  );
+  let changed = (await (
+    await request(`/api/decks/${id}/comments`)
+  ).json()) as any;
+  assert.equal(changed.comments.length, 2, "retry must not create duplicates");
+  assert.equal(
+    changed.comments.find((c: any) => c.id === ownNoteId).text,
+    edited.text,
+  );
+  assert.equal(
+    changed.comments.find((c: any) => c.id === ownNoteId).x,
+    edited.x,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${hostNote.id}`,
+        "PUT",
+        edited,
+        friend,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/comments/${ownNoteId}`, "PUT", {
+        ...edited,
+        text: "先生からの補足",
+      })
+    ).status,
+    200,
+  );
+  changed = (await (await request(`/api/decks/${id}/comments`)).json()) as any;
+  assert.equal(
+    changed.comments.find((c: any) => c.id === ownNoteId).author,
+    "friend",
+    "host editing preserves authorship",
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${ownNoteId}`,
+        "PUT",
+        { ...edited, text: "", x: 2 },
+        friend,
+      )
+    ).status,
+    400,
+  );
+
   assert.equal(
     (
       await request(
@@ -513,6 +630,19 @@ test("host grants are enforced on live edits; read-only guests can comment but c
       })
     ).status,
     200,
+  );
+
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments/${draftId}`,
+        "PUT",
+        edited,
+        friend,
+      )
+    ).status,
+    403,
+    "revoked comment permission also prevents updates",
   );
   const v = Y.encodeStateVector(live.doc);
   sharedText(live.doc, own.id, own.elements[0].id)!.insert(0, "revoked");

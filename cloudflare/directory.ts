@@ -707,7 +707,7 @@ export class Directory extends DurableObject<Env> {
       insist(
         method === "GET" ||
           method === "DELETE" ||
-          (method === "POST" && access.comment),
+          (["POST", "PUT"].includes(method) && access.comment),
         403,
         "コメントする権限がありません。",
       );
@@ -716,7 +716,9 @@ export class Directory extends DurableObject<Env> {
           method,
           user,
           host: work.owner === user.id,
-          ...(method === "POST" ? { value: await input(request) } : {}),
+          ...(["POST", "PUT"].includes(method)
+            ? { value: await input(request) }
+            : {}),
         }),
       );
     }

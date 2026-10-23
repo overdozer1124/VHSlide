@@ -104,22 +104,18 @@ export class CloudWorkspace {
       this.emit();
     }
   }
-  async addComment(slide: string, text: string, x: number, y: number) {
-    await this.run(async () => {
-      await api(`/api/decks/${this.active!.id}/comments`, {
-        method: "POST",
-        body: JSON.stringify({ slide, text, x, y }),
-      });
-      await this.refreshComments();
+  // Independent of the global busy flag: typing in one note must not drop
+  // another note's save (or a simultaneous workspace operation).
+  async saveComment(deckId: string, note: SlideComment) {
+    await api(`/api/decks/${deckId}/comments/${note.id}`, {
+      method: "PUT",
+      body: JSON.stringify(note),
     });
+    if (this.active?.id === deckId) await this.refreshComments();
   }
-  async deleteComment(id: string) {
-    await this.run(async () => {
-      await api(`/api/decks/${this.active!.id}/comments/${id}`, {
-        method: "DELETE",
-      });
-      await this.refreshComments();
-    });
+  async deleteComment(id: string, deckId = this.active!.id) {
+    await api(`/api/decks/${deckId}/comments/${id}`, { method: "DELETE" });
+    if (this.active?.id === deckId) await this.refreshComments();
   }
   doc?: Y.Doc;
   undoManager?: Y.UndoManager;

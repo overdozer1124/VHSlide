@@ -24,6 +24,9 @@ import { H, W } from "./model";
 import { Canvas } from "./Canvas";
 import { EditorPager } from "./EditorPager";
 import { useFitCanvas } from "./useFitCanvas";
+import type { CloudWorkspace } from "./cloud";
+import { SlideComments } from "./SlideComments";
+import { StickyNote } from "lucide-react";
 import { SlideRail } from "./SlideRail";
 import type { RailDragSource } from "./RailDrag";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
@@ -39,7 +42,7 @@ const colors = [
 ];
 interface EditorProps {
   editable: boolean;
-  comments?: ReactNode;
+  cloud?: CloudWorkspace;
   deck: Deck;
   navigationDeck: Deck;
   filtered: boolean;
@@ -79,7 +82,7 @@ interface EditorProps {
 }
 export function Editor({
   editable,
-  comments,
+  cloud,
   deck,
   navigationDeck,
   filtered,
@@ -112,6 +115,7 @@ export function Editor({
   onToggleRail,
   onToggleInspector,
 }: EditorProps) {
+  const [noteRequest, setNoteRequest] = useState(0);
   const [gestureEpoch, setGestureEpoch] = useState(0);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const focused = railCollapsed && inspectorCollapsed;
@@ -145,6 +149,22 @@ export function Editor({
           <ImagePlus size={20} />
           画像
         </button>
+        {cloud && (
+          <button
+            className="tool-button"
+            aria-label="付箋を追加"
+            title={
+              cloud.access.comment
+                ? "付箋を追加して、そのまま入力"
+                : "コメントの投稿は許可されていません。"
+            }
+            disabled={!cloud.access.comment}
+            onClick={() => setNoteRequest((n) => n + 1)}
+          >
+            <StickyNote size={20} />
+            付箋
+          </button>
+        )}
         <label className="shape-picker">
           <Shapes size={20} />
           <select
@@ -310,7 +330,14 @@ export function Editor({
                 })
               }
             />
-            {comments}
+            {cloud && (
+              <SlideComments
+                key={`${cloud.active?.id}:${slide.id}`}
+                cloud={cloud}
+                slide={slide}
+                addRequest={noteRequest}
+              />
+            )}
           </EditorPager>
           <div className="canvas-hint">
             <span>

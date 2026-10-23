@@ -64,7 +64,6 @@ import {
   mergeSheet,
   changeSheet,
 } from "./workbook";
-import { SlideComments } from "./SlideComments";
 import { SheetTabs } from "./SheetTabs";
 import { matchesFilter } from "./mapFilter";
 import type { MapFilter } from "./mapFilter";
@@ -1112,11 +1111,7 @@ export default function App() {
         {view === "editor" && navigationDeck.slides.length > 0 && (
           <Editor
             editable={cloud.canEdit(slide!)}
-            comments={
-              cloud.active && slide ? (
-                <SlideComments cloud={cloud} slide={slide} />
-              ) : undefined
-            }
+            cloud={cloud.active ? cloud : undefined}
             deck={deck}
             navigationDeck={navigationDeck}
             filtered={editorFiltered}

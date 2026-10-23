@@ -204,7 +204,10 @@ export class SlideRoom extends DurableObject<Env> {
             "SELECT * FROM comments ORDER BY created,id",
           ),
         });
-      if (path === "/comments" && data.method === "POST") {
+      if (
+        (path === "/comments" && data.method === "POST") ||
+        (path !== "/comments" && data.method === "PUT")
+      ) {
         let value;
         try {
           value = parseComment(data.value);
@@ -218,15 +221,28 @@ export class SlideRoom extends DurableObject<Env> {
           404,
           "スライドが見つかりません。",
         );
+        const id = data.method === "PUT" ? path.slice(10) : crypto.randomUUID();
+        const existing = one<SlideComment>(
+          this.sql,
+          "SELECT * FROM comments WHERE id=?",
+          id,
+        );
         insist(
-          one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM comments")!
-            .n < 2000,
+          !existing ||
+            ((data.host || existing.author === data.user.id) &&
+              existing.slide === value.slide),
+          403,
+          "自分の付箋だけを変更できます。",
+        );
+        insist(
+          existing ||
+            one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM comments")!
+              .n < 2000,
           413,
           "付箋は作品全体で2000枚までです。",
         );
-        const id = crypto.randomUUID();
         this.sql.exec(
-          "INSERT INTO comments VALUES(?,?,?,?,?,?,?,?)",
+          "INSERT INTO comments VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,x=excluded.x,y=excluded.y",
           id,
           value.slide,
           data.user.id,

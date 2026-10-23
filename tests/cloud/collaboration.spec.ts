@@ -387,6 +387,15 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     expect(fullExport.slides).toHaveLength(6);
     expect(fullExport.sheets).toHaveLength(2);
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
+    await expect(
+      page.getByRole("button", {
+        name: `${name}-friendの参加を解除`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => innerWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
     await page
       .getByRole("button", { name: `${name}-friendの参加を解除`, exact: true })
       .click();
@@ -428,21 +437,17 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
     ).toHaveAttribute("readonly", "");
     await expect(button(other, "文字")).toBeDisabled();
     await expect(button(other, "空のシートを追加")).toBeDisabled();
-    await button(other, "付箋コメント").click();
-    await button(other, "付箋を貼る場所を選ぶ").click();
-    const area = (await other.locator(".slide-comments").boundingBox())!;
-    await other.mouse.click(
-      area.x + area.width * 0.3,
-      area.y + area.height * 0.3,
-    );
-    await other
-      .getByRole("textbox", { name: "付箋のコメント", exact: true })
-      .fill("ここをもっと説明してほしいです");
-    await button(other, "付箋を投稿").click();
-    await expect(other.locator(".comment-panel li")).toContainText(
-      "ここをもっと説明してほしいです",
-    );
-    await button(other, "付箋を閉じる").click();
+    await button(other, "付箋を追加").click();
+    const sticky = other.getByRole("textbox", {
+      name: "付箋のコメント",
+      exact: true,
+    });
+    await expect(sticky).toBeFocused();
+    await sticky.fill("ここをもっと説明してほしいです");
+    await expect(other.locator(".sticky-note")).toContainText("保存済み");
+    await expect(
+      other.getByRole("button", { name: "付箋を投稿", exact: true }),
+    ).toHaveCount(0);
     await button(page, "参加者一覧を更新").click();
     await button(page, `${guest}の編集権限を設定`).click();
     await page
@@ -456,8 +461,7 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
     await expect(button(other, "文字")).toBeEnabled();
     await button(page, "クラウドの作品を閉じる").click();
     await openEditor(page);
-    await button(page, "付箋コメント").click();
-    await expect(page.locator(".comment-panel li")).toContainText(
+    await expect(page.locator(".sticky-note textarea")).toHaveValue(
       "ここをもっと説明してほしいです",
     );
     await page.screenshot({ path: info.outputPath("comments.png") });
@@ -479,7 +483,6 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
       other.getByRole("textbox", { name: "ページの名前", exact: true }),
     ).toHaveAttribute("readonly", "");
     await button(other, "横のページ一覧を閉じる").click();
-    await button(page, "付箋を閉じる").click();
     await button(page, "クラウド").click();
     await button(page, `${guest}の編集権限を設定`).click();
     await page
@@ -489,16 +492,12 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
       .getByRole("checkbox", { name: "付箋コメントを許可", exact: true })
       .uncheck();
     await button(page, "権限を保存").click();
-    await button(other, "付箋コメント").click();
-    await expect(
-      other.getByText("コメントの投稿は許可されていません。", { exact: true }),
-    ).toBeVisible();
+    await expect(button(other, "付箋を追加")).toBeDisabled();
     await other.reload();
     await saved(other);
     await openEditor(other);
     await expect(button(other, "文字")).toBeDisabled();
-    await button(other, "付箋コメント").click();
-    await expect(other.locator(".comment-panel li")).toContainText(
+    await expect(other.locator(".sticky-note textarea")).toHaveValue(
       "ここをもっと説明してほしいです",
     );
   } finally {
@@ -524,7 +523,27 @@ test("pasted accounts receive ordered rows before joining, open without an invit
   const invite = await page
     .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
     .inputValue();
-  await button(page, "アカウントを事前共有").click();
+  await button(page, "共有するアカウントを追加").click();
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          (window as unknown as { copiedLink: string }).copiedLink = text;
+        },
+      },
+    }),
+  );
+  await button(page, "作品リンクをコピー").click();
+  await expect(page.locator(".pre-sharing [role=status]")).toHaveText(
+    "コピーしました",
+  );
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { copiedLink: string }).copiedLink,
+    ),
+  ).toContain("/?room=");
+
   const paste = page.getByRole("textbox", {
     name: "事前共有するメールアドレス",
     exact: true,
@@ -557,7 +576,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
   await page.reload();
   await saved(page);
   await button(page, "クラウド").click();
-  await button(page, "アカウントを事前共有").click();
+  await button(page, "共有するアカウントを追加").click();
   await expect(page.locator(".pre-share-account")).toHaveCount(2);
   await expect(
     page.getByRole("combobox", { name: "割り当てを開始する行", exact: true }),
@@ -613,4 +632,135 @@ test("pasted accounts receive ordered rows before joining, open without an invit
     await ca.close();
     await cb.close();
   }
+});
+
+test("sticky cards save in place, flush on navigation, and move by mouse or touch", async ({
+  page,
+}, info) => {
+  const button = (name: string) =>
+    page.getByRole("button", { name, exact: true });
+  await signIn(page, `sticky-${info.project.name}`);
+  await button("この作品をクラウドに保存").click();
+  await saved(page);
+  const room = new URL(page.url()).searchParams.get("room")!;
+  await openEditor(page);
+  await button("付箋を追加").click();
+  const inputs = page.getByRole("textbox", {
+    name: "付箋のコメント",
+    exact: true,
+  });
+  await expect(inputs.first()).toBeFocused();
+  // Hold a save open while the author continues typing. Both versions must
+  // serialize correctly rather than a busy flag dropping the second one.
+  await page.route("**/comments/*", async (route) => {
+    if (route.request().method() === "PUT")
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    await route.continue();
+  });
+  const firstRequest = page.waitForRequest(
+    (r) => r.method() === "PUT" && r.url().includes("/comments/"),
+  );
+  await inputs.first().fill("最初の入力");
+  await firstRequest;
+  await inputs.first().fill("続けて入力した内容も保存");
+  await button("付箋を追加").click();
+  await expect(inputs).toHaveCount(2);
+  await inputs.last().fill("画面を移る直前の入力");
+  await button("全体マップへ").click();
+  await expect
+    .poll(async () => {
+      const data = await (
+        await page.request.get(`/api/decks/${room}/comments`)
+      ).json();
+      return data.comments.map((n: { text: string }) => n.text).sort();
+    })
+    .toEqual(["続けて入力した内容も保存", "画面を移る直前の入力"].sort());
+  await openEditor(page);
+  const note = page.locator(".sticky-note").first();
+  const handle = note.getByRole("button", { name: "付箋を移動", exact: true });
+  const before = (await note.boundingBox())!;
+  const h = (await handle.boundingBox())!;
+  const x = h.x + h.width / 2,
+    y = h.y + h.height / 2;
+  if (info.project.name === "cloud-touch") {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ id: 1, x, y }],
+    });
+    for (let step = 1; step <= 5; step++)
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          { id: 1, x: x - (80 * step) / 5, y: y + (35 * step) / 5 },
+        ],
+      });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } else {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 80, y + 35, { steps: 5 });
+    await page.mouse.up();
+  }
+  await expect
+    .poll(async () => Math.round((await note.boundingBox())!.x))
+    .toBeLessThan(Math.round(before.x - 50));
+  await expect(note).toContainText("保存済み");
+  const moved = (
+    await (await page.request.get(`/api/decks/${room}/comments`)).json()
+  ).comments;
+  await page.screenshot({ path: info.outputPath("direct-sticky-notes.png") });
+  await page.reload();
+  await saved(page);
+  await openEditor(page);
+  await expect(inputs).toHaveCount(2);
+  expect(
+    (await (await page.request.get(`/api/decks/${room}/comments`)).json())
+      .comments,
+  ).toEqual(moved);
+  // Bring an overlapping card to the front by focusing its text, just as
+  // clicking the exposed part of a sticky does.
+  await inputs.first().focus();
+  await page
+    .locator(".sticky-note")
+    .first()
+    .getByRole("button", { name: "付箋を削除", exact: true })
+    .click();
+  await expect(inputs).toHaveCount(1);
+});
+
+test("failed sticky autosaves keep the input and can be retried", async ({
+  page,
+}, info) => {
+  const button = (name: string) =>
+    page.getByRole("button", { name, exact: true });
+  await signIn(page, `sticky-retry-${info.project.name}`);
+  await button("この作品をクラウドに保存").click();
+  await saved(page);
+  await openEditor(page);
+  let fail = true;
+  await page.route("**/comments/*", async (route) => {
+    if (route.request().method() === "PUT" && fail) {
+      fail = false;
+      await route.abort();
+    } else await route.continue();
+  });
+  await button("付箋を追加").click();
+  const input = page.getByRole("textbox", {
+    name: "付箋のコメント",
+    exact: true,
+  });
+  await input.fill("通信が失敗しても入力を残す");
+  await expect(page.locator(".sticky-error")).toBeVisible();
+  await expect(input).toHaveValue("通信が失敗しても入力を残す");
+  await button("再試行").click();
+  await expect(page.locator(".sticky-note")).toContainText("保存済み");
+  await expect(page.locator(".sticky-error")).toHaveCount(0);
+  await page.reload();
+  await saved(page);
+  await openEditor(page);
+  await expect(input).toHaveValue("通信が失敗しても入力を残す");
 });

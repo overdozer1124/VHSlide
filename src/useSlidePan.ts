@@ -23,7 +23,7 @@ type Gesture = {
   startTime: number;
   text: boolean;
 };
-const EDIT_HANDLE = ".element-move-handle, .resize-handle";
+const EDIT_HANDLE = ".element-move-handle, .resize-handle, .sticky-note";
 
 /** Keep a page attached to the finger; commit navigation only after it settles. */
 export function useSlidePan(options: {

@@ -19,6 +19,12 @@ export function PreSharePanel({
   recipients: Recipient[];
   onChange: (rows: Recipient[]) => void;
 }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
   const [expanded, setExpanded] = useState(false),
     [text, setText] = useState("");
   const [mode, setMode] = useState("rows"),
@@ -73,11 +79,11 @@ export function PreSharePanel({
     <section className="pre-sharing" aria-label="アカウントの事前共有">
       <button
         className="button outline"
-        aria-label="アカウントを事前共有"
+        aria-label="共有するアカウントを追加"
         aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
-        アカウントを事前共有
+        共有するアカウントを追加
         {recipients.length ? `（${recipients.length}件）` : ""}
       </button>
       {expanded && (
@@ -218,6 +224,7 @@ export function PreSharePanel({
             onClick={() =>
               void navigator.clipboard
                 .writeText(`${location.origin}/?room=${cloud.active!.id}`)
+                .then(() => setCopied(true))
                 .catch(() => {
                   cloud.error = "リンク欄を選択してコピーしてください。";
                   cloud.onState();
@@ -226,6 +233,9 @@ export function PreSharePanel({
           >
             作品リンクをコピー
           </button>
+          <span role="status" aria-live="polite">
+            {copied ? "コピーしました" : ""}
+          </span>
           {recipients.length > 0 && (
             <div className="pre-share-list" aria-label="事前共有したアカウント">
               <h4>事前共有したアカウント（登録順）</h4>

@@ -759,7 +759,10 @@ export function createApplication(options: Options) {
                 )
                 .all(id),
             });
-          if (extra === "comments" && method === "POST") {
+          if (
+            (extra === "comments" && method === "POST") ||
+            (extra !== "comments" && method === "PUT")
+          ) {
             insist(grant.comment, 403, "コメントする権限がありません。");
             let value;
             try {
@@ -779,17 +782,33 @@ export function createApplication(options: Options) {
               404,
               "スライドが見つかりません。",
             );
+            const cid = method === "PUT" ? extra!.slice(9) : randomUUID();
+            const existing = db
+              .prepare("SELECT * FROM comments WHERE id=?")
+              .get(cid) as unknown as
+              (SlideComment & { deck: string }) | undefined;
             insist(
-              (
-                db
-                  .prepare("SELECT COUNT(*) AS n FROM comments WHERE deck=?")
-                  .get(id) as { n: number }
-              ).n < 2000,
+              !existing ||
+                (existing.deck === id &&
+                  (access.owner === u.id || existing.author === u.id) &&
+                  existing.slide === value.slide),
+              403,
+              "自分の付箋だけを変更できます。",
+            );
+            insist(
+              existing ||
+                (
+                  db
+                    .prepare("SELECT COUNT(*) AS n FROM comments WHERE deck=?")
+                    .get(id) as { n: number }
+                ).n < 2000,
               413,
               "付箋は作品全体で2000枚までです。",
             );
-            db.prepare("INSERT INTO comments VALUES(?,?,?,?,?,?,?,?,?)").run(
-              randomUUID(),
+            db.prepare(
+              "INSERT INTO comments VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,x=excluded.x,y=excluded.y",
+            ).run(
+              cid,
               id,
               value.slide,
               u.id,
