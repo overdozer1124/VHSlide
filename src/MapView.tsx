@@ -2,7 +2,15 @@ import { useMapSelection } from "./useMapSelection";
 import { MapBatchPanel } from "./MapBatchPanel";
 import type { BatchAxis } from "./mapBatch";
 import { axisId } from "./axes";
-import { useLayoutEffect, useMemo, useRef, useState, memo } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+} from "react";
+import { flushSync } from "react-dom";
 import { ThumbnailFooter } from "./ThumbnailFooter";
 import { MapHeading } from "./MapHeading";
 import { activeSheet } from "./workbook";
@@ -51,6 +59,11 @@ import type { MapFilter } from "./mapFilter";
 import type { AssignmentReadiness } from "./assignmentReadiness";
 import { pageOrigin, type ResolvedPageScope } from "./pageScope";
 import { PageScopeSummary } from "./PageScopeSummary";
+
+// After release, a pinch preview eases into its display step for this long.
+const SNAP_DURATION = 200;
+// Beyond the next display step, the preview follows this share of the pinch.
+const OVERSTRETCH = 0.3;
 
 interface MapViewProps {
   remainingPages: number;
@@ -224,10 +237,12 @@ function MapViewComponent({
   const levels = zoomSteps.map((percent) => percent / 100);
   const defaultScale = closestZoom(zoomSteps) / 100;
   const largestScale = levels[levels.length - 1];
-  const smallerScale =
-    [...levels].reverse().find((level) => level < scale - 0.0001) ?? 0;
-  const largerScale =
-    levels.find((level) => level > scale + 0.0001) ?? largestScale;
+  const below = (current: number) =>
+    [...levels].reverse().find((level) => level < current - 0.0001) ?? 0;
+  const above = (current: number) =>
+    levels.find((level) => level > current + 0.0001) ?? largestScale;
+  const smallerScale = below(scale),
+    largerScale = above(scale);
   const numbers = scale === 0;
   const rowHeaderWidth = numbers ? 48 : 56;
   const headerHeight = 68;
@@ -280,9 +295,51 @@ function MapViewComponent({
     onScale(next);
     if (next === scale) restoreAnchor();
   }
+  // The scale the pinch preview last drew, and the release animation easing
+  // it into a display step until `finish` commits that step.
+  const shown = useRef(1);
+  const snap = useRef<{
+    animation: Animation;
+    scale: number;
+    finish: () => void;
+  } | null>(null);
+  /** Commit a running release animation at once; returns the settled scale. */
+  function settle() {
+    const running = snap.current;
+    if (!running) return scale;
+    snap.current = null;
+    running.animation.cancel();
+    // Draw the committed step and its anchor before the browser paints again,
+    // since the preview transform has just come off.
+    flushSync(running.finish);
+    return running.scale;
+  }
+  function release(from: string, to: string, next: number, commit: () => void) {
+    const grid = gridRef.current!;
+    const finish = () => {
+      delete grid.dataset.pinching;
+      commit();
+    };
+    if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return finish();
+    const animation = grid.animate([{ transform: from }, { transform: to }], {
+      duration: SNAP_DURATION,
+      easing: "cubic-bezier(.2,.8,.2,1)",
+      fill: "forwards",
+    });
+    snap.current = { animation, scale: next, finish };
+    animation.onfinish = () => {
+      if (snap.current?.animation === animation) settle();
+    };
+  }
+  useEffect(() => () => snap.current?.animation.cancel(), []);
+  const preview = (sample: PinchPoint, origin: PinchPoint, ratio: number) =>
+    `translate(${sample.x - origin.x}px, ${sample.y - origin.y}px) scale(${ratio})`;
   const pinching = usePinch(scrollRef, {
+    prepare: settle,
     start(point) {
       selection.close();
+      shown.current = 1;
       const grid = gridRef.current!,
         rect = grid.getBoundingClientRect();
       // Read the touched card directly. For gaps, use fixed grid coordinates
@@ -328,14 +385,31 @@ function MapViewComponent({
     change(sample) {
       if (numbers && sample.direction === "in") return;
       const a = anchor.current!;
-      const ratio = Math.max(0.12, Math.min(5, sample.ratio));
-      gridRef.current!.style.transform = `translate(${sample.x - a.point.x}px, ${sample.y - a.point.y}px) scale(${ratio})`;
+      let ratio = Math.max(0.12, Math.min(5, sample.ratio));
+      const next = sample.direction === "in" ? smallerScale : largerScale;
+      // Follow the fingers up to the next display step, then resist. Opening
+      // the editor and the numbered overview have no step to stop at.
+      if (sample.direction && a.scale && next && next !== a.scale) {
+        const limit = Math.log(next / a.scale),
+          stretch = Math.log(ratio);
+        if (Math.abs(stretch) > Math.abs(limit))
+          ratio = Math.exp(limit + (stretch - limit) * OVERSTRETCH);
+      }
+      shown.current = ratio;
+      gridRef.current!.style.transform = preview(sample, a.point, ratio);
     },
     end(sample) {
-      const a = anchor.current!;
-      delete gridRef.current!.dataset.pinching;
+      const a = anchor.current!,
+        grid = gridRef.current!;
       if (!sample.direction) {
-        gridRef.current!.style.transform = "";
+        release(
+          preview(sample, a.point, shown.current),
+          preview(a.point, a.point, 1),
+          scale,
+          () => {
+            grid.style.transform = "";
+          },
+        );
         return;
       }
       if (
@@ -344,6 +418,7 @@ function MapViewComponent({
         sample.direction === "out" &&
         a.id
       ) {
+        delete grid.dataset.pinching;
         const tile = gridRef.current!.querySelector(
           `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
         );
@@ -356,7 +431,18 @@ function MapViewComponent({
       }
       // Always complete the display step chosen by the initial pinch direction.
       const next = sample.direction === "in" ? smallerScale : largerScale;
-      keepAnchor(next, sample);
+      if (a.scale && next)
+        release(
+          preview(sample, a.point, shown.current),
+          preview(sample, a.point, next / a.scale),
+          next,
+          () => keepAnchor(next, sample),
+        );
+      else {
+        // Switching to or from the numbered overview stays immediate.
+        delete grid.dataset.pinching;
+        keepAnchor(next, sample);
+      }
     },
   });
   useMapTouchDrag(scrollRef, {
@@ -456,13 +542,17 @@ function MapViewComponent({
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [cardWidth, cardHeight, gap, pinching, visible]);
+  function zoomTo(choose: (current: number) => number) {
+    onScale(choose(settle()));
+  }
   function zoomOut() {
-    onScale(smallerScale);
+    zoomTo(below);
   }
   function zoomIn() {
-    onScale(largerScale);
+    zoomTo(above);
   }
   function fitColumns() {
+    settle();
     if (!scrollRef.current) return;
     const width = scrollRef.current.clientWidth - 80;
     onScale(
@@ -487,7 +577,10 @@ function MapViewComponent({
   }, [activeId, scale, visible, filtered, cols, restoreScroll]);
   return (
     <main
+      // A new touch, click or key first completes a running pinch snap.
+      onPointerDownCapture={settle}
       onKeyDownCapture={(e) => {
+        settle();
         if (
           !selection.active ||
           (e.target as HTMLElement).closest("input,textarea,select")
@@ -665,7 +758,7 @@ function MapViewComponent({
               className="map-scale-reset"
               aria-label={`表示サイズを${Math.round(defaultScale * 100)}%に戻す`}
               title={`標準の${Math.round(defaultScale * 100)}%に戻す`}
-              onClick={() => onScale(defaultScale)}
+              onClick={() => zoomTo(() => defaultScale)}
             >
               {numbers ? "番号" : `${Math.round(scale * 100)}%`}
             </button>
@@ -683,7 +776,9 @@ function MapViewComponent({
               aria-label="番号だけの一覧"
               aria-pressed={numbers}
               title="番号だけの一覧"
-              onClick={() => onScale(numbers ? levels[0] : 0)}
+              onClick={() =>
+                zoomTo((current) => (current === 0 ? levels[0] : 0))
+              }
             >
               <Hash size={17} />
             </button>

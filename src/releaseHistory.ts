@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.47.1",
+    date: "2026-10-26",
+    title: "一覧のピンチ操作をなめらかに",
+    changes: [
+      "一覧画面のピンチ操作で、指を離したあと次の表示サイズへなめらかに移るようにしました。また、行き過ぎて縮めたり広げたりしても、離したときに大きく戻らないようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.47.0",
     date: "2026-10-26",
     title: "表・グラフの見切れを確認しやすく",
