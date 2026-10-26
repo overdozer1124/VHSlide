@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.47.3",
+    date: "2026-10-26",
+    title: "ピンチ後の余分な動きをなくす",
+    changes: [
+      "表示サイズが切り替わったあと、周りのスライドが遅れてすべるように動く演出をやめました。",
+      "次の表示サイズを超えて縮めたり広げたりしてから指を離したとき、さらに少し進んでから戻る動きをやめ、そのまま戻るようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.47.2",
     date: "2026-10-26",
     title: "ピンチ後の動きをより自然に",

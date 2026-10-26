@@ -509,7 +509,7 @@ test("with reduced motion, a released trackpad pinch switches step at once", asy
   await settledMap(page);
 });
 
-test("a touch pinch released at rest starts its snap gently, and slides glide into the new layout", async ({
+test("a released touch pinch starts gently from rest, turns back without carrying on, and adds no motion afterwards", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "touch", "実際の2本指タッチ");
@@ -523,80 +523,89 @@ test("a touch pinch released at rest starts its snap gently, and slides glide in
     name: "表示サイズを100%に戻す",
     exact: true,
   });
-  const card = (row: number, column: number) =>
-    page.locator(".grid-row").nth(row).locator(".slide-card").nth(column);
-  const anchor = card(15, 4).locator(".thumbnail");
-  await anchor.evaluate((node) =>
-    node.scrollIntoView({ block: "center", inline: "center" }),
-  );
-  const box = (await anchor.boundingBox())!;
-  const x = box.x + box.width / 2,
-    y = box.y + box.height / 2;
+  const anchor = page
+    .locator(".grid-row")
+    .nth(15)
+    .locator(".slide-card")
+    .nth(4)
+    .locator(".thumbnail");
   const cdp = await page.context().newCDPSession(page);
-  await points(cdp, "touchStart", x, y, 100);
-  await points(cdp, "touchMove", x, y, 94);
-  await points(cdp, "touchMove", x, y, 88);
-  // The fingers rest before they lift.
-  await page.waitForTimeout(150);
-  type Motion = {
-    keyframes: string[];
-    path: { x: number; y: number; label: string }[];
-  };
-  // Record the release animation and a neighbouring slide on every frame.
-  await card(16, 5).evaluate((neighbour) => {
-    const grid = document.querySelector<HTMLElement>(".map-grid")!;
-    const label = document.querySelector(".map-scale-reset")!;
-    (window as unknown as { motion: Promise<Motion> }).motion = new Promise(
-      (resolve) => {
-        let keyframes: string[] | undefined,
-          quiet = 0;
-        const path: Motion["path"] = [];
-        (function frame() {
-          const moving = document
-            .getAnimations()
-            .filter((animation) =>
-              grid.contains((animation.effect as KeyframeEffect).target),
-            );
-          keyframes ??= moving.length
-            ? (moving[0].effect as KeyframeEffect)
-                .getKeyframes()
-                .map((step) => String(step.transform))
-            : undefined;
-          const r = neighbour.getBoundingClientRect();
-          path.push({ x: r.x, y: r.y, label: label.textContent! });
-          quiet = keyframes && !moving.length ? quiet + 1 : 0;
-          if (quiet > 3) resolve({ keyframes: keyframes!, path });
-          else requestAnimationFrame(frame);
-        })();
-      },
+  type Release = { keyframes: string[]; afterCommit: number };
+  /** Pinch on the anchor, then report the release animation's scales as
+   * progress towards the step, and what still moves once it is drawn. */
+  async function release(spreads: number[], restMs: number) {
+    await anchor.evaluate((node) =>
+      node.scrollIntoView({ block: "center", inline: "center" }),
     );
-  });
-  await points(cdp, "touchEnd", x, y, 0);
-  const { keyframes, path } = await page.evaluate(
-    () => (window as unknown as { motion: Promise<Motion> }).motion,
-  );
+    const box = (await anchor.boundingBox())!;
+    const x = box.x + box.width / 2,
+      y = box.y + box.height / 2;
+    await points(cdp, "touchStart", x, y, 100);
+    for (const spread of spreads) await points(cdp, "touchMove", x, y, spread);
+    if (restMs) await page.waitForTimeout(restMs);
+    await page.evaluate(() => {
+      const grid = document.querySelector<HTMLElement>(".map-grid")!;
+      const label = document.querySelector(".map-scale-reset")!;
+      const before = label.textContent;
+      // Movement only: buttons keep their own colour transitions.
+      const inGrid = () =>
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              grid.contains((animation.effect as KeyframeEffect).target) &&
+              (animation.effect as KeyframeEffect)
+                .getKeyframes()
+                .some((step) => step.transform),
+          );
+      let keyframes: string[] | undefined;
+      (window as unknown as { released: Promise<Release> }).released =
+        new Promise((resolve) =>
+          (function frame() {
+            keyframes ??= inGrid()
+              .at(0)
+              ?.effect?.getKeyframes()
+              .map((step) => String(step.transform));
+            if (keyframes && label.textContent !== before)
+              return resolve({ keyframes, afterCommit: inGrid().length });
+            requestAnimationFrame(frame);
+          })(),
+        );
+    });
+    await points(cdp, "touchEnd", x, y, 0);
+    const { keyframes, afterCommit } = await page.evaluate(
+      () => (window as unknown as { released: Promise<Release> }).released,
+    );
+    const scales = keyframes.map(previewScale);
+    return {
+      end: scales.at(-1)!,
+      progress: scales.map(
+        (scale) =>
+          Math.log(scale / scales[0]) / Math.log(scales.at(-1)! / scales[0]),
+      ),
+      afterCommit,
+    };
+  }
+  const steady = (progress: number[]) => {
+    for (const [i, p] of progress.entries())
+      if (i) expect(p).toBeGreaterThanOrEqual(progress[i - 1] - 1e-9);
+  };
+  // Fingers at rest before lifting: the first frame covers only a sliver.
+  const rested = await release([94, 88], 150);
   await expect(reset).toHaveText("60%");
-  // From rest, the first frame covers only a sliver of the way, and the
-  // snap never passes its step.
-  const scales = keyframes.map(previewScale);
-  const progress = scales.map(
-    (scale) =>
-      Math.log(scale / scales[0]) / Math.log(scales.at(-1)! / scales[0]),
-  );
-  expect(scales.at(-1)!).toBeCloseTo(0.6 / 1, 3);
-  expect(progress[1]).toBeLessThan(0.05);
-  for (const [i, p] of progress.entries())
-    if (i) expect(p).toBeGreaterThanOrEqual(progress[i - 1] - 1e-9);
-  // The new layout spaces the slides differently, but the neighbour does not
-  // jump there when it is drawn: it glides from where the preview left it.
-  const committed = path.findIndex((step) => step.label === "60%");
-  const [before, drawn, end] = [
-    path[committed - 1],
-    path[committed],
-    path.at(-1)!,
-  ];
-  const jump = Math.hypot(drawn.x - before.x, drawn.y - before.y),
-    glide = Math.hypot(end.x - before.x, end.y - before.y);
-  expect(glide).toBeGreaterThan(10);
-  expect(jump).toBeLessThan(glide * 0.3);
+  expect(rested.end).toBeCloseTo(0.6, 3);
+  expect(rested.progress[1]).toBeLessThan(0.05);
+  steady(rested.progress);
+  // The new layout is simply drawn: nothing glides or settles afterwards.
+  expect(rested.afterCommit).toBe(0);
+  await reset.click();
+  await expect(reset).toHaveText("100%");
+  // Lifted while still pinching past the step: it heads straight back to the
+  // step instead of carrying on in the pinch direction first.
+  const past = await release([80, 60, 40, 30], 0);
+  await expect(reset).toHaveText("60%");
+  expect(past.end).toBeGreaterThan(Math.exp(-1.2) / 1);
+  expect(past.progress[1]).toBeGreaterThanOrEqual(0);
+  steady(past.progress);
+  expect(past.afterCommit).toBe(0);
 });

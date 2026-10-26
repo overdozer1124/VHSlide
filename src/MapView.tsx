@@ -65,8 +65,6 @@ import { PageScopeSummary } from "./PageScopeSummary";
 const SNAP_TIME = 250;
 // Beyond the next display step, the preview follows this share of the pinch.
 const OVERSTRETCH = 0.3;
-// Then the slides glide from the preview into the new layout for this long.
-const GLIDE_TIME = 220;
 const FRAME = 1000 / 60;
 
 type Preview = { dx: number; dy: number; ratio: number };
@@ -80,8 +78,8 @@ function snapProgress(speed: number) {
     FRAME,
     speed > 0 ? Math.min(SNAP_TIME, 3 / speed) : SNAP_TIME,
   );
-  // The starting slope over the whole curve; moving away first only a little.
-  const slope = Math.max(-1.5, Math.min(3, speed * duration));
+  // The starting slope over the whole curve; from rest when it turns back.
+  const slope = Math.max(0, Math.min(3, speed * duration));
   const frames = Math.round(duration / FRAME);
   const progress = Array.from({ length: frames + 1 }, (_, i) => {
     const s = i / frames;
@@ -320,9 +318,9 @@ function MapViewComponent({
     onScale(next);
     if (next === scale) restoreAnchor();
   }
-  // The preview the pinch last drew and its recent scales (log, by time), the
-  // release animation carrying it into a display step until `finish` commits
-  // that step, and the slides gliding into the committed layout.
+  // The preview the pinch last drew and its recent scales (log, by time), and
+  // the release animation carrying it into a display step until `finish`
+  // commits that step.
   const shown = useRef<Preview>({ dx: 0, dy: 0, ratio: 1 });
   const motion = useRef<{ t: number; x: number }[]>([]);
   const snap = useRef<{
@@ -330,11 +328,8 @@ function MapViewComponent({
     scale: number;
     finish: () => void;
   } | null>(null);
-  const glides = useRef<Animation[]>([]);
   /** Commit a running release animation at once; returns the settled scale. */
   function settle() {
-    for (const glide of glides.current) glide.cancel();
-    glides.current = [];
     const running = snap.current;
     if (!running) return scale;
     snap.current = null;
@@ -344,61 +339,9 @@ function MapViewComponent({
     flushSync(running.finish);
     return running.scale;
   }
-  /** Run `commit`, then glide the slides from where the preview drew them,
-   * rather than jumping into the new layout (its gaps and labels do not scale
-   * with the slides). Sticky headings glide only when seen before and after. */
-  function glideInto(commit: () => void) {
-    const view = scrollRef.current!.getBoundingClientRect();
-    const items = [
-      ...gridRef.current!.querySelectorAll<HTMLElement>(
-        ".slide-card, .empty-cell, .column-heading, .row-axis",
-      ),
-    ];
-    const seen = (r: DOMRect) =>
-      r.width > 0 &&
-      r.right > view.left &&
-      r.left < view.right &&
-      r.bottom > view.top &&
-      r.top < view.bottom;
-    const before = items.map((item) => item.getBoundingClientRect());
-    commit();
-    // Read every new position before animating any, so that layout runs once.
-    const after = items.map((item) => item.getBoundingClientRect());
-    items.forEach((item, i) => {
-      const from = before[i],
-        to = after[i];
-      const heading = !item.matches(".slide-card, .empty-cell");
-      if (
-        !item.isConnected ||
-        (heading ? !seen(from) || !seen(to) : !seen(from) && !seen(to))
-      )
-        return;
-      const dx = from.x - to.x,
-        dy = from.y - to.y,
-        k = from.width / to.width;
-      if (Math.hypot(dx, dy) < 0.5 && Math.abs(k - 1) < 0.002) return;
-      glides.current.push(
-        item.animate(
-          [
-            {
-              transformOrigin: "0 0",
-              transform: `translate(${dx}px, ${dy}px) scale(${k})`,
-            },
-            { transformOrigin: "0 0", transform: "none" },
-          ],
-          { duration: GLIDE_TIME, easing: "cubic-bezier(.3,0,.2,1)" },
-        ),
-      );
-    });
-  }
   /** Carry the preview from what is shown to `to`, then commit in the same
    * task, so the transform never comes off before the new layout is drawn. */
-  function release(
-    to: Preview,
-    next: number,
-    commit: () => void,
-    glide: boolean,
-  ) {
+  function release(to: Preview, next: number, commit: () => void) {
     const grid = gridRef.current!,
       from = shown.current;
     const finish = () => {
@@ -434,9 +377,7 @@ function MapViewComponent({
     );
     snap.current = { animation, scale: next, finish };
     animation.onfinish = () => {
-      if (snap.current?.animation !== animation) return;
-      if (glide) glideInto(settle);
-      else settle();
+      if (snap.current?.animation === animation) settle();
     };
   }
   useEffect(() => () => snap.current?.animation.cancel(), []);
@@ -514,14 +455,9 @@ function MapViewComponent({
       const a = anchor.current!,
         grid = gridRef.current!;
       if (!sample.direction) {
-        release(
-          { dx: 0, dy: 0, ratio: 1 },
-          scale,
-          () => {
-            grid.style.transform = "";
-          },
-          false,
-        );
+        release({ dx: 0, dy: 0, ratio: 1 }, scale, () => {
+          grid.style.transform = "";
+        });
         return;
       }
       if (
@@ -544,11 +480,8 @@ function MapViewComponent({
       // Always complete the display step chosen by the initial pinch direction.
       const next = sample.direction === "in" ? smallerScale : largerScale;
       if (a.scale && next)
-        release(
-          { ...shown.current, ratio: next / a.scale },
-          next,
-          () => keepAnchor(next, sample),
-          true,
+        release({ ...shown.current, ratio: next / a.scale }, next, () =>
+          keepAnchor(next, sample),
         );
       else {
         // Switching to or from the numbered overview stays immediate.
