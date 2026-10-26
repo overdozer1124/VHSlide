@@ -1,0 +1,48 @@
+{
+  "version": "0.43.1",
+  "cloudflare_version_id": "19c5745b-9c52-4adc-bfce-0401f711100d",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  "files": [
+    {
+      "path": "/index.html",
+      "status": 200,
+      "bytes": 482,
+      "sha256": "11e99fac5bdd5201f2aea67f803f6bf1248ef549130eb66da85de1326c6ccc79"
+    },
+    {
+      "path": "/assets/ReleaseHistory-CwMOVlnt.js",
+      "status": 200,
+      "bytes": 22890,
+      "sha256": "0449b3f0eb83017c04d41be8dabc75fcb0afdafc12b9de005df1b328245166a4"
+    },
+    {
+      "path": "/assets/backup.worker-D88bv2TW.js",
+      "status": 200,
+      "bytes": 30420,
+      "sha256": "431fb9a5f03d68b3020e5e73c120a7cde28d09e462eb4da580090168a40f3617"
+    },
+    {
+      "path": "/assets/backupWorker-7xQiMEj4.js",
+      "status": 200,
+      "bytes": 1051,
+      "sha256": "18721efe0e8c17aefc7257a335cc2f61a0bcdfcafbd977c10b2ef19b151abdae"
+    },
+    {
+      "path": "/assets/index-C-8c93eD.js",
+      "status": 200,
+      "bytes": 887877,
+      "sha256": "5942df6dcb745aca77501f41c732e67d005120d667c527a0b8e9e1c0ba621e6d"
+    },
+    {
+      "path": "/assets/index-CgpVl46X.css",
+      "status": 200,
+      "bytes": 116680,
+      "sha256": "bfd0e54bf0fecdfe404bf9ed0c333bbcf73e6b28d1c5cbf09b70f76de911df89"
+    }
+  ],
+  "production_room_accessed": false
+}

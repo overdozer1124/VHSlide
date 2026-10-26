@@ -1,0 +1,49 @@
+[WebServer] (node:371076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:371143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 2:35:42 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 2:35:46 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  1 [desktop] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation (7.3s)
+[WebServer] 2:35:49 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  2 [desktop] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1366x768 (2.2s)
+[WebServer] 2:35:51 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  3 [desktop] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1024x768 (1.9s)
+[WebServer] 2:35:53 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  4 [desktop] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 390x844 (1.7s)
+(node:371743) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 2:35:56 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 2:35:58 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  5 [touch] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation (5.9s)
+[WebServer] 2:36:02 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  6 [touch] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1366x768 (2.0s)
+[WebServer] 2:36:05 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  7 [touch] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1024x768 (2.3s)
+[WebServer] 2:36:06 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  8 [touch] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 390x844 (1.7s)
+
+  8 passed (29.8s)

@@ -1,3 +1,26 @@
+import { syncFailure } from "../src/syncRecovery.ts";
+import { COLLABORATION_PROTOCOL } from "../src/collaborationProtocol.ts";
+import {
+  pendingAssetSchema,
+  imageSources,
+  visibleComments,
+  assertMediaReferences,
+  consumePendingAssets,
+} from "../src/mediaVisibility.ts";
+import {
+  historySchema,
+  historyList,
+  historySave,
+  historyRead,
+  historyBeforeChange,
+} from "../src/historyStore.ts";
+import { backupSnapshot } from "../src/backupData.ts";
+import { revisionSchema, revisionQuery } from "../src/backupProtocol.ts";
+import {
+  parseBackupSnapshot,
+  restoredComments,
+  BACKUP_METADATA_BYTES,
+} from "../src/backupData.ts";
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
 import { AccessError, parseComment } from "../src/permissions.ts";
 import type { EditAccess, SlideComment } from "../src/permissions.ts";
@@ -13,6 +36,7 @@ import {
 } from "../src/sharedDeck.ts";
 import {
   body,
+  HttpError,
   checked,
   directory,
   failure,
@@ -35,6 +59,7 @@ const CHUNK = 64 * 1024;
 export class SlideRoom extends DurableObject<Env> {
   private sql: SqlStorage;
   private document?: Y.Doc;
+  private media = new WeakMap<Y.Doc, Set<string>>();
   private updates = 0;
   private lastTouched = 0;
   constructor(ctx: DurableObjectState, env: Env) {
@@ -48,6 +73,9 @@ export class SlideRoom extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, mime TEXT NOT NULL, bytes INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS asset_chunks (asset TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(asset,part));
     `);
+    this.sql.exec(pendingAssetSchema);
+    this.sql.exec(historySchema);
+    this.sql.exec(revisionSchema("room"));
     const columns = new Set(
       rows<{ name: string }>(this.sql, "PRAGMA table_info(comments)").map(
         (c) => c.name,
@@ -128,6 +156,23 @@ export class SlideRoom extends DurableObject<Env> {
         }
     return deck;
   }
+  private currentMedia() {
+    const doc = this.doc();
+    let result = this.media.get(doc);
+    if (!result) {
+      result = imageSources(readSharedDeck(doc));
+      this.media.set(doc, result);
+    }
+    return result;
+  }
+  private ownsPending(asset: string, user: string) {
+    return !!one(
+      this.sql,
+      "SELECT asset FROM pending_asset_access WHERE asset=? AND user_id=?",
+      asset,
+      user,
+    );
+  }
   private peers() {
     return this.ctx
       .getWebSockets()
@@ -161,7 +206,12 @@ export class SlideRoom extends DurableObject<Env> {
   private async handle(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
     if (path === "/init" && request.method === "POST") {
-      insist(!this.id(), 409, "作品はすでに作成されています。");
+      if (this.id()) return json({ ok: true });
+      insist(
+        !one(this.sql, "SELECT value FROM meta WHERE key='deleted'"),
+        409,
+        "削除済みの作品は作成し直せません。",
+      );
       const data = await input(request, 3_000_000);
       const deck = parseDeck(JSON.stringify(data.deck));
       const doc = createSharedDeck(deck);
@@ -178,15 +228,129 @@ export class SlideRoom extends DurableObject<Env> {
       }
       return json({ ok: true });
     }
+    if (path === "/history" || path.startsWith("/history/")) {
+      const sql = (query: string, ...args: (string | number)[]) =>
+        this.sql.exec(query, ...args);
+      const id = this.id()!;
+      if (path !== "/history") {
+        const entry = historyList(sql, id).find((e) => e.id === path.slice(9));
+        insist(entry, 404, "保存した版が見つかりません。");
+        return json({ snapshot: historyRead(sql, id, entry.id) });
+      }
+      if (request.method === "POST") {
+        const data = await input(request, 2000);
+        insist(
+          typeof data.label === "string" && data.label.length <= 80,
+          400,
+          "版の名前を確認してください。",
+        );
+        this.ctx.storage.transactionSync(() =>
+          historySave(
+            sql,
+            id,
+            backupSnapshot(
+              readSharedDeck(this.doc()),
+              rows<SlideComment>(
+                this.sql,
+                "SELECT * FROM comments ORDER BY created,id",
+              ),
+              [],
+              [],
+            ),
+            data.label,
+          ),
+        );
+      }
+      return json({ entries: historyList(sql, id) });
+    }
+    if (path === "/suspend" && request.method === "POST") {
+      for (const ws of this.peers())
+        ws.close(4003, "作品はごみ箱に移動しました。");
+      return json({ ok: true });
+    }
+    if (path === "/backup/revision" && request.method === "GET")
+      return json({
+        revision:
+          one<{ revision: string }>(this.sql, revisionQuery, "room")
+            ?.revision ?? "0",
+      });
+    if (path === "/backup" && request.method === "GET")
+      return json({
+        revision:
+          one<{ revision: string }>(this.sql, revisionQuery, "room")
+            ?.revision ?? "0",
+        deck: readSharedDeck(this.doc()),
+        comments: rows<SlideComment>(
+          this.sql,
+          "SELECT * FROM comments ORDER BY created,id",
+        ),
+      });
+    if (path === "/restore" && request.method === "POST") {
+      const value = await input(request, BACKUP_METADATA_BYTES + 1000);
+      insist(
+        !one(this.sql, "SELECT value FROM meta WHERE key='deleted'"),
+        409,
+        "削除済みの復元です。",
+      );
+      const committed = one<{ value: string }>(
+        this.sql,
+        "SELECT value FROM meta WHERE key='restore_commit'",
+      );
+      if (committed) {
+        insist(
+          committed.value === value.commitHash,
+          409,
+          "復元内容が一致しません。",
+        );
+        return json({ ok: true });
+      }
+      const snapshot = parseBackupSnapshot(value.snapshot),
+        doc = createSharedDeck(snapshot.deck);
+      try {
+        this.validate(doc);
+        const comments = restoredComments(snapshot.comments, value.owner);
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec(
+            "INSERT INTO meta VALUES('restore_commit',?)",
+            value.commitHash,
+          );
+          this.sql.exec("DELETE FROM comments; DELETE FROM updates;");
+          this.snapshot(doc);
+          for (const c of comments)
+            this.sql.exec(
+              "INSERT INTO comments(id,slide,author,name,text,x,y,created,color,w,h) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+              c.id,
+              c.slide,
+              c.author,
+              c.name,
+              c.text,
+              c.x,
+              c.y,
+              c.created,
+              c.color ?? "#fff0a6",
+              c.w ?? 0.24,
+              c.h ?? 0.3,
+            );
+        });
+        this.document?.destroy();
+        this.document = doc;
+        this.updates = 0;
+      } catch (error) {
+        doc.destroy();
+        throw error;
+      }
+      return json({ ok: true });
+    }
     if (path === "/delete" && request.method === "POST") {
       for (const ws of this.peers()) ws.close(4003, "作品が削除されました。");
       this.document?.destroy();
       this.document = undefined;
-      // Keep the schema for already queued events, but remove every persisted byte.
+      // Keep the schema and a non-personal tombstone to reject delayed writes.
       this.ctx.storage.transactionSync(() => {
         this.sql.exec(
-          "DELETE FROM comments; DELETE FROM asset_chunks; DELETE FROM assets; DELETE FROM updates; DELETE FROM snapshot; DELETE FROM meta;",
+          "DELETE FROM comments; DELETE FROM asset_chunks; DELETE FROM pending_asset_access; DELETE FROM assets; DELETE FROM updates; DELETE FROM snapshot; DELETE FROM meta; DELETE FROM work_history_parts; DELETE FROM work_history;",
         );
+        this.sql.exec("INSERT INTO meta VALUES('deleted','1')");
       });
       await this.ctx.storage.deleteAlarm();
       return json({ ok: true });
@@ -218,9 +382,13 @@ export class SlideRoom extends DurableObject<Env> {
       const data = await input(request);
       if (path === "/comments" && data.method === "GET")
         return json({
-          comments: rows<SlideComment>(
-            this.sql,
-            "SELECT * FROM comments ORDER BY created,id",
+          comments: visibleComments(
+            readSharedDeck(this.doc()),
+            rows<SlideComment>(
+              this.sql,
+              "SELECT * FROM comments ORDER BY created,id",
+            ),
+            data.host === true,
           ),
         });
       if (
@@ -296,13 +464,31 @@ export class SlideRoom extends DurableObject<Env> {
     if (asset && request.method === "POST") {
       const data = await body(request, 6_000_000),
         mime = request.headers.get("Content-Type")!;
+      const existing = one(
+        this.sql,
+        "SELECT id FROM assets WHERE id=?",
+        asset[1],
+      );
+      if (existing) return json({ ok: true }, 201);
       this.ctx.storage.transactionSync(() => {
+        insist(
+          !one(this.sql, "SELECT value FROM meta WHERE key='deleted'"),
+          409,
+          "削除された作品へ写真は保存できません。",
+        );
         this.sql.exec(
           "INSERT INTO assets VALUES(?,?,?)",
           asset[1],
           mime,
           data.length,
         );
+        const uploader = request.headers.get("X-Uploaded-By");
+        if (uploader)
+          this.sql.exec(
+            "INSERT INTO pending_asset_access VALUES(?,?)",
+            asset[1],
+            uploader,
+          );
         for (let i = 0; i < data.length; i += CHUNK)
           this.sql.exec(
             "INSERT INTO asset_chunks VALUES(?,?,?)",
@@ -314,6 +500,16 @@ export class SlideRoom extends DurableObject<Env> {
       return json({ ok: true }, 201);
     }
     if (asset && request.method === "GET") {
+      const viewer = request.headers.get("X-Media-User") ?? "";
+      insist(
+        request.headers.get("X-Media-Host") === "1" ||
+          this.currentMedia().has(
+            `/api/decks/${this.id()}/assets/${asset[1]}`,
+          ) ||
+          this.ownsPending(asset[1], viewer),
+        404,
+        "写真が見つかりません。",
+      );
       const info = one<{ mime: string; bytes: number }>(
         this.sql,
         "SELECT mime,bytes FROM assets WHERE id=?",
@@ -369,6 +565,7 @@ export class SlideRoom extends DurableObject<Env> {
       server.send(
         JSON.stringify({
           type: "hello",
+          protocol: COLLABORATION_PROTOCOL,
           vector: toBase64(Y.encodeStateVector(doc)),
         }),
       );
@@ -383,6 +580,7 @@ export class SlideRoom extends DurableObject<Env> {
     // let a stale candidate replace a newer document from another participant.
     await this.ctx.blockConcurrencyWhile(async () => {
       let candidate: Y.Doc | undefined;
+      let persistence = false;
       try {
         const peer = ws.deserializeAttachment() as Peer;
         insist(
@@ -403,6 +601,11 @@ export class SlideRoom extends DurableObject<Env> {
             typeof value.update === "string",
           400,
           "通信形式が正しくありません。",
+        );
+        insist(
+          value.protocol === COLLABORATION_PROTOCOL,
+          409,
+          "新しい権限方式に更新されました。未保存の変更はJSONに保存し、ページを再読み込みしてください。",
         );
         const update = fromBase64(value.update),
           now = Date.now();
@@ -442,9 +645,41 @@ export class SlideRoom extends DurableObject<Env> {
           rights.access,
           rights.host,
         );
-        const deck = this.validate(candidate);
+        const deck = this.validate(candidate),
+          beforeDeck = readSharedDeck(current);
+        assertMediaReferences(
+          beforeDeck,
+          deck,
+          rights.host,
+          (src) => this.ownsPending(src.split("/").at(-1)!, peer.user.id),
+          (slide) =>
+            !!one(
+              this.sql,
+              "SELECT id FROM comments WHERE slide=? LIMIT 1",
+              slide,
+            ),
+        );
+        const removedPage = beforeDeck.slides.some(
+          (s) => !deck.slides.some((t) => t.id === s.id),
+        );
         const snapshot = this.updates >= 199;
+        persistence = true;
         this.ctx.storage.transactionSync(() => {
+          historyBeforeChange(
+            (q, ...args) => this.sql.exec(q, ...args),
+            this.id()!,
+            readSharedDeck(current),
+            deck,
+            () =>
+              rows<SlideComment>(
+                this.sql,
+                "SELECT * FROM comments ORDER BY created,id",
+              ),
+          );
+          consumePendingAssets(
+            (q, ...a) => this.sql.exec(q, ...a),
+            imageSources(deck),
+          );
           if (snapshot) this.snapshot(candidate!);
           else
             this.sql.exec(
@@ -466,6 +701,13 @@ export class SlideRoom extends DurableObject<Env> {
               other.close(1011);
             }
           }
+        if (removedPage)
+          for (const other of this.peers())
+            try {
+              other.send(JSON.stringify({ type: "comments" }));
+            } catch {
+              other.close(1011);
+            }
         ws.send(JSON.stringify({ type: "ack", id: value.id }));
         if (now - this.lastTouched >= 5000) {
           this.lastTouched = now;
@@ -481,18 +723,29 @@ export class SlideRoom extends DurableObject<Env> {
       } catch (error) {
         const response = failure(error),
           value = (await response.json()) as { error: string };
+        const recovery = syncFailure(
+          error instanceof HttpError ? error.status : undefined,
+          persistence,
+          error instanceof AccessError,
+        );
         try {
           ws.send(
             JSON.stringify({
               type: "error",
               message:
-                error instanceof AccessError ? error.message : value.error,
-              code: error instanceof AccessError ? "forbidden" : undefined,
+                recovery.retryable && recovery.code !== "rate_limited"
+                  ? "クラウドに保存できません。変更を保持して再接続を試みます。"
+                  : error instanceof AccessError
+                    ? error.message
+                    : value.error,
+              ...recovery,
             }),
           );
           ws.close(
-            error instanceof AccessError ? 4004 : 4002,
-            "JSONを保存してください。",
+            recovery.closeCode,
+            recovery.retryable
+              ? "再接続を待っています。"
+              : "JSONを保存してください。",
           );
         } catch {
           /* Socket already closed. */

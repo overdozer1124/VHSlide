@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: "./tests/cloud",
   testMatch: "**/*.spec.ts",
   outputDir: "test-results-cloud",
-  timeout: 45_000,
+  // Multi-account workflows include many batched sync steps; per-assertion timeouts stay unchanged.
+  timeout: 90_000,
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:3187",

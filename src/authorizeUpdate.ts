@@ -37,7 +37,9 @@ export function applyAuthorizedUpdate(
     const a = oldDeck.slides.find((s) => s.id === id),
       b = nextDeck.slides.find((s) => s.id === id);
     return (
-      !!(a || b) && (!a || canEdit(access, a)) && (!b || canEdit(access, b))
+      !!(a || b) &&
+      (!a || canEdit(access, a, oldDeck)) &&
+      (!b || canEdit(access, b, nextDeck))
     );
   };
   const root = candidate.getMap("slides");

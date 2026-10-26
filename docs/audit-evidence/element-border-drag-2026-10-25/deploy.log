@@ -1,0 +1,61 @@
+
+> vhslide@0.40.2 cf:deploy
+> npm run build && tsc -p tsconfig.cloudflare.json && wrangler deploy
+
+
+> vhslide@0.40.2 build
+> tsc -b && tsc -p tsconfig.server.json && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2398 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                           0.48 kB │ gzip:   0.33 kB
+dist/assets/backup.worker-BzheVESX.js    21.38 kB
+dist/assets/index-xZ_hrnih.css           97.92 kB │ gzip:  20.16 kB
+dist/assets/backupWorker-B6uYrms4.js      1.05 kB │ gzip:   0.67 kB
+dist/assets/ReleaseHistory-D-pkFMSY.js   19.14 kB │ gzip:   6.51 kB
+dist/assets/CloudText-DNI2qcbC.js       203.57 kB │ gzip:  60.86 kB
+dist/assets/index-BvuVq1uE.js           596.81 kB │ gzip: 189.14 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.98s
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.151.3
+────────────────────
+🌀 Building list of assets...
+✨ Read 10 files from the assets directory /workspace/VHSlide/dist
+🌀 Starting asset upload...
+🌀 Found 6 new or modified static assets to upload. Proceeding with upload...
++ /index.html
++ /assets/index-xZ_hrnih.css
++ /assets/backupWorker-B6uYrms4.js
++ /assets/CloudText-DNI2qcbC.js
++ /assets/ReleaseHistory-D-pkFMSY.js
++ /assets/index-BvuVq1uE.js
+Uploaded 2 of 6 assets
+Uploaded 4 of 6 assets
+Uploaded 6 of 6 assets
+✨ Success! Uploaded 6 files (2 already uploaded) (1.62 sec)
+
+Total Upload: 401.00 KiB / gzip: 85.23 KiB
+Worker Startup Time: 2 ms
+Your Worker has access to the following bindings:
+Binding                                                                Resource                  
+env.DIRECTORY (Directory)                                              Durable Object            
+env.ROOMS (SlideRoom)                                                  Durable Object            
+env.ASSETS                                                             Assets                    
+env.GOOGLE_CLIENT_ID ("187339871113-2j074eot6i41e2ts1g3129ch...")      Environment Variable      
+env.PUBLIC_ORIGIN ("https://vhslide.overdozer1124.workers...")         Environment Variable      
+
+Uploaded vhslide (6.17 sec)
+Deployed vhslide triggers (0.79 sec)
+  https://vhslide.overdozer1124.workers.dev
+Current Version ID: 66bb2d11-ca82-41ec-a9c5-d783b8f824d4

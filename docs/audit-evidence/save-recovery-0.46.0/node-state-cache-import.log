@@ -1,0 +1,40 @@
+[WebServer] (node:107315) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 24 tests using 1 worker
+
+(node:107327) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (12.4s)
+  ✓   2 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (819ms)
+  ✓   3 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (1.1s)
+  ✓   4 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (811ms)
+  ✓   5 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (737ms)
+  ✓   6 [cloud-desktop] › tests/cloud/save-state.spec.ts:20:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved (2.7s)
+  ✓   7 [cloud-desktop] › tests/cloud/save-state.spec.ts:77:1 › the latest failed draft wins and global retry can also finish a failed note deletion (3.2s)
+  ✓   8 [cloud-desktop] › tests/cloud/save-state.spec.ts:118:1 › read-only participants see a reason rather than a host backup action (1.4s)
+  ✓   9 [cloud-desktop] › tests/cloud/save-state.spec.ts:160:1 › returning to a failed existing note restores its latest draft and retry never overwrites it with an older value (3.6s)
+  ✓  10 [cloud-desktop] › tests/cloud/save-state.spec.ts:190:1 › clearing an unsaved new note never replays its old failed text (2.0s)
+  ✓  11 [cloud-desktop] › tests/cloud/workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly (1.5s)
+  ✓  12 [cloud-desktop] › tests/cloud/workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes (1.1s)
+(node:108040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (12.2s)
+  ✓  14 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (763ms)
+  ✓  15 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (1.0s)
+  ✓  16 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (826ms)
+  ✓  17 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (748ms)
+  ✓  18 [cloud-touch] › tests/cloud/save-state.spec.ts:20:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved (2.7s)
+  ✓  19 [cloud-touch] › tests/cloud/save-state.spec.ts:77:1 › the latest failed draft wins and global retry can also finish a failed note deletion (3.2s)
+  ✓  20 [cloud-touch] › tests/cloud/save-state.spec.ts:118:1 › read-only participants see a reason rather than a host backup action (1.3s)
+  ✓  21 [cloud-touch] › tests/cloud/save-state.spec.ts:160:1 › returning to a failed existing note restores its latest draft and retry never overwrites it with an older value (4.1s)
+  ✓  22 [cloud-touch] › tests/cloud/save-state.spec.ts:190:1 › clearing an unsaved new note never replays its old failed text (2.0s)
+  ✓  23 [cloud-touch] › tests/cloud/workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly (1.7s)
+  ✓  24 [cloud-touch] › tests/cloud/workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes (1.2s)
+
+  24 passed (1.1m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

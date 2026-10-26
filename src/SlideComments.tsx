@@ -57,6 +57,10 @@ export function SlideComments({
     ]);
   }, [addRequest, cloud, slide.id, notes.length, drafts.length]);
   const ids = new Set(notes.map((note) => note.id));
+  const staged = cloud.pendingCommentDrafts.filter(
+    (n) => n.slide === slide.id && !ids.has(n.id),
+  );
+  const stagedIds = new Set(staged.map((n) => n.id));
   useEffect(() => {
     setDrafts((old) =>
       old.filter(
@@ -66,7 +70,13 @@ export function SlideComments({
   }, [cloud.comments]);
   return (
     <div className="slide-comments" aria-label="このスライドの付箋">
-      {[...notes, ...drafts.filter((note) => !ids.has(note.id))].map((note) => (
+      {[
+        ...notes,
+        ...staged,
+        ...drafts.filter(
+          (note) => !ids.has(note.id) && !stagedIds.has(note.id),
+        ),
+      ].map((note) => (
         <Sticky
           key={note.id}
           cloud={cloud}
@@ -92,7 +102,9 @@ function Sticky({
   draft: boolean;
   removeDraft: () => void;
 }) {
-  const [value, setValue] = useState(note);
+  const [value, setValue] = useState(
+    () => cloud.draftComment(cloud.active!.id, note.id) ?? note,
+  );
   const [palette, setPalette] = useState(false);
   const [paletteBox, setPaletteBox] = useState({ left: 0, width: 222 });
   const sizing = useRef<
@@ -119,6 +131,7 @@ function Sticky({
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const card = useRef<HTMLElement>(null);
   const room = useRef(cloud.active!.id).current;
+  const actor = useRef(cloud.user?.id ?? "").current;
   const fill = value.color ?? "#fff0a6";
   const ink =
     [0.2126, 0.7152, 0.0722].reduce(
@@ -154,11 +167,31 @@ function Sticky({
   };
   const flush = () => {
     clearTimeout(timer.current);
+    if (!running.current && contents(current.current) === saved.current)
+      cloud.markNoteDraft(room, note.id, false, actor, current.current);
     if (deleted.current || running.current) return running.current;
     running.current = (async () => {
       while (!deleted.current && contents(current.current) !== saved.current) {
         const snapshot = { ...current.current };
+        cloud.markNoteDraft(
+          room,
+          note.id,
+          !!snapshot.text.trim() || persisted.current,
+          actor,
+          snapshot,
+        );
         if (!snapshot.text.trim()) {
+          if (!persisted.current && cloud.hasNoteFailure(room, note.id)) {
+            try {
+              await cloud.deleteComment(note.id, room);
+              deleted.current = true;
+              cloud.markNoteDraft(room, note.id, false, actor);
+              removeDraft();
+            } catch (e) {
+              notify("保存できませんでした", (e as Error).message);
+            }
+            break;
+          }
           notify(
             persisted.current
               ? "文字を入力するか、付箋を削除してください"
@@ -171,6 +204,8 @@ function Sticky({
           await cloud.saveComment(room, snapshot);
           persisted.current = true;
           saved.current = contents(snapshot);
+          if (contents(current.current) === saved.current)
+            cloud.markNoteDraft(room, note.id, false, actor, snapshot);
           notify("保存済み");
         } catch (e) {
           notify("保存できませんでした", (e as Error).message);
@@ -187,6 +222,16 @@ function Sticky({
   const change = (patch: Partial<SlideComment>, immediate = false) => {
     current.current = { ...current.current, ...patch };
     setValue(current.current);
+    cloud.markNoteDraft(
+      room,
+      note.id,
+      (contents(current.current) !== saved.current || !!running.current) &&
+        (!!current.current.text.trim() ||
+          persisted.current ||
+          cloud.hasNoteFailure(room, note.id)),
+      actor,
+      current.current,
+    );
     setStatus("未保存");
     setError("");
     clearTimeout(timer.current);
@@ -209,10 +254,25 @@ function Sticky({
   }, [note]);
   useEffect(() => {
     mounted.current = true;
+    const save = async () => {
+      await flushRef.current();
+      if (
+        !deleted.current &&
+        (current.current.text.trim() || persisted.current) &&
+        contents(current.current) !== saved.current
+      )
+        throw new Error(
+          "保存できていない付箋があります。付箋の再試行を押してください。",
+        );
+    };
+    const unregister = cloud.registerNoteFlush(save, note.id);
     return () => {
       mounted.current = false;
       clearTimeout(timer.current);
-      void flushRef.current();
+      void save()
+        .then(() => cloud.releaseNoteSave(save))
+        .catch(() => cloud.retainNoteSave(room, save, actor, note.id))
+        .finally(unregister);
     };
   }, []);
   return (
@@ -341,8 +401,9 @@ function Sticky({
               void (async () => {
                 try {
                   await running.current;
-                  if (persisted.current)
+                  if (persisted.current || cloud.hasNoteFailure(room, note.id))
                     await cloud.deleteComment(note.id, room);
+                  cloud.markNoteDraft(room, note.id, false, actor);
                   removeDraft();
                 } catch (e) {
                   deleted.current = false;

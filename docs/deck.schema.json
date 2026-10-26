@@ -66,6 +66,57 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 80
+          },
+          "rowIds": {
+            "type": "object",
+            "maxProperties": 100,
+            "propertyNames": {
+              "pattern": "^(0|[1-9][0-9]?)$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "description": "表示位置から安定した行・列IDへの対応。省略時のIDは位置の10進文字列。全100位置のIDは軸内で重複不可。"
+          },
+          "columnIds": {
+            "type": "object",
+            "maxProperties": 100,
+            "propertyNames": {
+              "pattern": "^(0|[1-9][0-9]?)$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "description": "表示位置から安定した行・列IDへの対応。省略時のIDは位置の10進文字列。全100位置のIDは軸内で重複不可。"
+          },
+          "rowLabels": {
+            "type": "object",
+            "maxProperties": 100,
+            "propertyNames": {
+              "pattern": "^(0|[1-9][0-9]?)$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "columnLabels": {
+            "type": "object",
+            "maxProperties": 100,
+            "propertyNames": {
+              "pattern": "^(0|[1-9][0-9]?)$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "showRowAccounts": {
+            "type": "boolean"
           }
         }
       }
@@ -74,6 +125,34 @@
       "type": "string",
       "maxLength": 100,
       "description": "利用者ごとの表示中シートID。共同編集相手には同期しない。"
+    },
+    "routes": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "slides"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "slides": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -87,7 +166,7 @@
           "maxLength": 100
         },
         "type": {
-          "enum": ["text", "image", "shape"]
+          "enum": ["text", "image", "shape", "table", "line", "chart"]
         },
         "x": {
           "type": "number",
@@ -108,6 +187,41 @@
           "type": "number",
           "minimum": 20,
           "maximum": 540
+        },
+        "rotation": {
+          "enum": [0, 90, 180, 270]
+        },
+        "flipX": {
+          "type": "boolean"
+        },
+        "flipY": {
+          "type": "boolean"
+        },
+        "aspectLocked": {
+          "type": "boolean"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "groupId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "link": {
+          "type": "object",
+          "required": ["slideId"],
+          "additionalProperties": false,
+          "properties": {
+            "slideId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "description": "同一作品のページIDのみ。削除済みの参照は安全に欠損として扱う。"
         }
       }
     },
@@ -151,6 +265,15 @@
               },
               {
                 "$ref": "#/$defs/shape"
+              },
+              {
+                "$ref": "#/$defs/table"
+              },
+              {
+                "$ref": "#/$defs/line"
+              },
+              {
+                "$ref": "#/$defs/chart"
               }
             ]
           }
@@ -207,6 +330,9 @@
               "enum": ["top", "middle", "bottom"],
               "default": "top",
               "description": "テキストボックス内の上下の文字位置。"
+            },
+            "richText": {
+              "$ref": "#/$defs/richText"
             }
           }
         }
@@ -228,6 +354,37 @@
               "type": "string",
               "maxLength": 12000000,
               "pattern": "^(data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+|/api/decks/[a-f0-9-]{36}/assets/[a-f0-9-]{36})$"
+            },
+            "altText": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "crop": {
+              "type": "object",
+              "required": ["x", "y", "w", "h"],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "w": {
+                  "type": "number",
+                  "minimum": 1e-5,
+                  "maximum": 1
+                },
+                "h": {
+                  "type": "number",
+                  "minimum": 1e-5,
+                  "maximum": 1
+                }
+              },
+              "description": "元画像に対する正規化された範囲。x+wとy+hは1以下。非破壊の表示調整。"
             }
           }
         }
@@ -246,7 +403,106 @@
               "const": "shape"
             },
             "shape": {
-              "enum": ["rect", "rounded", "circle", "arrow", "bubble"]
+              "enum": [
+                "rect",
+                "rounded",
+                "circle",
+                "triangle",
+                "rightTriangle",
+                "diamond",
+                "pentagon",
+                "hexagon",
+                "parallelogram",
+                "trapezoid",
+                "star",
+                "heart",
+                "cloud",
+                "arrow",
+                "leftArrow",
+                "upArrow",
+                "downArrow",
+                "doubleArrow",
+                "chevron",
+                "bubble",
+                "ovalBubble",
+                "thoughtBubble",
+                "terminator",
+                "document",
+                "cylinder"
+              ]
+            },
+            "fill": {
+              "type": "string",
+              "pattern": "^(#[0-9a-fA-F]{6}|none)$"
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 10000
+            },
+            "fontSize": {
+              "type": "number",
+              "minimum": 12,
+              "maximum": 120
+            },
+            "color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "bold": {
+              "type": "boolean"
+            },
+            "textAlign": {
+              "enum": ["left", "center", "right"]
+            },
+            "verticalAlign": {
+              "enum": ["top", "middle", "bottom"]
+            },
+            "strokeWidth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "strokeDash": {
+              "enum": ["solid", "dash", "dot"]
+            },
+            "bullets": {
+              "type": "boolean"
+            },
+            "highlight": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "richText": {
+              "$ref": "#/$defs/richText"
+            }
+          }
+        }
+      ]
+    },
+    "table": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/geometry"
+        },
+        {
+          "type": "object",
+          "required": ["table", "fontSize", "color", "fill", "stroke"],
+          "properties": {
+            "type": {
+              "const": "table"
+            },
+            "fontSize": {
+              "type": "number",
+              "minimum": 12,
+              "maximum": 72
+            },
+            "color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
             },
             "fill": {
               "type": "string",
@@ -255,6 +511,329 @@
             "stroke": {
               "type": "string",
               "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "textAlign": {
+              "enum": ["left", "center", "right"]
+            },
+            "table": {
+              "type": "object",
+              "required": ["rows", "columns", "cells", "header"],
+              "properties": {
+                "rows": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 12,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+                  }
+                },
+                "columns": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 12,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+                  }
+                },
+                "header": {
+                  "type": "boolean"
+                },
+                "cells": {
+                  "type": "object",
+                  "maxProperties": 144,
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "description": "行ID:列IDをキーにしたセル文字列。所属IDは実行時に検査。"
+                },
+                "styles": {
+                  "type": "object",
+                  "maxProperties": 144,
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "fill": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      },
+                      "color": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      },
+                      "fontSize": {
+                        "type": "number",
+                        "minimum": 12,
+                        "maximum": 72
+                      },
+                      "bold": {
+                        "type": "boolean"
+                      },
+                      "italic": {
+                        "type": "boolean"
+                      },
+                      "textAlign": {
+                        "enum": ["left", "center", "right"]
+                      },
+                      "verticalAlign": {
+                        "enum": ["top", "middle", "bottom"]
+                      }
+                    }
+                  },
+                  "description": "行ID:列IDをキーとするセル書式。所属IDは実行時検査。"
+                },
+                "widths": {
+                  "type": "object",
+                  "maxProperties": 12,
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0.25,
+                    "maximum": 8
+                  },
+                  "description": "安定した列ID／行IDごとの寸法の比率。所属IDは実行時検査。"
+                },
+                "heights": {
+                  "type": "object",
+                  "maxProperties": 12,
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0.25,
+                    "maximum": 8
+                  },
+                  "description": "安定した列ID／行IDごとの寸法の比率。所属IDは実行時検査。"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "line": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/geometry"
+        },
+        {
+          "type": "object",
+          "required": ["stroke"],
+          "properties": {
+            "type": {
+              "const": "line"
+            },
+            "rotation": {
+              "const": 0
+            },
+            "flipX": {
+              "const": false
+            },
+            "flipY": {
+              "const": false
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "strokeWidth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "strokeDash": {
+              "enum": ["solid", "dash", "dot"]
+            },
+            "lineKind": {
+              "enum": ["straight", "elbow", "curve"]
+            },
+            "lineStart": {
+              "type": "object",
+              "required": ["x", "y"],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "lineEnd": {
+              "type": "object",
+              "required": ["x", "y"],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "startArrow": {
+              "enum": ["none", "triangle", "circle"]
+            },
+            "endArrow": {
+              "enum": ["none", "triangle", "circle"]
+            },
+            "startAnchor": {
+              "$ref": "#/$defs/anchor"
+            },
+            "endAnchor": {
+              "$ref": "#/$defs/anchor"
+            }
+          }
+        }
+      ]
+    },
+    "richText": {
+      "type": "array",
+      "maxItems": 20000,
+      "description": "insertのみのDelta。全文はtext+終端改行に一致。段落属性は改行のみに付与。実行時に検査。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["insert"],
+        "properties": {
+          "insert": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10001
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "bold": {
+                "type": "boolean"
+              },
+              "italic": {
+                "type": "boolean"
+              },
+              "underline": {
+                "type": "boolean"
+              },
+              "strike": {
+                "type": "boolean"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "background": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "size": {
+                "type": "string",
+                "pattern": "^(1[2-9]|[2-9][0-9]|1[01][0-9]|120)px$",
+                "description": "12〜120px。実行時にも検査。"
+              },
+              "font": {
+                "enum": ["sans", "serif", "mono"]
+              },
+              "align": {
+                "enum": ["center", "right", "justify"]
+              },
+              "list": {
+                "enum": ["bullet", "ordered"]
+              },
+              "lineheight": {
+                "enum": ["1", "1.25", "1.5", "2"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "required": ["elementId", "side"],
+      "properties": {
+        "elementId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "side": {
+          "enum": ["top", "right", "bottom", "left"]
+        }
+      },
+      "description": "同一ページの線以外の要素を参照。自身・線への接続は実行時に拒否。"
+    },
+    "chartData": {
+      "type": "object",
+      "required": ["kind", "title", "series", "showValues", "showLegend"],
+      "properties": {
+        "kind": {
+          "enum": ["bar", "line", "pie"]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "showValues": {
+          "type": "boolean"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "series": {
+          "type": "array",
+          "maxItems": 12,
+          "description": "安定IDは一意。円グラフは値0以上。実行時にも検査。共同削除で0件になった場合も保持。",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "value", "color"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "value": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "chart": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/geometry"
+        },
+        {
+          "type": "object",
+          "required": ["chart"],
+          "properties": {
+            "type": {
+              "const": "chart"
+            },
+            "chart": {
+              "$ref": "#/$defs/chartData"
             }
           }
         }

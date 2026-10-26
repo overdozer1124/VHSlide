@@ -1,0 +1,20 @@
+[WebServer] (node:46932) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:46944) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (879ms)
+  ✓  2 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (1.8s)
+(node:47125) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [cloud-touch] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (913ms)
+  ✓  4 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (1.9s)
+
+  4 passed (7.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

@@ -1,0 +1,278 @@
+node: isolated privacy assertions passed
+cloudflare: isolated privacy assertions passed
+[
+  {
+    "backend": "node",
+    "check": "non-member privacy boundary",
+    "result": "PASS",
+    "evidence": [
+      {
+        "endpoint": "/api/decks/WORK",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/assets/7c1b2b23-3be3-486c-8c0d-3bec75738116",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/comments",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/row-accounts",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/history",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/backup",
+        "anonymous": 401,
+        "nonMember": 404
+      }
+    ]
+  },
+  {
+    "backend": "node",
+    "check": "host-only roster, emails, versions, complete backup",
+    "result": "PASS",
+    "evidence": [
+      {
+        "extra": "members",
+        "status": 404
+      },
+      {
+        "extra": "recipients",
+        "status": 404
+      },
+      {
+        "extra": "history",
+        "status": 404
+      },
+      {
+        "extra": "backup",
+        "status": 404
+      }
+    ]
+  },
+  {
+    "backend": "node",
+    "check": "scoped student reads other rows and their photos",
+    "result": "CONFIRMED_RISK",
+    "assignedRow": 0,
+    "readOtherRow": 1,
+    "readPages": 5
+  },
+  {
+    "backend": "node",
+    "check": "pre-joined roster identifiers are sent even when row names are not enabled",
+    "result": "CONFIRMED_RISK",
+    "unjoinedAccountAliasVisible": true,
+    "fullEmailAutomatic": false
+  },
+  {
+    "backend": "node",
+    "check": "photo original metadata is preserved",
+    "result": "CONFIRMED_RISK",
+    "exifMarker": true,
+    "bytesUnchanged": true
+  },
+  {
+    "backend": "node",
+    "check": "any Google account with an active invitation can read the full work",
+    "result": "CONFIRMED_RISK",
+    "outsiderAccepted": true,
+    "editMode": "none"
+  },
+  {
+    "backend": "node",
+    "check": "revoked student can rejoin using an existing invitation",
+    "result": "CONFIRMED_RISK",
+    "deniedBeforeAccept": 404,
+    "afterReaccept": 200
+  },
+  {
+    "backend": "node",
+    "check": "invalidate invitation then remove participant prevents re-entry",
+    "result": "PASS"
+  },
+  {
+    "backend": "node",
+    "check": "cross-origin authenticated mutation denied",
+    "result": "PASS"
+  },
+  {
+    "backend": "node",
+    "check": "full WebSocket document readable, forged write denied",
+    "result": "PASS",
+    "fullReadConfirmed": true,
+    "writeRejected": true
+  },
+  {
+    "backend": "node",
+    "check": "deleted-slide photo and note remain readable by members",
+    "result": "CONFIRMED_RISK",
+    "photoStatus": 200,
+    "deletedSlideNoteRetained": true
+  },
+  {
+    "backend": "node",
+    "check": "complete backup includes plaintext recipient emails",
+    "result": "CONFIRMED_RISK",
+    "emailCount": 3
+  },
+  {
+    "backend": "node",
+    "check": "trash blocks reads, restoration reactivates former members",
+    "result": "PASS",
+    "restoredOldMembers": true
+  },
+  {
+    "backend": "node",
+    "check": "permanent deletion blocks photo reads and logout invalidates server session",
+    "result": "PASS"
+  },
+  {
+    "backend": "cloudflare",
+    "check": "non-member privacy boundary",
+    "result": "PASS",
+    "evidence": [
+      {
+        "endpoint": "/api/decks/WORK",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/assets/85e4429c-2b34-4669-a26b-909970d44ca0",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/comments",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/row-accounts",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/history",
+        "anonymous": 401,
+        "nonMember": 404
+      },
+      {
+        "endpoint": "/api/decks/WORK/backup",
+        "anonymous": 401,
+        "nonMember": 404
+      }
+    ]
+  },
+  {
+    "backend": "cloudflare",
+    "check": "host-only roster, emails, versions, complete backup",
+    "result": "PASS",
+    "evidence": [
+      {
+        "extra": "members",
+        "status": 404
+      },
+      {
+        "extra": "recipients",
+        "status": 404
+      },
+      {
+        "extra": "history",
+        "status": 404
+      },
+      {
+        "extra": "backup",
+        "status": 404
+      }
+    ]
+  },
+  {
+    "backend": "cloudflare",
+    "check": "scoped student reads other rows and their photos",
+    "result": "CONFIRMED_RISK",
+    "assignedRow": 0,
+    "readOtherRow": 1,
+    "readPages": 5
+  },
+  {
+    "backend": "cloudflare",
+    "check": "pre-joined roster identifiers are sent even when row names are not enabled",
+    "result": "CONFIRMED_RISK",
+    "unjoinedAccountAliasVisible": true,
+    "fullEmailAutomatic": false
+  },
+  {
+    "backend": "cloudflare",
+    "check": "photo original metadata is preserved",
+    "result": "CONFIRMED_RISK",
+    "exifMarker": true,
+    "bytesUnchanged": true
+  },
+  {
+    "backend": "cloudflare",
+    "check": "any Google account with an active invitation can read the full work",
+    "result": "CONFIRMED_RISK",
+    "outsiderAccepted": true,
+    "editMode": "none"
+  },
+  {
+    "backend": "cloudflare",
+    "check": "revoked student can rejoin using an existing invitation",
+    "result": "CONFIRMED_RISK",
+    "deniedBeforeAccept": 404,
+    "afterReaccept": 200
+  },
+  {
+    "backend": "cloudflare",
+    "check": "invalidate invitation then remove participant prevents re-entry",
+    "result": "PASS"
+  },
+  {
+    "backend": "cloudflare",
+    "check": "cross-origin authenticated mutation denied",
+    "result": "PASS"
+  },
+  {
+    "backend": "cloudflare",
+    "check": "full WebSocket document readable, forged write denied",
+    "result": "PASS",
+    "fullReadConfirmed": true,
+    "writeRejected": true
+  },
+  {
+    "backend": "cloudflare",
+    "check": "deleted-slide photo and note remain readable by members",
+    "result": "CONFIRMED_RISK",
+    "photoStatus": 200,
+    "deletedSlideNoteRetained": true
+  },
+  {
+    "backend": "cloudflare",
+    "check": "complete backup includes plaintext recipient emails",
+    "result": "CONFIRMED_RISK",
+    "emailCount": 3
+  },
+  {
+    "backend": "cloudflare",
+    "check": "trash blocks reads, restoration reactivates former members",
+    "result": "PASS",
+    "restoredOldMembers": true
+  },
+  {
+    "backend": "cloudflare",
+    "check": "permanent deletion blocks photo reads and logout invalidates server session",
+    "result": "PASS"
+  }
+]

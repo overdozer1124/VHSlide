@@ -1,3 +1,7 @@
+import { useMapSelection } from "./useMapSelection";
+import { MapBatchPanel } from "./MapBatchPanel";
+import type { BatchAxis } from "./mapBatch";
+import { axisId } from "./axes";
 import { useLayoutEffect, useMemo, useRef, useState, memo } from "react";
 import { ThumbnailFooter } from "./ThumbnailFooter";
 import { MapHeading } from "./MapHeading";
@@ -11,6 +15,7 @@ import {
   LayoutGrid,
   Maximize2,
   MoreHorizontal,
+  MousePointer2,
   Plus,
   Trash2,
   ZoomIn,
@@ -19,6 +24,7 @@ import {
   LocateFixed,
   Search,
   Filter,
+  Columns2,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
 import { bounds, W, H } from "./model";
@@ -42,8 +48,27 @@ import {
   groupSelection,
 } from "./mapFilter";
 import type { MapFilter } from "./mapFilter";
+import type { AssignmentReadiness } from "./assignmentReadiness";
+import { pageOrigin, type ResolvedPageScope } from "./pageScope";
+import { PageScopeSummary } from "./PageScopeSummary";
 
 interface MapViewProps {
+  remainingPages: number;
+  onBatchAxes: (
+    axis: BatchAxis,
+    action: "add" | "delete",
+    start: number,
+    count: number,
+  ) => boolean;
+  onDeleteMany: (ids: string[]) => boolean;
+  scope: ResolvedPageScope;
+  presentationStartId?: string;
+  restoreScroll?: { token: number; left: number; top: number };
+  assignedIds: string[];
+  assignment?: AssignmentReadiness;
+  assignmentChecking?: boolean;
+  onAssignmentSheet?: (id: string) => void;
+  onCompare: () => void;
   visible: boolean;
   headingEditable: boolean;
   footerLabel: (slide: Slide) => string;
@@ -74,6 +99,17 @@ interface MapViewProps {
   onOpenMenu: OpenThumbnailMenu;
 }
 function MapViewComponent({
+  remainingPages,
+  onBatchAxes,
+  onDeleteMany,
+  scope,
+  presentationStartId,
+  restoreScroll,
+  assignedIds,
+  assignment,
+  assignmentChecking,
+  onAssignmentSheet,
+  onCompare,
   visible,
   headingEditable,
   footerLabel,
@@ -104,7 +140,10 @@ function MapViewComponent({
   onOpenMenu,
 }: MapViewProps) {
   const sheet = activeSheet(deck);
-  const [draftFilter, setDraftFilter] = useState(emptyFilter);
+  const [draftFilterState, setDraftFilter] = useState(emptyFilter);
+  const draftFilter = draftFilterState.assigned
+    ? { ...draftFilterState, assignedIds }
+    : draftFilterState;
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftEditor, setDraftEditor] = useState(filterEditor);
   const filtered = filter !== undefined && !filterOpen;
@@ -133,6 +172,13 @@ function MapViewComponent({
       ),
     [displaySlides, filtered, cols],
   );
+  const selection = useMapSelection(
+    displaySlides,
+    positions,
+    visible && !filterOpen,
+  );
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({
@@ -199,7 +245,7 @@ function MapViewComponent({
       ? Math.max(20, Math.min(32, (viewportSize.height - 60) / rows))
       : (thumbWidth * H) / W;
   const cardWidth = thumbWidth + 2,
-    cardHeight = thumbHeight + (numbers ? 0 : 34);
+    cardHeight = thumbHeight + (numbers ? 0 : 34 + (filtered ? 22 : 0));
   const anchor = useRef<{
     id?: string;
     point: PinchPoint;
@@ -236,6 +282,7 @@ function MapViewComponent({
   }
   const pinching = usePinch(scrollRef, {
     start(point) {
+      selection.close();
       const grid = gridRef.current!,
         rect = grid.getBoundingClientRect();
       // Read the touched card directly. For gaps, use fixed grid coordinates
@@ -313,7 +360,7 @@ function MapViewComponent({
     },
   });
   useMapTouchDrag(scrollRef, {
-    enabled: visible && !filtered && !filterOpen,
+    enabled: visible && !filtered && !filterOpen && !selection.active,
     start: (source) => onMove(source),
     hit(point, source) {
       const target = document
@@ -339,8 +386,22 @@ function MapViewComponent({
     },
   });
   useLayoutEffect(restoreAnchor, [scale]);
+  const restoredScroll = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     if (!visible) return;
+    if (
+      restoreScroll &&
+      restoredScroll.current !== restoreScroll.token &&
+      scrollRef.current
+    ) {
+      restoredScroll.current = restoreScroll.token;
+      scrollRef.current.scrollTo({
+        left: restoreScroll.left,
+        top: restoreScroll.top,
+        behavior: "instant",
+      });
+      return;
+    }
     const node = scrollRef.current!;
     let frame: number | undefined;
     function measure() {
@@ -423,14 +484,43 @@ function MapViewComponent({
       inline: "center",
       behavior: "instant",
     });
-  }, [activeId, scale, visible, filtered, cols]);
+  }, [activeId, scale, visible, filtered, cols, restoreScroll]);
   return (
     <main
+      onKeyDownCapture={(e) => {
+        if (
+          !selection.active ||
+          (e.target as HTMLElement).closest("input,textarea,select")
+        )
+          return;
+        if (["Delete", "Backspace"].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          setConfirmDelete(true);
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+          e.preventDefault();
+          e.stopPropagation();
+          selection.all();
+        }
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          selection.close();
+          setConfirmDelete(false);
+        }
+      }}
       className="map-main"
       data-filter-selecting={filterOpen}
       hidden={!visible}
       style={visible ? undefined : { display: "none" }}
     >
+      {selection.box && (
+        <div
+          className="map-selection-box"
+          style={selection.box}
+          aria-hidden="true"
+        />
+      )}
       <section className="map-panel" aria-label="ページの全体マップ">
         <div className="map-toolbar">
           <div className="map-summary">
@@ -439,13 +529,7 @@ function MapViewComponent({
               全体マップ
             </h1>
             <span className="map-stats">
-              {filtered
-                ? `${displaySlides.length} / ${deck.slides.length}`
-                : deck.slides.length}
-              ページ{" "}
-              <span>
-                ／ {size.cols}話題・{size.rows}段
-              </span>
+              <PageScopeSummary scope={scope} />
             </span>
           </div>
           <button
@@ -453,6 +537,8 @@ function MapViewComponent({
             aria-label="マップをフィルタ"
             aria-expanded={filterOpen}
             onClick={() => {
+              selection.close();
+              setBatchOpen(false);
               setDraftFilter(filter ?? emptyFilter());
               setDraftEditor(filterEditor);
               setFilterOpen(!filterOpen);
@@ -461,6 +547,38 @@ function MapViewComponent({
           >
             <Filter size={16} />
             フィルタ
+          </button>
+          <button
+            className="quiet"
+            aria-label="スライドを複数選択"
+            aria-pressed={selection.active}
+            onClick={() => {
+              selection.toggle();
+              setConfirmDelete(false);
+              setBatchOpen(false);
+              onMove(undefined);
+            }}
+          >
+            <MousePointer2 size={16} aria-hidden="true" />
+            選択
+          </button>
+          {headingEditable && (
+            <button
+              className="quiet"
+              aria-expanded={batchOpen}
+              onClick={() => {
+                setBatchOpen(!batchOpen);
+                selection.close();
+                setFilterOpen(false);
+                onMove(undefined);
+              }}
+            >
+              行・列を一括操作
+            </button>
+          )}
+          <button className="quiet map-compare" onClick={onCompare}>
+            <Columns2 size={16} />
+            比較
           </button>
           {accountsAvailable && !filtered && (
             <button
@@ -593,9 +711,110 @@ function MapViewComponent({
             </button>
           </div>
         </div>
+        {batchOpen && headingEditable && (
+          <MapBatchPanel
+            remainingPages={remainingPages}
+            deck={deck}
+            onApply={onBatchAxes}
+            onClose={() => setBatchOpen(false)}
+          />
+        )}
+        {selection.active && (
+          <section
+            className="map-selection-toolbar"
+            aria-label="選択したスライドの操作"
+          >
+            <strong>{selection.ids.length}ページ選択</strong>
+            <button
+              className="quiet"
+              onClick={() => {
+                selection.all();
+                setConfirmDelete(false);
+              }}
+            >
+              表示中をすべて選択
+            </button>
+            <button
+              className="quiet"
+              onClick={() => {
+                selection.clear();
+                setConfirmDelete(false);
+              }}
+            >
+              選択を解除
+            </button>
+            <button
+              className="button outline"
+              disabled={!selection.ids.length}
+              onClick={() => {
+                setFilter({ ids: selection.ids, rows: [], columns: [] });
+                selection.close();
+              }}
+            >
+              選択したページでフィルタ
+            </button>
+            <button
+              className="button outline danger"
+              disabled={
+                !selection.ids.length ||
+                selection.ids.some(
+                  (id) =>
+                    !footerEditable(deck.slides.find((s) => s.id === id)!),
+                )
+              }
+              onClick={() => setConfirmDelete(true)}
+            >
+              選択したページを削除
+            </button>
+            <button
+              className="quiet"
+              onClick={() => {
+                selection.close();
+                setConfirmDelete(false);
+              }}
+            >
+              選択を終了
+            </button>
+            <small>
+              ドラッグで囲む · Ctrl／⌘で追加・解除 · Shiftで矩形範囲 ·
+              Deleteで削除
+            </small>
+            {confirmDelete && selection.ids.length > 0 && (
+              <div className="selection-delete-confirm" role="alert">
+                <span>
+                  {selection.ids.length}
+                  ページを削除します。選んでいないページの位置は変わりません。先頭が空く場合は空白ページを残します。
+                </span>
+                <button
+                  className="button outline danger"
+                  onClick={() => {
+                    if (onDeleteMany(selection.ids)) {
+                      setConfirmDelete(false);
+                    }
+                  }}
+                >
+                  この{selection.ids.length}ページを削除する
+                </button>
+                <button
+                  className="quiet"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  取り消す
+                </button>
+              </div>
+            )}
+          </section>
+        )}
         {filterOpen && (
           <MapFilterPanel
             deck={deck}
+            assignedIds={assignedIds}
+            assignment={assignment}
+            assignmentChecking={assignmentChecking}
+            onAssignmentSheet={(id) => {
+              setFilterOpen(false);
+              onAssignmentSheet?.(id);
+            }}
             value={draftFilter}
             onChange={setDraftFilter}
             editor={draftEditor}
@@ -611,7 +830,13 @@ function MapViewComponent({
         )}
         {filtered && (
           <div className="filtered-note">
-            絞り込み表示 · 元のスライド番号で表示しています
+            元の行・列はカード下部に表示 · 配置を変えるには絞り込みを解除
+            {scope.issues.length > 0 && (
+              <span role="status"> {scope.issues.join(" ")}</span>
+            )}
+            {!displaySlides.length && (
+              <strong> 条件に合うページがありません。</strong>
+            )}
           </div>
         )}
         {findError && (
@@ -633,6 +858,8 @@ function MapViewComponent({
           </div>
         )}
         <div
+          {...selection.handlers}
+          data-multi-selecting={selection.active}
           className="map-scroll"
           ref={scrollRef}
           role="region"
@@ -754,7 +981,11 @@ function MapViewComponent({
                   className="row-axis"
                   title={
                     sheet.rowLabels?.[y] ||
-                    (sheet.showRowAccounts ? rowAccounts?.[y]?.join("・") : "")
+                    (sheet.showRowAccounts
+                      ? rowAccounts?.[axisId(deck, sheet.id, "rows", y)]?.join(
+                          "・",
+                        )
+                      : "")
                   }
                   style={filtered ? { visibility: "hidden" } : undefined}
                 >
@@ -813,7 +1044,9 @@ function MapViewComponent({
                       value={
                         sheet.rowLabels?.[y] ||
                         (sheet.showRowAccounts
-                          ? rowAccounts?.[y]?.join("・")
+                          ? rowAccounts?.[
+                              axisId(deck, sheet.id, "rows", y)
+                            ]?.join("・")
                           : "") ||
                         ""
                       }
@@ -903,6 +1136,9 @@ function MapViewComponent({
                           <div
                             ref={s.id === activeId ? activeCard : undefined}
                             data-page-id={s.id}
+                            data-multi-selected={
+                              selection.active && selection.ids.includes(s.id)
+                            }
                             data-filter-selecting={filterOpen}
                             data-filter-selected={
                               filterOpen
@@ -910,7 +1146,9 @@ function MapViewComponent({
                                 : undefined
                             }
                             data-map-drag-source={
-                              filtered || filterOpen ? undefined : "slide"
+                              filtered || filterOpen || selection.active
+                                ? undefined
+                                : "slide"
                             }
                             data-x={x}
                             data-y={y}
@@ -921,13 +1159,15 @@ function MapViewComponent({
                             }
                             className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
                             onContextMenu={(event) =>
-                              filterOpen
+                              filterOpen || selection.active
                                 ? event.preventDefault()
                                 : onOpenMenu(event, { pageId: s.id })
                             }
-                            draggable={!filtered && !filterOpen}
+                            draggable={
+                              !filtered && !filterOpen && !selection.active
+                            }
                             onDragStart={(e) => {
-                              if (filtered || filterOpen) {
+                              if (filtered || filterOpen || selection.active) {
                                 e.preventDefault();
                                 return;
                               }
@@ -953,16 +1193,20 @@ function MapViewComponent({
                               aria-current={
                                 s.id === activeId ? "page" : undefined
                               }
-                              title={`${s.y + 1}.${s.x + 1} ${s.title}${s.id === activeId ? "（いまのページ）" : ""}`}
+                              title={`${s.y + 1}.${s.x + 1} ${s.title} / ${pageOrigin(deck, s)}${s.id === activeId ? "（いまのページ）" : ""}`}
                               aria-label={
-                                filterOpen
-                                  ? `フィルタ選択: ${s.y + 1}.${s.x + 1} ${s.title}`
-                                  : `${s.title}を${moving ? "移動先にする" : "編集"}`
+                                selection.active
+                                  ? `${s.title}を選択`
+                                  : filterOpen
+                                    ? `フィルタ選択: ${s.y + 1}.${s.x + 1} ${s.title}`
+                                    : `${s.title}を${moving ? "移動先にする" : "編集"}`
                               }
                               aria-pressed={
-                                filterOpen
-                                  ? matchesFilter(s, draftFilter)
-                                  : undefined
+                                selection.active
+                                  ? selection.ids.includes(s.id)
+                                  : filterOpen
+                                    ? matchesFilter(s, draftFilter)
+                                    : undefined
                               }
                               onClick={() => {
                                 if (filterOpen)
@@ -996,9 +1240,10 @@ function MapViewComponent({
                               ) : null}
                               {detailed &&
                                 !filterOpen &&
-                                x === 0 &&
-                                y === 0 && (
-                                  <span className="start-badge">START</span>
+                                s.id === presentationStartId && (
+                                  <span className="start-badge">
+                                    発表の先頭
+                                  </span>
                                 )}
                             </button>
                             {detailed && (
@@ -1009,7 +1254,11 @@ function MapViewComponent({
                                 <ThumbnailFooter
                                   slide={s}
                                   label={footerLabel(s)}
-                                  editable={!filterOpen && footerEditable(s)}
+                                  editable={
+                                    !filterOpen &&
+                                    !selection.active &&
+                                    footerEditable(s)
+                                  }
                                   onChange={onFooterChange}
                                 />
                                 {!filterOpen && (
@@ -1048,6 +1297,14 @@ function MapViewComponent({
                                     </button>
                                   </>
                                 )}
+                              </div>
+                            )}
+                            {filtered && detailed && (
+                              <div
+                                className="filtered-origin"
+                                title={pageOrigin(deck, s)}
+                              >
+                                {pageOrigin(deck, s)}
                               </div>
                             )}
                           </div>

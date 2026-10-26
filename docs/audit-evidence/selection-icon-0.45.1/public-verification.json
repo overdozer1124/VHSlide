@@ -1,0 +1,45 @@
+{
+  "version": "0.45.1",
+  "deploymentVersion": "4d8e58fc-1307-42bf-8adb-5b68c58ee57c",
+  "verifiedAtUtc": "2026-10-26T03:58:04.376111+00:00",
+  "health": {
+    "ok": true
+  },
+  "assets": [
+    {
+      "file": "index.html",
+      "sha256": "1db80cadd91df494748a5a9c853e4ed95b22b00459c8f9cb9708d40d481be124",
+      "match": true
+    },
+    {
+      "file": "assets/index-DBblxzj7.js",
+      "sha256": "1ca567e3afe0807f78734ce4e18b8791da9b74f26f3484b552c970628729281f",
+      "match": true
+    },
+    {
+      "file": "assets/backupWorker-fw7c4-l8.js",
+      "sha256": "49b6cacd80857304b656e1e46fb7ff018e07dd8b9a8f855f7025bcfc859ef8f5",
+      "match": true
+    },
+    {
+      "file": "assets/backup.worker-D88bv2TW.js",
+      "sha256": "431fb9a5f03d68b3020e5e73c120a7cde28d09e462eb4da580090168a40f3617",
+      "match": true
+    },
+    {
+      "file": "assets/index-CePnWw-p.css",
+      "sha256": "787f85d538090965569b489049a219e6ffd4b5411dc45fed1755f7bbf171476e",
+      "match": true
+    },
+    {
+      "file": "assets/ReleaseHistory-Bd3HkHd9.js",
+      "sha256": "edb3963c8111c4813e126e44c509b40c49dfd618be5435364a885a6889fa6d0f",
+      "match": true
+    },
+    {
+      "file": "samples/vhslide-10x40.json",
+      "sha256": "c3aebc626701ce2f81392c38234ca9abe82b6f0309a059ae54d461eb86e67ba7",
+      "match": true
+    }
+  ]
+}

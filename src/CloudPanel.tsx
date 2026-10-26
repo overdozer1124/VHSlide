@@ -1,3 +1,7 @@
+import { JoinRequests } from "./JoinRequests";
+import { CacheRecoveryNotice } from "./CacheRecoveryNotice";
+import { CloudTrash } from "./CloudTrash";
+import { BackupPanel } from "./BackupPanel";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -43,16 +47,19 @@ export function CloudPanel({
   cloud,
   deck,
   onLocal,
+  initialTab,
 }: {
   cloud: CloudWorkspace;
   deck: Deck;
   onLocal: () => void;
+  initialTab?: "library";
 }) {
   const button = useRef<HTMLDivElement>(null),
     dialog = useRef<HTMLElement>(null),
     closeButton = useRef<HTMLButtonElement>(null);
   const [tab, setTab] = useState<"library" | "sharing">(
-    cloud.active ? "sharing" : "library",
+    initialTab ??
+      (cloud.active && !cloud.needsAttention ? "sharing" : "library"),
   );
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState("");
@@ -83,6 +90,14 @@ export function CloudPanel({
     const timer = setTimeout(() => setCopied(""), 2500);
     return () => clearTimeout(timer);
   }, [copied]);
+  useEffect(() => {
+    if (!cloud.user || tab !== "library") return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible")
+        void cloud.refresh().catch(() => {});
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [cloud, cloud.user?.id, tab]);
   async function refreshSharing() {
     const id = cloud.active?.id,
       epoch = ++requestEpoch.current;
@@ -177,7 +192,7 @@ export function CloudPanel({
     >
       <section
         ref={dialog}
-        className="cloud-panel"
+        className={`cloud-panel ${cloud.joinRequest ? "cloud-join-waiting" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="クラウドの作品"
@@ -209,9 +224,13 @@ export function CloudPanel({
           <div>
             <h2>
               <Cloud size={24} />
-              クラウドの作品
+              {cloud.joinRequest ? "参加申請" : "クラウドの作品"}
             </h2>
-            <p>作品を開く・共有する・編集できる範囲を決める</p>
+            <p>
+              {cloud.joinRequest
+                ? "ホストの承認後に作品へ参加できます"
+                : "作品を開く・共有する・編集できる範囲を決める"}
+            </p>
           </div>
           {cloud.user && (
             <div className="cloud-account">
@@ -250,6 +269,29 @@ export function CloudPanel({
         </header>
         {cloud.user && (
           <>
+            {cloud.joinRequest && (
+              <section className="join-waiting" aria-label="参加申請の状況">
+                <h3>
+                  {cloud.joinRequest.status === "pending"
+                    ? "ホストの承認を待っています"
+                    : cloud.joinRequest.status === "rejected"
+                      ? "参加は承認されませんでした"
+                      : "参加申請は失効しました"}
+                </h3>
+                <p>
+                  {cloud.joinRequest.status === "pending"
+                    ? "参加を申請しました。承認されると作品が開きます。この画面を閉じている間は自動で切り替わりません。"
+                    : "ホストに確認し、必要な場合は新しい招待リンクを受け取ってください。"}
+                </p>
+                <button
+                  className="button outline"
+                  disabled={cloud.busy}
+                  onClick={() => void cloud.refreshJoinRequest()}
+                >
+                  承認状況を確認
+                </button>
+              </section>
+            )}
             {cloud.active && (
               <div className="cloud-current-work">
                 <div>
@@ -262,53 +304,55 @@ export function CloudPanel({
                 </span>
               </div>
             )}
-            <div
-              className="cloud-tabs"
-              role="tablist"
-              aria-label="クラウド画面の切り替え"
-              onKeyDown={(event) => {
-                if (
-                  !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                    event.key,
+            {!cloud.joinRequest && (
+              <div
+                className="cloud-tabs"
+                role="tablist"
+                aria-label="クラウド画面の切り替え"
+                onKeyDown={(event) => {
+                  if (
+                    !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                      event.key,
+                    )
                   )
-                )
-                  return;
-                event.preventDefault();
-                const next =
-                  event.key === "Home"
-                    ? "library"
-                    : event.key === "End"
-                      ? "sharing"
-                      : tab === "library"
+                    return;
+                  event.preventDefault();
+                  const next =
+                    event.key === "Home"
+                      ? "library"
+                      : event.key === "End"
                         ? "sharing"
-                        : "library";
-                setTab(next);
-                document.getElementById(`cloud-${next}-tab`)?.focus();
-              }}
-            >
-              <button
-                id="cloud-library-tab"
-                role="tab"
-                aria-selected={tab === "library"}
-                tabIndex={tab === "library" ? 0 : -1}
-                aria-controls="cloud-library"
-                onClick={() => setTab("library")}
+                        : tab === "library"
+                          ? "sharing"
+                          : "library";
+                  setTab(next);
+                  document.getElementById(`cloud-${next}-tab`)?.focus();
+                }}
               >
-                <FolderOpen size={18} />
-                作品一覧<span>{cloud.decks.length}</span>
-              </button>
-              <button
-                id="cloud-sharing-tab"
-                role="tab"
-                aria-selected={tab === "sharing"}
-                tabIndex={tab === "sharing" ? 0 : -1}
-                aria-controls="cloud-sharing"
-                onClick={() => setTab("sharing")}
-              >
-                <Users size={18} />
-                共有管理
-              </button>
-            </div>
+                <button
+                  id="cloud-library-tab"
+                  role="tab"
+                  aria-selected={tab === "library"}
+                  tabIndex={tab === "library" ? 0 : -1}
+                  aria-controls="cloud-library"
+                  onClick={() => setTab("library")}
+                >
+                  <FolderOpen size={18} />
+                  作品一覧<span>{cloud.decks.length}</span>
+                </button>
+                <button
+                  id="cloud-sharing-tab"
+                  role="tab"
+                  aria-selected={tab === "sharing"}
+                  tabIndex={tab === "sharing" ? 0 : -1}
+                  aria-controls="cloud-sharing"
+                  onClick={() => setTab("sharing")}
+                >
+                  <Users size={18} />
+                  共有管理
+                </button>
+              </div>
+            )}
           </>
         )}
         <div className="cloud-panel-feedback">
@@ -325,7 +369,7 @@ export function CloudPanel({
           )}
         </div>
         <div className="cloud-panel-body">
-          {!cloud.user ? (
+          {cloud.joinRequest ? null : !cloud.user ? (
             <div className="cloud-welcome">
               <Cloud size={42} />
               <h3>作品を保存して、みんなでつくろう</h3>
@@ -364,6 +408,12 @@ export function CloudPanel({
                       : "この作品をクラウドに保存"}
                   </button>
                 </div>
+                <details>
+                  <summary>ごみ箱を開く</summary>
+                  <CloudTrash cloud={cloud} />
+                </details>
+                <CacheRecoveryNotice cloud={cloud} compact />
+                <BackupPanel cloud={cloud} />
                 <div className="cloud-library-tools">
                   <label className="cloud-search">
                     <Search size={17} />
@@ -421,6 +471,9 @@ export function CloudPanel({
                           {saved.owner === cloud.user?.id
                             ? "自分の作品"
                             : "参加している作品"}
+                          {saved.status === "restoring" && (
+                            <span>復元途中（削除してやり直せます）</span>
+                          )}
                           {cloud.active?.id === saved.id && (
                             <span>開いています</span>
                           )}
@@ -440,6 +493,23 @@ export function CloudPanel({
                           <ArrowRight size={18} />
                         </span>
                       </button>
+                      {!!saved.pendingRequests &&
+                        saved.owner === cloud.user?.id && (
+                          <button
+                            className="join-work-badge"
+                            aria-label={`${saved.title}の参加待ち${saved.pendingRequests}人を確認`}
+                            onClick={() =>
+                              void cloud.run(async () => {
+                                await cloud.open(saved.id);
+                                cloud.panel = true;
+                                setTab("sharing");
+                                cloud.onState();
+                              })
+                            }
+                          >
+                            参加待ち {saved.pendingRequests}人 · 確認する
+                          </button>
+                        )}
                       {saved.owner === cloud.user?.id && (
                         <button
                           className="icon-button cloud-deck-delete"
@@ -447,15 +517,22 @@ export function CloudPanel({
                           aria-label={`${saved.title}をクラウドから削除`}
                           title="作品を削除"
                           onClick={() => {
+                            const complete =
+                              !saved.status || saved.status === "ready";
                             if (
                               window.confirm(
-                                `「${saved.title}」をクラウドから削除します。共同編集者も開けなくなります。JSONを保存してから削除してください。`,
+                                complete
+                                  ? `「${saved.title}」をごみ箱へ移動します。共同編集者も開けなくなります。クラウドの作品一覧にあるごみ箱から戻せます。`
+                                  : `未完成の作品「${saved.title}」を削除します。元の作品は変更しません。`,
                               )
                             )
                               void cloud.run(async () => {
-                                await api(`/api/decks/${saved.id}`, {
-                                  method: "DELETE",
-                                });
+                                await api(
+                                  `/api/decks/${saved.id}${complete ? "/trash" : ""}`,
+                                  {
+                                    method: complete ? "POST" : "DELETE",
+                                  },
+                                );
                                 if (cloud.active?.id === saved.id) onLocal();
                                 await cloud.refresh();
                               });
@@ -522,6 +599,15 @@ export function CloudPanel({
                       {loadingSharing && (
                         <p role="status">共有アカウントを読み込んでいます…</p>
                       )}
+                      <JoinRequests
+                        key={`joins:${cloud.active.id}`}
+                        cloud={cloud}
+                        workId={cloud.active.id}
+                        onApproved={async () => {
+                          await refreshSharing();
+                          await cloud.refresh();
+                        }}
+                      />
                       <SharingManager
                         key={cloud.active.id}
                         cloud={cloud}
@@ -570,7 +656,7 @@ export function CloudPanel({
                       <div className="cloud-invite-section">
                         <h4>招待リンクから参加</h4>
                         <p>
-                          未登録の相手も参加できます。最初は閲覧・付箋コメントのみで、編集権限は後から設定します。
+                          リンクを開いた相手は参加待ちになります。氏名・メールアドレスを確認してホストが承認した後に、閲覧・付箋コメントが可能になります。
                         </p>
                         <button
                           className="button outline"
@@ -646,20 +732,22 @@ export function CloudPanel({
             </>
           )}
         </div>
-        <footer className="cloud-panel-footer">
-          {cloud.notice && (
-            <details>
-              <summary>保存容量とご利用について</summary>
-              <p>{cloud.notice}</p>
-            </details>
-          )}
-          {cloud.active && (
-            <button className="quiet" disabled={cloud.busy} onClick={onLocal}>
-              端末の作品へ戻る
-            </button>
-          )}
-          <span>JSONで端末にも保存できます</span>
-        </footer>
+        {!cloud.joinRequest && (
+          <footer className="cloud-panel-footer">
+            {cloud.notice && (
+              <details>
+                <summary>保存容量とご利用について</summary>
+                <p>{cloud.notice}</p>
+              </details>
+            )}
+            {cloud.active && (
+              <button className="quiet" disabled={cloud.busy} onClick={onLocal}>
+                端末の作品へ戻る
+              </button>
+            )}
+            <span>JSONで端末にも保存できます</span>
+          </footer>
+        )}
       </section>
     </div>,
     document.body,

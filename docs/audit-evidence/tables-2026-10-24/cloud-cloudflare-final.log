@@ -1,0 +1,23 @@
+
+> vhslide@0.40.0 test:cloudflare:e2e
+> playwright test --config playwright.cloudflare.config.ts --grep tables sync|deleting a page|host approves only|full ZIP backups
+
+[WebServer] (node:367419) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:367440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1285:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (10.5s)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1870:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (24.4s)
+  ✓  3 [cloud-desktop] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (6.1s)
+  ✓  4 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (19.5s)
+(node:368565) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/collaboration.spec.ts:1285:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (9.7s)
+  ✓  6 [cloud-touch] › tests/cloud/collaboration.spec.ts:1870:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (17.0s)
+  ✓  7 [cloud-touch] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (4.3s)
+  ✓  8 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (11.4s)
+
+  8 passed (1.8m)

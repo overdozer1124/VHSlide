@@ -1,0 +1,19 @@
+{
+  "version": "0.43.1",
+  "date": "2026-10-25",
+  "environment": "v24.19.0 / Linux Chromium / Playwright desktop + emulated iPad touch",
+  "sha256": {
+    "src/EditorInspector.tsx": "f6ac502487c3f962d3635a7b98bbf37277f161508202f72bfea327f0f8a6dc2b",
+    "src/Editor.tsx": "2706fde3e5a5d2f0875921f011c79cab0bfedd942cacbc4715e661105531e4ec",
+    "src/SlideTable.tsx": "6c0e934ca9e531cbbbcf6e80dbc20bc44ef84efc0acfc0aa8a1006a8fc73bae3",
+    "src/TableCellControls.tsx": "72c9a6cbf08681d297464c9a868285a5a09773a924252e2760b1ce3a941120aa",
+    "src/TableTools.tsx": "57eeec1aaf19864857a46cfdd674fa8d046bf1209e2b9cb1bf7ef6452a598201",
+    "src/ObjectLayout.tsx": "92f7395a9ad80d8e2a0c9e4719edd59b24ce3d5f15ff57b0b8e4b6844de1ba2c",
+    "src/StructureTools.tsx": "87452abd766357de0d3b18ce4b1102b80c596e2a0e1c18b59784987a0ed7cc8c",
+    "src/style.css": "c192dffb17283b7f12c06d3f44f01079f5f62bd2658e248fa499375e6d33ed25",
+    "src/App.tsx": "c61a6f126eb33cfc78143645924fa163418dfc3d5d32001938b79dab8c2b09ba",
+    "src/releaseHistory.ts": "aec65c3f0e09e1989c42ade3ad266b29cd70a0c19569a76f7a17f6f92c0d93aa",
+    "tests/e2e/editor-inspector-ux.spec.ts": "9009c08908bec78b107435653a1334c8bf83847fb4d472917214464772035fe5",
+    "dist/index.html": "11e99fac5bdd5201f2aea67f803f6bf1248ef549130eb66da85de1326c6ccc79"
+  }
+}

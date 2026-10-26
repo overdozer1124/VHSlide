@@ -1,0 +1,19 @@
+
+> vhslide@0.39.1 test:cloudflare:e2e
+> playwright test --config playwright.cloudflare.config.ts --grep cloud versions restore|deleting a page
+
+[WebServer] (node:358919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:358940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1595:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (13.4s)
+  ✓  2 [cloud-desktop] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (4.8s)
+(node:359207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [cloud-touch] › tests/cloud/collaboration.spec.ts:1595:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (13.4s)
+  ✓  4 [cloud-touch] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (5.5s)
+
+  4 passed (41.4s)

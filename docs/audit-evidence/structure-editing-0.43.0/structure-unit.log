@@ -1,0 +1,15 @@
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/structureEditing.test.ts (8 tests) 160ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  10:01:53
+   Duration  3.73s (transform 1.30s, setup 0ms, collect 2.87s, tests 160ms, environment 0ms, prepare 223ms)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

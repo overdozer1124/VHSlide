@@ -186,6 +186,8 @@ test("map menus support keyboard navigation, Escape, outside dismissal and origi
   await page
     .getByRole("menuitem", { name: "このページを削除", exact: true })
     .click();
+  // Deletion now waits for the durable pre-delete IndexedDB version.
+  await expect.poll(async () => (await data(page)).slides.length).toBe(4);
   const deleted = await data(page);
   expect(deleted.slides).toHaveLength(4);
   expect(deleted.slides.some((s: any) => s.x === 0 && s.y === 0)).toBe(true);

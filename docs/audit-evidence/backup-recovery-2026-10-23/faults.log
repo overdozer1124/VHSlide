@@ -1,0 +1,21 @@
+▶ isolated recovery faults: publication, replay, cancellation, lost response and capture races
+  ✔ A1: Room committed, Directory failed; private; retry preserves one copy (3585.215729ms)
+  ✔ A2: queued cancellation cannot remove a finalized work (56.701553ms)
+  ✔ A3: cancellation after partial commit removes staging data and refuses replay (57.552613ms)
+  ✔ B: discard committed response; work survives; explicit restore-status endpoint is absent (39.317868ms)
+AUDIT_CAPTURE slide status=200
+AUDIT_CAPTURE image status=200
+AUDIT_CAPTURE note status=200
+AUDIT_CAPTURE sharing status=409
+AUDIT_CAPTURE sharing-ABA status=200
+AUDIT_MIXED status=200 returned D1/P0; no common capture instant
+  ✔ C: slide, image reference and note changes after capture are not detected; sharing change is detected (203.615428ms)
+✔ isolated recovery faults: publication, replay, cancellation, lost response and capture races (4430.324019ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6163.163647

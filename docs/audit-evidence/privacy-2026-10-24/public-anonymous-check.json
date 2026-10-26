@@ -1,0 +1,26 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "headers": "HTTP/1.1 200 OK\ndate: Sat, 24 Oct 2026 05:18:21 GMT\nserver: envoy\n\nHTTP/2 200 \ndate: Sat, 24 Oct 2026 05:18:22 GMT\ncontent-type: text/html\ncf-cache-status: HIT\ncache-control: public, max-age=0, must-revalidate\nnel: {\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}\nreport-to: {\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=R0%2BK0132tYlUnt8hkIdu2vrrPpb%2FM9rk9ot4xTiSXAk8maZHr3YhX8%2BTdyCdZqFXWLIzNj3YcJKeRAk6Dz%2FTieKIcnHyjoknuSvkZjMRUN6QjoGa8VOKkB72a3HwcsObuqqakxolSMOwD8ttLqJ%2BQMg20HM%3D\"}]}\nserver: envoy\ncf-ray: a4f6853e2f05a1d1-MSP\nalt-svc: h3=\":443\"; ma=86400\nx-envoy-upstream-service-time: 168\n\n",
+    "body": "static HTML omitted"
+  },
+  {
+    "path": "/api/session",
+    "status": 200,
+    "headers": "HTTP/1.1 200 OK\ndate: Sat, 24 Oct 2026 05:18:22 GMT\nserver: envoy\n\nHTTP/2 200 \ndate: Sat, 24 Oct 2026 05:18:23 GMT\ncontent-type: application/json\ncontent-length: 13\ncache-control: no-store\ncontent-security-policy: default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob:; frame-src https://accounts.google.com; connect-src 'self' wss://vhslide.overdozer1124.workers.dev https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'\ncross-origin-opener-policy: same-origin-allow-popups\nreferrer-policy: no-referrer\nx-content-type-options: nosniff\nreport-to: {\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=jPZcuAWKzOYz4WIICYYJv%2F8ZloMuHrvLQWqbClmKnqfW5SIvMSl%2BfosU0DzgKkyIb3nDRiyWehA%2FJvooC14XrKFiyROavHT8mUHA9kDCoOAEY6%2Fp%2FoFtO4hqVHpQf9bmfoB8eifWaZ%2FGBaWEVpjwtCKQeJw%3D\"}]}\nnel: {\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}\nserver: envoy\ncf-ray: a4f6853f88caa1d1-MSP\nalt-svc: h3=\":443\"; ma=86400\nx-envoy-upstream-service-time: 647\n\n",
+    "body": "{\"user\":null}"
+  },
+  {
+    "path": "/api/decks",
+    "status": 401,
+    "headers": "HTTP/1.1 200 OK\ndate: Sat, 24 Oct 2026 05:18:23 GMT\nserver: envoy\n\nHTTP/2 401 \ndate: Sat, 24 Oct 2026 05:18:23 GMT\ncontent-type: application/json\ncontent-length: 72\ncache-control: no-store\ncontent-security-policy: default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob:; frame-src https://accounts.google.com; connect-src 'self' wss://vhslide.overdozer1124.workers.dev https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'\ncross-origin-opener-policy: same-origin-allow-popups\nreferrer-policy: no-referrer\nx-content-type-options: nosniff\nreport-to: {\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=hNrftMD63zYcbGg%2FBqqCPqAY8FDD9ISxRfo1geqZ2d2NLBmwQfDj%2BDxv%2BxBmdLuHUne7s5gMnGVPsSESHBAv3Q8tNJ2dqVDb6YJwidRS0liD%2B0FIhq0fPo5q%2FPtMiCZytG4BYB0bpPLt20fy6cTY%2Fq%2BzsoA%3D\"}]}\nnel: {\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}\nserver: envoy\ncf-ray: a4f68544dec3ad24-MSP\nalt-svc: h3=\":443\"; ma=86400\nx-envoy-upstream-service-time: 165\n\n",
+    "body": "{\"error\":\"Googleアカウントでサインインしてください。\"}"
+  },
+  {
+    "path": "/assets/index-xPT8OWyF.js",
+    "status": 200,
+    "matchesAuditedLocalBuild": true,
+    "sha256": "2bdfbf465ce0e2df5b745006ef4c18a47aec5d6d15b0f1ca2b9c44f2123d0f41"
+  }
+]

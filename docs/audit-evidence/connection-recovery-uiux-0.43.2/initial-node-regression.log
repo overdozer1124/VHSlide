@@ -1,0 +1,229 @@
+[WebServer] (node:32117) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 34 tests using 1 worker
+
+(node:32129) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:71:1 › recovers unsent text from this browser after reopening the app (2.5s)
+  ✘   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (10.9s)
+(node:32375) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:438:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (6.4s)
+  ✓   4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:550:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (8.8s)
+  ✓   5 [cloud-desktop] › tests/cloud/collaboration.spec.ts:679:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (5.9s)
+  ✓   6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:777:1 › failed sticky autosaves keep the input and can be retried (4.0s)
+  ✓   7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:810:1 › host edits shared map headings and row account names update vertically for guests (7.5s)
+  ✓   8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:931:1 › sticky color, presets and direct resize persist with mouse and touch (4.5s)
+  ✓   9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1000:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (7.2s)
+  ✘  10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1181:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (6.6s)
+(node:34726) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1285:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (9.4s)
+  ✓  12 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1510:1 › restores a signed-in room in the background without flashing the cloud dialog (2.9s)
+  ✓  13 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1595:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (8.2s)
+  ✓  14 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1805:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (3.8s)
+  ✓  15 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1870:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (15.6s)
+  ✓  16 [cloud-desktop] › tests/cloud/structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive (3.7s)
+  ✓  17 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (3.7s)
+(node:36506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  18 [cloud-touch] › tests/cloud/collaboration.spec.ts:71:1 › recovers unsent text from this browser after reopening the app (3.8s)
+  ✘  19 [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (11.1s)
+(node:36784) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  20 [cloud-touch] › tests/cloud/collaboration.spec.ts:438:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (6.3s)
+  ✓  21 [cloud-touch] › tests/cloud/collaboration.spec.ts:550:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (5.1s)
+  ✓  22 [cloud-touch] › tests/cloud/collaboration.spec.ts:679:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (4.9s)
+  ✓  23 [cloud-touch] › tests/cloud/collaboration.spec.ts:777:1 › failed sticky autosaves keep the input and can be retried (2.9s)
+  ✓  24 [cloud-touch] › tests/cloud/collaboration.spec.ts:810:1 › host edits shared map headings and row account names update vertically for guests (5.8s)
+  ✘  25 [cloud-touch] › tests/cloud/collaboration.spec.ts:931:1 › sticky color, presets and direct resize persist with mouse and touch (2.1s)
+(node:37388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  26 [cloud-touch] › tests/cloud/collaboration.spec.ts:1000:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (4.2s)
+  ✘  27 [cloud-touch] › tests/cloud/collaboration.spec.ts:1181:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (5.9s)
+(node:37638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  28 [cloud-touch] › tests/cloud/collaboration.spec.ts:1285:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (5.7s)
+  ✓  29 [cloud-touch] › tests/cloud/collaboration.spec.ts:1510:1 › restores a signed-in room in the background without flashing the cloud dialog (1.6s)
+  ✓  30 [cloud-touch] › tests/cloud/collaboration.spec.ts:1595:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (5.3s)
+  ✓  31 [cloud-touch] › tests/cloud/collaboration.spec.ts:1805:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (2.0s)
+  ✓  32 [cloud-touch] › tests/cloud/collaboration.spec.ts:1870:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (13.5s)
+  ✓  33 [cloud-touch] › tests/cloud/structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive (3.5s)
+  ✓  34 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (4.0s)
+
+
+  1) [cloud-desktop] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos 
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('textbox', { name: 'スライド内の文字', exact: true })
+    Expected: "right"
+    Received: "left"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('textbox', { name: 'スライド内の文字', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: 'スライド内の文字', exact: true })
+        14 × locator resolved to <div role="textbox" class="ql-editor" spellcheck="true" aria-label="スライド内の文字" aria-multiline="true" contenteditable="true">…</div>
+           - unexpected value "left"
+
+
+      295 |       await expect(layout).toHaveAttribute("data-vertical-align", "bottom");
+      296 |     }
+    > 297 |     await expect(b).toHaveCSS("text-align", "right");
+          |                     ^
+      298 |     await expect(b).toBeFocused();
+      299 |     const png = Buffer.from(
+      300 |       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:297:21
+
+    Error Context: test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-desktop] › tests/cloud/collaboration.spec.ts:1181:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('旧版の未送信の配置変更を端末から復元しました。')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText('旧版の未送信の配置変更を端末から復元しました。') with timeout 5000ms
+      - waiting for getByText('旧版の未送信の配置変更を端末から復元しました。')
+
+
+      1251 |       exact: false,
+      1252 |     }),
+    > 1253 |   ).toBeVisible();
+           |     ^
+      1254 |   // The authoritative state is exactly the original Yjs document, not the cached move.
+      1255 |   const state = await page.evaluate(
+      1256 |     async (id) =>
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:1253:5
+
+    Error Context: test-results-cloud/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos 
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('textbox', { name: 'スライド内の文字', exact: true })
+    Expected: "right"
+    Received: "left"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('textbox', { name: 'スライド内の文字', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: 'スライド内の文字', exact: true })
+        14 × locator resolved to <div role="textbox" class="ql-editor" spellcheck="true" aria-label="スライド内の文字" aria-multiline="true" contenteditable="true">…</div>
+           - unexpected value "left"
+
+
+      295 |       await expect(layout).toHaveAttribute("data-vertical-align", "bottom");
+      296 |     }
+    > 297 |     await expect(b).toHaveCSS("text-align", "right");
+          |                     ^
+      298 |     await expect(b).toBeFocused();
+      299 |     const png = Buffer.from(
+      300 |       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:297:21
+
+    Error Context: test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [cloud-touch] › tests/cloud/collaboration.spec.ts:931:1 › sticky color, presets and direct resize persist with mouse and touch 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 135
+    Received:   124.1875
+
+      949 |   await button("付箋のサイズ：大").click();
+      950 |   await expect(note).toHaveCSS("background-color", "rgb(210, 237, 255)");
+    > 951 |   expect((await note.boundingBox())!.width).toBeGreaterThan(before.width + 15);
+          |                                             ^
+      952 |   const grip = button("付箋のサイズを変更"),
+      953 |     r = (await grip.boundingBox())!,
+      954 |     x = r.x + r.width / 2,
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:951:45
+
+    Error Context: test-results-cloud/collaboration-sticky-color-02e9d-ersist-with-mouse-and-touch-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/collaboration-sticky-color-02e9d-ersist-with-mouse-and-touch-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/collaboration-sticky-color-02e9d-ersist-with-mouse-and-touch-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [cloud-touch] › tests/cloud/collaboration.spec.ts:1181:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('旧版の未送信の配置変更を端末から復元しました。')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText('旧版の未送信の配置変更を端末から復元しました。') with timeout 5000ms
+      - waiting for getByText('旧版の未送信の配置変更を端末から復元しました。')
+
+
+      1251 |       exact: false,
+      1252 |     }),
+    > 1253 |   ).toBeVisible();
+           |     ^
+      1254 |   // The authoritative state is exactly the original Yjs document, not the cached move.
+      1255 |   const state = await page.evaluate(
+      1256 |     async (id) =>
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:1253:5
+
+    Error Context: test-results-cloud/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5 failed
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos 
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:1181:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded 
+    [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos 
+    [cloud-touch] › tests/cloud/collaboration.spec.ts:931:1 › sticky color, presets and direct resize persist with mouse and touch 
+    [cloud-touch] › tests/cloud/collaboration.spec.ts:1181:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded 
+  29 passed (3.4m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

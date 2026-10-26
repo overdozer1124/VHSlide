@@ -1,0 +1,25 @@
+{
+  "environment": "Linux Chromium, independent local Node server, fictional students",
+  "logoutInvalidatesServerSession": true,
+  "plainTextMarkupDidNotExecute": true,
+  "noAttackerDomainRequest": true,
+  "readOnlyMemberCanExportFullJSONWithOriginalPhotos": true,
+  "offlineLogoutRefused": true,
+  "nextUserCannotReadThroughServer": true,
+  "nextUserCanReadPreviousUsersLocalStorage": true,
+  "residual": {
+    "local": [
+      {
+        "key": "vhslide-cloud-deck:e138354c-5070-4b47-8870-af00f9394a16",
+        "privateMarkerPresent": true
+      }
+    ],
+    "cache": [
+      {
+        "key": "privacy-student-a/e138354c-5070-4b47-8870-af00f9394a16",
+        "privateMarkerPresent": true,
+        "byteLength": 5378
+      }
+    ]
+  }
+}

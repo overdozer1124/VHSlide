@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
-import type { Slide } from "./model";
+import { axisId } from "./axes";
+import type { Deck, Slide } from "./model";
 import type { AccountLabels } from "./preSharing";
-export function thumbnailAccountNames(slide: Slide, accounts?: AccountLabels) {
+export function thumbnailAccountNames(
+  slide: Slide,
+  accounts?: AccountLabels,
+  deck?: Deck,
+) {
   const sheet = slide.sheetId ?? "main";
   const ownNames = (
     map: Record<string, string[]> | undefined,
@@ -14,22 +19,26 @@ export function thumbnailAccountNames(slide: Slide, accounts?: AccountLabels) {
           Object.hasOwn(accounts.rows, sheet)
             ? accounts.rows[sheet]
             : undefined,
-          slide.y,
+          axisId(deck, sheet, "rows", slide.y),
         ),
         ...ownNames(
           Object.hasOwn(accounts.columns, sheet)
             ? accounts.columns[sheet]
             : undefined,
-          slide.x,
+          axisId(deck, sheet, "columns", slide.x),
         ),
         ...ownNames(accounts.slides, slide.id),
       ]
     : [];
   return [...new Set(names)];
 }
-export function thumbnailLabel(slide: Slide, accounts?: AccountLabels) {
+export function thumbnailLabel(
+  slide: Slide,
+  accounts?: AccountLabels,
+  deck?: Deck,
+) {
   if (slide.footerLabel?.trim()) return slide.footerLabel;
-  return thumbnailAccountNames(slide, accounts).join("・") || slide.title;
+  return thumbnailAccountNames(slide, accounts, deck).join("・") || slide.title;
 }
 export function ThumbnailFooter({
   slide,

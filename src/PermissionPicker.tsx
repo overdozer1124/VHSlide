@@ -1,3 +1,4 @@
+import { axisGrant, axisIndex } from "./axes";
 import { useState } from "react";
 import type { Deck } from "./model";
 import { sheetList } from "./workbook";
@@ -18,13 +19,15 @@ export function PermissionPicker({
     cols = [...new Set(pages.map((s) => s.x))].sort((a, b) => a - b);
   function axis(key: "rows" | "columns", index: number) {
     const picked = value[key].some(
-      (r) => r.sheetId === sheet && r.index === index,
+      (r) => r.sheetId === sheet && axisIndex(deck, key, r) === index,
     );
     onChange({
       ...value,
       [key]: picked
-        ? value[key].filter((r) => r.sheetId !== sheet || r.index !== index)
-        : [...value[key], { sheetId: sheet, index }],
+        ? value[key].filter(
+            (r) => r.sheetId !== sheet || axisIndex(deck, key, r) !== index,
+          )
+        : [...value[key], axisGrant(deck, sheet, key, index)],
     });
   }
   return (
@@ -68,7 +71,7 @@ export function PermissionPicker({
             </select>
           </label>
           <small>
-            行・列の見出し、またはページ番号を押して選択します。選択した範囲のいずれかに含まれるページを編集できます。
+            行・列の見出し、またはページ番号を押して選択します。選択した範囲のいずれかに含まれるページを編集できます。行・列の担当は並べ替えても一緒に移動します。個別ページの移動では移動先の範囲権限が適用され、複製した行の担当は別に設定します。
           </small>
           <div className="permission-grid-scroll">
             <div
@@ -84,7 +87,9 @@ export function PermissionPicker({
                   key={`c${x}`}
                   aria-label={`編集を許可する列${x + 1}`}
                   aria-pressed={value.columns.some(
-                    (c) => c.sheetId === sheet && c.index === x,
+                    (c) =>
+                      c.sheetId === sheet &&
+                      axisIndex(deck, "columns", c) === x,
                   )}
                   onClick={() => axis("columns", x)}
                 >
@@ -97,7 +102,8 @@ export function PermissionPicker({
                     type="button"
                     aria-label={`編集を許可する行${y + 1}`}
                     aria-pressed={value.rows.some(
-                      (r) => r.sheetId === sheet && r.index === y,
+                      (r) =>
+                        r.sheetId === sheet && axisIndex(deck, "rows", r) === y,
                     )}
                     onClick={() => axis("rows", y)}
                   >
@@ -111,7 +117,7 @@ export function PermissionPicker({
                         key={x}
                         aria-label={`編集を許可するスライド${y + 1}.${x + 1} ${slide.title}`}
                         aria-pressed={value.slides.includes(slide.id)}
-                        data-allowed={canEdit(value, slide)}
+                        data-allowed={canEdit(value, slide, deck)}
                         title={slide.title}
                         onClick={() =>
                           onChange({

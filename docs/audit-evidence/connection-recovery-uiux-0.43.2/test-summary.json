@@ -1,0 +1,34 @@
+{
+  "unit": {
+    "files": 19,
+    "passed": 124
+  },
+  "nodeApi": {
+    "passed": 16
+  },
+  "cloudflareApi": {
+    "passed": 21
+  },
+  "nodeBrowserBatch": {
+    "passed": 50
+  },
+  "nodeAdditionalHandshake": {
+    "passed": 2
+  },
+  "nodeEditorReconnectionRerun": {
+    "passed": 2
+  },
+  "cloudflareBrowser": {
+    "passed": 52
+  },
+  "finalUi": {
+    "passed": 51,
+    "skipped": 19
+  },
+  "earlierEditingRegression": {
+    "passed": 56,
+    "note": "before final alignment fix; affected text flows rerun on final build"
+  },
+  "realDevicesTested": false,
+  "productionRoomDataAccessed": false
+}

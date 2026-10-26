@@ -1,0 +1,11 @@
+{
+  "release": "0.40.1",
+  "cloudflareVersion": "6fbd60a0-6666-4edd-9988-6339bc9f9176",
+  "health": {
+    "ok": true
+  },
+  "asset": "./assets/index-BxUtxiR8.js",
+  "sha256": "fdfb4e49b0b27579d39eeedb824771d5d3304abd489aa2d804b170c6f00a0d5c",
+  "matchesTestedBuild": true,
+  "productionRoomAccessed": false
+}

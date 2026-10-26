@@ -1,0 +1,35 @@
+[WebServer] (node:383024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:383042) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -  1 [desktop] › tests/e2e/editor-swipe.spec.ts:136:1 › one-finger swipes over text, images and shapes navigate without changing their geometry
+  -  2 [desktop] › tests/e2e/editor-swipe.spec.ts:244:1 › touch taps edit text, borders move and handles resize, and swiping an active textbox preserves its text
+[WebServer] 4:27:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  3 [desktop] › tests/e2e/editor-swipe.spec.ts:300:1 › trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate (3.5s)
+[WebServer] 4:27:35 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  4 [desktop] › tests/e2e/element-border-drag.spec.ts:121:1 › borders move every element without icons; mouse grid margins move and cell input remains editable (4.0s)
+(node:383261) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 4:27:40 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  5 [touch] › tests/e2e/editor-swipe.spec.ts:136:1 › one-finger swipes over text, images and shapes navigate without changing their geometry (4.6s)
+[WebServer] 4:27:45 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  6 [touch] › tests/e2e/editor-swipe.spec.ts:244:1 › touch taps edit text, borders move and handles resize, and swiping an active textbox preserves its text (3.1s)
+  -  7 [touch] › tests/e2e/editor-swipe.spec.ts:300:1 › trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate
+[WebServer] 4:27:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  8 [touch] › tests/e2e/element-border-drag.spec.ts:121:1 › borders move every element without icons; mouse grid margins move and cell input remains editable (4.4s)
+
+  3 skipped
+  5 passed (23.9s)

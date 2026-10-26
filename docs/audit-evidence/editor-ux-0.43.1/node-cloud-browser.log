@@ -1,0 +1,24 @@
+[WebServer] (node:468878) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:468910) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (14.6s)
+  ✓  2 [cloud-desktop] › tests/cloud/objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert (11.1s)
+  ✓  3 [cloud-desktop] › tests/cloud/structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive (24.0s)
+  ✓  4 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (14.2s)
+(node:469990) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (14.9s)
+  ✓  6 [cloud-touch] › tests/cloud/objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert (9.7s)
+  ✓  7 [cloud-touch] › tests/cloud/structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive (21.7s)
+  ✓  8 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (14.9s)
+
+  8 passed (2.2m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

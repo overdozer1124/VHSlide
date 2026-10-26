@@ -1,0 +1,12 @@
+{
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "asset": "./assets/index-BUlUAFuL.js",
+  "sha256": "6ada4cb6779fd25330a868f668aaa02f737a552b90fc92a2972fece34923d7fe",
+  "matchesTestedBuild": true,
+  "roomDataAccessed": false,
+  "productionWritesOtherThanDeployment": false,
+  "cloudflareVersion": "28baa57d-a7ac-4c6e-ac86-582c843a42a0"
+}

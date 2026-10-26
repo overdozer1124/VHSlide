@@ -1,0 +1,11 @@
+{
+  "docs/full-backup.md": "ddaef6caf09d21af8e0bacef52626bd7f100e36dd199086b7f0d40a218282901",
+  "src/backupArchive.ts": "e1aafdec9ef0a8346e9d367e0810138e0dcf695b515721cc94928db91d8a3d3e",
+  "src/backupData.ts": "985058fd898ca3e7d1f8fa0a265441bc158d23f9452478f82221cbca98181e9c",
+  "src/backupClient.ts": "cf559c7a1b749fb9bfcf07040c828ae91235e23b71661225cd4352316752cc3d",
+  "src/cloud.ts": "a9059e7598d519cc8b38dc578859fb88048cc5764e362436cfa68a7bc410c5a5",
+  "cloudflare/directory.ts": "4f92df3c09f40ab64f8ec37ad2ccc90859666657d2d7d784208179a2740b2d70",
+  "cloudflare/room.ts": "e06632d8c7b278b1bbc8d3e40945de5319817d171e000762fda94079d723bafb",
+  "server/app.ts": "a2c766aa0779b2e575f0a7852b47495062033f59d87916802c72aa5b65e0b66c",
+  ".wrangler-build/index.js": "6e71cdbc459f1a9918a9acd1b17d5d76e4ccb3b6aad8179c2b23c09b3edcb14e"
+}

@@ -1,0 +1,33 @@
+[WebServer] (node:231954) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 1 worker
+
+(node:231966) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:42:1 › recovers unsent text from this browser after reopening the app (5.0s)
+  ✓   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:138:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (18.7s)
+  ✓   3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:409:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (11.8s)
+  ✓   4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:521:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (13.3s)
+  ✓   5 [cloud-desktop] › tests/cloud/collaboration.spec.ts:650:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (8.1s)
+  ✓   6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:748:1 › failed sticky autosaves keep the input and can be retried (6.3s)
+  ✓   7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (15.6s)
+  ✓   8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:902:1 › sticky color, presets and direct resize persist with mouse and touch (6.3s)
+  ✓   9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:971:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (12.8s)
+  ✓  10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1152:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (3.1s)
+  ✓  11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (10.2s)
+(node:232845) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  12 [cloud-touch] › tests/cloud/collaboration.spec.ts:42:1 › recovers unsent text from this browser after reopening the app (6.9s)
+  ✓  13 [cloud-touch] › tests/cloud/collaboration.spec.ts:138:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (14.3s)
+  ✓  14 [cloud-touch] › tests/cloud/collaboration.spec.ts:409:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (12.2s)
+  ✓  15 [cloud-touch] › tests/cloud/collaboration.spec.ts:521:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (48.9s)
+  ✓  16 [cloud-touch] › tests/cloud/collaboration.spec.ts:650:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (13.9s)
+  ✓  17 [cloud-touch] › tests/cloud/collaboration.spec.ts:748:1 › failed sticky autosaves keep the input and can be retried (4.9s)
+  ✓  18 [cloud-touch] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (11.1s)
+  ✓  19 [cloud-touch] › tests/cloud/collaboration.spec.ts:902:1 › sticky color, presets and direct resize persist with mouse and touch (5.8s)
+  ✓  20 [cloud-touch] › tests/cloud/collaboration.spec.ts:971:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (9.8s)
+  ✓  21 [cloud-touch] › tests/cloud/collaboration.spec.ts:1152:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (3.3s)
+  ✓  22 [cloud-touch] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (8.8s)
+
+  22 passed (4.3m)

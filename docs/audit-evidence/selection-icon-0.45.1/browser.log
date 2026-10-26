@@ -1,0 +1,22 @@
+[WebServer] (node:97554) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:97567) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:97585) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop] › tests/e2e/map-batch.spec.ts:115:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (1.4s)
+  ✓  2 [desktop] › tests/e2e/map-batch.spec.ts:212:1 › selection supports keyboard toggling and touch taps without entering the editor (1.0s)
+(node:97880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [touch] › tests/e2e/map-batch.spec.ts:115:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (1.3s)
+  ✓  4 [touch] › tests/e2e/map-batch.spec.ts:212:1 › selection supports keyboard toggling and touch taps without entering the editor (918ms)
+
+  4 passed (6.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

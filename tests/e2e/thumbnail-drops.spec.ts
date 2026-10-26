@@ -121,7 +121,9 @@ test("an individual thumbnail inserts across rows with an animated gap, one undo
   expect(park).toMatchObject({ x: 2, y: 1 });
   expect(after.slides).toHaveLength(before.slides.length);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
-  expect((await data(page)).slides).toEqual(before.slides);
+  await expect
+    .poll(async () => (await data(page)).slides)
+    .toEqual(before.slides);
 });
 
 test("a touch long press tolerates finger jitter, swaps occupied cards, and cancels safely", async ({

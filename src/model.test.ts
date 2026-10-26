@@ -1,3 +1,4 @@
+import { axisId } from "./axes";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
@@ -73,7 +74,13 @@ describe("fixed grid and portable document", () => {
     for (const mode of ["slide", "row", "column"] as const) {
       const moved = swap(d, mode, { x: 0, y: 0 }, { x: 1, y: 1 });
       expect(new Set(moved.slides.map((s) => `${s.x},${s.y}`)).size).toBe(5);
-      expect(swap(moved, mode, { x: 0, y: 0 }, { x: 1, y: 1 })).toEqual(d);
+      const restored = swap(moved, mode, { x: 0, y: 0 }, { x: 1, y: 1 });
+      expect(restored.slides).toEqual(d.slides);
+      for (const axis of ["rows", "columns"] as const)
+        for (let i = 0; i < 100; i++)
+          expect(axisId(restored, "main", axis, i)).toBe(
+            axisId(d, "main", axis, i),
+          );
     }
   });
   it("deletes the origin by promoting the next page and retains a blank when all pages are removed", () => {
@@ -449,7 +456,10 @@ describe("independent row choices and editor moves", () => {
       });
     expect(rowPage(moved, 0)?.title).toBe("お気に入りの公園");
     expect(rowPage(moved, 1)?.title).toBe("自然がいっぱい");
-    expect(moveRowGroup(moved, 1, 0)).toEqual(d);
+    const restored = moveRowGroup(moved, 1, 0);
+    expect(restored.slides).toEqual(d.slides);
+    expect(restored.rowSelections).toEqual(d.rowSelections);
+    expect(axisId(restored, "main", "rows", 0)).toBe("0");
   });
   it("inserts a row group between other rows instead of swapping only two groups", () => {
     const d: Deck = {

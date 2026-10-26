@@ -1,0 +1,21 @@
+
+> vhslide@0.38.1 test:cloudflare:e2e
+> playwright test --config playwright.cloudflare.config.ts --grep cloud versions|assigned slide|background without
+
+[WebServer] (node:310209) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:310230) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1481:1 › restores a signed-in room in the background without flashing the cloud dialog (2.7s)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1566:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (10.9s)
+  ✓  3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1770:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (4.2s)
+(node:310499) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/collaboration.spec.ts:1481:1 › restores a signed-in room in the background without flashing the cloud dialog (4.1s)
+  ✓  5 [cloud-touch] › tests/cloud/collaboration.spec.ts:1566:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (11.5s)
+  ✓  6 [cloud-touch] › tests/cloud/collaboration.spec.ts:1770:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (3.7s)
+
+  6 passed (40.4s)

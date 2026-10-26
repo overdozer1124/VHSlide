@@ -91,6 +91,6 @@ test("editable map headings stay readable and meet the scrollport without gaps a
     path: info.outputPath("map-readable-headers-300.png"),
   });
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
 });

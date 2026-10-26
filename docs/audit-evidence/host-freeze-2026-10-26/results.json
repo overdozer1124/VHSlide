@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-25T20:27:18.642Z",
+  "chromium": "154.0.8037.57",
+  "distIndexSha256": "11e99fac5bdd5201f2aea67f803f6bf1248ef549130eb66da85de1326c6ccc79",
+  "results": [
+    {
+      "backend": "node",
+      "scenario": "ordinary",
+      "stoppedBeforeReload": false,
+      "statusBeforeReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "node",
+      "scenario": "large-map",
+      "stoppedBeforeReload": false,
+      "statusBeforeReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "node",
+      "scenario": "disconnect",
+      "stoppedBeforeReload": false,
+      "statusBeforeReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 3,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "node",
+      "scenario": "temporary-error",
+      "stoppedBeforeReload": true,
+      "statusBeforeReload": "共有停止・JSONを保存してください\nホスト\n0人が参加中\nlocal audit temporary storage failure",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "node",
+      "scenario": "rate-limit",
+      "stoppedBeforeReload": true,
+      "statusBeforeReload": "共有停止・JSONを保存してください\nホスト\n0人が参加中\n操作が多いため、少し待ってからお試しください。",
+      "shellInert": false,
+      "serverErrors": [
+        {
+          "type": "error",
+          "message": "操作が多いため、少し待ってからお試しください。"
+        },
+        {
+          "type": "error",
+          "message": "操作が多いため、少し待ってからお試しください。"
+        }
+      ],
+      "connections": 2,
+      "reloadRestoresEditControls": false,
+      "statusAfterReload": "共有停止・JSONを保存してください\nホスト\n0人が参加中\n操作が多いため、少し待ってからお試しください。",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "cloudflare",
+      "scenario": "ordinary",
+      "stoppedBeforeReload": false,
+      "statusBeforeReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "cloudflare",
+      "scenario": "large-map",
+      "stoppedBeforeReload": false,
+      "statusBeforeReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "cloudflare",
+      "scenario": "disconnect",
+      "stoppedBeforeReload": false,
+      "statusBeforeReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 3,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "cloudflare",
+      "scenario": "temporary-error",
+      "stoppedBeforeReload": true,
+      "statusBeforeReload": "共有停止・JSONを保存してください\nホスト\n0人が参加中\nlocal audit temporary storage failure",
+      "shellInert": false,
+      "serverErrors": [],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    },
+    {
+      "backend": "cloudflare",
+      "scenario": "rate-limit",
+      "stoppedBeforeReload": true,
+      "statusBeforeReload": "共有停止・JSONを保存してください\nホスト\n0人が参加中\n操作が多いため、少し待ってからお試しください。",
+      "shellInert": false,
+      "serverErrors": [
+        {
+          "type": "error",
+          "message": "操作が多いため、少し待ってからお試しください。"
+        }
+      ],
+      "connections": 2,
+      "reloadRestoresEditControls": true,
+      "statusAfterReload": "クラウドに保存済み\nホスト\n1人が参加中",
+      "navigationWorksWhenStopped": true,
+      "pageErrors": []
+    }
+  ]
+}

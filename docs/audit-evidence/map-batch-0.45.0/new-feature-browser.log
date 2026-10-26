@@ -1,0 +1,30 @@
+[WebServer] (node:96038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:96051) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 12 tests using 1 worker
+
+(node:96069) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [desktop] › tests/e2e/map-batch.spec.ts:55:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (1.4s)
+  ✓   2 [desktop] › tests/e2e/map-batch.spec.ts:94:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (856ms)
+  ✓   3 [desktop] › tests/e2e/map-batch.spec.ts:115:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (1.7s)
+  ✓   4 [desktop] › tests/e2e/map-batch.spec.ts:148:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (1.3s)
+  ✓   5 [desktop] › tests/e2e/map-batch.spec.ts:212:1 › selection supports keyboard toggling and touch taps without entering the editor (745ms)
+  ✓   6 [desktop] › tests/e2e/map-batch.spec.ts:243:1 › bulk add accounts for pages in other sheets before enabling the operation (815ms)
+(node:96377) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [touch] › tests/e2e/map-batch.spec.ts:55:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (1.6s)
+  ✓   8 [touch] › tests/e2e/map-batch.spec.ts:94:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (851ms)
+  ✓   9 [touch] › tests/e2e/map-batch.spec.ts:115:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (1.6s)
+  ✓  10 [touch] › tests/e2e/map-batch.spec.ts:148:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (1.2s)
+  ✓  11 [touch] › tests/e2e/map-batch.spec.ts:212:1 › selection supports keyboard toggling and touch taps without entering the editor (885ms)
+  ✓  12 [touch] › tests/e2e/map-batch.spec.ts:243:1 › bulk add accounts for pages in other sheets before enabling the operation (849ms)
+
+  12 passed (15.7s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

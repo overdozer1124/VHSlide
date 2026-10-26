@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { backupChanged } from "../../src/backupProtocol";
 
 async function google(page: Page, identity: string) {
   const credential =
@@ -18,7 +19,12 @@ async function google(page: Page, identity: string) {
     }),
   );
 }
-async function signIn(page: Page, identity: string, invite?: string) {
+async function signIn(
+  page: Page,
+  identity: string,
+  invite?: string,
+  hostPage?: Page,
+) {
   await google(page, identity);
   await page.goto(invite || "/");
   if (!invite)
@@ -27,6 +33,29 @@ async function signIn(page: Page, identity: string, invite?: string) {
     .getByRole("button", { name: "Googleでサインイン（テスト）", exact: true })
     .click();
   if (!invite) await expect(page.getByRole("dialog")).toContainText(identity);
+  if (invite?.includes("join=") && hostPage) {
+    await expect
+      .poll(
+        () =>
+          new URL(page.url()).searchParams.get("request") ||
+          new URL(page.url()).searchParams.get("room"),
+      )
+      .toMatch(/^[a-f0-9-]{36}$/);
+    if (!new URL(page.url()).searchParams.has("request")) return;
+    const work = new URL(hostPage.url()).searchParams.get("room"),
+      requestId = new URL(page.url()).searchParams.get("request");
+    const r = await hostPage.request.post(
+      `/api/decks/${work}/join-requests/approve`,
+      {
+        headers: { Origin: "http://127.0.0.1:3187" },
+        data: { requestIds: [requestId] },
+      },
+    );
+    expect(r.status()).toBe(200);
+    await page
+      .getByRole("button", { name: "承認状況を確認", exact: true })
+      .click();
+  }
 }
 async function openEditor(page: Page) {
   await page
@@ -163,7 +192,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
   });
   const other = await context.newPage();
   try {
-    await signIn(other, `${name}-friend`, invitation);
+    await signIn(other, `${name}-friend`, invitation, page);
     await saved(other);
     await page.evaluate(async (user) => {
       const room = new URL(location.href).searchParams.get("room");
@@ -266,6 +295,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
       await expect(layout).toHaveAttribute("data-vertical-align", "bottom");
     }
     await expect(b).toHaveCSS("text-align", "right");
+    await expect(b.locator("p")).toHaveCSS("text-align", "right");
     await expect(b).toBeFocused();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
@@ -280,7 +310,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     ).toHaveCount(1);
     await saved(page);
     const download = page.waitForEvent("download");
-    await page.getByRole("button", { name: "保存", exact: true }).click();
+    await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
     const file = await download,
       exported = JSON.parse(await readFile((await file.path())!, "utf8"));
     expect(exported.slides[0].elements[0]).toMatchObject({
@@ -381,7 +411,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
       "フィルタ内の共同編集",
     );
     const fullDownload = page.waitForEvent("download");
-    await page.getByRole("button", { name: "保存", exact: true }).click();
+    await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
     const fullFile = await fullDownload,
       fullExport = JSON.parse(await readFile((await fullFile.path())!, "utf8"));
     expect(fullExport.slides).toHaveLength(6);
@@ -429,7 +459,7 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
   });
   const other = await context.newPage();
   try {
-    await signIn(other, guest, invite);
+    await signIn(other, guest, invite, page);
     await saved(other);
     await openEditor(other);
     await expect(
@@ -620,7 +650,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
     await pa.keyboard.type("assigned ");
     await saved(pa);
     await pa.keyboard.press("Escape");
-    await signIn(pb, b, invite);
+    await signIn(pb, b, invite, page);
     await saved(pb);
     await openEditor(pb);
     await expect(button(pb, "文字")).toBeDisabled();
@@ -908,6 +938,16 @@ test("sticky color, presets and direct resize persist with mouse and touch", asy
   await button("この作品をクラウドに保存").click();
   await saved(page);
   await openEditor(page);
+  // Measure preset growth above the accessible 120px minimum note width.
+  // Touch still uses real touch events; narrow-canvas layout is a separate concern.
+  await button("右のサイドバーをたたむ").click();
+  await expect
+    .poll(
+      async () =>
+        (await page.locator(".editor-workspace .slide-canvas").boundingBox())!
+          .width,
+    )
+    .toBeGreaterThan(450);
   await button("付箋を追加").click();
   const note = page.locator(".sticky-note");
   await page
@@ -1032,7 +1072,7 @@ test("cloud workspace cards and bulk sharing support mixed accounts, row assignm
     }),
     other = await context.newPage();
   try {
-    await signIn(other, guest, invite);
+    await signIn(other, guest, invite, page);
     await saved(other);
     await openEditor(other);
     await expect(button(other, "文字")).toBeDisabled();
@@ -1146,5 +1186,828 @@ test("cloud workspace cards and bulk sharing support mixed accounts, row assignm
     await expect(page.locator(".app-shell")).not.toHaveAttribute("inert", "");
   } finally {
     await context.close();
+  }
+});
+
+test("legacy offline row moves are kept for JSON recovery and never automatically uploaded", async ({
+  page,
+}, info) => {
+  const { fromBase64, readSharedDeck } =
+    await import("../../src/sharedDeck.ts");
+  const { blank } = await import("../../src/model.ts");
+  const Y = await import("yjs");
+  const deck = {
+    version: 1 as const,
+    title: "旧版の未送信配置",
+    slides: [blank(0, 0), blank(0, 1)],
+  };
+  await signIn(page, `legacy-layout-${info.project.name}`);
+  const {
+    id,
+    user,
+    state: originalState,
+  } = await page.evaluate(async (deck) => {
+    const made = await fetch("/api/decks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deck),
+    });
+    if (!made.ok) throw new Error(await made.text());
+    const work = await made.json(),
+      session = await (await fetch("/api/session")).json();
+    const saved = await (await fetch(`/api/decks/${work.id}`)).json();
+    return {
+      id: work.id as string,
+      user: session.user.id as string,
+      state: saved.state as string,
+    };
+  }, deck);
+  // An offline cache must descend from the actual server document; an unrelated
+  // Y.Doc with identical JSON would test arbitrary CRDT map conflicts instead.
+  const legacy = new Y.Doc();
+  Y.applyUpdate(legacy, fromBase64(originalState));
+  const slides = legacy.getMap<import("yjs").Map<unknown>>("slides");
+  slides.get(deck.slides[0].id)!.set("position", { x: 0, y: 1 });
+  slides.get(deck.slides[1].id)!.set("position", { x: 0, y: 0 });
+  const bytes = Array.from(Y.encodeStateAsUpdate(legacy));
+  legacy.destroy();
+  await page.evaluate(
+    async ({ id, user, bytes }) => {
+      await new Promise<void>((done, fail) => {
+        const request = indexedDB.open("vhslide-cloud", 1);
+        request.onupgradeneeded = () =>
+          request.result.createObjectStore("documents");
+        request.onerror = () => fail(request.error);
+        request.onsuccess = () => {
+          const db = request.result,
+            tx = db.transaction("documents", "readwrite");
+          tx.objectStore("documents").put(
+            new Uint8Array(bytes),
+            `${user}/${id}`,
+          );
+          tx.oncomplete = () => {
+            db.close();
+            done();
+          };
+          tx.onerror = () => fail(tx.error);
+        };
+      });
+    },
+    { id, user, bytes },
+  );
+  await page.goto(`/?room=${id}`);
+  await expect(page.locator(".cloud-presence")).toContainText("共有停止");
+  await expect(
+    page.getByText("旧版の未送信の配置変更を端末から復元しました。", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  // The authoritative state is exactly the original Yjs document, not the cached move.
+  const state = await page.evaluate(
+    async (id) =>
+      (await (await fetch(`/api/decks/${id}`)).json()).state as string,
+    id,
+  );
+  const server = new Y.Doc();
+  Y.applyUpdate(server, fromBase64(state));
+  expect(
+    readSharedDeck(server).slides.find((s) => s.id === deck.slides[0].id)!.y,
+  ).toBe(0);
+  server.destroy();
+  await expect(
+    page.getByRole("button", { name: "ファイルに保存", exact: true }),
+  ).toBeEnabled();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
+  const file = await (await downloading).path();
+  const recovered = JSON.parse(await readFile(file!, "utf8"));
+  expect(
+    recovered.slides.find((s: { id: string }) => s.id === deck.slides[0].id).y,
+  ).toBe(1);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: /作品一覧/ }).click();
+  await page
+    .getByRole("button", { name: `作品を開く：${deck.title}`, exact: true })
+    .click();
+  await saved(page);
+});
+
+test("full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses", async ({
+  page,
+}, info) => {
+  await signIn(page, `backup-${info.project.name}`);
+  await page
+    .getByRole("button", { name: "この作品をクラウドに保存", exact: true })
+    .click();
+  await saved(page);
+  const source = new URL(page.url()).searchParams.get("room")!;
+  await openEditor(page);
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await page
+    .locator('input[type="file"]')
+    .nth(1)
+    .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
+  await expect(page.locator(".editor-workspace img.slide-image")).toHaveCount(
+    1,
+  );
+  await saved(page);
+  await page.getByRole("button", { name: "付箋を追加", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "付箋のコメント", exact: true })
+    .fill("バックアップする感想");
+  await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/decks/${source}/comments`)).json())
+          .comments[0]?.text,
+    )
+    .toBe("バックアップする感想");
+  const access = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 0, axisId: "0" }],
+    columns: [],
+    slides: [],
+  };
+  const email = `backup-guest-${info.project.name}@example.test`;
+  await page.evaluate(
+    async ({ source, email, access }) => {
+      const r = await fetch(`/api/decks/${source}/recipients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients: [{ email, access }] }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+    },
+    { source, email, access },
+  );
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: /作品一覧/ }).click();
+  const saving = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "完全バックアップを保存", exact: true })
+    .click();
+  const download = await saving;
+  expect(download.suggestedFilename()).toMatch(/\.vhslide\.zip$/);
+  const bytes = await readFile((await download.path())!);
+  const { readBackupArchive } = await import("../../src/backupArchive.ts");
+  const archive = await readBackupArchive(bytes);
+  expect(archive.images.size).toBe(1);
+  expect(archive.snapshot.comments[0].text).toBe("バックアップする感想");
+  expect(archive.snapshot.sharing[0].email).toBe(email);
+  // Worker ZIP construction must still be followed by authoritative revision verification.
+  let blockedDownloads = 0;
+  const unexpectedDownload = () => {
+    blockedDownloads++;
+  };
+  page.on("download", unexpectedDownload);
+  await page.route(`**/api/decks/${source}/backup/verify`, async (route) => {
+    const r = await page.request.post(`/api/decks/${source}/recipients`, {
+      headers: { Origin: "http://127.0.0.1:3187" },
+      data: { recipients: [{ email, name: "取得中の変更", access }] },
+    });
+    expect(r.ok()).toBe(true);
+    await route.continue();
+  });
+  await page
+    .getByRole("button", { name: "完全バックアップを保存", exact: true })
+    .click();
+  await expect(page.locator(".backup-message")).toContainText("変更");
+  expect(blockedDownloads).toBe(0);
+  page.off("download", unexpectedDownload);
+  await page.unroute(`**/api/decks/${source}/backup/verify`);
+  const input = page.locator('input[aria-label="復元するバックアップ"]');
+  await input.setInputFiles({
+    name: "broken.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from("broken"),
+  });
+  await expect(
+    page.getByRole("button", { name: "バックアップから復元", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator(".backup-message")).not.toBeEmpty();
+  await input.setInputFiles({
+    name: "saved.vhslide.zip",
+    mimeType: "application/zip",
+    buffer: bytes,
+  });
+  // The confirmation is a named block, while the checkbox is an explicit opt-in.
+  const share = page.getByRole("checkbox", {
+    name: "共有アカウントと編集権限も確認して復元する",
+    exact: true,
+  });
+  await expect(share).not.toBeChecked();
+  await share.check();
+  await expect(
+    page.getByRole("list", { name: "復元する共有アカウント", exact: true }),
+  ).toContainText(email);
+  await page
+    .getByRole("button", { name: "新しい作品に復元する", exact: true })
+    .click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("room"))
+    .not.toBe(source);
+  await saved(page);
+  const target = new URL(page.url()).searchParams.get("room")!;
+  const restored = await (
+    await page.request.get(`/api/decks/${target}/backup`)
+  ).json();
+  expect(restored.comments[0].authorName).toMatch(/（復元）$/);
+  expect(restored.sharing[0].access).toEqual(access);
+  expect(
+    restored.deck.slides
+      .flatMap((s: any) => s.elements)
+      .find((e: any) => e.type === "image").src,
+  ).toContain(`/api/decks/${target}/assets/`);
+  const sourceAfter = await (
+    await page.request.get(`/api/decks/${source}/backup`)
+  ).json();
+  expect(sourceAfter.deck).toEqual(archive.snapshot.deck);
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: /作品一覧/ }).click();
+  await page.locator('input[aria-label="復元するバックアップ"]').setInputFiles({
+    name: "saved.zip",
+    mimeType: "application/zip",
+    buffer: bytes,
+  });
+  for (const failure of [
+    { status: 503, message: "写真の復元テスト失敗" },
+    { status: 413, message: "写真の保存容量が不足しています" },
+  ]) {
+    await page.route("**/api/decks/*/assets", async (route) => {
+      if (route.request().method() === "POST")
+        await route.fulfill({
+          status: failure.status,
+          contentType: "application/json",
+          body: JSON.stringify({ error: failure.message }),
+        });
+      else await route.continue();
+    });
+    await page
+      .getByRole("button", { name: "新しい作品に復元する", exact: true })
+      .click();
+    await expect(page.locator(".backup-message")).toContainText(
+      failure.message,
+    );
+    await page.unroute("**/api/decks/*/assets");
+  }
+  const works = await (await page.request.get("/api/decks")).json();
+  expect(works.decks).toHaveLength(3);
+  expect(works.decks.some((d: any) => d.status === "restoring")).toBe(true);
+  expect(new URL(page.url()).searchParams.get("room")).toBe(target);
+  const pendingId = works.decks.find((d: any) => d.status === "restoring").id;
+  await page.unroute("**/api/decks/*/assets");
+  await page.reload();
+  await saved(page);
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: /作品一覧/ }).click();
+  await expect(page.getByLabel("未完了の復元", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "ファイルを選んで再開", exact: true })
+    .click();
+  await page.locator('input[aria-label="復元するバックアップ"]').setInputFiles({
+    name: "saved.zip",
+    mimeType: "application/zip",
+    buffer: bytes,
+  });
+  await expect(
+    page.getByRole("checkbox", {
+      name: "共有アカウントと編集権限も確認して復元する",
+      exact: true,
+    }),
+  ).not.toBeChecked();
+  let lostUpload = false,
+    lostCommit = 0;
+  await page.route("**/api/decks/*/assets", async (route) => {
+    if (route.request().method() === "POST" && !lostUpload) {
+      lostUpload = true;
+      const r = await route.fetch();
+      expect(r.status()).toBe(201);
+      await route.abort("connectionreset");
+    } else await route.continue();
+  });
+  await page.route("**/api/decks/*/restore", async (route) => {
+    if (route.request().method() === "POST" && lostCommit < 3) {
+      lostCommit++;
+      const r = await route.fetch();
+      expect(r.status()).toBe(200);
+      await route.abort("connectionreset");
+    } else await route.continue();
+  });
+  await page
+    .getByRole("button", { name: "復元を再開する", exact: true })
+    .click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("room"))
+    .toBe(pendingId);
+  await saved(page);
+  expect(lostUpload).toBe(true);
+  expect(lostCommit).toBe(3);
+  const job = await (
+    await page.request.get(`/api/restores/${pendingId}`)
+  ).json();
+  expect(job.status).toBe("ready");
+  expect(job.images).toBe(1);
+  const after = await (await page.request.get("/api/decks")).json();
+  expect(after.decks).toHaveLength(3);
+  expect(after.decks.some((d: any) => d.status === "restoring")).toBe(false);
+});
+
+test("restores a signed-in room in the background without flashing the cloud dialog", async ({
+  page,
+}, info) => {
+  await signIn(page, `quiet-reload-${info.project.name}`);
+  await page
+    .getByRole("button", { name: "この作品をクラウドに保存", exact: true })
+    .click();
+  await saved(page);
+  const room = new URL(page.url()).searchParams.get("room")!;
+  const endpoint = `**/api/decks/${room}`;
+  await page.addInitScript(() => {
+    const state = window as typeof window & { cloudDialogAppeared: boolean };
+    state.cloudDialogAppeared = false;
+    const selector = '[role="dialog"][aria-label="クラウドの作品"]';
+    new MutationObserver((records) => {
+      for (const record of records)
+        for (const node of record.addedNodes)
+          if (
+            node instanceof Element &&
+            (node.matches(selector) || node.querySelector(selector))
+          )
+            state.cloudDialogAppeared = true;
+    }).observe(document, { childList: true, subtree: true });
+  });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(endpoint, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  const opening = page.waitForRequest((request) =>
+    request.url().endsWith(`/api/decks/${room}`),
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await opening;
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(
+    page.getByRole("dialog", { name: "クラウドの作品", exact: true }),
+  ).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).cloudDialogAppeared)).toBe(
+    false,
+  );
+  release();
+  await saved(page);
+  expect(await page.evaluate(() => (window as any).cloudDialogAppeared)).toBe(
+    false,
+  );
+  await page.unroute(endpoint);
+  // Explicit opening remains available after background restoration.
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "クラウドの作品", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  // A failed automatic opening still provides a visible recovery path.
+  await page.route(endpoint, (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "この作品を開けません（テスト）" }),
+    }),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("dialog", { name: "クラウドの作品", exact: true }),
+  ).toContainText("この作品を開けません（テスト）");
+  await page.unroute(endpoint);
+  // Expired sessions must still expose sign-in for the room URL.
+  await page.context().clearCookies();
+  await page.reload();
+  await expect(
+    page.getByRole("button", {
+      name: "Googleでサインイン（テスト）",
+      exact: true,
+    }),
+  ).toBeVisible();
+});
+
+test("cloud versions restore photos and notes into a new work and trash can undo work removal", async ({
+  page,
+}, info) => {
+  await signIn(page, `tools-${info.project.name}`);
+  const { sample } = await import("../../src/model.ts");
+  const original = sample();
+  original.slides[0].elements.push({
+    id: "photo-history",
+    type: "image",
+    x: 10,
+    y: 10,
+    w: 100,
+    h: 100,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+  });
+  const create = await page.request.post("/api/decks", {
+    headers: { Origin: "http://127.0.0.1:3187" },
+    data: original,
+  });
+  expect(create.status()).toBe(201);
+  const { id: source } = await create.json();
+  await page.goto(`/?room=${source}`);
+  await saved(page);
+  const note = await page.request.post(`/api/decks/${source}/comments`, {
+    headers: { Origin: "http://127.0.0.1:3187" },
+    data: {
+      slide: original.slides[0].id,
+      text: "版に残す付箋",
+      x: 0.2,
+      y: 0.2,
+    },
+  });
+  expect(note.ok()).toBe(true);
+  await page
+    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: /^保存した版/ }).click();
+  await page
+    .getByRole("textbox", { name: "保存する版の名前", exact: true })
+    .fill("授業のはじめ");
+  await page.getByRole("button", { name: "版を保存", exact: true }).click();
+  await expect(page.getByText(/授業のはじめ ·/)).toBeVisible();
+  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+  await page.locator(".deck-title").fill("変更後の作品");
+  await saved(page);
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/decks/${source}/backup`)).json())
+          .deck.title,
+    )
+    .toBe("変更後の作品");
+  await page
+    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: /^保存した版/ }).click();
+  await page
+    .getByRole("button", { name: "この版を確認", exact: true })
+    .first()
+    .click();
+  await expect(page.getByLabel("過去の版の確認")).toContainText("付箋1枚");
+  await page.route("**/api/decks/*/assets", (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "履歴写真の復元テスト失敗" }),
+        })
+      : route.continue(),
+  );
+  await page
+    .getByRole("button", { name: "この版を別作品に復元", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "保存した版", exact: true })
+      .getByRole("status"),
+  ).toContainText("履歴写真の復元テスト失敗");
+  const pending = (
+    await (await page.request.get("/api/restores")).json()
+  ).jobs.find((j: any) => j.status === "uploading").id;
+  await page.unroute("**/api/decks/*/assets");
+  await page.reload();
+  await saved(page);
+  await page
+    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: /^保存した版/ }).click();
+  await page
+    .getByRole("button", { name: "この版を確認", exact: true })
+    .first()
+    .click();
+  let lostHistoryCommit = 0;
+  await page.route("**/api/decks/*/restore", async (route) => {
+    if (route.request().method() === "POST" && lostHistoryCommit < 3) {
+      const response = await route.fetch();
+      expect(response.status()).toBe(200);
+      lostHistoryCommit++;
+      await route.abort("connectionreset");
+    } else await route.continue();
+  });
+  await page
+    .getByRole("button", { name: "この版を別作品に復元", exact: true })
+    .click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("room"))
+    .toBe(pending);
+  const target = new URL(page.url()).searchParams.get("room")!;
+  expect(target).toBe(pending);
+  expect(lostHistoryCommit).toBe(3);
+  await page.unroute("**/api/decks/*/restore");
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/decks/${target}/backup`)).json())
+          .deck.title,
+    )
+    .toBe(original.title);
+  const backup = await (
+    await page.request.get(`/api/decks/${target}/backup`)
+  ).json();
+  expect(backup.comments[0].text).toBe("版に残す付箋");
+  expect(backup.sharing).toHaveLength(0);
+  expect(
+    backup.deck.slides[0].elements.find((e: any) => e.id === "photo-history")
+      .src,
+  ).toContain(`/api/decks/${target}/assets/`);
+  expect(
+    (await (await page.request.get(`/api/decks/${source}/backup`)).json()).deck
+      .title,
+  ).toBe("変更後の作品");
+  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+  await page.locator(".deck-title").fill("編集した復元作品");
+  await saved(page);
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(`/api/decks/${target}/backup`);
+      const value = await response.json();
+      // A save racing this capture must fail closed; retry only that known conflict.
+      if (response.status() === 409) {
+        expect(value.error).toBe(backupChanged);
+        return undefined;
+      }
+      expect(response.status()).toBe(200);
+      return value.deck.title;
+    })
+    .toBe("編集した復元作品");
+  await page.goto(`/?room=${source}`);
+  await saved(page);
+  await page
+    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: /^保存した版/ }).click();
+  await page
+    .getByRole("button", { name: "この版を確認", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "この版を別作品に復元", exact: true })
+    .click();
+  await expect
+    .poll(() => {
+      const room = new URL(page.url()).searchParams.get("room");
+      return room && room !== source && room !== target ? room : "";
+    })
+    .toMatch(/^[a-f0-9-]{36}$/);
+  const repeated = new URL(page.url()).searchParams.get("room")!;
+  expect(repeated).not.toBe(target);
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/decks/${repeated}/backup`)).json())
+          .deck.title,
+    )
+    .toBe(original.title);
+  expect(
+    (await (await page.request.get(`/api/decks/${target}/backup`)).json()).deck
+      .title,
+  ).toBe("編集した復元作品");
+  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: /作品一覧/ }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", {
+      name: "変更後の作品をクラウドから削除",
+      exact: true,
+    })
+    .click();
+  await expect
+    .poll(async () =>
+      (await (await page.request.get("/api/trash")).json()).decks.some(
+        (d: any) => d.id === source,
+      ),
+    )
+    .toBe(true);
+  await page.getByText("ごみ箱を開く", { exact: true }).click();
+  const trash = page.getByRole("region", {
+    name: "クラウド作品のごみ箱",
+    exact: true,
+  });
+  await expect(trash).toContainText("変更後の作品");
+  await trash
+    .getByRole("button", { name: "作品一覧に戻す", exact: true })
+    .click();
+  await expect
+    .poll(async () => (await page.request.get(`/api/decks/${source}`)).status())
+    .toBe(200);
+});
+
+test("assigned slide jump respects row grants and clients cannot edit presentation routes or versions", async ({
+  page,
+  browser,
+}, info) => {
+  const host = `assignment-host-${info.project.name}`,
+    guest = `assignment-guest-${info.project.name}`;
+  await signIn(page, host);
+  await page
+    .getByRole("button", { name: "この作品をクラウドに保存", exact: true })
+    .click();
+  await saved(page);
+  const source = new URL(page.url()).searchParams.get("room")!;
+  const access = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 1 }],
+    columns: [],
+    slides: [],
+  };
+  const grant = await page.request.post(`/api/decks/${source}/recipients`, {
+    headers: { Origin: "http://127.0.0.1:3187" },
+    data: { recipients: [{ email: `${guest}@example.test`, access }] },
+  });
+  expect(grant.ok()).toBe(true);
+  const context = await browser.newContext(info.project.use),
+    other = await context.newPage();
+  try {
+    await signIn(other, guest, page.url());
+    await saved(other);
+    await other
+      .getByRole("button", { name: "マップをフィルタ", exact: true })
+      .click();
+    await other.getByRole("button", { name: /自分の担当を選択/ }).click();
+    await other
+      .getByRole("button", { name: "フィルタを適用", exact: true })
+      .click();
+    await expect(other.locator(".map-scroll [data-page-id]")).toHaveCount(2);
+    await other
+      .getByRole("button", { name: "保存方法を選ぶ", exact: true })
+      .click();
+    await other.getByRole("menuitem", { name: /^保存した版/ }).click();
+    await expect(
+      other.getByText("保存した版の確認・復元はホストだけが行えます。", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      other.getByRole("button", { name: "版を保存", exact: true }),
+    ).toHaveCount(0);
+    await other.getByRole("button", { name: "閉じる", exact: true }).click();
+    await other
+      .getByRole("button", { name: "発表方法を選ぶ", exact: true })
+      .click();
+    await other.getByRole("menuitem", { name: /^発表ルートを編集/ }).click();
+    await other
+      .getByRole("button", { name: "対象をすべて選ぶ", exact: true })
+      .click();
+    await expect(
+      other.getByRole("button", { name: "選択順でルートを保存", exact: true }),
+    ).toBeDisabled();
+  } finally {
+    await context.close();
+  }
+});
+
+test("host approves only checked invitation requests, approves all, and must readmit revoked accounts", async ({
+  page,
+  browser,
+}, info) => {
+  const prefix = `approve-${info.project.name}`;
+  await signIn(page, prefix + "-host");
+  await page
+    .getByRole("button", { name: "この作品をクラウドに保存", exact: true })
+    .click();
+  await saved(page);
+  await page.locator(".deck-title").fill("承認するまで非公開の作品");
+  const work = new URL(page.url()).searchParams.get("room")!;
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const made = await page.request.post(`/api/decks/${work}/invite`, {
+    headers,
+  });
+  const invite = (await made.json()).url;
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: /共有管理/ }).click();
+  const contexts = await Promise.all(
+      Array.from({ length: 3 }, () => browser.newContext(info.project.use)),
+    ),
+    students = await Promise.all(contexts.map((c) => c.newPage()));
+  try {
+    for (let i = 0; i < students.length; i++) {
+      await signIn(
+        students[i],
+        `${prefix}-student-${["a", "b", "c"][i]}`,
+        invite,
+      );
+      await expect(
+        students[i].getByRole("region", {
+          name: "参加申請の状況",
+          exact: true,
+        }),
+      ).toContainText("ホストの承認を待っています");
+      expect(
+        (await students[i].request.get(`/api/decks/${work}`)).status(),
+      ).toBe(404);
+      await expect(students[i].locator(".deck-title")).not.toHaveValue(
+        "承認するまで非公開の作品",
+      );
+    }
+    const pending = page.getByRole("region", {
+      name: "参加待ちのアカウント",
+      exact: true,
+    });
+    await pending
+      .getByRole("button", { name: "参加待ちを更新", exact: true })
+      .click();
+    await expect(pending.getByRole("checkbox")).toHaveCount(4); // select-all plus three accounts
+    for (let i = 0; i < 2; i++)
+      await pending
+        .getByRole("checkbox", {
+          name: `${prefix}-student-${["a", "b", "c"][i]}@example.testの参加申請を選択`,
+          exact: true,
+        })
+        .check();
+    await pending
+      .getByRole("button", { name: "選択したアカウントを承認", exact: true })
+      .click();
+    await expect(pending.getByRole("status")).toContainText("2人の参加を承認");
+    for (let i = 0; i < 2; i++) {
+      await expect(students[i].locator(".cloud-presence")).toContainText(
+        "閲覧のみ",
+        { timeout: 15000 },
+      );
+      await expect(students[i].locator(".deck-title")).toHaveValue(
+        "承認するまで非公開の作品",
+      );
+    }
+    expect((await students[2].request.get(`/api/decks/${work}`)).status()).toBe(
+      404,
+    );
+    const forged = await students[0].request.post(
+      `/api/decks/${work}/join-requests/approve`,
+      {
+        headers,
+        data: {
+          requestIds: [new URL(students[2].url()).searchParams.get("request")],
+        },
+      },
+    );
+    expect(forged.status()).toBe(404);
+    await pending
+      .getByRole("checkbox", { name: "参加待ちを全選択", exact: true })
+      .check();
+    await pending
+      .getByRole("button", { name: "選択したアカウントを承認", exact: true })
+      .click();
+    await expect(students[2].locator(".cloud-presence")).toContainText(
+      "閲覧のみ",
+      { timeout: 15000 },
+    );
+    // Revoke A, then use the same still-valid invitation: a new approval is mandatory.
+    const a = (await (await students[0].request.get("/api/session")).json())
+      .user;
+    expect(
+      (
+        await page.request.delete(`/api/decks/${work}/members/${a.id}`, {
+          headers,
+        })
+      ).status(),
+    ).toBe(200);
+    await students[0].goto(invite);
+    await expect(
+      students[0].getByRole("region", { name: "参加申請の状況", exact: true }),
+    ).toContainText("ホストの承認を待っています");
+    expect((await students[0].request.get(`/api/decks/${work}`)).status()).toBe(
+      404,
+    );
+    await students[0].reload(); // durable request pointer resumes without another accept
+    await expect(
+      students[0].getByRole("region", { name: "参加申請の状況", exact: true }),
+    ).toContainText("ホストの承認を待っています");
+    await pending
+      .getByRole("button", { name: "参加待ちを更新", exact: true })
+      .click();
+    await pending
+      .getByRole("button", {
+        name: `${prefix}-student-a@example.testの参加を承認`,
+        exact: true,
+      })
+      .click();
+    await expect(students[0].locator(".cloud-presence")).toContainText(
+      "閲覧のみ",
+      { timeout: 15000 },
+    );
+    await expect(pending.getByRole("checkbox")).toHaveCount(0);
+  } finally {
+    await Promise.all(contexts.map((c) => c.close()));
   }
 });

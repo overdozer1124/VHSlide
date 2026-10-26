@@ -1,9 +1,11 @@
+import { axisId } from "./axes.ts";
+import type { AxisGrant } from "./axes.ts";
 import type { Deck, Slide } from "./model.ts";
 export type EditAccess = {
   mode: "none" | "all" | "scoped";
   comment: boolean;
-  rows: { sheetId: string; index: number }[];
-  columns: { sheetId: string; index: number }[];
+  rows: AxisGrant[];
+  columns: AxisGrant[];
   slides: string[];
 };
 export const defaultAccess = (): EditAccess => ({
@@ -37,13 +39,18 @@ export function parseAccess(value: unknown): EditAccess {
           s.sheetId.length > 100 ||
           !Number.isInteger(s.index) ||
           s.index < 0 ||
-          s.index > 99,
+          s.index > 99 ||
+          (s.axisId !== undefined &&
+            (typeof s.axisId !== "string" ||
+              !s.axisId ||
+              s.axisId.length > 80)),
       )
     )
       throw new Error("行・列の設定が正しくありません。");
     return items.map((s) => ({
       sheetId: s.sheetId as string,
       index: s.index as number,
+      ...(s.axisId === undefined ? {} : { axisId: s.axisId as string }),
     }));
   };
   if (
@@ -60,15 +67,23 @@ export function parseAccess(value: unknown): EditAccess {
     slides: [...new Set(v.slides)],
   };
 }
-export function canEdit(access: EditAccess, slide: Slide) {
+export function canEdit(access: EditAccess, slide: Slide, deck?: Deck) {
   const sheetId = slide.sheetId ?? "main";
   return (
     access.mode === "all" ||
     (access.mode === "scoped" &&
       (access.slides.includes(slide.id) ||
-        access.rows.some((r) => r.sheetId === sheetId && r.index === slide.y) ||
+        access.rows.some(
+          (r) =>
+            r.sheetId === sheetId &&
+            (r.axisId ?? String(r.index)) ===
+              axisId(deck, sheetId, "rows", slide.y),
+        ) ||
         access.columns.some(
-          (c) => c.sheetId === sheetId && c.index === slide.x,
+          (c) =>
+            c.sheetId === sheetId &&
+            (c.axisId ?? String(c.index)) ===
+              axisId(deck, sheetId, "columns", slide.x),
         )))
   );
 }
@@ -86,6 +101,8 @@ export function assertDeckAccess(
   if (host) return;
   if (
     before.title !== after.title ||
+    JSON.stringify(before.routes ?? []) !==
+      JSON.stringify(after.routes ?? []) ||
     JSON.stringify(before.sheets) !== JSON.stringify(after.sheets)
   )
     throw new AccessError();
@@ -95,7 +112,7 @@ export function assertDeckAccess(
     const a = old.get(id),
       b = next.get(id);
     if (JSON.stringify(a) === JSON.stringify(b)) continue;
-    if ((a && !canEdit(access, a)) || (b && !canEdit(access, b)))
+    if ((a && !canEdit(access, a, before)) || (b && !canEdit(access, b, after)))
       throw new AccessError();
   }
 }

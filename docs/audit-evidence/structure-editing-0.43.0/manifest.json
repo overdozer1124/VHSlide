@@ -1,0 +1,27 @@
+{
+  "version": "0.43.0",
+  "date": "2026-10-25",
+  "environment": "v24.19.0 / Linux Chromium (Playwright desktop + emulated touch, no physical hardware)",
+  "sha256": {
+    "src/structureData.ts": "4922d738b17f91088f016931b55f078caaf5a177b9cbcb5f4ea691233430089f",
+    "src/structuredEditing.ts": "dc4ffc0ed69abc3f4c7f492e4c3a81c71a40035f34f497075fb24dc2c72db864",
+    "src/chartData.ts": "6cc471ef8df9b15c2a1857f384098cf94854a0f33393f00ab509faf9e820c374",
+    "src/ChartGraphic.tsx": "3a63d154dae687b1dd199d8f6caf3c3219a1f5bfbb953581137ac00a508e2e31",
+    "src/diagramTemplates.ts": "11f39f2d0b28e3144341d0ea6a4306b050efa083c6a1e1269d06b6c1dfb4551d",
+    "src/StructureTools.tsx": "0e7208072743e06102f53509e03603767b62d736e24a13194fc54f1ef3875761",
+    "src/structureEditing.test.ts": "38b897a1f9449d76c5166d4cbfcb7eb5b7bc920f31168b6d9f5db093977ee4ba",
+    "src/App.tsx": "aa516d52cd6e67686c9913cef6172cd9b5db86f9eedc6436ef4c3c0ad51c9d6e",
+    "src/Canvas.tsx": "f787358ef9013924cb1304fee4bda529ed92ae985b8006953defc64540ffa26a",
+    "src/Editor.tsx": "43fdb90b99f0099ddc3408043e8b4d5527778b2175a7929e70742d810c85c85f",
+    "src/model.ts": "ba9b1716cc097db99ea50eb71bb33f9d58cafc7c8c21231e7780ddf112330265",
+    "src/sharedDeck.ts": "aad0ab9e57453bb59d6fec4249c870d669f1eb39d7a0702c766eea2c28364e16",
+    "src/workbook.ts": "0783c24d040fbd784c00064f74206f7e4d2996132022068a6ea614c7d9fb9f23",
+    "src/ObjectLayout.tsx": "58e72de4e2292d65d5670cbc4c1257840bd127ba95875f3bd07df73d2162a1ed",
+    "src/objectEditing.ts": "6f389fe9c0c87d261081a10afbcc5bee61e8cb06ece1a76d00e6175f53414a30",
+    "src/PresentationView.tsx": "f4894e0dfce97a7a8c8564b2ded8620919cb7776f9ca195a780cc15ac8383be8",
+    "src/collaborationProtocol.ts": "d9f8d80e2524022e78821c2610243f40a6d1bad47572a14f9ebece9465c0cec2",
+    "tests/e2e/structure-editing.spec.ts": "ad4c429e9bafd4200a2dddeea1425cac7c5704019d0fad49a6c07fd0a26d7a35",
+    "tests/cloud/structure-editing.spec.ts": "de8497ad8e26f4fc4f3ee0a43172ff851af3886450ed7358e4ed95d2908dcc65",
+    "dist/index.html": "c49b7a097baccd6a5f7e206054e9136c38807d8dd0c8aed8dec6f38067d3175f"
+  }
+}

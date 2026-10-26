@@ -1,0 +1,50 @@
+
+> vhslide@0.38.0 test
+> vitest run src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/workbook.test.ts (7 tests) 82ms
+ ✓ src/backup.test.ts (5 tests) 315ms
+ ✓ src/model.test.ts (40 tests) 92ms
+ ✓ src/permissions.test.ts (5 tests) 78ms
+ ✓ src/sharedDeck.test.ts (8 tests) 87ms
+ ✓ src/preSharing.test.ts (5 tests) 39ms
+ ✓ src/axes.test.ts (7 tests) 44ms
+ ✓ src/learningTools.test.ts (6 tests) 1340ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  1268ms
+ ✓ src/releaseHistory.test.ts (1 test) 18ms
+ ✓ src/backupProtocol.test.ts (3 tests) 13ms
+
+ Test Files  10 passed (10)
+      Tests  87 passed (87)
+   Start at  00:53:46
+   Duration  2.19s (transform 521ms, setup 0ms, collect 1.24s, tests 2.11s, environment 2ms, prepare 821ms)
+
+
+> vhslide@0.38.0 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (73.987229ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (67.849124ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (66.151041ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (990.994511ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (32.752178ms)
+✔ sign-out revokes active sockets and persisted session access (13.458923ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (175.605998ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (132.58035ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (114.774525ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (143.972674ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (165.205037ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (21.473776ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (186.209211ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (26.125825ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2562.283332

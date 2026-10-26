@@ -1,0 +1,23 @@
+
+> vhslide@0.40.0 test:cloud
+> playwright test --config playwright.cloud.config.ts --grep tables sync|deleting a page|host approves only|full ZIP backups
+
+[WebServer] (node:362285) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:362306) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1285:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (19.7s)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1870:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (40.2s)
+  ✓  3 [cloud-desktop] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (3.5s)
+  ✓  4 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (6.2s)
+(node:363745) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/collaboration.spec.ts:1285:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (8.8s)
+  ✓  6 [cloud-touch] › tests/cloud/collaboration.spec.ts:1870:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (27.3s)
+  ✓  7 [cloud-touch] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (3.4s)
+  ✓  8 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (5.8s)
+
+  8 passed (2.0m)

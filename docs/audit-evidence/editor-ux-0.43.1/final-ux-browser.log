@@ -1,0 +1,50 @@
+[WebServer] (node:474861) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:474874) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:474892) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:29:43 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  1 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (4.1s)
+[WebServer] 10:29:46 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  2 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:111:1 › sidebar separates appearance, layout and links; keyboard tabs work and selection resets context (2.6s)
+[WebServer] 10:29:49 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  3 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:152:1 › table scope follows clicked cells, retains whole-table settings and makes destructive actions deliberate (3.1s)
+[WebServer] 10:29:52 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  4 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:211:1 › Chromebook and narrow layouts keep tabs and frequent actions physically reachable (3.7s)
+(node:475121) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:29:57 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  5 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (2.5s)
+[WebServer] 10:29:59 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  6 [touch] › tests/e2e/editor-inspector-ux.spec.ts:111:1 › sidebar separates appearance, layout and links; keyboard tabs work and selection resets context (2.4s)
+[WebServer] 10:30:02 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  7 [touch] › tests/e2e/editor-inspector-ux.spec.ts:152:1 › table scope follows clicked cells, retains whole-table settings and makes destructive actions deliberate (2.8s)
+[WebServer] 10:30:05 AM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  8 [touch] › tests/e2e/editor-inspector-ux.spec.ts:211:1 › Chromebook and narrow layouts keep tabs and frequent actions physically reachable (9.9s)
+
+  8 passed (35.4s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

@@ -1,0 +1,17 @@
+
+> vhslide@0.37.2 test:cloud
+> playwright test --config playwright.cloud.config.ts --grep full ZIP
+
+[WebServer] (node:248681) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:248701) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (13.4s)
+(node:248849) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [cloud-touch] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (10.5s)
+
+  2 passed (29.9s)

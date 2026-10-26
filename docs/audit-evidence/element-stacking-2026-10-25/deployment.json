@@ -1,0 +1,11 @@
+{
+  "release": "0.40.3",
+  "version": "91213fd8-ba53-466b-aba6-b2960376b79a",
+  "health": {
+    "ok": true
+  },
+  "asset": "./assets/index-DVQ0xL7J.js",
+  "sha256": "a8557a6400c0f9eea00cf1175bf9c8902a87c9e704d39fdde69b6307f894dd54",
+  "matchesTestedBuild": true,
+  "productionRoomAccessed": false
+}

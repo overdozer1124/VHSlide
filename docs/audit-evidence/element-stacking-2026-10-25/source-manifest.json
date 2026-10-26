@@ -1,0 +1,7 @@
+{
+  "src/Canvas.tsx": "fa2fc68a90562d9a96a890b611ebbf14972b9294a10c36c508ec395f8fccf3fa",
+  "src/releaseHistory.ts": "7bcb3e34de58d284182502368b36b975394a3e8b2c12c19b9665c18c35f0c779",
+  "package.json": "7ee2b1bc0a1ac08486f73665b3dd61fa8c1079f6c839d599d75fb059a44cda88",
+  "package-lock.json": "bcd29a080b0250e233aefe96cea8b6676fd52f7aed9b9966ec65de9e7694271c",
+  "tests/e2e/element-stacking.spec.ts": "80354c8b923e49c58daf38fb4355c374d104c5596076db57d74a4098e69eb181"
+}

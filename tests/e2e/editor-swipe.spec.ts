@@ -241,7 +241,7 @@ test("four directions obey row choices and linked rows; edges and cancelled gest
   expect((await saved(page)).slides).toEqual(fixture.slides);
 });
 
-test("touch taps edit text, explicit handles move and resize, and swiping an active textbox preserves its text", async ({
+test("touch taps edit text, borders move and handles resize, and swiping an active textbox preserves its text", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "touch", "実タッチの操作");
@@ -266,7 +266,9 @@ test("touch taps edit text, explicit handles move and resize, and swiping an act
   await swipe(page, cdp, 95, 0);
   await page.locator(".editor-page-current .element").first().tap();
   const handle = (await page
-    .getByRole("button", { name: "要素を移動", exact: true })
+    .locator(".editor-page-current .element")
+    .first()
+    .locator(".border-top")
     .boundingBox())!;
   await gesture(
     page,
@@ -558,7 +560,14 @@ test("Chromebook layouts devote at most 104 pixels to the header and tools", asy
     await page.setViewportSize(size);
     const layout = (await page.locator(".editor-layout").boundingBox())!;
     expect(layout.y).toBeLessThanOrEqual(104);
-    expect(layout.height).toBeGreaterThanOrEqual(size.height - 104);
+    const sheetBar = (await page.locator(".sheet-bar").boundingBox())!;
+    // The editor shares the viewport with the existing sheet tabs below it.
+    expect(layout.height).toBeGreaterThanOrEqual(
+      size.height - 104 - sheetBar.height,
+    );
+    expect(Math.abs(layout.y + layout.height - sheetBar.y)).toBeLessThanOrEqual(
+      1,
+    );
     expect(layout.y + layout.height).toBeLessThanOrEqual(size.height);
     await expect(
       page.getByRole("button", { name: "もとに戻す", exact: true }),

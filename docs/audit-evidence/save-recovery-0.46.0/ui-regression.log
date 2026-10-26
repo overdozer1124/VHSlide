@@ -1,0 +1,312 @@
+[WebServer] (node:112125) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:112139) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 76 tests using 2 workers
+
+(node:112157) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:112158) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   2 [desktop] › tests/e2e/editor-swipe.spec.ts:136:1 › one-finger swipes over text, images and shapes navigate without changing their geometry
+  -   3 [desktop] › tests/e2e/editor-swipe.spec.ts:161:1 › pages follow the finger, stay still while held, and return when the finger returns
+[WebServer] 6:02:02 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  -   4 [desktop] › tests/e2e/editor-swipe.spec.ts:194:1 › four directions obey row choices and linked rows; edges and cancelled gestures bounce back
+  -   5 [desktop] › tests/e2e/editor-swipe.spec.ts:244:1 › touch taps edit text, borders move and handles resize, and swiping an active textbox preserves its text
+[WebServer] 6:02:03 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/app.spec.ts:3:1 › create, edit, persist, export/import and present a two-dimensional story (3.4s)
+[WebServer] 6:02:05 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   7 [desktop] › tests/e2e/app.spec.ts:120:1 › rejects invalid import without losing the current work (515ms)
+  ✓   6 [desktop] › tests/e2e/editor-swipe.spec.ts:300:1 › trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate (3.0s)
+[WebServer] 6:02:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:07 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   8 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.7s)
+[WebServer] 6:02:07 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  10 [desktop] › tests/e2e/app.spec.ts:211:1 › row and column moves preserve all pages; delete and new project are undoable (1.0s)
+[WebServer] 6:02:09 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   9 [desktop] › tests/e2e/editor-swipe.spec.ts:344:3 › long decaying Windows-style wheel inertia does not delay paging or swallow the next stroke (3.2s)
+  ✓  11 [desktop] › tests/e2e/app.spec.ts:252:1 › native drag swaps grid cells (677ms)
+  -  13 [desktop] › tests/e2e/app.spec.ts:266:1 › touch taps and directional swipe navigate the story
+[WebServer] 6:02:09 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:10 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:11 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  14 [desktop] › tests/e2e/learning-tools.spec.ts:19:1 › selects, compares, prints and follows a saved route without changing source slides (2.1s)
+  ✓  12 [desktop] › tests/e2e/editor-swipe.spec.ts:344:3 › long steady Windows-style wheel inertia does not delay paging or swallow the next stroke (2.7s)
+[WebServer] 6:02:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  15 [desktop] › tests/e2e/learning-tools.spec.ts:94:1 › saves a local version persistently and restores a copy with the current work preserved (1.5s)
+[WebServer] 6:02:13 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  17 [desktop] › tests/e2e/learning-tools.spec.ts:125:1 › does not offer successful PDF output when an image cannot be decoded (660ms)
+  ✓  16 [desktop] › tests/e2e/editor-swipe.spec.ts:418:3 › the left edge returns promptly while outward wheel momentum continues (2.0s)
+[WebServer] 6:02:14 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:14 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  18 [desktop] › tests/e2e/learning-tools.spec.ts:162:1 › presentation routes move across sheets in both directions (1.0s)
+[WebServer] 6:02:15 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  20 [desktop] › tests/e2e/learning-tools.spec.ts:201:1 › local versions work offline without native randomUUID (729ms)
+[WebServer] 6:02:16 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  19 [desktop] › tests/e2e/editor-swipe.spec.ts:418:3 › the top edge returns promptly while outward wheel momentum continues (2.0s)
+  ✓  21 [desktop] › tests/e2e/learning-tools.spec.ts:223:1 › a failed pre-delete version preserves the work and deletion can be retried after storage recovers (992ms)
+[WebServer] 6:02:16 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  22 [desktop] › tests/e2e/editor-swipe.spec.ts:418:3 › the right edge returns promptly while outward wheel momentum continues (2.1s)
+  ✓  23 [desktop] › tests/e2e/learning-tools.spec.ts:280:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (1.6s)
+[WebServer] 6:02:18 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:18 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  24 [desktop] › tests/e2e/editor-swipe.spec.ts:418:3 › the bottom edge returns promptly while outward wheel momentum continues (2.1s)
+[WebServer] 6:02:20 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  25 [desktop] › tests/e2e/learning-tools.spec.ts:388:1 › a thousand-page picker only renders previews near the scroll viewport (2.8s)
+  ✓  26 [desktop] › tests/e2e/editor-swipe.spec.ts:476:1 › an inward wheel gesture interrupts the edge return without being cleared by the old timer (1.1s)
+[WebServer] 6:02:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  -  28 [desktop] › tests/e2e/editor-swipe.spec.ts:519:1 › a new finger swipe can start during the edge return
+[WebServer] 6:02:22 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  29 [desktop] › tests/e2e/editor-swipe.spec.ts:550:1 › Chromebook layouts devote at most 104 pixels to the header and tools (1.1s)
+[WebServer] 6:02:23 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:23 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  27 [desktop] › tests/e2e/map-headings.spec.ts:3:1 › editable map headings stay readable and meet the scrollport without gaps at 300% (3.5s)
+[WebServer] 6:02:25 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  31 [desktop] › tests/e2e/save-entry.spec.ts:2:1 › file saving explains formats and opens backup recovery without signing in (826ms)
+[WebServer] 6:02:25 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  30 [desktop] › tests/e2e/map-viewport.spec.ts:3:1 › Chromebook map starts at 100%, shows two full rows at 60%, fits ten topics, and restores the selected page (3.3s)
+  -  33 [desktop] › tests/e2e/map-viewport.spec.ts:80:1 › map zoom and editing remain usable on a narrow touch screen
+[WebServer] 6:02:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  32 [desktop] › tests/e2e/sheets-filter.spec.ts:65:1 › filters a column into a balanced grid, retains real numbers, zooms and pinches into the correct editor and back (2.7s)
+[WebServer] 6:02:28 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:30 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  35 [desktop] › tests/e2e/sheets-filter.spec.ts:122:1 › sheets add, duplicate, rename, reorder, delete and undo independently and roundtrip through JSON (2.6s)
+[WebServer] 6:02:31 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  36 [desktop] › tests/e2e/sheets-filter.spec.ts:191:1 › a requested number of row copies is created atomically and one undo restores the grid (1.2s)
+[WebServer] 6:02:32 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  37 [desktop] › tests/e2e/text-alignment.spec.ts:47:1 › all nine text positions match while reading and typing, without moving the box (4.4s)
+  ✓  34 [desktop] › tests/e2e/map-viewport.spec.ts:120:1 › a thousand pages render nearby thumbnails only, keep their grid positions, and expose exactly three display steps (10.4s)
+[WebServer] 6:02:37 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+(node:113863) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 6:02:38 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:38 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  38 [desktop] › tests/e2e/text-alignment.spec.ts:106:1 › text alignment survives undo, JSON restoration, reload, thumbnails and presentation (2.4s)
+(node:113992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 6:02:40 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:41 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  39 [touch] › tests/e2e/app.spec.ts:3:1 › create, edit, persist, export/import and present a two-dimensional story (5.0s)
+[WebServer] 6:02:43 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  41 [touch] › tests/e2e/app.spec.ts:120:1 › rejects invalid import without losing the current work (750ms)
+[WebServer] 6:02:44 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  40 [touch] › tests/e2e/editor-swipe.spec.ts:136:1 › one-finger swipes over text, images and shapes navigate without changing their geometry (4.6s)
+[WebServer] 6:02:45 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:45 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  42 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (2.0s)
+[WebServer] 6:02:45 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  43 [touch] › tests/e2e/editor-swipe.spec.ts:161:1 › pages follow the finger, stay still while held, and return when the finger returns (2.0s)
+  ✓  44 [touch] › tests/e2e/app.spec.ts:211:1 › row and column moves preserve all pages; delete and new project are undoable (1.6s)
+  -  46 [touch] › tests/e2e/app.spec.ts:252:1 › native drag swaps grid cells
+[WebServer] 6:02:47 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:47 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  47 [touch] › tests/e2e/app.spec.ts:266:1 › touch taps and directional swipe navigate the story (1.2s)
+[WebServer] 6:02:48 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:50 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  48 [touch] › tests/e2e/learning-tools.spec.ts:19:1 › selects, compares, prints and follows a saved route without changing source slides (2.7s)
+[WebServer] 6:02:51 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:52 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  45 [touch] › tests/e2e/editor-swipe.spec.ts:194:1 › four directions obey row choices and linked rows; edges and cancelled gestures bounce back (6.3s)
+  ✓  49 [touch] › tests/e2e/learning-tools.spec.ts:94:1 › saves a local version persistently and restores a copy with the current work preserved (1.9s)
+[WebServer] 6:02:53 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:53 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  51 [touch] › tests/e2e/learning-tools.spec.ts:125:1 › does not offer successful PDF output when an image cannot be decoded (1.1s)
+[WebServer] 6:02:54 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  52 [touch] › tests/e2e/learning-tools.spec.ts:162:1 › presentation routes move across sheets in both directions (1.0s)
+[WebServer] 6:02:55 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  53 [touch] › tests/e2e/learning-tools.spec.ts:201:1 › local versions work offline without native randomUUID (882ms)
+  ✓  50 [touch] › tests/e2e/editor-swipe.spec.ts:244:1 › touch taps edit text, borders move and handles resize, and swiping an active textbox preserves its text (3.5s)
+  -  55 [touch] › tests/e2e/editor-swipe.spec.ts:300:1 › trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate
+[WebServer] 6:02:56 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  -  56 [touch] › tests/e2e/editor-swipe.spec.ts:344:3 › long decaying Windows-style wheel inertia does not delay paging or swallow the next stroke
+  -  57 [touch] › tests/e2e/editor-swipe.spec.ts:344:3 › long steady Windows-style wheel inertia does not delay paging or swallow the next stroke
+  -  58 [touch] › tests/e2e/editor-swipe.spec.ts:418:3 › the left edge returns promptly while outward wheel momentum continues
+  -  59 [touch] › tests/e2e/editor-swipe.spec.ts:418:3 › the top edge returns promptly while outward wheel momentum continues
+  -  60 [touch] › tests/e2e/editor-swipe.spec.ts:418:3 › the right edge returns promptly while outward wheel momentum continues
+  ✓  54 [touch] › tests/e2e/learning-tools.spec.ts:223:1 › a failed pre-delete version preserves the work and deletion can be retried after storage recovers (1.4s)
+  -  61 [touch] › tests/e2e/editor-swipe.spec.ts:418:3 › the bottom edge returns promptly while outward wheel momentum continues
+  -  63 [touch] › tests/e2e/editor-swipe.spec.ts:476:1 › an inward wheel gesture interrupts the edge return without being cleared by the old timer
+[WebServer] 6:02:58 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:02:58 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  64 [touch] › tests/e2e/editor-swipe.spec.ts:519:1 › a new finger swipe can start during the edge return (1.7s)
+  -  65 [touch] › tests/e2e/editor-swipe.spec.ts:550:1 › Chromebook layouts devote at most 104 pixels to the header and tools
+  ✓  62 [touch] › tests/e2e/learning-tools.spec.ts:280:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (2.6s)
+[WebServer] 6:03:00 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:03:00 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:03:02 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  67 [touch] › tests/e2e/learning-tools.spec.ts:388:1 › a thousand-page picker only renders previews near the scroll viewport (3.5s)
+  -  68 [touch] › tests/e2e/map-viewport.spec.ts:3:1 › Chromebook map starts at 100%, shows two full rows at 60%, fits ten topics, and restores the selected page
+[WebServer] 6:03:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  66 [touch] › tests/e2e/map-headings.spec.ts:3:1 › editable map headings stay readable and meet the scrollport without gaps at 300% (5.0s)
+[WebServer] 6:03:05 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  69 [touch] › tests/e2e/map-viewport.spec.ts:80:1 › map zoom and editing remain usable on a narrow touch screen (1.7s)
+  -  71 [touch] › tests/e2e/map-viewport.spec.ts:120:1 › a thousand pages render nearby thumbnails only, keep their grid positions, and expose exactly three display steps
+  ✓  70 [touch] › tests/e2e/save-entry.spec.ts:2:1 › file saving explains formats and opens backup recovery without signing in (1.4s)
+[WebServer] 6:03:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:03:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  72 [touch] › tests/e2e/sheets-filter.spec.ts:65:1 › filters a column into a balanced grid, retains real numbers, zooms and pinches into the correct editor and back (3.3s)
+[WebServer] 6:03:09 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  73 [touch] › tests/e2e/text-alignment.spec.ts:47:1 › all nine text positions match while reading and typing, without moving the box (5.6s)
+[WebServer] 6:03:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:03:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  74 [touch] › tests/e2e/sheets-filter.spec.ts:122:1 › sheets add, duplicate, rename, reorder, delete and undo independently and roundtrip through JSON (3.8s)
+[WebServer] 6:03:13 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 6:03:13 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  76 [touch] › tests/e2e/sheets-filter.spec.ts:191:1 › a requested number of row copies is created atomically and one undo restores the grid (1.3s)
+  ✓  75 [touch] › tests/e2e/text-alignment.spec.ts:106:1 › text alignment survives undo, JSON restoration, reload, thumbnails and presentation (2.6s)
+
+  19 skipped
+  57 passed (1.2m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

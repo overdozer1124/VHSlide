@@ -1,0 +1,19 @@
+
+> vhslide@0.39.0 test:cloud
+> playwright test --config playwright.cloud.config.ts --grep host approves only|a delayed pending
+
+[WebServer] (node:345124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:345279) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1863:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (17.6s)
+  ✓  2 [cloud-desktop] › tests/cloud/join-waiting.spec.ts:4:1 › a delayed pending response cannot reopen a dismissed cloud screen or switch work in the background (2.4s)
+(node:345673) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [cloud-touch] › tests/cloud/collaboration.spec.ts:1863:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (21.7s)
+  ✓  4 [cloud-touch] › tests/cloud/join-waiting.spec.ts:4:1 › a delayed pending response cannot reopen a dismissed cloud screen or switch work in the background (5.3s)
+
+  4 passed (50.6s)

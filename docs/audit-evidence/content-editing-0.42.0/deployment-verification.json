@@ -1,0 +1,39 @@
+{
+  "version": "0.42.0",
+  "cloudflare_version_id": "5401d461-c20d-41a4-b3ab-b75d7cde6492",
+  "url": "https://vhslide.overdozer1124.workers.dev/",
+  "root_http_status": 200,
+  "health_http_status": 200,
+  "health": {
+    "ok": true
+  },
+  "html_matches_local_build": true,
+  "assets_match_local_build": [
+    {
+      "path": "assets/ReleaseHistory-NRqgPGTn.js",
+      "sha256": "2aa9e31eaccdc35f9584f377dfad8c787ab9e1b7c3673f6b26b5f48cdc151fb0",
+      "bytes": 21156
+    },
+    {
+      "path": "assets/backup.worker-DkZ_90hV.js",
+      "sha256": "bb0f960ec48fc6994ce1478911d4ea961a9847c4ee5681f49a209cad0d408e8c",
+      "bytes": 28734
+    },
+    {
+      "path": "assets/backupWorker-if-bIZU9.js",
+      "sha256": "818d0f6d14f7eb021a2ba99f243038ef4fce85f732b3bba6e78fa17668ebd7bc",
+      "bytes": 1051
+    },
+    {
+      "path": "assets/index-BlyIACl6.css",
+      "sha256": "3e57feb7ebd15c318e20568f94ed7ba877f50f200d87cedbfd1425c715c21d5b",
+      "bytes": 107721
+    },
+    {
+      "path": "assets/index-h_9T0FZh.js",
+      "sha256": "56191c476cd39b5b05eeccb14714f526437ee462949666caeeebf4d3ebf25b2d",
+      "bytes": 855971
+    }
+  ],
+  "room_data_accessed": false
+}

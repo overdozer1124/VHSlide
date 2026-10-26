@@ -1,3 +1,4 @@
+import { copyPages } from "./structureData.ts";
 import type { Deck, Sheet } from "./model";
 import { blank, MAX_SLIDES, uid } from "./model";
 export const sheetList = (book: Deck): Sheet[] =>
@@ -29,6 +30,15 @@ export function mergeSheet(book: Deck, next: Deck): Deck {
   return {
     ...book,
     title: next.title,
+    ...(next.sheets === undefined
+      ? {}
+      : {
+          sheets: sheetList(book).map((sheet) =>
+            sheet.id === id
+              ? (next.sheets!.find((s) => s.id === id) ?? sheet)
+              : sheet,
+          ),
+        }),
     linkedRows: next.linkedRows,
     slides: [...others, ...slides],
     ...(book.rowSelections === undefined && next.rowSelections === undefined
@@ -67,12 +77,7 @@ export function changeSheet(
     const copies =
       action === "add"
         ? [{ ...blank(0, 0), sheetId: newId }]
-        : source.map((s) => ({
-            ...s,
-            id: uid(),
-            sheetId: newId,
-            elements: s.elements.map((e) => ({ ...e, id: uid() })),
-          }));
+        : copyPages(source, uid).map((s) => ({ ...s, sheetId: newId }));
     if (copies.length + book.slides.length > MAX_SLIDES)
       throw new Error(`作品全体で${MAX_SLIDES}ページまでです。`);
     const baseName =

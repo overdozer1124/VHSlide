@@ -1,0 +1,15 @@
+[WebServer] (node:241500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:241521) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (14.6s)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (9.3s)
+(node:241743) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [cloud-touch] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (14.6s)
+  ✓  4 [cloud-touch] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (9.1s)
+
+  4 passed (52.6s)
