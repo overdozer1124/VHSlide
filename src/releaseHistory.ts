@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.47.2",
+    date: "2026-10-26",
+    title: "タッチ操作で一覧の最下段まで表示",
+    changes: [
+      "タッチ操作の端末で、編集画面から一覧の最下段のページへ戻ったとき、一覧が下端まで届かず「下に追加」ボタンが少し切れる問題を修正しました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.47.1",
     date: "2026-10-26",
     title: "一覧のピンチ操作をなめらかに",
