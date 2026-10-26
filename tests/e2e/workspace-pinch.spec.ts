@@ -399,19 +399,13 @@ test("a released trackpad pinch eases into the next step and keeps the slide und
     },
     { x, y },
   );
-  const pinched = previewScale(preview);
-  expect(pinched).toBeCloseTo(Math.exp(-0.24), 3);
-  // Released after the trackpad goes quiet: the preview is still drawn, and
-  // eases from its size on screen into the 60% step.
+  expect(preview).toBe("");
   expect(released.label).toBe("100%");
-  expect(released.computed).not.toBe("none");
-  expect(previewScale(released.keyframes[0])).toBeCloseTo(pinched, 3);
-  expect(previewScale(released.keyframes.at(-1)!)).toBeCloseTo(0.6, 3);
-  // A trackpad has been still for a moment by then: start gently, no overshoot.
   const scales = released.keyframes.map(previewScale);
-  expect(scales[1]).toBeGreaterThan(pinched - (pinched - 0.6) * 0.05);
-  for (const [i, scale] of scales.entries())
-    if (i) expect(scale).toBeLessThanOrEqual(scales[i - 1] + 1e-9);
+  expect(scales[0]).toBeCloseTo(1, 3);
+  expect(scales.at(-1)!).toBeCloseTo(0.6, 3);
+  for (let i = 1; i < scales.length; i++)
+    expect(scales[i - 1] - scales[i]).toBeCloseTo(0.4 / (scales.length - 1), 3);
   await expect(reset).toHaveText("60%");
   await settledMap(page);
   const after = (await thumbnail.boundingBox())!;
@@ -420,67 +414,18 @@ test("a released trackpad pinch eases into the next step and keeps the slide und
   expect(Math.abs(after.y + after.height * 0.4 - y)).toBeLessThanOrEqual(2);
 });
 
-test("a trackpad pinch resists past the next step, and pinching again mid-snap commits it once", async ({
-  page,
-}, info) => {
-  test.skip(info.project.name !== "desktop", "トラックパッドのピンチ");
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await installTrackpad(page);
-  await page.addInitScript(() =>
-    localStorage.setItem(
-      "vhslide-workspace-preferences-v1",
-      JSON.stringify({ zoomSteps: [30, 60, 100] }),
-    ),
-  );
+test("one trackpad gesture triggers only one step despite additional events", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop");
+  await page.addInitScript(() => localStorage.setItem("vhslide-workspace-preferences-v1", JSON.stringify({ zoomSteps: [30, 60, 100] })));
   await page.goto("/");
-  const reset = page.getByRole("button", {
-    name: "表示サイズを100%に戻す",
-    exact: true,
-  });
-  await expect(reset).toHaveText("100%");
-  const box = (await page.locator(".thumbnail").first().boundingBox())!;
-  const pinches = await page.evaluate(
-    async ({ x, y }) => {
-      const pad = window as unknown as Trackpad;
-      const grid = document.querySelector<HTMLElement>(".map-grid")!;
-      const resisted = pad.pinchAt(x, y, 200);
-      await pad.released;
-      // The next pinch starts while the first release is still easing.
-      const easing = grid.getAnimations().length;
-      const preview = pad.pinchAt(x, y, 30);
-      return {
-        resisted,
-        easing,
-        preview,
-        label: document.querySelector(".map-scale-reset")!.textContent,
-        animations: grid.getAnimations().length,
-      };
-    },
-    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
-  );
-  // Pinching to 20% only reaches about 43%, so release does not leap back up.
-  expect(previewScale(pinches.resisted)).toBeCloseTo(
-    Math.exp(Math.log(0.6) + (-1.6 - Math.log(0.6)) * 0.3),
-    3,
-  );
-  expect(pinches.easing).toBe(1);
-  // The first step is committed before the second pinch takes over.
-  expect(pinches.label).toBe("60%");
-  expect(pinches.animations).toBe(0);
-  expect(previewScale(pinches.preview)).toBeCloseTo(Math.exp(-0.24), 3);
-  // The second pinch eases from 60% towards 30%, i.e. half its own start size.
-  const released = await page.evaluate(
-    () => (window as unknown as Trackpad).released,
-  );
-  expect(released.label).toBe("60%");
-  expect(previewScale(released.keyframes.at(-1)!)).toBeCloseTo(0.5, 3);
+  const reset = page.locator(".map-scale-reset");
+  await wheel(page.locator(".thumbnail").first(), [200, 30, -80]);
+  await expect(reset).toHaveText("60%");
+  await settledMap(page);
+  await page.waitForTimeout(200);
+  await wheel(page.locator(".thumbnail").first(), 30);
   await expect(reset).toHaveText("30%");
   await settledMap(page);
-  // The interrupted snap must not commit a second time later on.
-  await page.waitForTimeout(500);
-  await expect(reset).toHaveText("30%");
-  expect(errors).toEqual([]);
 });
 
 test("with reduced motion, a released trackpad pinch switches step at once", async ({

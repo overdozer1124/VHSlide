@@ -1874,6 +1874,10 @@ h1 span {
     width: 29px;
     height: 29px;
   }
+  /* Reserve space for touch add controls before virtualized rows mount. */
+  .mapping .map-grid:not([data-numbers="true"]) {
+    padding-bottom: max(0px, calc(29px - var(--map-gap, 24px)));
+  }
   .add-right {
     right: 0;
   }
@@ -6220,3 +6224,19 @@ h1 span {
 .fit-review li {display:flex;justify-content:space-between;gap:10px;padding:8px;border-bottom:1px solid #d7e1d0;align-items:center;}
 .fit-review li span {min-width:0;overflow-wrap:anywhere;}
 @media print {.cell-overflow-flag,.element-fit-notice,.fit-review {display:none!important;}}
+
+/* Preserve the physical gaps while the map preview is scaled. */
+@property --pinch-adjust { syntax: "<number>"; inherits: true; initial-value: 0; }
+.map-grid[data-pinching="true"] .grid-cell {
+  transform: translate(calc((var(--pinch-x) - var(--pinch-anchor-x, 0)) * (var(--map-gap) + 2px) * var(--pinch-adjust)), calc((var(--pinch-y) - var(--pinch-anchor-y, 0)) * var(--pinch-y-step) * var(--pinch-adjust)));
+}
+.map-grid[data-pinching="true"] .column-heading {
+  transform: translateX(calc((var(--pinch-x) - var(--pinch-anchor-x, 0)) * (var(--map-gap) + 2px) * var(--pinch-adjust)));
+}
+.map-grid[data-pinching="true"] .row-axis {
+  transform: translateY(calc((var(--pinch-y) - var(--pinch-anchor-y, 0)) * var(--pinch-y-step) * var(--pinch-adjust)));
+}
+
+.map-grid[data-pinching="true"]:not([data-numbers="true"]) .slide-card {
+  height: calc(var(--map-card-height) + var(--pinch-footer-height) * var(--pinch-adjust)) !important;
+}

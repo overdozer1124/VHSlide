@@ -8,6 +8,41 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.47.8",
+    date: "2026-10-27",
+    title: "編集画面への拡大をなめらかに",
+    changes: ["一覧から編集画面へ移るとき、スライドが拡大する動きを見やすくしました。"],
+    retrospective: false,
+  },
+  {
+    version: "0.47.7",
+    date: "2026-10-27",
+    title: "トラックパッドの拡大縮小を一定速度に",
+    changes: ["一覧でトラックパッドのピンチを検出すると、次の表示サイズまで一定の速さで移るようにしました。"],
+    retrospective: false,
+  },
+  {
+    version: "0.47.6",
+    date: "2026-10-27",
+    title: "ピンチ後の位置ずれを修正",
+    changes: ["一覧の拡大・縮小が終わるときに、スライドの位置がずれる問題を修正しました。"],
+    retrospective: false,
+  },
+  {
+    version: "0.47.5",
+    date: "2026-10-27",
+    title: "ピンチ中のスライドの間隔を安定化",
+    changes: ["一覧をピンチで拡大・縮小するとき、スライドの間隔が変わりにくくなるようにしました。"],
+    retrospective: false,
+  },
+  {
+    version: "0.47.4",
+    date: "2026-10-27",
+    title: "一覧の端への移動を安定化",
+    changes: ["タッチ操作で編集画面から一覧へ戻るとき、端のスライドが正しい位置に表示されるようにしました。"],
+    retrospective: false,
+  },
+  {
     version: "0.47.3",
     date: "2026-10-26",
     title: "ピンチ後の余分な動きをなくす",

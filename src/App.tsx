@@ -1612,8 +1612,8 @@ export default function App() {
     <CloudDocument.Provider value={cloud.doc}>
       <div
         inert={updatesOpen || cloud.panel || historyPending}
-        onPointerDownCapture={() => {
-          if (flight) flushSync(() => setFlight(undefined));
+        onPointerDownCapture={(event) => {
+          if (flight && event.pointerType !== "touch") flushSync(() => setFlight(undefined));
         }}
         onKeyDownCapture={() => {
           if (flight) flushSync(() => setFlight(undefined));

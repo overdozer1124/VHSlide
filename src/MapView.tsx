@@ -314,6 +314,7 @@ function MapViewComponent({
     const a = anchor.current;
     if (a?.id) pending.current = { id: a.id, point, rx: a.rx, ry: a.ry };
     gridRef.current!.style.transform = "";
+    gridRef.current!.style.removeProperty("--pinch-adjust");
     skipFocusScroll.current = next !== scale;
     onScale(next);
     if (next === scale) restoreAnchor();
@@ -323,6 +324,7 @@ function MapViewComponent({
   // commits that step.
   const shown = useRef<Preview>({ dx: 0, dy: 0, ratio: 1 });
   const motion = useRef<{ t: number; x: number }[]>([]);
+  const trackpadStarted = useRef(false);
   const snap = useRef<{
     animation: Animation;
     scale: number;
@@ -341,7 +343,7 @@ function MapViewComponent({
   }
   /** Carry the preview from what is shown to `to`, then commit in the same
    * task, so the transform never comes off before the new layout is drawn. */
-  function release(to: Preview, next: number, commit: () => void) {
+  function release(to: Preview, next: number, commit: () => void, uniform = false) {
     const grid = gridRef.current!,
       from = shown.current;
     const finish = () => {
@@ -363,14 +365,17 @@ function MapViewComponent({
       distance && first && last && now > first.t
         ? (last.x - first.x) / (now - first.t) / distance
         : 0;
-    const { duration, progress } = snapProgress(speed);
+    const { duration, progress } = uniform
+      ? { duration: SNAP_TIME, progress: Array.from({ length: 17 }, (_, i) => i / 16) }
+      : snapProgress(speed);
     const animation = grid.animate(
       progress.map((p, i) => ({
         offset: i / (progress.length - 1),
+        "--pinch-adjust": String(1 / (uniform ? from.ratio + (to.ratio - from.ratio) * p : from.ratio * Math.exp(distance * p)) - 1),
         transform: previewTransform({
           dx: from.dx + (to.dx - from.dx) * p,
           dy: from.dy + (to.dy - from.dy) * p,
-          ratio: from.ratio * Math.exp(distance * p),
+          ratio: uniform ? from.ratio + (to.ratio - from.ratio) * p : from.ratio * Math.exp(distance * p),
         }),
       })),
       { duration, fill: "forwards" },
@@ -385,6 +390,7 @@ function MapViewComponent({
     prepare: settle,
     start(point) {
       selection.close();
+      trackpadStarted.current = false;
       shown.current = { dx: 0, dy: 0, ratio: 1 };
       motion.current = [{ t: performance.now(), x: 0 }];
       const grid = gridRef.current!,
@@ -426,10 +432,31 @@ function MapViewComponent({
         rx: tile ? (point.x - tile.x) / tile.width : 0.5,
         ry: tile ? (point.y - tile.y) / tile.height : 0.5,
       };
+      grid.style.setProperty("--pinch-anchor-x", nearest?.dataset.x ?? "0");
+      grid.style.setProperty("--pinch-anchor-y", nearest?.dataset.y ?? "0");
       grid.style.transformOrigin = `${point.x - rect.x}px ${point.y - rect.y}px`;
       grid.dataset.pinching = "true";
     },
     change(sample) {
+      if (sample.input === "wheel") {
+        if (!sample.direction || trackpadStarted.current) return;
+        trackpadStarted.current = true;
+        const a = anchor.current!, grid = gridRef.current!;
+        if (numbers && sample.direction === "in") { delete grid.dataset.pinching; return; }
+        if (!filterOpen && a.scale === largestScale && sample.direction === "out" && a.id) {
+          delete grid.dataset.pinching;
+          const tile = grid.querySelector(`[data-page-id="${CSS.escape(a.id)}"] .thumbnail`);
+          grid.style.transform = "";
+          onEdit(a.id, tile?.getBoundingClientRect());
+          return;
+        }
+        const next = sample.direction === "in" ? smallerScale : largerScale;
+        if (a.scale && next && next !== a.scale)
+          release({ dx: 0, dy: 0, ratio: next / a.scale }, next, () => keepAnchor(next, a.point), true);
+        else if (next !== a.scale) { delete grid.dataset.pinching; keepAnchor(next, a.point); }
+        else delete grid.dataset.pinching;
+        return;
+      }
       if (numbers && sample.direction === "in") return;
       const a = anchor.current!;
       let ratio = Math.max(0.12, Math.min(5, sample.ratio));
@@ -449,14 +476,17 @@ function MapViewComponent({
       };
       motion.current.push({ t: performance.now(), x: Math.log(ratio) });
       if (motion.current.length > 12) motion.current.shift();
+      gridRef.current!.style.setProperty("--pinch-adjust", String(1 / ratio - 1));
       gridRef.current!.style.transform = previewTransform(shown.current);
     },
     end(sample) {
+      if (sample.input === "wheel" && trackpadStarted.current) return;
       const a = anchor.current!,
         grid = gridRef.current!;
       if (!sample.direction) {
         release({ dx: 0, dy: 0, ratio: 1 }, scale, () => {
           grid.style.transform = "";
+          grid.style.removeProperty("--pinch-adjust");
         });
         return;
       }
@@ -473,6 +503,7 @@ function MapViewComponent({
         const rect = tile?.getBoundingClientRect();
         // The map stays mounted while editing; do not retain its pinch preview.
         gridRef.current!.style.transform = "";
+        gridRef.current!.style.removeProperty("--pinch-adjust");
         // Keep the last useful map size when returning from the editor.
         onEdit(a.id, rect);
         return;
@@ -1021,6 +1052,8 @@ function MapViewComponent({
                 "--map-card-height": `${cardHeight}px`,
                 "--map-row-height": `${cardHeight + gap}px`,
                 "--map-gap": `${gap}px`,
+                "--pinch-y-step": `${gap + 34 + (filtered ? 22 : 0)}px`,
+                "--pinch-footer-height": `${34 + (filtered ? 22 : 0)}px`,
                 "--map-thumb-height": `${thumbHeight}px`,
               } as CSSProperties
             }
@@ -1043,7 +1076,7 @@ function MapViewComponent({
                 filtered ? (
                   <div key={x} />
                 ) : (
-                  <div className="column-heading" key={x}>
+                  <div className="column-heading" key={x} style={{ "--pinch-x": x } as CSSProperties}>
                     {filterOpen ? (
                       <button
                         className="filter-axis-button"
@@ -1127,7 +1160,7 @@ function MapViewComponent({
                         )
                       : "")
                   }
-                  style={filtered ? { visibility: "hidden" } : undefined}
+                  style={{ "--pinch-y": y, ...(filtered ? { visibility: "hidden" } : {}) } as CSSProperties}
                 >
                   <button
                     className="row-move"
@@ -1212,6 +1245,7 @@ function MapViewComponent({
                   return (
                     <div
                       className={`grid-cell ${moving ? "drop-ready" : ""}`}
+                      style={{ "--pinch-x": x, "--pinch-y": y } as CSSProperties}
                       data-map-cell={`${x},${y}`}
                       data-insert-shift={
                         dropHint?.insert && dropHint.y === y && x >= dropHint.x

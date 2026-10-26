@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 export type PinchPoint = { x: number; y: number };
 export type PinchSample = PinchPoint & {
   ratio: number;
+  input?: "touch" | "wheel";
   direction?: "in" | "out";
 };
 
@@ -51,6 +52,7 @@ export function usePinch(
           : undefined);
       sample = {
         ...next,
+        input: source,
         direction,
         ratio:
           direction === "in"

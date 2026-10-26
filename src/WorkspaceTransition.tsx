@@ -48,7 +48,7 @@ export function WorkspaceTransition({
         animation = ref.current.animate(
           [{ transform: transform(flight.from) }, { transform: transform(to) }],
           {
-            duration: 280,
+            duration: 420,
             easing: "cubic-bezier(.2,.7,.2,1)",
             fill: "forwards",
           },
