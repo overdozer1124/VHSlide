@@ -406,7 +406,12 @@ test("a released trackpad pinch eases into the next step and keeps the slide und
   expect(released.label).toBe("100%");
   expect(released.computed).not.toBe("none");
   expect(previewScale(released.keyframes[0])).toBeCloseTo(pinched, 3);
-  expect(previewScale(released.keyframes[1])).toBeCloseTo(0.6, 3);
+  expect(previewScale(released.keyframes.at(-1)!)).toBeCloseTo(0.6, 3);
+  // A trackpad has been still for a moment by then: start gently, no overshoot.
+  const scales = released.keyframes.map(previewScale);
+  expect(scales[1]).toBeGreaterThan(pinched - (pinched - 0.6) * 0.05);
+  for (const [i, scale] of scales.entries())
+    if (i) expect(scale).toBeLessThanOrEqual(scales[i - 1] + 1e-9);
   await expect(reset).toHaveText("60%");
   await settledMap(page);
   const after = (await thumbnail.boundingBox())!;
@@ -469,7 +474,7 @@ test("a trackpad pinch resists past the next step, and pinching again mid-snap c
     () => (window as unknown as Trackpad).released,
   );
   expect(released.label).toBe("60%");
-  expect(previewScale(released.keyframes[1])).toBeCloseTo(0.5, 3);
+  expect(previewScale(released.keyframes.at(-1)!)).toBeCloseTo(0.5, 3);
   await expect(reset).toHaveText("30%");
   await settledMap(page);
   // The interrupted snap must not commit a second time later on.
@@ -502,4 +507,96 @@ test("with reduced motion, a released trackpad pinch switches step at once", asy
   );
   expect(animated).toBe(false);
   await settledMap(page);
+});
+
+test("a touch pinch released at rest starts its snap gently, and slides glide into the new layout", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実際の2本指タッチ");
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles("public/samples/vhslide-10x40.json");
+  await expect(page.locator(".slide-card")).toHaveCount(400);
+  const reset = page.getByRole("button", {
+    name: "表示サイズを100%に戻す",
+    exact: true,
+  });
+  const card = (row: number, column: number) =>
+    page.locator(".grid-row").nth(row).locator(".slide-card").nth(column);
+  const anchor = card(15, 4).locator(".thumbnail");
+  await anchor.evaluate((node) =>
+    node.scrollIntoView({ block: "center", inline: "center" }),
+  );
+  const box = (await anchor.boundingBox())!;
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await points(cdp, "touchStart", x, y, 100);
+  await points(cdp, "touchMove", x, y, 94);
+  await points(cdp, "touchMove", x, y, 88);
+  // The fingers rest before they lift.
+  await page.waitForTimeout(150);
+  type Motion = {
+    keyframes: string[];
+    path: { x: number; y: number; label: string }[];
+  };
+  // Record the release animation and a neighbouring slide on every frame.
+  await card(16, 5).evaluate((neighbour) => {
+    const grid = document.querySelector<HTMLElement>(".map-grid")!;
+    const label = document.querySelector(".map-scale-reset")!;
+    (window as unknown as { motion: Promise<Motion> }).motion = new Promise(
+      (resolve) => {
+        let keyframes: string[] | undefined,
+          quiet = 0;
+        const path: Motion["path"] = [];
+        (function frame() {
+          const moving = document
+            .getAnimations()
+            .filter((animation) =>
+              grid.contains((animation.effect as KeyframeEffect).target),
+            );
+          keyframes ??= moving.length
+            ? (moving[0].effect as KeyframeEffect)
+                .getKeyframes()
+                .map((step) => String(step.transform))
+            : undefined;
+          const r = neighbour.getBoundingClientRect();
+          path.push({ x: r.x, y: r.y, label: label.textContent! });
+          quiet = keyframes && !moving.length ? quiet + 1 : 0;
+          if (quiet > 3) resolve({ keyframes: keyframes!, path });
+          else requestAnimationFrame(frame);
+        })();
+      },
+    );
+  });
+  await points(cdp, "touchEnd", x, y, 0);
+  const { keyframes, path } = await page.evaluate(
+    () => (window as unknown as { motion: Promise<Motion> }).motion,
+  );
+  await expect(reset).toHaveText("60%");
+  // From rest, the first frame covers only a sliver of the way, and the
+  // snap never passes its step.
+  const scales = keyframes.map(previewScale);
+  const progress = scales.map(
+    (scale) =>
+      Math.log(scale / scales[0]) / Math.log(scales.at(-1)! / scales[0]),
+  );
+  expect(scales.at(-1)!).toBeCloseTo(0.6 / 1, 3);
+  expect(progress[1]).toBeLessThan(0.05);
+  for (const [i, p] of progress.entries())
+    if (i) expect(p).toBeGreaterThanOrEqual(progress[i - 1] - 1e-9);
+  // The new layout spaces the slides differently, but the neighbour does not
+  // jump there when it is drawn: it glides from where the preview left it.
+  const committed = path.findIndex((step) => step.label === "60%");
+  const [before, drawn, end] = [
+    path[committed - 1],
+    path[committed],
+    path.at(-1)!,
+  ];
+  const jump = Math.hypot(drawn.x - before.x, drawn.y - before.y),
+    glide = Math.hypot(end.x - before.x, end.y - before.y);
+  expect(glide).toBeGreaterThan(10);
+  expect(jump).toBeLessThan(glide * 0.3);
 });

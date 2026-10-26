@@ -60,10 +60,35 @@ import type { AssignmentReadiness } from "./assignmentReadiness";
 import { pageOrigin, type ResolvedPageScope } from "./pageScope";
 import { PageScopeSummary } from "./PageScopeSummary";
 
-// After release, a pinch preview eases into its display step for this long.
-const SNAP_DURATION = 200;
+// A released pinch carries on at the fingers' speed and comes to rest on its
+// display step within this many ms (sooner when released quickly).
+const SNAP_TIME = 250;
 // Beyond the next display step, the preview follows this share of the pinch.
 const OVERSTRETCH = 0.3;
+// Then the slides glide from the preview into the new layout for this long.
+const GLIDE_TIME = 220;
+const FRAME = 1000 / 60;
+
+type Preview = { dx: number; dy: number; ratio: number };
+const previewTransform = ({ dx, dy, ratio }: Preview) =>
+  `translate(${dx}px, ${dy}px) scale(${ratio})`;
+/** Per-frame progress (0 to 1) of a curve that starts at `speed` (a share of
+ * the distance per ms) and comes to rest at 1 without overshooting it. */
+function snapProgress(speed: number) {
+  // A fast release arrives sooner, so that it only slows down from there.
+  const duration = Math.max(
+    FRAME,
+    speed > 0 ? Math.min(SNAP_TIME, 3 / speed) : SNAP_TIME,
+  );
+  // The starting slope over the whole curve; moving away first only a little.
+  const slope = Math.max(-1.5, Math.min(3, speed * duration));
+  const frames = Math.round(duration / FRAME);
+  const progress = Array.from({ length: frames + 1 }, (_, i) => {
+    const s = i / frames;
+    return slope * s * (1 - s) ** 2 + s * s * (3 - 2 * s);
+  });
+  return { duration, progress };
+}
 
 interface MapViewProps {
   remainingPages: number;
@@ -295,16 +320,21 @@ function MapViewComponent({
     onScale(next);
     if (next === scale) restoreAnchor();
   }
-  // The scale the pinch preview last drew, and the release animation easing
-  // it into a display step until `finish` commits that step.
-  const shown = useRef(1);
+  // The preview the pinch last drew and its recent scales (log, by time), the
+  // release animation carrying it into a display step until `finish` commits
+  // that step, and the slides gliding into the committed layout.
+  const shown = useRef<Preview>({ dx: 0, dy: 0, ratio: 1 });
+  const motion = useRef<{ t: number; x: number }[]>([]);
   const snap = useRef<{
     animation: Animation;
     scale: number;
     finish: () => void;
   } | null>(null);
+  const glides = useRef<Animation[]>([]);
   /** Commit a running release animation at once; returns the settled scale. */
   function settle() {
+    for (const glide of glides.current) glide.cancel();
+    glides.current = [];
     const running = snap.current;
     if (!running) return scale;
     snap.current = null;
@@ -314,32 +344,108 @@ function MapViewComponent({
     flushSync(running.finish);
     return running.scale;
   }
-  function release(from: string, to: string, next: number, commit: () => void) {
-    const grid = gridRef.current!;
+  /** Run `commit`, then glide the slides from where the preview drew them,
+   * rather than jumping into the new layout (its gaps and labels do not scale
+   * with the slides). Sticky headings glide only when seen before and after. */
+  function glideInto(commit: () => void) {
+    const view = scrollRef.current!.getBoundingClientRect();
+    const items = [
+      ...gridRef.current!.querySelectorAll<HTMLElement>(
+        ".slide-card, .empty-cell, .column-heading, .row-axis",
+      ),
+    ];
+    const seen = (r: DOMRect) =>
+      r.width > 0 &&
+      r.right > view.left &&
+      r.left < view.right &&
+      r.bottom > view.top &&
+      r.top < view.bottom;
+    const before = items.map((item) => item.getBoundingClientRect());
+    commit();
+    // Read every new position before animating any, so that layout runs once.
+    const after = items.map((item) => item.getBoundingClientRect());
+    items.forEach((item, i) => {
+      const from = before[i],
+        to = after[i];
+      const heading = !item.matches(".slide-card, .empty-cell");
+      if (
+        !item.isConnected ||
+        (heading ? !seen(from) || !seen(to) : !seen(from) && !seen(to))
+      )
+        return;
+      const dx = from.x - to.x,
+        dy = from.y - to.y,
+        k = from.width / to.width;
+      if (Math.hypot(dx, dy) < 0.5 && Math.abs(k - 1) < 0.002) return;
+      glides.current.push(
+        item.animate(
+          [
+            {
+              transformOrigin: "0 0",
+              transform: `translate(${dx}px, ${dy}px) scale(${k})`,
+            },
+            { transformOrigin: "0 0", transform: "none" },
+          ],
+          { duration: GLIDE_TIME, easing: "cubic-bezier(.3,0,.2,1)" },
+        ),
+      );
+    });
+  }
+  /** Carry the preview from what is shown to `to`, then commit in the same
+   * task, so the transform never comes off before the new layout is drawn. */
+  function release(
+    to: Preview,
+    next: number,
+    commit: () => void,
+    glide: boolean,
+  ) {
+    const grid = gridRef.current!,
+      from = shown.current;
     const finish = () => {
       delete grid.dataset.pinching;
       commit();
     };
-    if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches)
+    const distance = Math.log(to.ratio / from.ratio),
+      move = Math.hypot(to.dx - from.dx, to.dy - from.dy);
+    if (
+      (!distance && !move) ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
       return finish();
-    const animation = grid.animate([{ transform: from }, { transform: to }], {
-      duration: SNAP_DURATION,
-      easing: "cubic-bezier(.2,.8,.2,1)",
-      fill: "forwards",
-    });
+    // Carry on at the speed the scale changed over the last 100ms.
+    const now = performance.now(),
+      last = motion.current.at(-1);
+    const first = motion.current.find((m) => now - m.t <= 100) ?? last;
+    const speed =
+      distance && first && last && now > first.t
+        ? (last.x - first.x) / (now - first.t) / distance
+        : 0;
+    const { duration, progress } = snapProgress(speed);
+    const animation = grid.animate(
+      progress.map((p, i) => ({
+        offset: i / (progress.length - 1),
+        transform: previewTransform({
+          dx: from.dx + (to.dx - from.dx) * p,
+          dy: from.dy + (to.dy - from.dy) * p,
+          ratio: from.ratio * Math.exp(distance * p),
+        }),
+      })),
+      { duration, fill: "forwards" },
+    );
     snap.current = { animation, scale: next, finish };
     animation.onfinish = () => {
-      if (snap.current?.animation === animation) settle();
+      if (snap.current?.animation !== animation) return;
+      if (glide) glideInto(settle);
+      else settle();
     };
   }
   useEffect(() => () => snap.current?.animation.cancel(), []);
-  const preview = (sample: PinchPoint, origin: PinchPoint, ratio: number) =>
-    `translate(${sample.x - origin.x}px, ${sample.y - origin.y}px) scale(${ratio})`;
   const pinching = usePinch(scrollRef, {
     prepare: settle,
     start(point) {
       selection.close();
-      shown.current = 1;
+      shown.current = { dx: 0, dy: 0, ratio: 1 };
+      motion.current = [{ t: performance.now(), x: 0 }];
       const grid = gridRef.current!,
         rect = grid.getBoundingClientRect();
       // Read the touched card directly. For gaps, use fixed grid coordinates
@@ -395,20 +501,26 @@ function MapViewComponent({
         if (Math.abs(stretch) > Math.abs(limit))
           ratio = Math.exp(limit + (stretch - limit) * OVERSTRETCH);
       }
-      shown.current = ratio;
-      gridRef.current!.style.transform = preview(sample, a.point, ratio);
+      shown.current = {
+        dx: sample.x - a.point.x,
+        dy: sample.y - a.point.y,
+        ratio,
+      };
+      motion.current.push({ t: performance.now(), x: Math.log(ratio) });
+      if (motion.current.length > 12) motion.current.shift();
+      gridRef.current!.style.transform = previewTransform(shown.current);
     },
     end(sample) {
       const a = anchor.current!,
         grid = gridRef.current!;
       if (!sample.direction) {
         release(
-          preview(sample, a.point, shown.current),
-          preview(a.point, a.point, 1),
+          { dx: 0, dy: 0, ratio: 1 },
           scale,
           () => {
             grid.style.transform = "";
           },
+          false,
         );
         return;
       }
@@ -433,10 +545,10 @@ function MapViewComponent({
       const next = sample.direction === "in" ? smallerScale : largerScale;
       if (a.scale && next)
         release(
-          preview(sample, a.point, shown.current),
-          preview(sample, a.point, next / a.scale),
+          { ...shown.current, ratio: next / a.scale },
           next,
           () => keepAnchor(next, sample),
+          true,
         );
       else {
         // Switching to or from the numbered overview stays immediate.
