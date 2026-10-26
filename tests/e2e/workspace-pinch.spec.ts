@@ -312,6 +312,46 @@ test("pinching back to the map centers an interior thumbnail and clamps edge thu
   }
 });
 
+test("pinching back to a last-row page reached in the editor scrolls the map to its bottom edge", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "タッチ用の大きい追加ボタン");
+  await page.setViewportSize({ width: 1366, height: 600 });
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles("public/samples/vhslide-10x40.json");
+  await expect(page.locator(".slide-card")).toHaveCount(400);
+  const cdp = await page.context().newCDPSession(page);
+  const map = page.locator(".map-scroll");
+  await page.locator(".thumbnail").first().click();
+  await noFlight(page);
+  // The hidden map stays at the top, so the last row is not yet drawn in
+  // detail when the map scrolls down to it.
+  for (let i = 0; i < 39; i++) await page.keyboard.press("ArrowDown");
+  const box = (await page.locator(".editor-pager").boundingBox())!;
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  await points(cdp, "touchStart", x, y, 90);
+  await points(cdp, "touchMove", x, y, 83);
+  await points(cdp, "touchMove", x, y, 95);
+  await points(cdp, "touchEnd", x, y, 0);
+  await expect(map).toBeVisible();
+  await noFlight(page);
+  const card = page.locator(".grid-row").nth(39).locator(".slide-card").first();
+  await expect(card.locator(".thumbnail")).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(card.locator(".slide-canvas")).toHaveCount(1);
+  expect(
+    await map.evaluate(
+      (node) => node.scrollHeight - node.clientHeight - node.scrollTop,
+    ),
+  ).toBeLessThanOrEqual(1);
+});
+
 type Release = { label: string; computed: string; keyframes: string[] };
 type Trackpad = {
   /** Pinch once at a point and return the preview it draws. */

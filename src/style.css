@@ -1880,6 +1880,12 @@ h1 span {
   .add-down {
     left: 107px;
   }
+  /* The larger add-below dot hangs past the last row's gap. Reserve that room
+     even while the last row is not drawn in detail, or the map's bottom edge
+     moves after returning to a bottom-row page and leaves it a little short. */
+  .mapping .map-grid[data-numbers="false"] {
+    padding-bottom: calc(29px - var(--map-gap));
+  }
   .resize-handle {
     width: 28px;
     height: 28px;
