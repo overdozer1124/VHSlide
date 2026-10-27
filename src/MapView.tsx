@@ -38,6 +38,7 @@ import type { Deck, Slide, GridMove } from "./model";
 import { bounds, W, H } from "./model";
 import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
+import { editorSlideWidth } from "./EditorPager";
 import type { PinchPoint } from "./usePinch";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const ThumbnailCanvas = memo(Canvas);
@@ -763,6 +764,24 @@ function MapViewComponent({
         const limit = Math.log(next / a.scale),
           stretch = Math.log(ratio);
         if (Math.abs(stretch) > Math.abs(limit))
+          ratio = Math.exp(limit + (stretch - limit) * OVERSTRETCH);
+      }
+      // Opening the editor, resist past the size it will show the slide at,
+      // so the slide does not shrink back into it after the fingers lift.
+      if (
+        sample.direction === "out" &&
+        !filterOpen &&
+        a.scale === largestScale &&
+        a.id
+      ) {
+        const view = scrollRef.current!;
+        const editor =
+          editorSlideWidth() ??
+          W *
+            Math.min((view.clientWidth - 48) / W, (view.clientHeight - 85) / H);
+        const limit = Math.log(Math.max(1, editor / thumbWidth)),
+          stretch = Math.log(ratio);
+        if (stretch > limit)
           ratio = Math.exp(limit + (stretch - limit) * OVERSTRETCH);
       }
       shown.current = {

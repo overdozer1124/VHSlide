@@ -1,11 +1,14 @@
 import type { CSSProperties, ReactNode, RefObject } from "react";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import type { Deck, Slide } from "./model";
 import { editorNeighbor, W, H } from "./model";
 import { Canvas } from "./Canvas";
 import { useSlidePan } from "./useSlidePan";
 import { usePinch } from "./usePinch";
 const PagePreview = memo(Canvas);
+let shownWidth: number | undefined;
+/** How wide the editor last showed its slide, if it has been open. */
+export const editorSlideWidth = () => shownWidth;
 
 export function EditorPager({
   deck,
@@ -29,6 +32,9 @@ export function EditorPager({
 }) {
   const width = W * zoom,
     height = H * zoom;
+  useEffect(() => {
+    shownWidth = width;
+  }, [width]);
   const { viewport, pan, handlers, cancel } = useSlidePan({
     slideId: slide.id,
     width,
