@@ -67,6 +67,8 @@ const SNAP_TIME = 250;
 // Beyond the next display step, the preview follows this share of the pinch.
 const OVERSTRETCH = 0.3;
 const FRAME = 1000 / 60;
+// The length of the paused animations a pinch's spread follows.
+const SCRUB_TIME = 1000;
 
 type Preview = { dx: number; dy: number; ratio: number };
 type SpreadCard = {
@@ -83,6 +85,24 @@ type SpreadCard = {
 };
 const previewTransform = ({ dx, dy, ratio }: Preview) =>
   `translate(${dx}px, ${dy}px) scale(${ratio})`;
+// While the fingers are down, transforms are drawn through paused animations,
+// not inline styles. Chrome repaints and re-layerizes the whole map when an
+// inline scale changes, which slower devices such as Chromebooks cannot do
+// every frame; an animated transform it only moves.
+const holds = new WeakMap<Element, Animation>();
+function hold(el: HTMLElement, transform: string) {
+  const frames = [{ transform }, { transform }];
+  const held = holds.get(el);
+  if (held?.playState === "paused")
+    return (held.effect as KeyframeEffect).setKeyframes(frames);
+  const animation = el.animate(frames, { duration: 1, fill: "both" });
+  animation.pause();
+  holds.set(el, animation);
+}
+function letGo(el: HTMLElement) {
+  holds.get(el)?.cancel();
+  holds.delete(el);
+}
 /** Per-frame progress (0 to 1) of a curve that starts at `speed` (a share of
  * the distance per ms) and comes to rest at 1 without overshooting it. */
 function snapProgress(speed: number) {
@@ -336,6 +356,7 @@ function MapViewComponent({
   function keepAnchor(next: number, point: PinchPoint) {
     const a = anchor.current;
     if (a?.id) pending.current = { id: a.id, point, rx: a.rx, ry: a.ry };
+    letGo(gridRef.current!);
     gridRef.current!.style.transform = "";
     clearSpread();
     skipFocusScroll.current = next !== scale;
@@ -360,6 +381,14 @@ function MapViewComponent({
     items: { el: HTMLElement; x: number; y: number }[];
     cards: SpreadCard[];
     animations: Animation[];
+    // While the fingers are down, each part follows on a paused animation
+    // that is only moved in time (see `drawSpread`).
+    held: Map<HTMLElement, Animation>;
+    scrub?: {
+      end: number;
+      offsets: number[];
+      steps: ReturnType<typeof spreadStyles>[];
+    };
   } | null>(null);
   const labelHeight = numbers ? 0 : 34 + (filtered ? 22 : 0);
   function gatherSpread(ax: number, ay: number, point: PinchPoint) {
@@ -384,6 +413,7 @@ function MapViewComponent({
       items: [],
       cards: [],
       animations: [],
+      held: new Map(),
     };
     extendSpread(1);
   }
@@ -399,6 +429,17 @@ function MapViewComponent({
       right = view.right + (view.right - s.point.x) * grow + pad,
       top = view.top - (s.point.y - view.top) * grow - pad,
       bottom = view.bottom + (view.bottom - s.point.y) * grow + pad;
+    // Lay out every new part first, then measure them all: alternating the
+    // two would recalculate styles for each card.
+    const taken: {
+      el: HTMLElement;
+      x: number;
+      y: number;
+      card: HTMLElement;
+      thumbnail: HTMLElement | null;
+      labels: HTMLElement[];
+      buttons: HTMLElement[];
+    }[] = [];
     s.rest = s.rest.filter(({ el, rect, x, y }) => {
       if (
         rect.right < left ||
@@ -430,14 +471,13 @@ function MapViewComponent({
         }
       const buttons = [
         ...el.querySelectorAll<HTMLElement>(":scope > .add-dot"),
-      ].map((button) => {
-        button.style.willChange = "transform";
-        return {
-          el: button,
-          cx: button.offsetLeft + button.offsetWidth / 2 - card.offsetLeft,
-          cy: button.offsetTop + button.offsetHeight / 2 - card.offsetTop,
-        };
-      });
+      ];
+      for (const button of buttons) button.style.willChange = "transform";
+      taken.push({ el, x, y, card, thumbnail, labels, buttons });
+      return false;
+    });
+    // Measured on their own layers, as the card is now its parts' offset parent.
+    for (const { x, y, card, thumbnail, labels, buttons } of taken) {
       const height = card.offsetHeight;
       s.cards.push({
         card,
@@ -451,10 +491,13 @@ function MapViewComponent({
           : height - labelHeight,
         labels: labels.map((label) => ({ el: label, top: label.offsetTop })),
         width: card.offsetWidth,
-        buttons,
+        buttons: buttons.map((button) => ({
+          el: button,
+          cx: button.offsetLeft + button.offsetWidth / 2 - card.offsetLeft,
+          cy: button.offsetTop + button.offsetHeight / 2 - card.offsetTop,
+        })),
       });
-      return false;
-    });
+    }
   }
   /** The transforms that undo the preview's scaling of gaps and labels. */
   function spreadStyles(ratio: number) {
@@ -486,10 +529,77 @@ function MapViewComponent({
       },
     };
   }
+  /** Draw the spread at `ratio`. Each part runs a paused animation over every
+   * scale the pinch can reach, and frames only move it in time: far cheaper
+   * than new transforms for hundreds of parts. Time runs with 1/ratio, along
+   * which the moves are linear; the steps lie closest where curves bend most. */
   function drawSpread(ratio: number) {
     const s = spread.current;
-    if (!s) return;
+    if (!s || (ratio === 1 && !s.scrub)) return;
     extendSpread(ratio);
+    // A pinch keeps its first direction, so it stays on one side of 1.
+    if (!s.scrub) {
+      const end = ratio < 1 ? 1 / 0.12 : 1 / 5;
+      const steps = Array.from(
+        { length: 17 },
+        (_, i) => 1 + (end - 1) * (i / 16) ** 2,
+      );
+      s.scrub = {
+        end,
+        offsets: steps.map((u) => (u - 1) / (end - 1)),
+        steps: steps.map((u) => spreadStyles(1 / u)),
+      };
+    }
+    const { end, offsets, steps } = s.scrub;
+    const time =
+      SCRUB_TIME * Math.max(0, Math.min(1, (1 / ratio - 1) / (end - 1)));
+    const follow = (el: HTMLElement, transforms: () => string[]) => {
+      let animation = s.held.get(el);
+      if (!animation) {
+        const frames = transforms();
+        animation = el.animate(
+          frames.map((transform, i) => ({
+            offset: frames.length === 2 ? i : offsets[i],
+            transform,
+          })),
+          { duration: SCRUB_TIME, fill: "both" },
+        );
+        animation.pause();
+        s.held.set(el, animation);
+      }
+      animation.currentTime = time;
+    };
+    // Moves, cards and buttons are linear in time: their ends suffice.
+    const ends = [steps[0], steps[steps.length - 1]];
+    type Frame = ReturnType<ReturnType<typeof spreadStyles>["card"]>;
+    for (const { el, x, y } of s.items)
+      follow(el, () => ends.map((style) => style.move(x, y)));
+    for (const c of s.cards) {
+      let edge: Frame[] | undefined, all: Frame[] | undefined;
+      const at = (bends: boolean) =>
+        bends
+          ? (all ??= steps.map((style) => style.card(c)))
+          : (edge ??= ends.map((style) => style.card(c)));
+      follow(c.card, () => at(false).map((t) => t.card));
+      if (c.thumbnail)
+        follow(c.thumbnail, () => at(true).map((t) => t.thumbnail));
+      c.labels.forEach(({ el }, i) =>
+        follow(el, () => at(true).map((t) => t.labels[i])),
+      );
+      c.buttons.forEach(({ el }, i) =>
+        follow(el, () => at(false).map((t) => t.buttons[i])),
+      );
+    }
+  }
+  /** Stop the parts following the fingers; with `ratio`, leave them drawn
+   * there as inline styles. */
+  function dropSpread(ratio?: number) {
+    const s = spread.current;
+    if (!s) return;
+    for (const animation of s.held.values()) animation.cancel();
+    s.held.clear();
+    s.scrub = undefined;
+    if (ratio === undefined) return;
     const styles = spreadStyles(ratio);
     for (const { el, x, y } of s.items) el.style.transform = styles.move(x, y);
     for (const c of s.cards) {
@@ -550,8 +660,11 @@ function MapViewComponent({
         ),
       );
     }
+    // These animations start from what the fingers left drawn.
+    dropSpread();
   }
   function clearSpread() {
+    dropSpread();
     const s = spread.current;
     spread.current = null;
     if (!s) return;
@@ -581,6 +694,7 @@ function MapViewComponent({
     const grid = gridRef.current!;
     clearSpread();
     delete grid.dataset.pinching;
+    letGo(grid);
     grid.style.transform = "";
   }
   const snap = useRef<{
@@ -652,6 +766,7 @@ function MapViewComponent({
       })),
       timing,
     );
+    letGo(grid);
     animateSpread(ratios, timing);
     snap.current = { animation, scale: next, finish };
     animation.onfinish = () => {
@@ -689,6 +804,9 @@ function MapViewComponent({
     };
     const from = thumbnail.getBoundingClientRect(),
       drawn = grid.style.transform || previewTransform(shown.current);
+    // The copy takes inline styles only, so draw the spread with them.
+    dropSpread(shown.current.ratio);
+    letGo(grid);
     grid.style.transform = "";
     const at = grid.getBoundingClientRect();
     const cells = [...grid.querySelectorAll<HTMLElement>(".grid-cell")].map(
@@ -929,7 +1047,7 @@ function MapViewComponent({
       if (sample.direction === "in" && a.scale && next)
         extendSpread(next / a.scale);
       drawSpread(ratio);
-      gridRef.current!.style.transform = previewTransform(shown.current);
+      hold(gridRef.current!, previewTransform(shown.current));
     },
     end(sample) {
       if (sample.input === "wheel" && trackpadStarted.current) return;

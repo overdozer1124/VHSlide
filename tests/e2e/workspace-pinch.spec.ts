@@ -499,12 +499,14 @@ test("a released touch pinch starts gently from rest, turns back without carryin
       const grid = document.querySelector<HTMLElement>(".map-grid")!;
       const label = document.querySelector(".map-scale-reset")!;
       const before = label.textContent;
-      // Movement only: buttons keep their own colour transitions.
+      // Movement only: buttons keep their own colour transitions, and the
+      // paused animations that follow the fingers are not a release.
       const inGrid = () =>
         document
           .getAnimations()
           .filter(
             (animation) =>
+              animation.playState !== "paused" &&
               grid.contains((animation.effect as KeyframeEffect).target) &&
               (animation.effect as KeyframeEffect)
                 .getKeyframes()

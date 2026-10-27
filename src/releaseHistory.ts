@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.48.2",
+    date: "2026-10-27",
+    title: "ピンチ中の動きを軽く",
+    changes: [
+      "一覧でピンチしている間、スライドの拡大・縮小を描き直しのいらない方法で表示するようにしました。Chromebookなど処理の軽い端末で、ピンチ中の動きがもたつきにくくなります。見た目や操作は変わりません。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.48.1",
     date: "2026-10-27",
     title: "番号表示から戻るピンチもなめらかに",
