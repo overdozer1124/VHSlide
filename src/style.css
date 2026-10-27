@@ -1043,6 +1043,8 @@ h1 span {
   }
 }
 .editor-workspace {
+  /* The app owns pinches here, so the browser never zooms the page. */
+  touch-action: pan-x pan-y;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -2608,6 +2610,7 @@ h1 span {
 }
 
 /* The map owns pinch zoom, while native one-finger scrolling remains available. */
+.mapping .map-main,
 .mapping .map-scroll {
   touch-action: pan-x pan-y;
 }
@@ -6225,18 +6228,8 @@ h1 span {
 .fit-review li span {min-width:0;overflow-wrap:anywhere;}
 @media print {.cell-overflow-flag,.element-fit-notice,.fit-review {display:none!important;}}
 
-/* Preserve the physical gaps while the map preview is scaled. */
-@property --pinch-adjust { syntax: "<number>"; inherits: true; initial-value: 0; }
-.map-grid[data-pinching="true"] .grid-cell {
-  transform: translate(calc((var(--pinch-x) - var(--pinch-anchor-x, 0)) * (var(--map-gap) + 2px) * var(--pinch-adjust)), calc((var(--pinch-y) - var(--pinch-anchor-y, 0)) * var(--pinch-y-step) * var(--pinch-adjust)));
-}
-.map-grid[data-pinching="true"] .column-heading {
-  transform: translateX(calc((var(--pinch-x) - var(--pinch-anchor-x, 0)) * (var(--map-gap) + 2px) * var(--pinch-adjust)));
-}
-.map-grid[data-pinching="true"] .row-axis {
-  transform: translateY(calc((var(--pinch-y) - var(--pinch-anchor-y, 0)) * var(--pinch-y-step) * var(--pinch-adjust)));
-}
-
-.map-grid[data-pinching="true"]:not([data-numbers="true"]) .slide-card {
-  height: calc(var(--map-card-height) + var(--pinch-footer-height) * var(--pinch-adjust)) !important;
+/* A pinch preview moves map parts per frame; they must not ease behind it. */
+.map-grid[data-pinching="true"] .slide-card,
+.map-grid[data-pinching="true"] .empty-cell {
+  transition: none;
 }

@@ -561,6 +561,7 @@ export function Editor({
             onNavigate={onNavigate}
             onMap={onBack}
             onPinchStart={() => setGestureEpoch((epoch) => epoch + 1)}
+            surface={workspaceRef}
           >
             <Canvas
               slide={slide}

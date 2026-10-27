@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import { memo } from "react";
 import type { Deck, Slide } from "./model";
 import { editorNeighbor, W, H } from "./model";
@@ -14,6 +14,7 @@ export function EditorPager({
   onNavigate,
   onMap,
   onPinchStart,
+  surface,
   children,
 }: {
   deck: Deck;
@@ -22,6 +23,8 @@ export function EditorPager({
   onNavigate: (dx: number, dy: number) => unknown;
   onMap: (rect?: DOMRect) => void;
   onPinchStart: () => void;
+  /** Where a pinch is taken, beside the slide too; the slide by default. */
+  surface?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) {
   const width = W * zoom,
@@ -34,7 +37,7 @@ export function EditorPager({
     navigate: onNavigate,
     pinching: () => pinch.current,
   });
-  const pinch = usePinch(viewport, {
+  const pinch = usePinch(surface ?? viewport, {
     start(point) {
       cancel();
       onPinchStart();

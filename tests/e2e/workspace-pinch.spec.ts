@@ -414,9 +414,16 @@ test("a released trackpad pinch eases into the next step and keeps the slide und
   expect(Math.abs(after.y + after.height * 0.4 - y)).toBeLessThanOrEqual(2);
 });
 
-test("one trackpad gesture triggers only one step despite additional events", async ({ page }, info) => {
+test("one trackpad gesture triggers only one step despite additional events", async ({
+  page,
+}, info) => {
   test.skip(info.project.name !== "desktop");
-  await page.addInitScript(() => localStorage.setItem("vhslide-workspace-preferences-v1", JSON.stringify({ zoomSteps: [30, 60, 100] })));
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "vhslide-workspace-preferences-v1",
+      JSON.stringify({ zoomSteps: [30, 60, 100] }),
+    ),
+  );
   await page.goto("/");
   const reset = page.locator(".map-scale-reset");
   await wheel(page.locator(".thumbnail").first(), [200, 30, -80]);

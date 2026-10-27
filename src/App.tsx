@@ -1613,7 +1613,8 @@ export default function App() {
       <div
         inert={updatesOpen || cloud.panel || historyPending}
         onPointerDownCapture={(event) => {
-          if (flight && event.pointerType !== "touch") flushSync(() => setFlight(undefined));
+          if (flight && event.pointerType !== "touch")
+            flushSync(() => setFlight(undefined));
         }}
         onKeyDownCapture={() => {
           if (flight) flushSync(() => setFlight(undefined));

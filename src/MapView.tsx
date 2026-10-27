@@ -68,6 +68,18 @@ const OVERSTRETCH = 0.3;
 const FRAME = 1000 / 60;
 
 type Preview = { dx: number; dy: number; ratio: number };
+type SpreadCard = {
+  card: HTMLElement;
+  x: number;
+  y: number;
+  thumbnail: HTMLElement | null;
+  height: number;
+  base: number;
+  labels: { el: HTMLElement; top: number }[];
+  // The add buttons beside the card, by their centres from its corner.
+  width: number;
+  buttons: { el: HTMLElement; cx: number; cy: number }[];
+};
 const previewTransform = ({ dx, dy, ratio }: Preview) =>
   `translate(${dx}px, ${dy}px) scale(${ratio})`;
 /** Per-frame progress (0 to 1) of a curve that starts at `speed` (a share of
@@ -216,6 +228,16 @@ function MapViewComponent({
   const [batchOpen, setBatchOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  // A trackpad pinch over the toolbar must not zoom the whole page either.
+  useEffect(() => {
+    const node = mainRef.current!;
+    const keep = (event: WheelEvent) => {
+      if (event.ctrlKey) event.preventDefault();
+    };
+    node.addEventListener("wheel", keep, { passive: false });
+    return () => node.removeEventListener("wheel", keep);
+  }, []);
   const gridRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({
     width: 1000,
@@ -314,7 +336,7 @@ function MapViewComponent({
     const a = anchor.current;
     if (a?.id) pending.current = { id: a.id, point, rx: a.rx, ry: a.ry };
     gridRef.current!.style.transform = "";
-    gridRef.current!.style.removeProperty("--pinch-adjust");
+    clearSpread();
     skipFocusScroll.current = next !== scale;
     onScale(next);
     if (next === scale) restoreAnchor();
@@ -325,6 +347,241 @@ function MapViewComponent({
   const shown = useRef<Preview>({ dx: 0, dy: 0, ratio: 1 });
   const motion = useRef<{ t: number; x: number }[]>([]);
   const trackpadStarted = useRef(false);
+  // Map parts that keep their physical gaps, card borders and labels while the
+  // grid is scaled, each by its steps from the pinched slide. Only parts that
+  // can come into view are moved, on layers of their own, by transforms alone:
+  // frames neither lay out nor repaint anything.
+  const spread = useRef<{
+    point: PinchPoint;
+    // The smallest scale for which every part in view has been gathered.
+    reach: number;
+    rest: { el: HTMLElement; rect: DOMRect; x: number; y: number }[];
+    items: { el: HTMLElement; x: number; y: number }[];
+    cards: SpreadCard[];
+    animations: Animation[];
+  } | null>(null);
+  const labelHeight = numbers ? 0 : 34 + (filtered ? 22 : 0);
+  function gatherSpread(ax: number, ay: number, point: PinchPoint) {
+    const rest = [
+      ...gridRef.current!.querySelectorAll<HTMLElement>(
+        ".grid-cell, .column-heading, .row-axis, .axis-origin, .axis-horizontal, .map-axis-corner",
+      ),
+    ].map((el) => {
+      // Headings move with the first row and column next to them.
+      const [x, y] = (
+        el.dataset.mapCell ??
+        `${el.dataset.pinchX ?? 0},${el.dataset.pinchY ?? 0}`
+      )
+        .split(",")
+        .map(Number);
+      return { el, rect: el.getBoundingClientRect(), x: x - ax, y: y - ay };
+    });
+    spread.current = {
+      point,
+      reach: Infinity,
+      rest,
+      items: [],
+      cards: [],
+      animations: [],
+    };
+    extendSpread(1);
+  }
+  /** Take in the parts that scaling the grid down to `ratio` shows. */
+  function extendSpread(ratio: number) {
+    const s = spread.current;
+    if (!s || ratio >= s.reach) return;
+    s.reach = ratio;
+    const view = scrollRef.current!.getBoundingClientRect(),
+      grow = 1 / Math.min(1, ratio) - 1,
+      pad = 48;
+    const left = view.left - (s.point.x - view.left) * grow - pad,
+      right = view.right + (view.right - s.point.x) * grow + pad,
+      top = view.top - (s.point.y - view.top) * grow - pad,
+      bottom = view.bottom + (view.bottom - s.point.y) * grow + pad;
+    s.rest = s.rest.filter(({ el, rect, x, y }) => {
+      if (
+        rect.right < left ||
+        rect.left > right ||
+        rect.bottom < top ||
+        rect.top > bottom
+      )
+        return true;
+      const card = numbers
+        ? null
+        : el.querySelector<HTMLElement>(":scope > .slide-card");
+      if (!card) {
+        el.style.willChange = "transform";
+        s.items.push({ el, x, y });
+        return false;
+      }
+      // A card carries its cell's move, and keeps a physical label height by
+      // stretching only vertically, which its thumbnail and labels undo.
+      const thumbnail = card.querySelector<HTMLElement>(":scope > .thumbnail");
+      const labels = [
+        ...card.querySelectorAll<HTMLElement>(
+          ":scope > .card-footer, :scope > .filtered-origin",
+        ),
+      ];
+      for (const part of [card, thumbnail, ...labels])
+        if (part) {
+          part.style.transformOrigin = "0 0";
+          part.style.willChange = "transform";
+        }
+      const buttons = [
+        ...el.querySelectorAll<HTMLElement>(":scope > .add-dot"),
+      ].map((button) => {
+        button.style.willChange = "transform";
+        return {
+          el: button,
+          cx: button.offsetLeft + button.offsetWidth / 2 - card.offsetLeft,
+          cy: button.offsetTop + button.offsetHeight / 2 - card.offsetTop,
+        };
+      });
+      const height = card.offsetHeight;
+      s.cards.push({
+        card,
+        thumbnail,
+        x,
+        y,
+        height,
+        // Where the thumbnail ends and the labels start.
+        base: thumbnail
+          ? thumbnail.offsetTop + thumbnail.offsetHeight
+          : height - labelHeight,
+        labels: labels.map((label) => ({ el: label, top: label.offsetTop })),
+        width: card.offsetWidth,
+        buttons,
+      });
+      return false;
+    });
+  }
+  /** The transforms that undo the preview's scaling of gaps and labels. */
+  function spreadStyles(ratio: number) {
+    const adjust = 1 / ratio - 1;
+    const move = (x: number, y: number) =>
+      `translate(${x * (gap + 2) * adjust}px, ${y * (gap + labelHeight) * adjust}px)`;
+    return {
+      move,
+      card(c: SpreadCard) {
+        const k = (ratio * c.base + c.height - c.base) / (ratio * c.height);
+        return {
+          card: `${move(c.x, c.y)} scaleY(${k})`,
+          thumbnail: `scaleY(${1 / k})`,
+          labels: c.labels.map(
+            ({ top }) =>
+              `translateY(${(c.base + (top - c.base) / ratio) / k - top}px) scale(${1 / ratio}, ${1 / (ratio * k)})`,
+          ),
+          // Beside the card a button keeps its physical size and distance from
+          // the card's edge; along the card it goes with the thumbnail.
+          buttons: c.buttons.map(({ cx, cy }) => {
+            const x = cx > c.width ? c.width + (cx - c.width) / ratio : cx,
+              y =
+                cy > c.height
+                  ? (ratio * c.base + c.height - c.base + cy - c.height) / ratio
+                  : cy;
+            return `${move(c.x, c.y)} translate(${x - cx}px, ${y - cy}px) scale(${1 / ratio})`;
+          }),
+        };
+      },
+    };
+  }
+  function drawSpread(ratio: number) {
+    const s = spread.current;
+    if (!s) return;
+    extendSpread(ratio);
+    const styles = spreadStyles(ratio);
+    for (const { el, x, y } of s.items) el.style.transform = styles.move(x, y);
+    for (const c of s.cards) {
+      const t = styles.card(c);
+      c.card.style.transform = t.card;
+      if (c.thumbnail) c.thumbnail.style.transform = t.thumbnail;
+      c.labels.forEach(({ el }, i) => (el.style.transform = t.labels[i]));
+      c.buttons.forEach(({ el }, i) => (el.style.transform = t.buttons[i]));
+    }
+  }
+  /** Animate the spread alongside the grid with the same timing. */
+  function animateSpread(ratios: number[], timing: KeyframeAnimationOptions) {
+    const s = spread.current;
+    if (!s) return;
+    extendSpread(Math.min(...ratios));
+    // Every fourth step of the grid's is close enough here, and far cheaper to
+    // set up for each of hundreds of parts at the moment of release.
+    const picks = ratios
+      .map((_, i) => i)
+      .filter((i) => i % 4 === 0 || i === ratios.length - 1);
+    const steps = picks.map((i) => spreadStyles(ratios[i]));
+    const animate = (el: HTMLElement, transforms: string[]) =>
+      s.animations.push(
+        el.animate(
+          transforms.map((transform, i) => ({
+            offset: picks[i] / (ratios.length - 1),
+            transform,
+          })),
+          timing,
+        ),
+      );
+    for (const { el, x, y } of s.items)
+      animate(
+        el,
+        steps.map((style) => style.move(x, y)),
+      );
+    for (const c of s.cards) {
+      const frames = steps.map((style) => style.card(c));
+      animate(
+        c.card,
+        frames.map((t) => t.card),
+      );
+      if (c.thumbnail)
+        animate(
+          c.thumbnail,
+          frames.map((t) => t.thumbnail),
+        );
+      c.labels.forEach(({ el }, i) =>
+        animate(
+          el,
+          frames.map((t) => t.labels[i]),
+        ),
+      );
+      c.buttons.forEach(({ el }, i) =>
+        animate(
+          el,
+          frames.map((t) => t.buttons[i]),
+        ),
+      );
+    }
+  }
+  function clearSpread() {
+    const s = spread.current;
+    spread.current = null;
+    if (!s) return;
+    for (const animation of s.animations) animation.cancel();
+    for (const { el } of s.items) {
+      el.style.transform = "";
+      el.style.willChange = "";
+    }
+    for (const c of s.cards)
+      for (const part of [
+        c.card,
+        c.thumbnail,
+        ...c.labels.map((l) => l.el),
+        ...c.buttons.map((b) => b.el),
+      ])
+        if (part) {
+          part.style.transform = "";
+          part.style.transformOrigin = "";
+          part.style.willChange = "";
+        }
+    // Settle these styles while transitions are still off for the preview, so
+    // ending it does not ease the cards back.
+    if (s.cards[0]) getComputedStyle(s.cards[0].card).transform;
+  }
+  /** Take the pinch preview off the grid without committing a step. */
+  function endPreview() {
+    const grid = gridRef.current!;
+    clearSpread();
+    delete grid.dataset.pinching;
+    grid.style.transform = "";
+  }
   const snap = useRef<{
     animation: Animation;
     scale: number;
@@ -343,10 +600,16 @@ function MapViewComponent({
   }
   /** Carry the preview from what is shown to `to`, then commit in the same
    * task, so the transform never comes off before the new layout is drawn. */
-  function release(to: Preview, next: number, commit: () => void, uniform = false) {
+  function release(
+    to: Preview,
+    next: number,
+    commit: () => void,
+    uniform = false,
+  ) {
     const grid = gridRef.current!,
       from = shown.current;
     const finish = () => {
+      clearSpread();
       delete grid.dataset.pinching;
       commit();
     };
@@ -366,26 +629,42 @@ function MapViewComponent({
         ? (last.x - first.x) / (now - first.t) / distance
         : 0;
     const { duration, progress } = uniform
-      ? { duration: SNAP_TIME, progress: Array.from({ length: 17 }, (_, i) => i / 16) }
+      ? {
+          duration: SNAP_TIME,
+          progress: Array.from({ length: 17 }, (_, i) => i / 16),
+        }
       : snapProgress(speed);
+    const ratios = progress.map((p) =>
+      uniform
+        ? from.ratio + (to.ratio - from.ratio) * p
+        : from.ratio * Math.exp(distance * p),
+    );
+    const timing = { duration, fill: "forwards" } as const;
     const animation = grid.animate(
       progress.map((p, i) => ({
         offset: i / (progress.length - 1),
-        "--pinch-adjust": String(1 / (uniform ? from.ratio + (to.ratio - from.ratio) * p : from.ratio * Math.exp(distance * p)) - 1),
         transform: previewTransform({
           dx: from.dx + (to.dx - from.dx) * p,
           dy: from.dy + (to.dy - from.dy) * p,
-          ratio: uniform ? from.ratio + (to.ratio - from.ratio) * p : from.ratio * Math.exp(distance * p),
+          ratio: ratios[i],
         }),
       })),
-      { duration, fill: "forwards" },
+      timing,
     );
+    animateSpread(ratios, timing);
     snap.current = { animation, scale: next, finish };
     animation.onfinish = () => {
       if (snap.current?.animation === animation) settle();
     };
   }
-  useEffect(() => () => snap.current?.animation.cancel(), []);
+  useEffect(
+    () => () => {
+      snap.current?.animation.cancel();
+      for (const animation of spread.current?.animations ?? [])
+        animation.cancel();
+    },
+    [],
+  );
   const pinching = usePinch(scrollRef, {
     prepare: settle,
     start(point) {
@@ -432,8 +711,11 @@ function MapViewComponent({
         rx: tile ? (point.x - tile.x) / tile.width : 0.5,
         ry: tile ? (point.y - tile.y) / tile.height : 0.5,
       };
-      grid.style.setProperty("--pinch-anchor-x", nearest?.dataset.x ?? "0");
-      grid.style.setProperty("--pinch-anchor-y", nearest?.dataset.y ?? "0");
+      gatherSpread(
+        Number(nearest?.dataset.x ?? 0),
+        Number(nearest?.dataset.y ?? 0),
+        point,
+      );
       grid.style.transformOrigin = `${point.x - rect.x}px ${point.y - rect.y}px`;
       grid.dataset.pinching = "true";
     },
@@ -441,20 +723,34 @@ function MapViewComponent({
       if (sample.input === "wheel") {
         if (!sample.direction || trackpadStarted.current) return;
         trackpadStarted.current = true;
-        const a = anchor.current!, grid = gridRef.current!;
-        if (numbers && sample.direction === "in") { delete grid.dataset.pinching; return; }
-        if (!filterOpen && a.scale === largestScale && sample.direction === "out" && a.id) {
-          delete grid.dataset.pinching;
-          const tile = grid.querySelector(`[data-page-id="${CSS.escape(a.id)}"] .thumbnail`);
-          grid.style.transform = "";
+        const a = anchor.current!,
+          grid = gridRef.current!;
+        if (numbers && sample.direction === "in") return endPreview();
+        if (
+          !filterOpen &&
+          a.scale === largestScale &&
+          sample.direction === "out" &&
+          a.id
+        ) {
+          endPreview();
+          const tile = grid.querySelector(
+            `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
+          );
           onEdit(a.id, tile?.getBoundingClientRect());
           return;
         }
         const next = sample.direction === "in" ? smallerScale : largerScale;
         if (a.scale && next && next !== a.scale)
-          release({ dx: 0, dy: 0, ratio: next / a.scale }, next, () => keepAnchor(next, a.point), true);
-        else if (next !== a.scale) { delete grid.dataset.pinching; keepAnchor(next, a.point); }
-        else delete grid.dataset.pinching;
+          release(
+            { dx: 0, dy: 0, ratio: next / a.scale },
+            next,
+            () => keepAnchor(next, a.point),
+            true,
+          );
+        else {
+          endPreview();
+          if (next !== a.scale) keepAnchor(next, a.point);
+        }
         return;
       }
       if (numbers && sample.direction === "in") return;
@@ -476,18 +772,17 @@ function MapViewComponent({
       };
       motion.current.push({ t: performance.now(), x: Math.log(ratio) });
       if (motion.current.length > 12) motion.current.shift();
-      gridRef.current!.style.setProperty("--pinch-adjust", String(1 / ratio - 1));
+      // Make the layers a pinch-in will need now, not when it is released.
+      if (sample.direction === "in" && a.scale && next)
+        extendSpread(next / a.scale);
+      drawSpread(ratio);
       gridRef.current!.style.transform = previewTransform(shown.current);
     },
     end(sample) {
       if (sample.input === "wheel" && trackpadStarted.current) return;
-      const a = anchor.current!,
-        grid = gridRef.current!;
+      const a = anchor.current!;
       if (!sample.direction) {
-        release({ dx: 0, dy: 0, ratio: 1 }, scale, () => {
-          grid.style.transform = "";
-          grid.style.removeProperty("--pinch-adjust");
-        });
+        release({ dx: 0, dy: 0, ratio: 1 }, scale, endPreview);
         return;
       }
       if (
@@ -496,14 +791,12 @@ function MapViewComponent({
         sample.direction === "out" &&
         a.id
       ) {
-        delete grid.dataset.pinching;
         const tile = gridRef.current!.querySelector(
           `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
         );
         const rect = tile?.getBoundingClientRect();
         // The map stays mounted while editing; do not retain its pinch preview.
-        gridRef.current!.style.transform = "";
-        gridRef.current!.style.removeProperty("--pinch-adjust");
+        endPreview();
         // Keep the last useful map size when returning from the editor.
         onEdit(a.id, rect);
         return;
@@ -516,7 +809,7 @@ function MapViewComponent({
         );
       else {
         // Switching to or from the numbered overview stays immediate.
-        delete grid.dataset.pinching;
+        endPreview();
         keepAnchor(next, sample);
       }
     },
@@ -568,7 +861,14 @@ function MapViewComponent({
     let frame: number | undefined;
     function measure() {
       frame = undefined;
-      if (pinching.current || !node.clientWidth || !node.clientHeight) return;
+      // Not while a pinch preview is drawn (a trackpad gesture may still be
+      // going on after its step has been committed).
+      if (
+        (pinching.current && gridRef.current?.dataset.pinching) ||
+        !node.clientWidth ||
+        !node.clientHeight
+      )
+        return;
       const width = node.clientWidth,
         height = node.clientHeight;
       setViewportSize((before) =>
@@ -679,6 +979,7 @@ function MapViewComponent({
         }
       }}
       className="map-main"
+      ref={mainRef}
       data-filter-selecting={filterOpen}
       hidden={!visible}
       style={visible ? undefined : { display: "none" }}
@@ -1052,8 +1353,6 @@ function MapViewComponent({
                 "--map-card-height": `${cardHeight}px`,
                 "--map-row-height": `${cardHeight + gap}px`,
                 "--map-gap": `${gap}px`,
-                "--pinch-y-step": `${gap + 34 + (filtered ? 22 : 0)}px`,
-                "--pinch-footer-height": `${34 + (filtered ? 22 : 0)}px`,
                 "--map-thumb-height": `${thumbHeight}px`,
               } as CSSProperties
             }
@@ -1076,7 +1375,7 @@ function MapViewComponent({
                 filtered ? (
                   <div key={x} />
                 ) : (
-                  <div className="column-heading" key={x} style={{ "--pinch-x": x } as CSSProperties}>
+                  <div className="column-heading" key={x} data-pinch-x={x}>
                     {filterOpen ? (
                       <button
                         className="filter-axis-button"
@@ -1160,7 +1459,8 @@ function MapViewComponent({
                         )
                       : "")
                   }
-                  style={{ "--pinch-y": y, ...(filtered ? { visibility: "hidden" } : {}) } as CSSProperties}
+                  data-pinch-y={y}
+                  style={filtered ? { visibility: "hidden" } : undefined}
                 >
                   <button
                     className="row-move"
@@ -1245,7 +1545,6 @@ function MapViewComponent({
                   return (
                     <div
                       className={`grid-cell ${moving ? "drop-ready" : ""}`}
-                      style={{ "--pinch-x": x, "--pinch-y": y } as CSSProperties}
                       data-map-cell={`${x},${y}`}
                       data-insert-shift={
                         dropHint?.insert && dropHint.y === y && x >= dropHint.x
