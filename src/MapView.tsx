@@ -658,6 +658,137 @@ function MapViewComponent({
       if (snap.current?.animation === animation) settle();
     };
   }
+  /** Pinching in past the smallest thumbnails, let them shrink away while the
+   * numbered overview comes in around the pinched slide, rather than switching
+   * at once. Returns false when it cannot, so the switch happens at once. */
+  function fadeToNumbers(point: PinchPoint) {
+    const a = anchor.current,
+      grid = gridRef.current!,
+      view = scrollRef.current!;
+    const thumbnail = a?.id
+      ? grid.querySelector<HTMLElement>(
+          `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
+        )
+      : null;
+    if (
+      !a?.id ||
+      !thumbnail ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return false;
+    // Copy what is on screen of the preview, as it is drawn now.
+    const box = view.getBoundingClientRect();
+    const clip = {
+      left: box.left + view.clientLeft,
+      top: box.top + view.clientTop,
+      width: view.clientWidth,
+      height: view.clientHeight,
+    };
+    const from = thumbnail.getBoundingClientRect(),
+      drawn = grid.style.transform || previewTransform(shown.current);
+    grid.style.transform = "";
+    const at = grid.getBoundingClientRect();
+    const cells = [...grid.querySelectorAll<HTMLElement>(".grid-cell")].map(
+      (cell) => {
+        const r = cell.getBoundingClientRect();
+        return (
+          r.right < clip.left - clip.width ||
+          r.left > clip.left + clip.width * 2 ||
+          r.bottom < clip.top - clip.height ||
+          r.top > clip.top + clip.height * 2
+        );
+      },
+    );
+    grid.style.transform = drawn;
+    const copy = grid.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll(".grid-cell").forEach((cell, i) => {
+      if (cells[i]) cell.replaceChildren();
+    });
+    Object.assign(copy.style, {
+      position: "absolute",
+      left: `${at.left - clip.left}px`,
+      top: `${at.top - clip.top}px`,
+      width: `${grid.offsetWidth}px`,
+      margin: "0",
+      transform: drawn,
+    });
+    const leaving = document.createElement("div");
+    leaving.className = "map-fade-out";
+    leaving.setAttribute("aria-hidden", "true");
+    leaving.inert = true;
+    Object.assign(leaving.style, {
+      left: `${clip.left}px`,
+      top: `${clip.top}px`,
+      width: `${clip.width}px`,
+      height: `${clip.height}px`,
+    });
+    // Moved as one, about the pinched slide.
+    const mover = document.createElement("div");
+    Object.assign(mover.style, {
+      position: "absolute",
+      inset: "0",
+      transformOrigin: `${from.x + from.width / 2 - clip.left}px ${from.y + from.height / 2 - clip.top}px`,
+    });
+    mover.append(copy);
+    leaving.append(mover);
+    view.parentElement!.append(leaving);
+    // Commit the numbered overview with the pinched slide's number under the
+    // fingers, then start both views at the same size there.
+    endPreview();
+    flushSync(() => keepAnchor(0, point));
+    const tile = grid
+      .querySelector(`[data-page-id="${CSS.escape(a.id)}"] .number-tile`)
+      ?.getBoundingClientRect();
+    if (!tile?.width) {
+      leaving.remove();
+      return true;
+    }
+    // The two views meet where the slide's number is: it may not be under the
+    // fingers, when the overview cannot scroll that far.
+    const shrink = Math.log(tile.width / from.width),
+      dx = tile.x + tile.width / 2 - (from.x + from.width / 2),
+      dy = tile.y + tile.height / 2 - (from.y + from.height / 2);
+    const now = performance.now(),
+      last = motion.current.at(-1);
+    const first = motion.current.find((m) => now - m.t <= 100) ?? last;
+    const speed =
+      first && last && now > first.t
+        ? (last.x - first.x) / (now - first.t) / shrink
+        : 0;
+    const { duration, progress } = snapProgress(speed);
+    const offset = (i: number) => i / (progress.length - 1);
+    const timing = { duration, fill: "forwards" } as const;
+    const out = mover.animate(
+      progress.map((p, i) => ({
+        offset: offset(i),
+        transform: `translate(${dx * p}px, ${dy * p}px) scale(${Math.exp(shrink * p)})`,
+        opacity: 1 - p,
+      })),
+      timing,
+    );
+    const rect = grid.getBoundingClientRect();
+    grid.style.transformOrigin = `${tile.x + tile.width / 2 - rect.x}px ${tile.y + tile.height / 2 - rect.y}px`;
+    const animation = grid.animate(
+      progress.map((p, i) => ({
+        offset: offset(i),
+        transform: `translate(${-dx * (1 - p)}px, ${-dy * (1 - p)}px) scale(${Math.exp(-shrink * (1 - p))})`,
+        opacity: p,
+      })),
+      timing,
+    );
+    snap.current = {
+      animation,
+      scale: 0,
+      finish: () => {
+        out.cancel();
+        leaving.remove();
+      },
+    };
+    animation.onfinish = () => {
+      if (snap.current?.animation === animation) settle();
+    };
+    return true;
+  }
   useEffect(
     () => () => {
       snap.current?.animation.cancel();
@@ -748,7 +879,7 @@ function MapViewComponent({
             () => keepAnchor(next, a.point),
             true,
           );
-        else {
+        else if (!(a.scale && !next && fadeToNumbers(a.point))) {
           endPreview();
           if (next !== a.scale) keepAnchor(next, a.point);
         }
@@ -826,8 +957,15 @@ function MapViewComponent({
         release({ ...shown.current, ratio: next / a.scale }, next, () =>
           keepAnchor(next, sample),
         );
-      else {
-        // Switching to or from the numbered overview stays immediate.
+      else if (
+        a.scale &&
+        !next &&
+        sample.direction === "in" &&
+        fadeToNumbers(sample)
+      ) {
+        // The thumbnails make way for the numbered overview.
+      } else {
+        // Switching from the numbered overview stays immediate.
         endPreview();
         keepAnchor(next, sample);
       }

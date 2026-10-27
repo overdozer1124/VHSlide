@@ -226,3 +226,115 @@ test("pinching beside the slide in the editor does not zoom the page, and a pinc
   await expect(page.locator(".map-scroll")).toBeVisible();
   expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
 });
+
+test("pinching in past the smallest thumbnails crossfades them into the numbered overview around the pinched slide", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実際の2本指タッチ");
+  await largeMap(page);
+  const reset = page.getByRole("button", {
+    name: "表示サイズを100%に戻す",
+    exact: true,
+  });
+  await page.getByRole("button", { name: "マップを縮小", exact: true }).click();
+  await expect(reset).toHaveText("60%");
+  const card = page.locator(".grid-row").nth(10).locator(".slide-card").nth(3);
+  await card
+    .locator(".thumbnail")
+    .evaluate((node) =>
+      node.scrollIntoView({ block: "center", inline: "center" }),
+    );
+  const id = (await card.getAttribute("data-page-id"))!;
+  const box = (await card.locator(".thumbnail").boundingBox())!;
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await touch(cdp, "touchStart", x, y, 60);
+  await touch(cdp, "touchMove", x, y, 50);
+  await touch(cdp, "touchMove", x, y, 40);
+  // Measure in the first frame after the switch: both views are drawn there,
+  // the slide's thumbnail over its number at the same size, one fading out
+  // as the other fades in.
+  await page.evaluate((id) => {
+    const label = document.querySelector(".map-scale-reset")!;
+    type Meeting = { fades: boolean; apart: number; sizes: number };
+    (window as unknown as { meeting: Promise<Meeting> }).meeting = new Promise(
+      (resolve) =>
+        (function frame() {
+          if (label.textContent !== "番号") return requestAnimationFrame(frame);
+          const out = document.querySelector<HTMLElement>(".map-fade-out");
+          const grid = document.querySelector<HTMLElement>(
+            ".map-scroll .map-grid",
+          )!;
+          const ghost = out
+            ?.querySelector(`[data-page-id="${CSS.escape(id)}"] .thumbnail`)
+            ?.getBoundingClientRect();
+          const tile = grid
+            .querySelector(`[data-page-id="${CSS.escape(id)}"] .number-tile`)!
+            .getBoundingClientRect();
+          resolve({
+            fades: grid
+              .getAnimations()
+              .some((a) =>
+                (a.effect as KeyframeEffect)
+                  .getKeyframes()
+                  .some((k) => k.opacity !== undefined),
+              ),
+            apart: ghost
+              ? Math.hypot(
+                  tile.x + tile.width / 2 - ghost.x - ghost.width / 2,
+                  tile.y + tile.height / 2 - ghost.y - ghost.height / 2,
+                )
+              : NaN,
+            sizes: ghost ? Math.abs(tile.width - ghost.width) : NaN,
+          });
+        })(),
+    );
+  }, id);
+  await touch(cdp, "touchEnd", x, y, 0);
+  await expect(reset).toHaveText("番号");
+  const meeting = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          meeting: Promise<{ fades: boolean; apart: number; sizes: number }>;
+        }
+      ).meeting,
+  );
+  expect(meeting.fades).toBe(true);
+  expect(meeting.apart).toBeLessThan(2);
+  expect(meeting.sizes).toBeLessThan(2);
+  // Then only the numbered overview remains, untouched.
+  await expect(page.locator(".map-fade-out")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator(".map-scroll .map-grid")
+        .evaluate((n) => n.getAnimations().length),
+    )
+    .toBe(0);
+  await expect(page.locator(".map-grid .slide-canvas")).toHaveCount(0);
+});
+
+test("with reduced motion, pinching into the numbered overview switches at once", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実際の2本指タッチ");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await largeMap(page);
+  await page.getByRole("button", { name: "マップを縮小", exact: true }).click();
+  const box = (await page
+    .locator(".map-grid .thumbnail")
+    .first()
+    .boundingBox())!;
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await touch(cdp, "touchStart", x, y, 60);
+  await touch(cdp, "touchMove", x, y, 40);
+  await touch(cdp, "touchEnd", x, y, 0);
+  await expect(
+    page.getByRole("button", { name: "表示サイズを100%に戻す", exact: true }),
+  ).toHaveText("番号");
+  expect(await page.locator(".map-fade-out").count()).toBe(0);
+});

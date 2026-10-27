@@ -6233,3 +6233,11 @@ h1 span {
 .map-grid[data-pinching="true"] .empty-cell {
   transition: none;
 }
+
+/* The thumbnails as they were, shrinking away over the numbered overview. */
+.map-fade-out {
+  position: fixed;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
