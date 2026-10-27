@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.48.1",
+    date: "2026-10-27",
+    title: "番号表示から戻るピンチもなめらかに",
+    changes: [
+      "番号表示からピンチアウトして最小のサムネイルへ戻るときも、番号が大きくなりながら消え、同時にサムネイルが現れるようにしました。ピンチした番号とそのスライドが重なったまま切り替わります。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.48.0",
     date: "2026-10-27",
     title: "番号表示へのピンチをなめらかに",

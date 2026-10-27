@@ -158,7 +158,7 @@ test("trackpad pinch navigates both ways; numbered overview finds page 40.10 and
     node.scrollLeft = 0;
   });
   await wheel(first, -40);
-  await expect(page.locator(".map-grid")).toHaveAttribute(
+  await expect(page.locator(".map-scroll .map-grid")).toHaveAttribute(
     "data-numbers",
     "false",
   );
@@ -356,7 +356,7 @@ function installTrackpad(page: Page) {
 const previewScale = (transform: string) =>
   Number(transform.match(/scale\(([\d.e-]+)\)/)?.[1]);
 async function settledMap(page: Page) {
-  const grid = page.locator(".map-grid");
+  const grid = page.locator(".map-scroll .map-grid");
   await expect
     .poll(() => grid.evaluate((n) => n.getAnimations().length))
     .toBe(0);

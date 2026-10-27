@@ -658,16 +658,19 @@ function MapViewComponent({
       if (snap.current?.animation === animation) settle();
     };
   }
-  /** Pinching in past the smallest thumbnails, let them shrink away while the
-   * numbered overview comes in around the pinched slide, rather than switching
-   * at once. Returns false when it cannot, so the switch happens at once. */
-  function fadeToNumbers(point: PinchPoint) {
+  /** Between the smallest thumbnails and the numbered overview, let the one
+   * view shrink or grow away while the other comes in around the pinched
+   * slide, rather than switching at once. Returns false when it cannot, so
+   * the switch happens at once. */
+  function fadeBetween(next: number, point: PinchPoint) {
     const a = anchor.current,
       grid = gridRef.current!,
       view = scrollRef.current!;
+    // The slide as each view draws it: a thumbnail, or its number.
+    const part = (scale: number) => (scale ? ".thumbnail" : ".number-tile");
     const thumbnail = a?.id
       ? grid.querySelector<HTMLElement>(
-          `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
+          `[data-page-id="${CSS.escape(a.id)}"] ${part(scale)}`,
         )
       : null;
     if (
@@ -732,19 +735,19 @@ function MapViewComponent({
     mover.append(copy);
     leaving.append(mover);
     view.parentElement!.append(leaving);
-    // Commit the numbered overview with the pinched slide's number under the
-    // fingers, then start both views at the same size there.
+    // Commit the other view with the pinched slide under the fingers, then
+    // start both views at the same size there.
     endPreview();
-    flushSync(() => keepAnchor(0, point));
+    flushSync(() => keepAnchor(next, point));
     const tile = grid
-      .querySelector(`[data-page-id="${CSS.escape(a.id)}"] .number-tile`)
+      .querySelector(`[data-page-id="${CSS.escape(a.id)}"] ${part(next)}`)
       ?.getBoundingClientRect();
     if (!tile?.width) {
       leaving.remove();
       return true;
     }
-    // The two views meet where the slide's number is: it may not be under the
-    // fingers, when the overview cannot scroll that far.
+    // The two views meet where the slide is drawn in the new one: it may not
+    // be under the fingers, when that view cannot scroll that far.
     const shrink = Math.log(tile.width / from.width),
       dx = tile.x + tile.width / 2 - (from.x + from.width / 2),
       dy = tile.y + tile.height / 2 - (from.y + from.height / 2);
@@ -778,7 +781,7 @@ function MapViewComponent({
     );
     snap.current = {
       animation,
-      scale: 0,
+      scale: next,
       finish: () => {
         out.cancel();
         leaving.remove();
@@ -879,7 +882,7 @@ function MapViewComponent({
             () => keepAnchor(next, a.point),
             true,
           );
-        else if (!(a.scale && !next && fadeToNumbers(a.point))) {
+        else if (!(!a.scale !== !next && fadeBetween(next, a.point))) {
           endPreview();
           if (next !== a.scale) keepAnchor(next, a.point);
         }
@@ -957,15 +960,9 @@ function MapViewComponent({
         release({ ...shown.current, ratio: next / a.scale }, next, () =>
           keepAnchor(next, sample),
         );
-      else if (
-        a.scale &&
-        !next &&
-        sample.direction === "in" &&
-        fadeToNumbers(sample)
-      ) {
-        // The thumbnails make way for the numbered overview.
+      else if (!a.scale !== !next && fadeBetween(next, sample)) {
+        // The thumbnails and the numbered overview make way for each other.
       } else {
-        // Switching from the numbered overview stays immediate.
         endPreview();
         keepAnchor(next, sample);
       }

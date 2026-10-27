@@ -115,7 +115,7 @@ test("a touch pinch keeps headings, labels and row gaps at their size around the
     // labels neither shrink, grow nor leave their cards.
     expectNear(await layout(page), rest);
     await touch(cdp, "touchEnd", x, y, 0);
-    await expect(page.locator(".map-grid")).not.toHaveAttribute(
+    await expect(page.locator(".map-scroll .map-grid")).not.toHaveAttribute(
       "data-pinching",
     );
   }
@@ -337,4 +337,81 @@ test("with reduced motion, pinching into the numbered overview switches at once"
     page.getByRole("button", { name: "表示サイズを100%に戻す", exact: true }),
   ).toHaveText("番号");
   expect(await page.locator(".map-fade-out").count()).toBe(0);
+});
+
+test("pinching out of the numbered overview crossfades it back into the smallest thumbnails", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "touch", "実際の2本指タッチ");
+  await largeMap(page);
+  const reset = page.getByRole("button", {
+    name: "表示サイズを100%に戻す",
+    exact: true,
+  });
+  await page
+    .getByRole("button", { name: "番号だけの一覧", exact: true })
+    .click();
+  await expect(reset).toHaveText("番号");
+  const card = page.locator(".grid-row").nth(10).locator(".slide-card").nth(3);
+  const id = (await card.getAttribute("data-page-id"))!;
+  const box = (await card.locator(".number-tile").boundingBox())!;
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await touch(cdp, "touchStart", x, y, 40);
+  await touch(cdp, "touchMove", x, y, 50);
+  await touch(cdp, "touchMove", x, y, 60);
+  // In the first frame after the switch, the number fading out lies over the
+  // thumbnail fading in, at its size.
+  await page.evaluate((id) => {
+    const label = document.querySelector(".map-scale-reset")!;
+    type Meeting = { fades: boolean; apart: number; sizes: number };
+    (window as unknown as { meeting: Promise<Meeting> }).meeting = new Promise(
+      (resolve) =>
+        (function frame() {
+          if (label.textContent === "番号") return requestAnimationFrame(frame);
+          const out = document.querySelector<HTMLElement>(".map-fade-out");
+          const grid = document.querySelector<HTMLElement>(
+            ".map-scroll .map-grid",
+          )!;
+          const ghost = out
+            ?.querySelector(`[data-page-id="${CSS.escape(id)}"] .number-tile`)
+            ?.getBoundingClientRect();
+          const tile = grid
+            .querySelector(`[data-page-id="${CSS.escape(id)}"] .thumbnail`)!
+            .getBoundingClientRect();
+          resolve({
+            fades: grid
+              .getAnimations()
+              .some((a) =>
+                (a.effect as KeyframeEffect)
+                  .getKeyframes()
+                  .some((k) => k.opacity !== undefined),
+              ),
+            apart: ghost
+              ? Math.hypot(
+                  tile.x + tile.width / 2 - ghost.x - ghost.width / 2,
+                  tile.y + tile.height / 2 - ghost.y - ghost.height / 2,
+                )
+              : NaN,
+            sizes: ghost ? Math.abs(tile.width - ghost.width) : NaN,
+          });
+        })(),
+    );
+  }, id);
+  await touch(cdp, "touchEnd", x, y, 0);
+  await expect(reset).toHaveText("60%");
+  const meeting = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          meeting: Promise<{ fades: boolean; apart: number; sizes: number }>;
+        }
+      ).meeting,
+  );
+  expect(meeting.fades).toBe(true);
+  expect(meeting.apart).toBeLessThan(2);
+  expect(meeting.sizes).toBeLessThan(2);
+  await expect(page.locator(".map-fade-out")).toHaveCount(0);
+  await expect(card.locator(".slide-canvas")).toHaveCount(1);
 });
