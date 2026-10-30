@@ -1,12 +1,11 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 test("file saving explains formats and opens backup recovery without signing in", async ({
   page,
 }) => {
   await page.goto("/");
   const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await expect(page.locator(".toast")).toContainText("ダウンロード先を確認");
   await expect(page.locator(".toast")).toContainText("付箋・共有設定");

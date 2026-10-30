@@ -18,12 +18,7 @@ test("map keeps primary actions, exposes labeled secondary actions and restores 
   await expect(
     page.getByRole("button", { name: "使い方", exact: true }),
   ).toHaveCount(0);
-  for (const name of [
-    "ファイルに保存",
-    "ファイル",
-    "発表する",
-    "発表方法を選ぶ",
-  ])
+  for (const name of ["ファイル", "発表する", "発表方法を選ぶ"])
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   await more(page).click();
   await expect(menu(page)).toBeVisible();

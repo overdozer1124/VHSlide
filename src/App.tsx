@@ -49,7 +49,6 @@ import { WorkspaceTransition } from "./WorkspaceTransition";
 import type { WorkspaceFlight } from "./WorkspaceTransition";
 import {
   Cloud,
-  Download,
   LayoutGrid,
   FolderOpen,
   Presentation,
@@ -230,6 +229,9 @@ export default function App() {
   const [past, setPast] = useState<Deck[]>([]),
     [future, setFuture] = useState<Deck[]>([]);
   const [view, setView] = useState<"map" | "editor" | "present">("map");
+  const [mapToolbarHost, setMapToolbarHost] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [backupOpen, setBackupOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState<SlideAction>();
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -1966,7 +1968,7 @@ export default function App() {
                 )}
               </div>
               <div className="header-actions">
-                <div className="split-action file-actions">
+                <div className="file-actions">
                   <ActionMenu
                     label="ファイル"
                     showLabel
@@ -2024,15 +2026,6 @@ export default function App() {
                       },
                     ]}
                   />
-                  <button
-                    className="button outline"
-                    aria-label="ファイルに保存"
-                    title="編集用ファイル（JSON）を作成。付箋・共有設定は含みません"
-                    onClick={() => void download()}
-                  >
-                    <Download size={iconSize} />
-                    <span>保存</span>
-                  </button>
                 </div>
                 {cloud.available && (
                   <button
@@ -2276,7 +2269,10 @@ export default function App() {
               />
             )}
             {view !== "editor" && (
-              <nav className="view-bar">
+              <nav
+                className="view-bar map-workspace-bar"
+                aria-label="全体マップと編集の操作"
+              >
                 <div className="view-tabs">
                   <button
                     className={view === "map" ? "active" : ""}
@@ -2294,6 +2290,7 @@ export default function App() {
                     ページを編集
                   </button>
                 </div>
+                <div className="map-toolbar-slot" ref={setMapToolbarHost} />
                 {historyActions}
               </nav>
             )}
@@ -2358,6 +2355,7 @@ export default function App() {
         )}
         {view !== "present" && (
           <MapView
+            toolbarHost={mapToolbarHost}
             readOnly={!!cloud.active && cloud.access.mode === "none"}
             remainingPages={Math.max(0, MAX_SLIDES - workbook.slides.length)}
             onBatchAxes={(axis, action, start, count) => {

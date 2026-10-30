@@ -1,0 +1,15 @@
+{
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "before": {
+    "y": 139,
+    "height": 554
+  },
+  "after": {
+    "y": 103,
+    "height": 590
+  },
+  "height_gain_px": 36
+}

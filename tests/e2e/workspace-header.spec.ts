@@ -1,6 +1,7 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 
-test("work menu keeps new/open and direct save/present actions, with undo protection", async ({
+test("file menu keeps new/open and JSON saving, with undo protection and direct presentation", async ({
   page,
 }) => {
   await page.goto("/");
@@ -22,9 +23,7 @@ test("work menu keeps new/open and direct save/present actions, with undo protec
     await page.evaluate(() => localStorage.getItem("vhslide-deck-v1")),
   ).toBe(before);
   const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await page.addInitScript(() => {
     document.documentElement.requestFullscreen = () =>
@@ -46,7 +45,7 @@ test("header labels and save status remain visible in compact editing layouts", 
   await expect(page.locator(".workspace-flight")).toHaveCount(0);
   for (const width of [1366, 1280, 1024, 810]) {
     await page.setViewportSize({ width, height: 768 });
-    for (const label of ["ファイル", "ファイルに保存", "発表する"])
+    for (const label of ["ファイル", "発表する"])
       await expect(
         page.getByRole("button", { name: label, exact: true }),
       ).toBeVisible();

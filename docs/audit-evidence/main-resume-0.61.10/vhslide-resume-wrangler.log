@@ -1,0 +1,124 @@
+
+--- 2026-10-30T04:12:53.051Z debug
+🪵  Writing logs to "/tmp/vhslide-resume-wrangler.log"
+---
+
+--- 2026-10-30T04:12:53.051Z warn
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+---
+
+--- 2026-10-30T04:12:53.171Z debug
+.env file not found at "/workspace/VHSlide/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-10-30T04:12:53.171Z debug
+.env file not found at "/workspace/VHSlide/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-10-30T04:12:53.274Z log
+
+ ⛅️ wrangler 4.151.3
+────────────────────
+---
+
+--- 2026-10-30T04:12:53.471Z debug
+Running autoconfig detection in /workspace/VHSlide...
+---
+
+--- 2026-10-30T04:12:53.472Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"wrangler command started","timestamp":1793333573472,"properties":{"amplitude_session_id":1793333573362,"amplitude_event_id":0,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"jsonc","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":true,"agent":"codex","argsUsed":["dryRun","outdir"],"argsCombination":"dryRun, outdir","sanitizedCommand":"deploy","sanitizedArgs":{"dryRun":true,"path":null},"currentAgentSkillsInstalled":null}}.
+---
+
+--- 2026-10-30T04:12:53.472Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"autoconfig_process_started","timestamp":1793333573472,"properties":{"amplitude_session_id":1793333573470,"amplitude_event_id":0,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"codex","category":"Workers","os":"linux:x64","autoConfigId":"c67097d1-cb9e-42dd-b991-99d5c38ced42","command":"wrangler deploy","dryRun":true,"currentAgentSkillsInstalled":null}}.
+---
+
+--- 2026-10-30T04:12:53.473Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"autoconfig_detection_started","timestamp":1793333573473,"properties":{"amplitude_session_id":1793333573471,"amplitude_event_id":0,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"codex","category":"Workers","os":"linux:x64","autoConfigId":"c67097d1-cb9e-42dd-b991-99d5c38ced42","command":"wrangler deploy","currentAgentSkillsInstalled":null}}.
+---
+
+--- 2026-10-30T04:12:53.473Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"autoconfig_detection_completed","timestamp":1793333573473,"properties":{"amplitude_session_id":1793333573473,"amplitude_event_id":0,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"codex","category":"Workers","os":"linux:x64","autoConfigId":"c67097d1-cb9e-42dd-b991-99d5c38ced42","configured":true,"success":true,"currentAgentSkillsInstalled":null}}.
+---
+
+--- 2026-10-30T04:12:53.474Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"autoconfig_process_ended","timestamp":1793333573474,"properties":{"amplitude_session_id":1793333573474,"amplitude_event_id":0,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"codex","category":"Workers","os":"linux:x64","autoConfigId":"c67097d1-cb9e-42dd-b991-99d5c38ced42","command":"wrangler deploy","dryRun":true,"success":true,"currentAgentSkillsInstalled":null}}.
+---
+
+--- 2026-10-30T04:12:54.177Z info
+✨ Read 4 files from the assets directory /workspace/VHSlide/dist
+---
+
+--- 2026-10-30T04:12:54.177Z debug
+/assets
+---
+
+--- 2026-10-30T04:12:54.177Z debug
+/index.html
+---
+
+--- 2026-10-30T04:12:54.177Z debug
+/assets/index-C5SJ1O3R.css
+---
+
+--- 2026-10-30T04:12:54.177Z debug
+/assets/index-nDmbPgaQ.js
+---
+
+--- 2026-10-30T04:12:54.289Z log
+Total Upload: 440.47 KiB / gzip: 94.60 KiB
+---
+
+--- 2026-10-30T04:12:54.337Z log
+Your Worker has access to the following bindings:
+---
+
+--- 2026-10-30T04:12:54.337Z log
+Binding                                                                       Resource
+---
+
+--- 2026-10-30T04:12:54.337Z log
+env.DIRECTORY (Directory)                                                     Durable Object
+---
+
+--- 2026-10-30T04:12:54.337Z log
+env.ROOMS (SlideRoom)                                                         Durable Object
+---
+
+--- 2026-10-30T04:12:54.337Z log
+env.ASSETS                                                                    Assets
+---
+
+--- 2026-10-30T04:12:54.338Z log
+env.GOOGLE_CLIENT_ID ("187339871113-2j074eot6i41e2ts1g3129ch...")             Environment Variable
+---
+
+--- 2026-10-30T04:12:54.338Z log
+env.GOOGLE_SCHOOL_CLIENT_ID ("142634110367-rongbdrtm1u416ch26orar13...")      Environment Variable
+---
+
+--- 2026-10-30T04:12:54.338Z log
+env.GOOGLE_SCHOOL_DOMAIN ("kaga.ed.jp")                                       Environment Variable
+---
+
+--- 2026-10-30T04:12:54.338Z log
+env.PUBLIC_ORIGIN ("https://vhslide.overdozer1124.workers...")                Environment Variable
+---
+
+--- 2026-10-30T04:12:54.338Z log
+
+---
+
+--- 2026-10-30T04:12:54.338Z log
+--dry-run: exiting now.
+---
+
+--- 2026-10-30T04:12:54.339Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"deploy worker script","timestamp":1793333574339,"properties":{"amplitude_session_id":1793333574338,"amplitude_event_id":0,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"none","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"agent":"codex","category":"Workers","os":"linux:x64","usesTypeScript":true,"durationMs":787,"currentAgentSkillsInstalled":null}}.
+---
+
+--- 2026-10-30T04:12:54.340Z debug
+Metrics dispatcher: Dispatching disabled - would have sent {"deviceId":"21cc0167-1036-422d-b92b-7eddebe0b9d7","event":"wrangler command completed","timestamp":1793333574340,"properties":{"amplitude_session_id":1793333573362,"amplitude_event_id":1,"wranglerVersion":"4.151.3","wranglerMajorVersion":4,"wranglerMinorVersion":151,"wranglerPatchVersion":3,"osPlatform":"Linux","osVersion":"#1 SMP Tue Oct 20 21:56:04 UTC 2026","nodeVersion":24,"packageManager":"npm","isFirstUsage":true,"configFileType":"jsonc","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":true,"agent":"codex","argsUsed":["dryRun","outdir"],"argsCombination":"dryRun, outdir","sanitizedCommand":"deploy","sanitizedArgs":{"dryRun":true,"path":null},"durationMs":1164,"currentAgentSkillsInstalled":null}}.
+---

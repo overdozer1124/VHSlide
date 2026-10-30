@@ -1,0 +1,31 @@
+
+> vhslide@0.61.10 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (103.671713ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (92.679417ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (63.367298ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (1150.117503ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (33.513455ms)
+✔ sign-out revokes active sockets and persisted session access (15.888177ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (239.60773ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (140.321751ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (126.40641ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (181.06161ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (223.285687ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (26.800671ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (223.156474ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (45.87744ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (192.182117ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (389.439529ms)
+✔ host follow state validates host, initiator, target and session without editing the work (46272.49427ms)
+FOLLOW_40_METRICS {"backend":"Node","connections":40,"samples":20,"p95Ms":9.49651399999857,"maxMs":29.917849000004935,"allMs":[5.126785999993444,5.904699000006076,5.56669200000033,5.213557999995828,5.672381999997015,5.272182000000612,5.325220999999146,5.409012999996776,5.7647649999998976,7.405300000005809,29.917849000004935,5.729033000003255,9.49651399999857,4.80265800000052,5.867949000006774,5.200613000000885,6.17066600000544,5.52556000000186,8.177278000002843,5.711322000002838]}
+✔ host follow 40 live connections P95 target (509.81604ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 50634.835813

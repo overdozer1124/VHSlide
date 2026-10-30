@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
@@ -28,6 +29,10 @@ test("file/cloud are distinct, presentation is last, and the map toolbar stays o
   await expect(
     page.getByRole("button", { name: "マップのその他", exact: true }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "ファイルに保存", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".file-actions button")).toHaveCount(1);
   const file = page.getByRole("button", { name: "ファイル", exact: true });
   await file.click();
   const menu = page.getByRole("menu", { name: "ファイル", exact: true });
@@ -46,15 +51,15 @@ test("file/cloud are distinct, presentation is last, and the map toolbar stays o
   await page.keyboard.press("Escape");
   await expect(file).toBeFocused();
   const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "クラウドの作品", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(page.locator(".map-workspace-bar .map-toolbar")).toHaveCount(1);
+  await expect(page.locator(".map-panel .map-toolbar")).toHaveCount(0);
   for (const width of [1366, 1024, 810, 390]) {
     await page.setViewportSize({ width, height: 768 });
     expect(
@@ -69,6 +74,11 @@ test("file/cloud are distinct, presentation is last, and the map toolbar stays o
     const toolbar = page.locator(".map-toolbar");
     const box = (await toolbar.boundingBox())!;
     expect(box.height).toBeLessThanOrEqual(48);
+    const bar = (await page.locator(".map-workspace-bar").boundingBox())!;
+    const map = (await page.locator(".map-scroll").boundingBox())!;
+    expect(bar.height).toBeLessThanOrEqual(48);
+    expect(Math.abs(box.y - bar.y)).toBeLessThan(3);
+    expect(map.y - (bar.y + bar.height)).toBeLessThanOrEqual(16);
     const centers = await toolbar.getByRole("button").evaluateAll((buttons) =>
       buttons.map((e) => {
         const r = e.getBoundingClientRect();

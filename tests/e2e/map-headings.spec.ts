@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 
 test("editable map headings stay readable and meet the scrollport without gaps at 300%", async ({
@@ -94,8 +95,6 @@ test("editable map headings stay readable and meet the scrollport without gaps a
     path: info.outputPath("map-readable-headers-300.png"),
   });
   const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
 });

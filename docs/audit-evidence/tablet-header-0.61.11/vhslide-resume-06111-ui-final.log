@@ -1,0 +1,31 @@
+[WebServer] (node:35931) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:35961) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop] › tests/e2e/ui-request-layout.spec.ts:19:1 › file/cloud are distinct, presentation is last, and the map toolbar stays on one row (5.3s)
+  ✓  2 [desktop] › tests/e2e/ui-request-layout.spec.ts:94:1 › drawing has a pencil and panel toggles stay with their own sidebar, including restore focus (5.4s)
+[WebServer] 8:41:00 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  3 [desktop] › tests/e2e/workspace-header.spec.ts:3:1 › work menu keeps new/open and direct save/present actions, with undo protection (2.8s)
+[WebServer] 8:41:03 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  4 [desktop] › tests/e2e/workspace-header.spec.ts:41:1 › header labels and save status remain visible in compact editing layouts (3.9s)
+(node:36222) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [touch] › tests/e2e/ui-request-layout.spec.ts:19:1 › file/cloud are distinct, presentation is last, and the map toolbar stays on one row (9.6s)
+  ✓  6 [touch] › tests/e2e/ui-request-layout.spec.ts:94:1 › drawing has a pencil and panel toggles stay with their own sidebar, including restore focus (8.6s)
+[WebServer] 8:41:27 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  7 [touch] › tests/e2e/workspace-header.spec.ts:3:1 › work menu keeps new/open and direct save/present actions, with undo protection (4.3s)
+[WebServer] 8:41:32 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  8 [touch] › tests/e2e/workspace-header.spec.ts:41:1 › header labels and save status remain visible in compact editing layouts (6.0s)
+
+  8 passed (52.0s)

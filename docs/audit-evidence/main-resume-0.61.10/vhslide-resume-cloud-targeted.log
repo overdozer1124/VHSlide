@@ -1,0 +1,13 @@
+[WebServer] (node:10297) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:10415) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:450:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (45.1s)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:562:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (44.8s)
+  ✓  3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1026:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (34.1s)
+  ✓  4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1207:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (11.6s)
+
+  4 passed (2.4m)

@@ -67,8 +67,15 @@ for (const role of ["assigned", "commenter", "viewer"] as const) {
       for (const width of [1366, 1024, 810]) {
         await guest.setViewportSize({ width, height: 768 });
         await expect(
-          guest.getByRole("button", { name: "ファイルに保存", exact: true }),
+          guest.getByRole("button", { name: "ファイル", exact: true }),
         ).toBeEnabled();
+        await guest
+          .getByRole("button", { name: "ファイル", exact: true })
+          .click();
+        await expect(
+          guest.getByRole("menuitem", { name: /^JSONで保存/ }),
+        ).toBeEnabled();
+        await guest.keyboard.press("Escape");
         const present = guest.getByRole("button", {
           name: role === "assigned" ? "この3ページを発表" : "発表する",
           exact: true,
@@ -76,7 +83,7 @@ for (const role of ["assigned", "commenter", "viewer"] as const) {
         await expect(present).toBeEnabled();
         for (const button of [
           present,
-          guest.getByRole("button", { name: "ファイルに保存", exact: true }),
+          guest.getByRole("button", { name: "ファイル", exact: true }),
         ]) {
           const box = (await button.boundingBox())!;
           expect(box.x).toBeGreaterThanOrEqual(0);

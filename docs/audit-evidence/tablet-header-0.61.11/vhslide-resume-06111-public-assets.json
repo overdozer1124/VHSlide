@@ -1,0 +1,10 @@
+{
+  "health": "ok",
+  "published_assets_match_build": true,
+  "assets": [
+    "./assets/index-DwXuK2G_.css",
+    "./assets/index-_fy8qFLh.js"
+  ],
+  "version": "0.61.11",
+  "cloudflare_version_id": "757d2cc4-7c81-4f60-876d-c64e6438e533"
+}

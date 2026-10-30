@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/releaseHistory.test.ts (1 test) 61ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  09:26:54
+   Duration  1.43s (transform 384ms, setup 0ms, collect 393ms, tests 61ms, environment 0ms, prepare 385ms)
+

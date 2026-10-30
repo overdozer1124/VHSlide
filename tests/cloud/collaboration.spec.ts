@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -60,8 +61,17 @@ async function signIn(
 }
 async function openEditor(page: Page) {
   await page
-    .getByRole("button", { name: "わたしたちのまちを編集", exact: true })
+    .getByRole("button", { name: /^わたしたちのまちを(?:編集|表示)$/ })
     .click();
+}
+async function viewingRevoked(page: Page) {
+  await expect(
+    page.getByRole("heading", {
+      name: "作品へのアクセスを確認してください",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".editor-workspace, .slide-card")).toHaveCount(0);
 }
 async function saved(page: Page) {
   await expect(page.locator(".cloud-presence")).toContainText(
@@ -311,9 +321,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     ).toHaveCount(1);
     await saved(page);
     const download = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "ファイルに保存", exact: true })
-      .click();
+    await saveJSON(page);
     const file = await download,
       exported = JSON.parse(await readFile((await file.path())!, "utf8"));
     expect(exported.slides[0].elements[0]).toMatchObject({
@@ -414,9 +422,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
       "フィルタ内の共同編集",
     );
     const fullDownload = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "ファイルに保存", exact: true })
-      .click();
+    await saveJSON(page);
     const fullFile = await fullDownload,
       fullExport = JSON.parse(await readFile((await fullFile.path())!, "utf8"));
     expect(fullExport.slides).toHaveLength(6);
@@ -434,7 +440,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     await page
       .getByRole("button", { name: `${name}-friendの参加を解除`, exact: true })
       .click();
-    await expect(other.locator(".cloud-presence")).toContainText("共有停止");
+    await viewingRevoked(other);
     await page.screenshot({ path: info.outputPath("cloud-sharing.png") });
   } finally {
     await context.close();
@@ -674,7 +680,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
     await button(page, "事前編集権限を保存").click();
     await expect(button(pa, "文字")).toBeDisabled();
     await button(page, `${b}@example.testの事前共有を解除`).click();
-    await expect(pb.locator(".cloud-presence")).toContainText("共有停止");
+    await viewingRevoked(pb);
     await expect(page.locator(".pre-share-account")).toHaveCount(1);
   } finally {
     await ca.close();
@@ -817,7 +823,7 @@ test("host edits shared map headings and row account names update vertically for
   page,
   browser,
 }, info) => {
-  const owner = `headings-${info.project.name}`,
+  const owner = `headings-${info.project.name}-${info.repeatEachIndex}`,
     guest = `${owner}-guest`;
   const button = (p: Page, name: string) =>
     p.getByRole("button", { name, exact: true });
@@ -1176,7 +1182,7 @@ test("cloud workspace cards and bulk sharing support mixed accounts, row assignm
     );
     await expect(page.locator(".sharing-person")).toHaveCount(1);
     await expect(page.locator(".sharing-person")).toContainText(b);
-    await expect(other.locator(".cloud-presence")).toContainText("共有停止");
+    await viewingRevoked(other);
     recipients = (
       await (await page.request.get(`/api/decks/${room}/recipients`)).json()
     ).recipients;
@@ -1265,7 +1271,9 @@ test("legacy offline row moves are kept for JSON recovery and never automaticall
     { id, user, bytes },
   );
   await page.goto(`/?room=${id}`);
-  await expect(page.locator(".cloud-presence")).toContainText("共有停止");
+  await expect(page.locator(".cloud-presence")).toContainText(
+    "一時保存の復旧を確認",
+  );
   await expect(
     page.getByText("旧版の未送信の配置変更を端末から復元しました。", {
       exact: false,
@@ -1284,12 +1292,10 @@ test("legacy offline row moves are kept for JSON recovery and never automaticall
   ).toBe(0);
   server.destroy();
   await expect(
-    page.getByRole("button", { name: "ファイルに保存", exact: true }),
+    page.getByRole("button", { name: "ファイル", exact: true }),
   ).toBeEnabled();
   const downloading = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   const file = await (await downloading).path();
   const recovered = JSON.parse(await readFile(file!, "utf8"));
   expect(

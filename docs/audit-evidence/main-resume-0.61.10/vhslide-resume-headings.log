@@ -1,0 +1,79 @@
+[WebServer] (node:21739) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:21756) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests (17.9s)
+(node:21937) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests (7.1s)
+(node:22113) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests (6.2s)
+
+
+  1) [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+
+    Error: locator.click: Error: strict mode violation: getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ', exact: true }) resolved to 2 elements:
+        1) <button class="cloud-deck-open" aria-label="作品を開く：わたしたちのまちの、いいところ">…</button> aka getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ' }).first()
+        2) <button class="cloud-deck-open" aria-label="作品を開く：わたしたちのまちの、いいところ">…</button> aka getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ' }).nth(1)
+
+    Call log:
+      - waiting for getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ', exact: true })
+
+
+      862 |   try {
+      863 |     await signIn(other, guest);
+    > 864 |     await button(other, "作品を開く：わたしたちのまちの、いいところ").click();
+          |                                                  ^
+      865 |     await saved(other);
+      866 |     await expect(heading(other, "列2の見出し")).toHaveValue("共同調査");
+      867 |     await expect(heading(other, "列2の見出し")).toHaveAttribute("readonly", "");
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:864:50
+
+    Error Context: ../../tmp/vhslide-resume-headings-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop-repeat1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/vhslide-resume-headings-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop-repeat1/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/vhslide-resume-headings-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop-repeat1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+
+    Error: locator.click: Error: strict mode violation: getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ', exact: true }) resolved to 3 elements:
+        1) <button class="cloud-deck-open" aria-label="作品を開く：わたしたちのまちの、いいところ">…</button> aka getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ' }).first()
+        2) <button class="cloud-deck-open" aria-label="作品を開く：わたしたちのまちの、いいところ">…</button> aka getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ' }).nth(1)
+        3) <button class="cloud-deck-open" aria-label="作品を開く：わたしたちのまちの、いいところ">…</button> aka getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ' }).nth(2)
+
+    Call log:
+      - waiting for getByRole('button', { name: '作品を開く：わたしたちのまちの、いいところ', exact: true })
+
+
+      862 |   try {
+      863 |     await signIn(other, guest);
+    > 864 |     await button(other, "作品を開く：わたしたちのまちの、いいところ").click();
+          |                                                  ^
+      865 |     await saved(other);
+      866 |     await expect(heading(other, "列2の見出し")).toHaveValue("共同調査");
+      867 |     await expect(heading(other, "列2の見出し")).toHaveAttribute("readonly", "");
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:864:50
+
+    Error Context: ../../tmp/vhslide-resume-headings-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop-repeat2/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/vhslide-resume-headings-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop-repeat2/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/vhslide-resume-headings-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop-repeat2/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+  1 passed (37.2s)

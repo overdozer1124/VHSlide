@@ -1,0 +1,43 @@
+[WebServer] (node:18709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:18727) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 4:38:13 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/editor-swipe.spec.ts:301:1 › trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate (3.9s)
+[WebServer] 4:38:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   2 [desktop] › tests/e2e/editor-swipe.spec.ts:345:3 › long decaying Windows-style wheel inertia does not delay paging or swallow the next stroke (4.1s)
+[WebServer] 4:38:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   3 [desktop] › tests/e2e/editor-swipe.spec.ts:345:3 › long steady Windows-style wheel inertia does not delay paging or swallow the next stroke (4.8s)
+[WebServer] 4:38:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   4 [desktop] › tests/e2e/learning-tools.spec.ts:304:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (3.9s)
+[WebServer] 4:38:30 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/structure-editing.spec.ts:290:1 › internal links select another sheet, present jump/back work (3.8s)
+(node:19010) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   6 [touch] › tests/e2e/editor-swipe.spec.ts:301:1 › trackpad wheel gestures follow both axes, reverse, settle once, and keep small pinch gestures separate
+  -   7 [touch] › tests/e2e/editor-swipe.spec.ts:345:3 › long decaying Windows-style wheel inertia does not delay paging or swallow the next stroke
+  -   8 [touch] › tests/e2e/editor-swipe.spec.ts:345:3 › long steady Windows-style wheel inertia does not delay paging or swallow the next stroke
+[WebServer] 4:38:36 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   9 [touch] › tests/e2e/learning-tools.spec.ts:304:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (4.0s)
+[WebServer] 4:38:40 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  10 [touch] › tests/e2e/structure-editing.spec.ts:290:1 › internal links select another sheet, present jump/back work (3.8s)
+
+  3 skipped
+  7 passed (33.7s)

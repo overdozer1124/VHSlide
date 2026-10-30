@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 import fs from "node:fs/promises";
 test("create, edit, persist, export/import and present a two-dimensional story", async ({
@@ -85,9 +86,7 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   await page.reload();
   await expect(page.locator(".slide-card")).toHaveCount(7);
   const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   const file = await download;
   const exported = JSON.parse(await fs.readFile((await file.path())!, "utf8"));
   expect(exported.slides).toHaveLength(7);

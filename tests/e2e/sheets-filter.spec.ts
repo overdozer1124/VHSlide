@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 import type { Page, Locator } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -164,7 +165,7 @@ test("sheets add, duplicate, rename, reorder, delete and undo independently and 
   await button(page, "もとに戻す").click();
   await expect(page.getByRole("tab")).toHaveCount(3);
   const download = page.waitForEvent("download");
-  await button(page, "ファイルに保存").click();
+  await saveJSON(page);
   const file = await download,
     book = JSON.parse(await readFile((await file.path())!, "utf8"));
   expect(book.sheets.map((s: any) => s.name)).toEqual([

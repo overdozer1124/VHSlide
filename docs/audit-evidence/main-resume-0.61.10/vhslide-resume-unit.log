@@ -1,0 +1,59 @@
+
+> vhslide@0.61.10 test
+> vitest run src/chartLayout.test.ts src/noteRecovery.test.ts src/saveState.test.ts src/mapBatch.test.ts src/pageScope.test.ts src/cloudDocument.test.ts src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/model.test.ts (49 tests) 143ms
+ ✓ src/permissions.test.ts (12 tests) 121ms
+ ✓ src/structureEditing.test.ts (9 tests) 51ms
+ ✓ src/sharedDeck.test.ts (10 tests) 300ms
+ ✓ src/contentEditing.test.ts (7 tests) 193ms
+ ✓ src/objectEditing.test.ts (10 tests) 125ms
+ ✓ src/workbook.test.ts (7 tests) 204ms
+ ✓ src/axes.test.ts (7 tests) 42ms
+ ✓ src/learningTools.test.ts (6 tests) 2345ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  2195ms
+ ✓ src/tableData.test.ts (5 tests) 138ms
+ ✓ src/backup.test.ts (5 tests) 400ms
+   ✓ backs up over 25MB of photos without base64 embedding  334ms
+ ✓ src/pageScope.test.ts (7 tests) 20ms
+ ✓ src/joinRequests.test.ts (4 tests) 76ms
+ ✓ src/preSharing.test.ts (5 tests) 36ms
+ ✓ src/mapBatch.test.ts (5 tests) 29ms
+ ✓ src/noteRecovery.test.ts (4 tests) 136ms
+ ✓ src/backupProtocol.test.ts (3 tests) 18ms
+ ✓ src/mediaVisibility.test.ts (3 tests) 66ms
+ ✓ src/chartLayout.test.ts (4 tests) 277ms
+ ✓ src/cloudDocument.test.ts (4 tests) 506ms
+ ✓ src/assignmentReadiness.test.ts (1 test) 15ms
+ ✓ src/releaseHistory.test.ts (1 test) 77ms
+ ✓ src/cellFormatting.test.ts (1 test) 50ms
+ ✓ src/saveState.test.ts (2 tests) 4ms
+ ✓ src/syncRecovery.test.ts (2 tests) 9ms
+
+ Test Files  25 passed (25)
+      Tests  173 passed (173)
+   Start at  04:12:26
+   Duration  25.03s (transform 1.50s, setup 0ms, collect 5.03s, tests 5.38s, environment 7ms, prepare 5.29s)
+
+
+> vhslide@0.61.10 test:server
+> node --test tests/server/*.test.ts
+
+✖ tests/server/app.test.ts (1566.560437ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1588.977461
+
+✖ failing tests:
+
+test at tests/server/app.test.ts:1:1
+✖ tests/server/app.test.ts (1566.560437ms)
+  'test failed'

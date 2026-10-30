@@ -1,0 +1,30 @@
+const {chromium,expect}=require('/workspace/VHSlide/node_modules/@playwright/test');
+const fs=require('fs'),{execFile}=require('child_process'),{promisify}=require('util'),exec=promisify(execFile);
+(async()=>{const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const ctx=await browser.newContext();await ctx.addInitScript(()=>{window.google={accounts:{id:{initialize:o=>window.__googleConfig=o,renderButton:e=>e.textContent='Googleでログイン'}}}});await ctx.route('**/*',async route=>{const req=route.request(),url=req.url();if(!url.startsWith('https://vhslide.overdozer1124.workers.dev/')||req.method()!=='GET')return route.abort();const dir=fs.mkdtempSync('/tmp/vhslide-auth-fetch-');try{await exec('curl',['-H','Cache-Control: no-cache','--fail','--silent','--show-error','--compressed','--max-time','30','--dump-header',dir+'/h','--output',dir+'/b',url]);const blocks=fs.readFileSync(dir+'/h','utf8').trim().split(/\r?\n\r?\n/),lines=blocks.at(-1).split(/\r?\n/),headers={};for(const line of lines.slice(1)){const i=line.indexOf(':');if(i>0){const k=line.slice(0,i).toLowerCase();if(!['content-encoding','content-length','transfer-encoding','connection'].includes(k))headers[k]=line.slice(i+1).trim()}}await route.fulfill({status:Number(lines[0].split(' ')[1]),headers,body:fs.readFileSync(dir+'/b')})}finally{fs.rmSync(dir,{recursive:true,force:true})}});
+const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const book=JSON.parse(fs.readFileSync('/workspace/VHSlide/public/samples/vhslide-10x40.json','utf8'));book.slides[0].speakerNotes='公開後のノート確認';
+await page.addInitScript(book=>localStorage.setItem('vhslide-deck-v1',JSON.stringify(book)),book);
+await page.goto('https://vhslide.overdozer1124.workers.dev/',{waitUntil:'domcontentloaded'});
+await expect(page.getByRole('button',{name:'クラウド',exact:true})).toBeVisible();
+await expect(page.getByRole('button',{name:'作品',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'その他',exact:true})).toHaveCount(1);
+const file=page.getByRole('button',{name:'ファイル',exact:true});await file.click();
+await expect(page.getByRole('menu',{name:'ファイル',exact:true}).getByRole('menuitem')).toHaveCount(6);await page.keyboard.press('Escape');await expect(file).toBeFocused();
+const download=page.waitForEvent('download');await page.getByRole('button',{name:'ファイルに保存',exact:true}).click();expect((await download).suggestedFilename().endsWith('.json')).toBe(true);
+await page.getByRole('button',{name:'クラウド',exact:true}).click();await expect(page.getByRole('dialog',{name:'クラウドの作品',exact:true})).toBeVisible();await page.keyboard.press('Escape');
+await page.getByRole('button',{name:'その他',exact:true}).click();await page.getByRole('menuitem',{name:'更新履歴',exact:true}).click();await expect(page.getByRole('region',{name:'更新履歴',exact:true})).toContainText('v0.61.11');await expect(page.getByRole('region',{name:'更新履歴',exact:true})).toContainText('タブレット幅で発表ボタンがはみ出す問題を修正');await page.keyboard.press('Escape');
+for(const width of [1366,1024,810,390]){
+ await page.setViewportSize({width,height:768});expect((await page.locator('.map-toolbar').boundingBox()).height).toBeLessThanOrEqual(48);
+ expect(await page.locator('.header-actions').evaluate(e=>e.lastElementChild.classList.contains('present-action'))).toBe(true);
+ const p=await page.locator('.present-action').boundingBox();expect(p.x+p.width).toBeLessThanOrEqual(width);
+ await page.screenshot({path:`/tmp/vhslide-resume-06111-public-map-public-${width}.png`});
+}
+await page.setViewportSize({width:1366,height:768});await page.getByRole('button',{name:'行・列を一括操作',exact:true}).click();const batch=page.getByRole('region',{name:'行・列の一括操作',exact:true});await expect(batch).toBeVisible();await batch.getByRole('button',{name:'閉じる',exact:true}).click();
+await page.locator('.thumbnail').first().click();await expect(page.locator('.workspace-flight')).toHaveCount(0);await expect(page.getByRole('button',{name:'手描き',exact:true}).locator('svg')).toHaveCount(1);
+await expect(page.locator('#editor-thumbnails').getByRole('button',{name:'サムネイルバーをたたむ',exact:true})).toBeVisible();await expect(page.locator('#editor-inspector').getByRole('button',{name:'右のサイドバーをたたむ',exact:true})).toBeVisible();
+await page.screenshot({path:'/tmp/vhslide-resume-06111-public-editor-public.png'});
+await page.getByRole('button',{name:'サムネイルバーをたたむ',exact:true}).click();await page.getByRole('button',{name:'右のサイドバーをたたむ',exact:true}).click();await expect(page.getByRole('button',{name:'右のサイドバーを表示',exact:true})).toBeFocused();await page.screenshot({path:'/tmp/vhslide-resume-06111-public-collapsed-public.png'});
+await page.getByRole('button',{name:'サムネイルバーを表示',exact:true}).click();await page.getByRole('button',{name:'右のサイドバーを表示',exact:true}).click();
+const opened=page.waitForEvent('popup');await page.getByRole('button',{name:'発表方法を選ぶ',exact:true}).click();await page.getByRole('menuitem',{name:/ノートを見ながら発表する/}).click();const speaker=await opened;await expect(speaker.getByLabel('現在のスピーカーノート',{exact:true})).toHaveText('公開後のノート確認');await expect(speaker.locator('[data-preview-slide]')).toHaveCount(1);await page.mouse.move(10,10);await page.getByRole('button',{name:'発表をおわる',exact:true}).click();await expect.poll(()=>speaker.isClosed()).toBe(true);
+expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('vhslide-deck-v1')).slides.length)).toBe(book.slides.length);expect(errors).toEqual([]);
+console.log(JSON.stringify({version:'0.61.11',fileCloud:'ok',directSave:'ok',singleMapToolbar:'ok',presentationAtEnd:'ok',directBatch:'ok',pencil:'ok',panelLocationAndRestore:'ok',notesPopup:'ok',pageErrors:errors,productionRoomData:'untouched'}));
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

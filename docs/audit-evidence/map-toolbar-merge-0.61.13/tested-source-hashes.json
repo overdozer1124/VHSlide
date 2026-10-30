@@ -1,0 +1,9 @@
+{
+  "src/App.tsx": "6ab8f7d8d85bf627a11d7f7801d9932b17f1c74f8197deb1e98c4796aafb3c18",
+  "src/MapView.tsx": "85a55993097982514ccebec83809664ae7a6f8514a5d20f1e663a9acaeb47d58",
+  "src/style.css": "71155a84265edee48a474dea17b59d281db5863b30cdfebc95adb13b09c11f17",
+  "src/releaseHistory.ts": "1a57caeb7516bfbda4c0f050751decdf4d5a24c7fd649573a8e1fa62ccc4a72a",
+  "package.json": "b362e3634872a0f95e7936378f78e53e66a8451df004b871042590726d911f41",
+  "package-lock.json": "0ee0cbd734896296997906b63860f8be332b5379edcfe1df3d14c421f2bc9aef",
+  "tests/e2e/ui-request-layout.spec.ts": "e781f12af58ee7bd360a983fef7fdd0e53e0f8deae68eda01b73e2833bef1e7c"
+}

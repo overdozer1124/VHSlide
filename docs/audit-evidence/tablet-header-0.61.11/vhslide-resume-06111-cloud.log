@@ -1,0 +1,19 @@
+[WebServer] (node:36502) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:36519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (32.8s)
+  ✓  2 [cloud-desktop] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (16.3s)
+  ✓  3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (21.9s)
+  ✓  4 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (13.5s)
+(node:36979) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (33.1s)
+  ✓  6 [cloud-touch] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (15.0s)
+  ✓  7 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (20.3s)
+  ✓  8 [cloud-touch] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (13.1s)
+
+  8 passed (2.9m)

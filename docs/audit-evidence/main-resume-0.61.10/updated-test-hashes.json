@@ -1,0 +1,5 @@
+{
+  "tests/cloud/collaboration.spec.ts": "747190e90dc4d53f843e5b83841d1cca43269674d9ca5c53e69bb5d914b1e313",
+  "tests/cloud/content-editing.spec.ts": "a70c65b98096d51f2f32f9e1c6885ccfee790e1f33046e1f50693be6b761114b",
+  "tests/e2e/learning-tools.spec.ts": "6914c6c5aa3cd9a7bb378d9384b67ce9870c1c41643dd5fdbc79fb8ce4fa873b"
+}

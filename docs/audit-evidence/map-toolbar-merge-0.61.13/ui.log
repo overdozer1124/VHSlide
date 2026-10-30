@@ -1,0 +1,153 @@
+[WebServer] (node:40581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 54 tests using 1 worker
+
+(node:40625) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 9:25:03 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/direct-filter.spec.ts:38:1 › selects actual column/row headers and thumbnails, supports exclusions, and cancels without changing the applied filter (4.7s)
+[WebServer] 9:25:07 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   2 [desktop] › tests/e2e/direct-filter.spec.ts:78:1 › editing keeps only selected pages in the rail, flyout, keys and touch swipes, while saving every original page (3.8s)
+[WebServer] 9:25:11 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   3 [desktop] › tests/e2e/direct-filter.spec.ts:140:1 › can keep the map filtered and independently enable or disable the editor filter, including sparse linked rows (3.2s)
+[WebServer] 9:25:14 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   4 [desktop] › tests/e2e/direct-filter.spec.ts:165:1 › deleting the last selected pages shows an empty editor without exposing or removing unselected data, and supports undo (2.6s)
+[WebServer] 9:25:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/map-action-layout.spec.ts:14:1 › comparison is contextual, inherits exact selected IDs and never silently truncates five pages (3.4s)
+[WebServer] 9:25:20 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   6 [desktop] › tests/e2e/map-action-layout.spec.ts:66:1 › sheet-wide batch is available without a selection and survives filtered-map scope (2.9s)
+  ✓   7 [desktop] › tests/e2e/map-batch.spec.ts:55:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (3.3s)
+  ✓   8 [desktop] › tests/e2e/map-batch.spec.ts:94:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (2.3s)
+  ✓   9 [desktop] › tests/e2e/map-batch.spec.ts:115:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (3.1s)
+  ✓  10 [desktop] › tests/e2e/map-batch.spec.ts:148:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (2.7s)
+  ✓  11 [desktop] › tests/e2e/map-batch.spec.ts:212:1 › selection supports keyboard toggling and touch taps without entering the editor (1.9s)
+  ✓  12 [desktop] › tests/e2e/map-batch.spec.ts:243:1 › bulk add accounts for pages in other sheets before enabling the operation (2.3s)
+[WebServer] 9:25:39 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  13 [desktop] › tests/e2e/map-display-layout.spec.ts:11:1 › map display settings contain form input, stay in view as they expand and discard unapplied edits (3.5s)
+[WebServer] 9:25:42 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  14 [desktop] › tests/e2e/map-display-layout.spec.ts:84:1 › display actions retain numbers, fit and current-page behavior without clearing selected slides (2.8s)
+[WebServer] 9:25:45 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  15 [desktop] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation (1.8s)
+[WebServer] 9:25:47 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  16 [desktop] › tests/e2e/map-display-layout.spec.ts:147:1 › display popup closes when a trackpad pinch opens the editor (1.7s)
+[WebServer] 9:25:49 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  17 [desktop] › tests/e2e/map-viewport.spec.ts:3:1 › Chromebook map starts at 100%, shows two full rows at 60%, fits ten topics, and restores the selected page (10.7s)
+  -  18 [desktop] › tests/e2e/map-viewport.spec.ts:83:1 › map zoom and editing remain usable on a narrow touch screen
+[WebServer] 9:26:00 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  19 [desktop] › tests/e2e/map-viewport.spec.ts:126:1 › a thousand pages render nearby thumbnails only, keep their grid positions, and expose exactly three display steps (21.0s)
+  -  20 [desktop] › tests/e2e/pinch-layout.spec.ts:92:1 › a touch pinch keeps headings, labels and row gaps at their size around the pinched slide
+[WebServer] 9:26:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  21 [desktop] › tests/e2e/pinch-layout.spec.ts:147:1 › a trackpad pinch never zooms the page, also when it carries on into the editor (2.1s)
+  -  22 [desktop] › tests/e2e/pinch-layout.spec.ts:201:1 › pinching beside the slide in the editor does not zoom the page, and a pinch-in there returns to the map
+  -  23 [desktop] › tests/e2e/pinch-layout.spec.ts:233:1 › pinching in past the smallest thumbnails crossfades them into the numbered overview around the pinched slide
+  -  24 [desktop] › tests/e2e/pinch-layout.spec.ts:322:1 › with reduced motion, pinching into the numbered overview switches at once
+  -  25 [desktop] › tests/e2e/pinch-layout.spec.ts:345:1 › pinching out of the numbered overview crossfades it back into the smallest thumbnails
+  ✓  26 [desktop] › tests/e2e/ui-request-layout.spec.ts:20:1 › file/cloud are distinct, presentation is last, and the map toolbar stays on one row (3.3s)
+  ✓  27 [desktop] › tests/e2e/ui-request-layout.spec.ts:104:1 › drawing has a pencil and panel toggles stay with their own sidebar, including restore focus (8.0s)
+(node:41660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 9:26:37 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  28 [touch] › tests/e2e/direct-filter.spec.ts:38:1 › selects actual column/row headers and thumbnails, supports exclusions, and cancels without changing the applied filter (3.3s)
+[WebServer] 9:26:41 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  29 [touch] › tests/e2e/direct-filter.spec.ts:78:1 › editing keeps only selected pages in the rail, flyout, keys and touch swipes, while saving every original page (4.2s)
+[WebServer] 9:26:45 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  30 [touch] › tests/e2e/direct-filter.spec.ts:140:1 › can keep the map filtered and independently enable or disable the editor filter, including sparse linked rows (3.1s)
+[WebServer] 9:26:48 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  31 [touch] › tests/e2e/direct-filter.spec.ts:165:1 › deleting the last selected pages shows an empty editor without exposing or removing unselected data, and supports undo (4.8s)
+[WebServer] 9:26:55 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  32 [touch] › tests/e2e/map-action-layout.spec.ts:14:1 › comparison is contextual, inherits exact selected IDs and never silently truncates five pages (6.6s)
+[WebServer] 9:27:00 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  33 [touch] › tests/e2e/map-action-layout.spec.ts:66:1 › sheet-wide batch is available without a selection and survives filtered-map scope (3.4s)
+  ✓  34 [touch] › tests/e2e/map-batch.spec.ts:55:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (4.3s)
+  ✓  35 [touch] › tests/e2e/map-batch.spec.ts:94:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (2.5s)
+  ✓  36 [touch] › tests/e2e/map-batch.spec.ts:115:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (3.7s)
+  ✓  37 [touch] › tests/e2e/map-batch.spec.ts:148:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (3.1s)
+  ✓  38 [touch] › tests/e2e/map-batch.spec.ts:212:1 › selection supports keyboard toggling and touch taps without entering the editor (2.9s)
+  ✓  39 [touch] › tests/e2e/map-batch.spec.ts:243:1 › bulk add accounts for pages in other sheets before enabling the operation (2.5s)
+[WebServer] 9:27:22 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  40 [touch] › tests/e2e/map-display-layout.spec.ts:11:1 › map display settings contain form input, stay in view as they expand and discard unapplied edits (4.1s)
+[WebServer] 9:27:27 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  41 [touch] › tests/e2e/map-display-layout.spec.ts:84:1 › display actions retain numbers, fit and current-page behavior without clearing selected slides (5.5s)
+[WebServer] 9:27:33 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  42 [touch] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation (3.1s)
+[WebServer] 9:27:36 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  -  43 [touch] › tests/e2e/map-display-layout.spec.ts:147:1 › display popup closes when a trackpad pinch opens the editor
+  -  44 [touch] › tests/e2e/map-viewport.spec.ts:3:1 › Chromebook map starts at 100%, shows two full rows at 60%, fits ten topics, and restores the selected page
+[WebServer] 9:27:38 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  45 [touch] › tests/e2e/map-viewport.spec.ts:83:1 › map zoom and editing remain usable on a narrow touch screen (2.5s)
+  -  46 [touch] › tests/e2e/map-viewport.spec.ts:126:1 › a thousand pages render nearby thumbnails only, keep their grid positions, and expose exactly three display steps
+[WebServer] 9:27:41 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  47 [touch] › tests/e2e/pinch-layout.spec.ts:92:1 › a touch pinch keeps headings, labels and row gaps at their size around the pinched slide (14.1s)
+  -  48 [touch] › tests/e2e/pinch-layout.spec.ts:147:1 › a trackpad pinch never zooms the page, also when it carries on into the editor
+[WebServer] 9:28:07 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  49 [touch] › tests/e2e/pinch-layout.spec.ts:201:1 › pinching beside the slide in the editor does not zoom the page, and a pinch-in there returns to the map (4.3s)
+[WebServer] 9:28:10 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  50 [touch] › tests/e2e/pinch-layout.spec.ts:233:1 › pinching in past the smallest thumbnails crossfades them into the numbered overview around the pinched slide (5.1s)
+[WebServer] 9:28:16 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  51 [touch] › tests/e2e/pinch-layout.spec.ts:322:1 › with reduced motion, pinching into the numbered overview switches at once (4.3s)
+[WebServer] 9:28:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  52 [touch] › tests/e2e/pinch-layout.spec.ts:345:1 › pinching out of the numbered overview crossfades it back into the smallest thumbnails (7.0s)
+  ✓  53 [touch] › tests/e2e/ui-request-layout.spec.ts:20:1 › file/cloud are distinct, presentation is last, and the map toolbar stays on one row (4.4s)
+  ✓  54 [touch] › tests/e2e/ui-request-layout.spec.ts:104:1 › drawing has a pencil and panel toggles stay with their own sidebar, including restore focus (6.8s)
+
+  10 skipped
+  44 passed (3.7m)

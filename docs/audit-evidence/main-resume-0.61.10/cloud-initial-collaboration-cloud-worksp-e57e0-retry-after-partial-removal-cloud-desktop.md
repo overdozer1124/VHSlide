@@ -1,0 +1,307 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: collaboration.spec.ts >> cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal
+- Location: tests/cloud/collaboration.spec.ts:1020:1
+
+# Error details
+
+```
+Test timeout of 90000ms exceeded.
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "VHSlide 全体マップ" [ref=e5] [cursor=pointer]:
+        - /url: "#"
+        - text: VH
+        - generic [ref=e12]: Slide
+      - generic [ref=e14]:
+        - textbox "作品のタイトル" [ref=e15]: わたしたちのまちの、いいところ
+        - generic [ref=e16]:
+          - status "クラウドに保存済み · 本文と付箋の保存状態です。端末へ書き出すJSONには付箋・共有設定・過去の版は含みません。" [ref=e19]:
+            - generic [ref=e22]: クラウドに保存済み
+          - generic [ref=e23]: ホスト
+          - generic [ref=e24]: 2人が参加中
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - button "ファイル" [ref=e28] [cursor=pointer]
+          - button "ファイルに保存" [ref=e34] [cursor=pointer]:
+            - generic [ref=e38]: 保存
+        - button "クラウド" [ref=e39] [cursor=pointer]
+        - button "全員の画面を同期" [ref=e44] [cursor=pointer]: 全員を集合
+        - button "ゲストの設定" [ref=e46] [cursor=pointer]
+        - generic [ref=e49]:
+          - button "発表する" [ref=e50] [cursor=pointer]
+          - button "発表方法を選ぶ" [ref=e56] [cursor=pointer]
+    - navigation [ref=e59]:
+      - generic [ref=e60]:
+        - button "全体マップ" [ref=e61] [cursor=pointer]
+        - button "ページを編集" [ref=e67] [cursor=pointer]
+      - generic [ref=e70]:
+        - button "もとに戻す" [disabled] [ref=e71]
+        - button "やり直す" [disabled] [ref=e75]
+        - button "その他" [ref=e81] [cursor=pointer]
+    - main [ref=e87]:
+      - region "ページの全体マップ" [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - heading "全体マップ" [level=1] [ref=e91]
+            - generic "シート1・全体・5ページ" [ref=e98]:
+              - generic [ref=e99]: シート1・全体
+              - generic [ref=e100]: 5ページ
+          - button "マップをフィルタ" [ref=e101] [cursor=pointer]: フィルタ
+          - button "スライドを複数選択" [ref=e104] [cursor=pointer]: 選択
+          - button "行・列を一括操作" [ref=e107] [cursor=pointer]
+          - generic [ref=e108]:
+            - textbox "ページ番号で探す" [ref=e109]:
+              - /placeholder: "3.2"
+            - button "番号のページを探す" [ref=e110] [cursor=pointer]
+          - group "マップの表示サイズ" [ref=e114]:
+            - button "マップを縮小" [ref=e115] [cursor=pointer]
+            - button "表示サイズを100%に戻す" [ref=e119] [cursor=pointer]: 100%
+            - button "マップを拡大" [disabled] [ref=e120]
+          - button "マップの表示設定" [ref=e124] [cursor=pointer]: 表示
+        - region "スライドのマップ" [ref=e126]:
+          - generic [ref=e127]:
+            - generic [ref=e129]: 次の話題へ
+            - generic [aria-hidden] [ref=e134]: 行 / 列
+            - generic [ref=e135]:
+              - generic [ref=e136]: "01"
+              - textbox "列1の見出し" [ref=e137]:
+                - /placeholder: 列の名前
+                - text: はじまり
+              - button "話題1を移動" [ref=e138] [cursor=pointer]
+            - generic [ref=e146]:
+              - generic [ref=e147]: "02"
+              - textbox "列2の見出し" [ref=e148]:
+                - /placeholder: 列の名前
+                - text: 話題 2
+              - button "話題2を移動" [ref=e149] [cursor=pointer]
+            - generic [ref=e157]:
+              - generic [ref=e158]: "03"
+              - textbox "列3の見出し" [ref=e159]:
+                - /placeholder: 列の名前
+                - text: 話題 3
+              - button "話題3を移動" [ref=e160] [cursor=pointer]
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - button "高さ1のページをまとめて移動" [ref=e170] [cursor=pointer]: "01"
+                - textbox "行1の見出し" [ref=e171]:
+                  - /placeholder: 見出し
+              - generic [ref=e172]:
+                - generic [ref=e173]:
+                  - button "わたしたちのまちを編集" [ref=e174] [cursor=pointer]:
+                    - generic [ref=e175]:
+                      - generic:
+                        - generic: OUR TOWN
+                        - generic: わたしたちのまちの、 いいところ。
+                        - generic: いつもの景色に、新しい発見。
+                    - generic [ref=e176]: 発表の先頭
+                  - generic [ref=e177]:
+                    - generic [ref=e178]: "1.1"
+                    - textbox "1.1のフッター" [ref=e179]: manager-cloud-desktop-a
+                    - button "わたしたちのまちのページメニュー" [ref=e180] [cursor=pointer]
+                    - button "わたしたちのまちを移動" [ref=e185] [cursor=pointer]
+                    - button "わたしたちのまちを削除" [ref=e193] [cursor=pointer]
+                - button "わたしたちのまちの右に次の話題を追加" [ref=e197] [cursor=pointer]
+                - button "わたしたちのまちの下に詳しいページを追加" [ref=e199] [cursor=pointer]
+              - generic [ref=e201]:
+                - generic [ref=e202]:
+                  - button "自然がいっぱいを編集" [ref=e203] [cursor=pointer]:
+                    - generic [ref=e204]:
+                      - generic:
+                        - generic: 01 / NATURE
+                        - generic: 自然がいっぱい。
+                        - generic: 緑の道を、歩いてみよう。
+                  - generic [ref=e205]:
+                    - generic [ref=e206]: "1.2"
+                    - textbox "1.2のフッター" [ref=e207]: manager-cloud-desktop-a
+                    - button "自然がいっぱいのページメニュー" [ref=e208] [cursor=pointer]
+                    - button "自然がいっぱいを移動" [ref=e213] [cursor=pointer]
+                    - button "自然がいっぱいを削除" [ref=e221] [cursor=pointer]
+                - button "自然がいっぱいの右に次の話題を追加" [ref=e225] [cursor=pointer]
+                - button "自然がいっぱいの下に詳しいページを追加" [ref=e227] [cursor=pointer]
+              - generic [ref=e229]:
+                - generic [ref=e230]:
+                  - button "人とつながるを編集" [ref=e231] [cursor=pointer]:
+                    - generic [ref=e232]:
+                      - generic:
+                        - generic: 02 / PEOPLE
+                        - generic: 人と、つながる。
+                        - generic: 「こんにちは」から、はじまる。
+                  - generic [ref=e233]:
+                    - generic [ref=e234]: "1.3"
+                    - textbox "1.3のフッター" [ref=e235]: manager-cloud-desktop-a
+                    - button "人とつながるのページメニュー" [ref=e236] [cursor=pointer]
+                    - button "人とつながるを移動" [ref=e241] [cursor=pointer]
+                    - button "人とつながるを削除" [ref=e249] [cursor=pointer]
+                - button "人とつながるの右に次の話題を追加" [ref=e253] [cursor=pointer]
+                - button "人とつながるの下に詳しいページを追加" [ref=e255] [cursor=pointer]
+            - generic [ref=e257]:
+              - generic [ref=e258]:
+                - button "高さ2のページをまとめて移動" [ref=e259] [cursor=pointer]: "02"
+                - textbox "行2の見出し" [ref=e260]:
+                  - /placeholder: 見出し
+              - generic [ref=e261]:
+                - generic [ref=e262]:
+                  - button "まちを歩いてみたらを編集" [ref=e263] [cursor=pointer]:
+                    - generic [ref=e264]:
+                      - generic:
+                        - generic: ちいさな発見 01
+                        - generic: まちを歩いてみたら
+                        - generic: いつもの通学路にも、 まだ知らないことがある。
+                  - generic [ref=e265]:
+                    - generic [ref=e266]: "2.1"
+                    - textbox "2.1のフッター" [ref=e267]: manager-cloud-desktop-b
+                    - button "まちを歩いてみたらのページメニュー" [ref=e268] [cursor=pointer]
+                    - button "まちを歩いてみたらを移動" [ref=e273] [cursor=pointer]
+                    - button "まちを歩いてみたらを削除" [ref=e281] [cursor=pointer]
+                - button "まちを歩いてみたらの右に次の話題を追加" [ref=e285] [cursor=pointer]
+                - button "まちを歩いてみたらの下に詳しいページを追加" [ref=e287] [cursor=pointer]
+              - generic [ref=e289]:
+                - generic [ref=e290]:
+                  - button "お気に入りの公園を編集" [ref=e291] [cursor=pointer]:
+                    - generic [ref=e292]:
+                      - generic:
+                        - generic: ちいさな発見 02
+                        - generic: お気に入りの公園
+                        - generic: 季節が変わると、 どんな発見があるかな？
+                  - generic [ref=e293]:
+                    - generic [ref=e294]: "2.2"
+                    - textbox "2.2のフッター" [ref=e295]: manager-cloud-desktop-b
+                    - button "お気に入りの公園のページメニュー" [ref=e296] [cursor=pointer]
+                    - button "お気に入りの公園を移動" [ref=e301] [cursor=pointer]
+                    - button "お気に入りの公園を削除" [ref=e309] [cursor=pointer]
+                - button "お気に入りの公園の右に次の話題を追加" [ref=e313] [cursor=pointer]
+                - button "お気に入りの公園の下に詳しいページを追加" [ref=e315] [cursor=pointer]
+              - button "2.3にページを追加" [ref=e318] [cursor=pointer]:
+                - generic [ref=e320]: ページを追加
+        - generic [ref=e321]:
+          - generic [ref=e322]:
+            - generic [ref=e323]: ↔
+            - text: よこは「次の話題」
+            - generic [ref=e324]: /
+            - generic [ref=e325]: ↕
+            - text: たては「くわしい説明」
+          - generic [ref=e326]: 長押し・つまみで移動 · ピンチで拡大・縮小
+    - generic "シート一覧" [ref=e327]:
+      - tablist "作品のシート" [ref=e328]:
+        - tab "シート1" [selected] [ref=e330] [cursor=pointer]
+      - button "空のシートを追加" [ref=e331] [cursor=pointer]
+      - button "シートの操作" [ref=e333] [cursor=pointer]
+    - status [ref=e338]
+  - dialog "クラウドの作品" [ref=e340]:
+    - banner [ref=e341]:
+      - generic [ref=e342]:
+        - heading "クラウドの作品" [level=2] [ref=e343]
+        - paragraph [ref=e346]: 作品を開く・共有する・編集できる範囲を決める
+      - generic [ref=e347]:
+        - generic [ref=e348]:
+          - generic [ref=e349]: m
+          - generic [ref=e350]:
+            - text: manager-cloud-desktop
+            - generic [ref=e351]: manager-cloud-desktop@example.test
+        - button "サインアウト" [ref=e352] [cursor=pointer]
+      - button "クラウドの作品を閉じる" [ref=e357] [cursor=pointer]
+    - generic [ref=e361]:
+      - generic [ref=e362]:
+        - generic [ref=e363]: 開いている作品
+        - strong [ref=e364]: わたしたちのまちの、いいところ
+      - generic [ref=e365]: ホスト
+    - tablist "クラウド画面の切り替え" [ref=e369]:
+      - tab "作品一覧 1" [ref=e370] [cursor=pointer]:
+        - text: 作品一覧
+        - generic [ref=e373]: "1"
+      - tab "共有管理" [selected] [ref=e374] [cursor=pointer]
+    - tabpanel "共有管理" [ref=e381]:
+      - generic [ref=e382]:
+        - generic [ref=e383]:
+          - region "参加待ちのアカウント" [ref=e384]:
+            - generic [ref=e385]:
+              - heading "参加待ち 0人" [level=3] [ref=e386]:
+                - text: 参加待ち
+                - generic [ref=e387]: 0人
+              - button "参加待ちを更新" [ref=e388] [cursor=pointer]
+            - paragraph [ref=e389]: 氏名とメールアドレスを確認してください。承認するまで作品は見えません。承認後は作品全体の閲覧・保存と付箋コメントが可能になり、編集権限は下の共有一覧で設定します。
+            - paragraph [ref=e390]: 参加待ちのアカウントはありません。
+          - group "共有アカウントの管理" [ref=e391]:
+            - generic [ref=e393]:
+              - heading "共有アカウント 2人" [level=3] [ref=e394]:
+                - text: 共有アカウント
+                - generic [ref=e400]: 2人
+              - paragraph [ref=e401]: 名前・参加状況・編集できる範囲をまとめて確認できます。
+            - region "アカウントの事前共有" [ref=e402]:
+              - button "共有するアカウントを追加" [ref=e403] [cursor=pointer]
+            - generic [ref=e404]:
+              - textbox "共有アカウントを検索" [ref=e409]:
+                - /placeholder: 名前・メールアドレスで検索
+              - button "参加者一覧を更新" [ref=e410] [cursor=pointer]
+            - generic [ref=e411]:
+              - generic [ref=e412]:
+                - checkbox "表示中のアカウントをすべて選択" [ref=e413] [cursor=pointer]
+                - text: すべて選択
+              - generic [ref=e414]: 0人を選択中
+              - button "一括で権限を設定" [disabled] [ref=e415]
+              - button "選択した共有を解除" [disabled] [ref=e419]
+            - status
+            - list "共有されているアカウント" [ref=e423]:
+              - listitem [ref=e424]:
+                - checkbox "manager-cloud-desktop-a@example.testを選択" [ref=e426] [cursor=pointer]
+                - generic [ref=e427]:
+                  - strong [ref=e428]: manager-cloud-desktop-a
+                  - generic [ref=e429]: manager-cloud-desktop-a@example.test
+                  - generic [ref=e430]: 参加前（承認済み）
+                - generic [ref=e431]:
+                  - strong [ref=e432]: シート1・1行目
+                  - generic [ref=e433]: 3ページ
+                  - generic [ref=e434]: 付箋コメント可
+                - generic [ref=e435]:
+                  - button "manager-cloud-desktop-a@example.testの事前編集権限を設定" [ref=e436] [cursor=pointer]: 権限を変更
+                  - button "manager-cloud-desktop-a@example.testの事前共有を解除" [ref=e437] [cursor=pointer]
+              - listitem [ref=e441]:
+                - checkbox "manager-cloud-desktop-b@example.testを選択" [ref=e443] [cursor=pointer]
+                - generic [ref=e444]:
+                  - strong [ref=e445]: manager-cloud-desktop-b
+                  - generic [ref=e446]: manager-cloud-desktop-b@example.test
+                  - generic [ref=e447]: 参加前（承認済み）
+                - generic [ref=e448]:
+                  - strong [ref=e449]: シート1・2行目
+                  - generic [ref=e450]: 2ページ
+                  - generic [ref=e451]: 付箋コメント可
+                - generic [ref=e452]:
+                  - button "manager-cloud-desktop-b@example.testの事前編集権限を設定" [ref=e453] [cursor=pointer]: 権限を変更
+                  - button "manager-cloud-desktop-b@example.testの事前共有を解除" [ref=e454] [cursor=pointer]
+        - complementary "共有リンク" [ref=e458]:
+          - heading "リンクを共有" [level=3] [ref=e459]
+          - paragraph [ref=e463]: 登録したアカウントには、この作品のリンクを伝えてください。
+          - generic [ref=e464]:
+            - text: 作品リンク
+            - textbox "事前共有した作品のリンク" [ref=e465]: http://127.0.0.1:3187/?room=8ad5709e-34bd-44ba-8439-8aeb61390911
+          - button "作品リンクをコピー" [ref=e466] [cursor=pointer]
+          - status
+          - generic [ref=e470]:
+            - heading "招待リンクから参加" [level=4] [ref=e471]
+            - paragraph [ref=e472]: リンクを開いた相手は参加待ちになります。氏名・メールアドレスを確認してホストが承認した後に、閲覧・付箋コメントが可能になります。
+            - button "共同編集の招待リンクを作る" [ref=e473] [cursor=pointer]
+            - generic [ref=e474]:
+              - textbox "共同編集の招待リンク" [ref=e475]: http://127.0.0.1:3187/?join=OLtbuC3RhhbnLLrfseJKt_wZUgVON6kvP1Hy2tSmC1s
+              - button "招待リンクをコピー" [ref=e476] [cursor=pointer]
+            - status
+            - button "招待リンクを無効にする" [ref=e480] [cursor=pointer]
+            - generic [ref=e481]: 作り直すと、以前の招待リンクは使えなくなります。
+    - contentinfo [ref=e482]:
+      - group [ref=e483]:
+        - generic "保存容量とご利用について" [ref=e484] [cursor=pointer]
+      - button "端末の作品へ戻る" [ref=e485] [cursor=pointer]
+      - generic [ref=e486]: JSONで端末にも保存できます
+```

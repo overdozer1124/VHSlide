@@ -6491,10 +6491,9 @@ h1 span {
 .editable .resize-sw::after,.editable .resize-se::after {top:calc(var(--resize-inset-y) - var(--resize-mark-y) / 2);}
 .editable .resize-nw::after,.editable .resize-ne::after {bottom:calc(var(--resize-inset-y) - var(--resize-mark-y) / 2);}
 
-/* File actions share one group; presentation is last in both visual and tab order. */
-.header-actions .file-actions > .button {border-radius:0 8px 8px 0;}
-.header-actions .file-actions > .action-menu > .button {border-radius:8px 0 0 8px;border-right:0;}
-.header-actions .file-actions .action-menu-labeled {padding-inline:10px;}
+/* File operations live in one menu; presentation remains last in tab order. */
+.header-actions .file-actions {display:inline-flex;}
+.header-actions .file-actions .action-menu-labeled {padding-inline:10px;border-radius:8px;}
 .header-actions .present-action {flex-shrink:0;}
 /* A single map toolbar row. On small screens it scrolls rather than wrapping. */
 .mapping .map-toolbar {flex-wrap:nowrap;height:44px;min-height:44px;gap:8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
@@ -6503,6 +6502,12 @@ h1 span {
 .mapping .map-toolbar .map-stats {max-width:220px;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .mapping .map-toolbar .map-find {margin-left:auto;}
 .mapping .map-toolbar .map-find + .map-zoom {margin-left:0;}
+.mapping .view-bar.map-workspace-bar {height:44px;min-height:44px;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
+.mapping .map-workspace-bar .view-tabs {flex-shrink:0;gap:12px;}
+.mapping .map-workspace-bar .view-tabs button {white-space:nowrap;}
+.map-toolbar-slot {display:contents;}
+.mapping .map-workspace-bar .map-toolbar {flex:1 0 auto;width:auto;overflow:visible;border:0;padding:0;}
+.mapping .map-workspace-bar > .history {flex-shrink:0;margin-left:auto;}
 .map-batch-trigger {white-space:nowrap;}
 /* Panel controls live at their own panel, including a persistent restore strip. */
 .rail-heading-title {display:flex;align-items:center;justify-content:space-between;gap:4px;width:100%;}
@@ -6529,6 +6534,10 @@ h1 span {
  .workspace-mode .app-header .header-document {flex:1;min-width:80px;}
  .workspace-mode .header-actions {flex-basis:100%;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;margin:0;gap:4px;padding-bottom:2px;}
  .workspace-mode .header-actions > * {flex-shrink:0;}
+}
+@media(min-width:761px) and (max-width:900px) {
+ .workspace-mode .header-actions {gap:2px;}
+ .workspace-mode .header-actions .button {padding-inline:6px;}
 }
 @media(max-width:760px) {
  .editing .editor-main[data-inspector-collapsed="true"] {height:calc(100dvh - 80px);min-height:0;flex:1;}

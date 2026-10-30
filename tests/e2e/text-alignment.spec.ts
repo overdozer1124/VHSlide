@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -117,7 +118,7 @@ test("text alignment survives undo, JSON restoration, reload, thumbnails and pre
   await button(page, "やり直す").click();
   await expectPosition(selected.locator(".text-layout"), 1, 1);
   const download = page.waitForEvent("download");
-  await button(page, "ファイルに保存").click();
+  await saveJSON(page);
   const file = await download,
     deck = JSON.parse(await readFile((await file.path())!, "utf8"));
   expect(deck.slides[0].elements.at(-1)).toMatchObject({

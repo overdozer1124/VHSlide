@@ -1,0 +1,48 @@
+[WebServer] (node:33520) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:33537) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (33.6s)
+  ✓  2 [cloud-desktop] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (15.4s)
+  ✓  3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (21.2s)
+(node:33919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  4 [cloud-touch] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (32.0s)
+(node:34110) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (16.2s)
+  ✓  6 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (28.1s)
+
+
+  1) [cloud-touch] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 810
+    Received:    825
+
+      451 |       });
+      452 |     }
+    > 453 |     expect(await page.evaluate(() => innerWidth)).toBeLessThanOrEqual(
+          |                                                   ^
+      454 |       page.viewportSize()!.width,
+      455 |     );
+      456 |     await page
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:453:51
+
+    Error Context: ../../tmp/vhslide-resume-cloud-last-results/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/vhslide-resume-cloud-last-results/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/vhslide-resume-cloud-last-results/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-touch] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos
+  5 passed (2.6m)

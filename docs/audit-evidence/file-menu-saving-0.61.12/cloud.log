@@ -1,0 +1,21 @@
+[WebServer] (node:38890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:38907) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:178:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (40.6s)
+  ✓   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1207:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (4.3s)
+  ✓   3 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (13.2s)
+  ✓   4 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (15.0s)
+  ✓   5 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (15.6s)
+(node:39405) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [cloud-touch] › tests/cloud/collaboration.spec.ts:178:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (38.2s)
+  ✓   7 [cloud-touch] › tests/cloud/collaboration.spec.ts:1207:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (3.4s)
+  ✓   8 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (11.7s)
+  ✓   9 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (13.8s)
+  ✓  10 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (17.0s)
+
+  10 passed (3.0m)

@@ -139,7 +139,11 @@ test("rich styles and cell formats sync, own undo preserves peers; cropped priva
         JSON.stringify((await serverBook()).slides[0].elements[0].richText),
       )
       .not.toContain('"underline":true');
-    await Promise.all([cell(page, 1, 1).click(), cell(other, 1, 1).click()]);
+    // Header cells start bold; use a body cell so the toggle enables bold.
+    await Promise.all([cell(page, 2, 1).click(), cell(other, 2, 1).click()]);
+    await expect(
+      other.getByRole("button", { name: "セルを太字", exact: true }),
+    ).toHaveAttribute("aria-pressed", "false");
     await Promise.all([
       page.getByLabel("セルの背景色", { exact: true }).fill("#aaddff"),
       other.getByRole("button", { name: "セルを太字", exact: true }).click(),

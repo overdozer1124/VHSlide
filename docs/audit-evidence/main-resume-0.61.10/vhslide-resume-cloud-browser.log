@@ -1,0 +1,285 @@
+[WebServer] (node:2723) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 128 tests using 1 worker
+
+(node:2812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘    1 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (1.1m)
+(node:3555) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    2 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (7.5s)
+  ✓    3 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (10.2s)
+  ✓    4 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (7.4s)
+  ✓    5 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (7.2s)
+  ✓    6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:72:1 › recovers unsent text from this browser after reopening the app (11.9s)
+  ✘    7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:168:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (1.4m)
+(node:5348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘    8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:444:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (1.5m)
+(node:6277) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘    9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:556:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (51.6s)
+(node:6847) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:685:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (18.1s)
+  ✓   11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:783:1 › failed sticky autosaves keep the input and can be retried (13.5s)
+  ✓   12 [cloud-desktop] › tests/cloud/collaboration.spec.ts:816:1 › host edits shared map headings and row account names update vertically for guests (36.9s)
+  ✓   13 [cloud-desktop] › tests/cloud/collaboration.spec.ts:941:1 › sticky color, presets and direct resize persist with mouse and touch (18.3s)
+  ✘   14 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1020:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (1.6m)
+(node:8934) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   15 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1201:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (13.3s)
+(node:9185) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   16 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1307:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (21.1s)
+
+
+  1) [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cloud-presence')
+    Expected substring: "クラウドに保存済み"
+    Received string:    "クラウドに保存中ホスト1人が参加中cloud-desktop-cache-host"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" locator('.cloud-presence') with timeout 5000ms
+      - waiting for locator('.cloud-presence')
+        - locator resolved to <div class="cloud-presence">…</div>
+        - unexpected value "再接続中・端末に一時保存ホスト0人が参加中"
+        2 × locator resolved to <div class="cloud-presence">…</div>
+          - unexpected value "クラウドに保存中ホスト1人が参加中cloud-desktop-cache-host"
+
+
+      171 |   await expect(notice).toHaveCount(0);
+      172 |   await page.reload();
+    > 173 |   await expect(page.locator(".cloud-presence")).toContainText(
+          |                                                 ^
+      174 |     "クラウドに保存済み",
+      175 |   );
+      176 |   await expect(notice).toHaveCount(0);
+        at /workspace/VHSlide/tests/cloud/cache-recovery.spec.ts:173:49
+
+    Error Context: test-results-cloudflare/cache-recovery-host-automa-775dc-d-retains-its-recovery-file-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/cache-recovery-host-automa-775dc-d-retains-its-recovery-file-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/cache-recovery-host-automa-775dc-d-retains-its-recovery-file-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-desktop] › tests/cloud/collaboration.spec.ts:168:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cloud-presence')
+    Expected substring: "共有停止"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" locator('.cloud-presence') with timeout 5000ms
+      - waiting for locator('.cloud-presence')
+
+
+      435 |       .getByRole("button", { name: `${name}-friendの参加を解除`, exact: true })
+      436 |       .click();
+    > 437 |     await expect(other.locator(".cloud-presence")).toContainText("共有停止");
+          |                                                    ^
+      438 |     await page.screenshot({ path: info.outputPath("cloud-sharing.png") });
+      439 |   } finally {
+      440 |     await context.close();
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:437:52
+
+    Error Context: test-results-cloudflare/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [cloud-desktop] › tests/cloud/collaboration.spec.ts:444:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByRole('button', { name: 'わたしたちのまちを編集', exact: true })
+
+
+      62 |   await page
+      63 |     .getByRole("button", { name: "わたしたちのまちを編集", exact: true })
+    > 64 |     .click();
+         |      ^
+      65 | }
+      66 | async function saved(page: Page) {
+      67 |   await expect(page.locator(".cloud-presence")).toContainText(
+        at openEditor (/workspace/VHSlide/tests/cloud/collaboration.spec.ts:64:6)
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:469:11
+
+    Error Context: test-results-cloudflare/collaboration-host-selects-29bc2--persistent-sticky-comments-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-host-selects-29bc2--persistent-sticky-comments-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-host-selects-29bc2--persistent-sticky-comments-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [cloud-desktop] › tests/cloud/collaboration.spec.ts:556:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cloud-presence')
+    Expected substring: "共有停止"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" locator('.cloud-presence') with timeout 5000ms
+      - waiting for locator('.cloud-presence')
+        7 × locator resolved to <div class="cloud-presence">…</div>
+          - unexpected value "クラウドに保存済み指定範囲を編集3人が参加中roster-cloud-desktop-b、roster-cloud-desktop-a、roster-cloud-desktop"
+
+
+      675 |     await expect(button(pa, "文字")).toBeDisabled();
+      676 |     await button(page, `${b}@example.testの事前共有を解除`).click();
+    > 677 |     await expect(pb.locator(".cloud-presence")).toContainText("共有停止");
+          |                                                 ^
+      678 |     await expect(page.locator(".pre-share-account")).toHaveCount(1);
+      679 |   } finally {
+      680 |     await ca.close();
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:677:49
+
+    Error Context: test-results-cloudflare/collaboration-pasted-accou-035c1-nments-through-invite-entry-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-pasted-accou-035c1-nments-through-invite-entry-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-pasted-accou-035c1-nments-through-invite-entry-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [cloud-desktop] › tests/cloud/collaboration.spec.ts:1020:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByRole('button', { name: 'わたしたちのまちを編集', exact: true })
+
+
+      62 |   await page
+      63 |     .getByRole("button", { name: "わたしたちのまちを編集", exact: true })
+    > 64 |     .click();
+         |      ^
+      65 | }
+      66 | async function saved(page: Page) {
+      67 |   await expect(page.locator(".cloud-presence")).toContainText(
+        at openEditor (/workspace/VHSlide/tests/cloud/collaboration.spec.ts:64:6)
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:1086:11
+
+    Error Context: test-results-cloudflare/collaboration-cloud-worksp-e57e0-retry-after-partial-removal-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-cloud-worksp-e57e0-retry-after-partial-removal-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-cloud-worksp-e57e0-retry-after-partial-removal-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [cloud-desktop] › tests/cloud/collaboration.spec.ts:1201:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cloud-presence')
+    Expected substring: "共有停止"
+    Received string:    "一時保存の復旧を確認ホスト0人が参加中"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" locator('.cloud-presence') with timeout 5000ms
+      - waiting for locator('.cloud-presence')
+        10 × locator resolved to <div class="cloud-presence">…</div>
+           - unexpected value "一時保存の復旧を確認ホスト0人が参加中"
+
+
+      1266 |   );
+      1267 |   await page.goto(`/?room=${id}`);
+    > 1268 |   await expect(page.locator(".cloud-presence")).toContainText("共有停止");
+           |                                                 ^
+      1269 |   await expect(
+      1270 |     page.getByText("旧版の未送信の配置変更を端末から復元しました。", {
+      1271 |       exact: false,
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:1268:49
+
+    Error Context: test-results-cloudflare/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-legacy-offli-d1185-ever-automatically-uploaded-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [cloud-desktop] › tests/cloud/collaboration.spec.ts:1307:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses
+
+    Test was interrupted.
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.backup-message')
+    Expected substring: "写真の保存容量が不足しています"
+    Received string:    "写真を復元中 1 / 1"
+
+    Call log:
+      - Expect "toContainText" locator('.backup-message') with timeout 5000ms
+      - waiting for locator('.backup-message')
+        - locator resolved to <p role="status" class="backup-message">バックアップと前回の復元を確認しています…</p>
+        - unexpected value "バックアップと前回の復元を確認しています…"
+        4 × locator resolved to <p role="status" class="backup-message">写真を復元中 1 / 1</p>
+          - unexpected value "写真を復元中 1 / 1"
+      - Test ended.
+
+
+      1487 |       .getByRole("button", { name: "新しい作品に復元する", exact: true })
+      1488 |       .click();
+    > 1489 |     await expect(page.locator(".backup-message")).toContainText(
+           |                                                   ^
+      1490 |       failure.message,
+      1491 |     );
+      1492 |     await page.unroute("**/api/decks/*/assets");
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:1489:51
+
+    Error Context: test-results-cloudflare/collaboration-full-ZIP-bac-5e7ad-upload-and-commit-responses-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-full-ZIP-bac-5e7ad-upload-and-commit-responses-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-full-ZIP-bac-5e7ad-upload-and-commit-responses-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:168:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:444:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:556:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:1020:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:1201:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded
+  1 interrupted
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:1307:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses
+  112 did not run
+  9 passed (10.1m)

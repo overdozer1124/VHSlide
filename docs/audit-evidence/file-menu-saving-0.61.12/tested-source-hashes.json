@@ -1,0 +1,11 @@
+{
+  "AGENTS.md": "7171d4ac6de22abc9575d3f01548634cdbbf98cd07ee2a8197ccefbcfb1fa70b",
+  "src/App.tsx": "5271525e28f410f8dbac0d9385f0955e272c4937b555e83f1d910ac8ca35c24a",
+  "src/style.css": "dca6e595075213e9e6d04961d833c092b4d11e373ce47ddf3c4d03cba6e7e9bb",
+  "src/releaseHistory.ts": "db391f898eb200f4d50bf583c0d3b35ce10b12ae5bca73530118667fd38402d4",
+  "package.json": "43e3211d6aa0e5f5bc20063e1763f66a331e76189645e4f4c10fa5b7da7d28f9",
+  "package-lock.json": "ad8140ab27b4bebeeb25f5a7293c176a1b45df19e89b00f92c5840a42ab097b0",
+  "tests/support/file-save.ts": "3dbd759da1d891773591ba9c156d80d88b37976815c4bbc60b649a9b4f40fc1e",
+  "tests/e2e/ui-request-layout.spec.ts": "8dcac4bc4ca3d7b04b6af2ecb29f9caad7ded9eb6e6cae34b3b5c7b2b5efc681",
+  "tests/cloud/guest-inventory.spec.ts": "65d18d943e462262f51c6c6cd675428b6441b8a32422be9d7a71bce81be8d783"
+}

@@ -1,0 +1,9 @@
+{
+  "src/style.css": "fca4fd8cfd8767067b92b12baa675f55b5e84561d75593e05d2517343a4327b0",
+  "src/releaseHistory.ts": "42d691b5c76aa0e917e88ad205aa0f02a5f46eab2aece2563e05b4f09ac555b4",
+  "package.json": "9187dcd8ca389d63b306d16725a11a149be30372c091d29db8ce609746533041",
+  "package-lock.json": "caa181b5269fe5bc852a6fd49bdd7987ffc2026721ea95674ce6355338fba8f7",
+  "tests/cloud/collaboration.spec.ts": "747190e90dc4d53f843e5b83841d1cca43269674d9ca5c53e69bb5d914b1e313",
+  "tests/cloud/content-editing.spec.ts": "a70c65b98096d51f2f32f9e1c6885ccfee790e1f33046e1f50693be6b761114b",
+  "tests/e2e/learning-tools.spec.ts": "6914c6c5aa3cd9a7bb378d9384b67ce9870c1c41643dd5fdbc79fb8ce4fa873b"
+}

@@ -1,0 +1,43 @@
+Listing tests:
+  [cloud-touch] › forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides
+  [cloud-touch] › guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths
+  [cloud-touch] › guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths
+  [cloud-touch] › guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths
+  [cloud-touch] › guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls
+  [cloud-touch] › host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor
+  [cloud-touch] › host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following
+  [cloud-touch] › host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption
+  [cloud-touch] › host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text
+  [cloud-touch] › host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session
+  [cloud-touch] › host-follow.spec.ts:520:1 › step 6 reload and network reconnection restore follow, controller close releases guest
+  [cloud-touch] › host-follow.spec.ts:585:1 › 40 connections include rendered guest page latency under one second
+  [cloud-touch] › join-waiting.spec.ts:4:1 › a delayed pending response cannot reopen a dismissed cloud screen or switch work in the background
+  [cloud-touch] › library-tools.spec.ts:13:1 › library secondary tools preserve modal keyboard focus, exports and restore preview
+  [cloud-touch] › library-tools.spec.ts:123:1 › unfinished restore and recovery failures remain visible without opening secondary tools
+  [cloud-touch] › library-tools.spec.ts:168:1 › failure to discover unfinished restores stays visible and can be retried
+  [cloud-touch] › library-tools.spec.ts:190:1 › a viewer can find their own recovery tools but cannot export the host backup
+  [cloud-touch] › map-batch.spec.ts:5:1 › host bulk axes synchronize and scoped participants keep their original row, cannot bulk edit axes or delete others
+  [cloud-touch] › objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert
+  [cloud-touch] › page-scope.spec.ts:12:1 › bound row filters survive reordering; a presentation never adopts new matching pages and exits when its own pages disappear
+  [cloud-touch] › page-scope.spec.ts:64:1 › PDF preparation is invalidated by source changes and selected deletions instead of exporting stale or hidden pages
+  [cloud-touch] › page-scope.spec.ts:115:1 › viewers retain ordinary comparison and presentation scopes but a revoked participant cannot keep projecting a cached work
+  [cloud-touch] › page-scope.spec.ts:193:1 › an authentication close stops projection without silently switching to another sheet
+  [cloud-touch] › reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization
+  [cloud-touch] › reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading
+  [cloud-touch] › reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading
+  [cloud-touch] › reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading
+  [cloud-touch] › reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading
+  [cloud-touch] › reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading
+  [cloud-touch] › reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document
+  [cloud-touch] › save-state.spec.ts:18:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved
+  [cloud-touch] › save-state.spec.ts:77:1 › the latest failed draft wins and global retry can also finish a failed note deletion
+  [cloud-touch] › save-state.spec.ts:118:1 › read-only participants see a reason rather than a host backup action
+  [cloud-touch] › save-state.spec.ts:160:1 › returning to a failed existing note restores its latest draft and retry never overwrites it with an older value
+  [cloud-touch] › save-state.spec.ts:196:1 › clearing an unsaved new note never replays its old failed text
+  [cloud-touch] › structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive
+  [cloud-touch] › tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work
+  [cloud-touch] › workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly
+  [cloud-touch] › workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes
+  [cloud-touch] › workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls
+  [cloud-touch] › workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths
+Total: 41 tests in 14 files

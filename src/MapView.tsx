@@ -11,7 +11,7 @@ import {
   useState,
   memo,
 } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { ThumbnailFooter } from "./ThumbnailFooter";
 import { MapHeading } from "./MapHeading";
 import { activeSheet } from "./workbook";
@@ -21,7 +21,6 @@ import type { CSSProperties } from "react";
 import {
   ArrowRight,
   GripVertical,
-  LayoutGrid,
   MoreHorizontal,
   MousePointer2,
   Plus,
@@ -120,6 +119,7 @@ function snapProgress(speed: number) {
 }
 
 interface MapViewProps {
+  toolbarHost: HTMLDivElement | null;
   readOnly: boolean;
   lockedFilter?: boolean;
   remainingPages: number;
@@ -168,6 +168,7 @@ interface MapViewProps {
   onOpenMenu: OpenThumbnailMenu;
 }
 function MapViewComponent({
+  toolbarHost,
   readOnly,
   remainingPages,
   onBatchAxes,
@@ -270,13 +271,18 @@ function MapViewComponent({
   const mainRef = useRef<HTMLElement>(null);
   // A trackpad pinch over the toolbar must not zoom the whole page either.
   useEffect(() => {
-    const node = mainRef.current!;
+    const nodes = [mainRef.current!, toolbarHost].filter(
+      (node): node is HTMLElement => node !== null,
+    );
     const keep = (event: WheelEvent) => {
       if (event.ctrlKey) event.preventDefault();
     };
-    node.addEventListener("wheel", keep, { passive: false });
-    return () => node.removeEventListener("wheel", keep);
-  }, []);
+    nodes.forEach((node) =>
+      node.addEventListener("wheel", keep, { passive: false }),
+    );
+    return () =>
+      nodes.forEach((node) => node.removeEventListener("wheel", keep));
+  }, [toolbarHost]);
   const gridRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({
     width: 1000,
@@ -1293,184 +1299,196 @@ function MapViewComponent({
         />
       )}
       <section className="map-panel" aria-label="ページの全体マップ">
-        <div className="map-toolbar">
-          <div className="map-summary">
-            <h1>
-              <LayoutGrid size={16} />
-              全体マップ
-            </h1>
-            <span className="map-stats">
-              <PageScopeSummary scope={scope} />
-            </span>
-          </div>
-          <button
-            className="quiet filter-toggle"
-            aria-label="マップをフィルタ"
-            disabled={lockedFilter}
-            aria-expanded={filterOpen}
-            onClick={() => {
-              selection.close();
-              setBatchOpen(false);
-              setDraftFilter(filter ?? emptyFilter());
-              setDraftEditor(filterEditor);
-              setFilterOpen(!filterOpen);
-              onMove(undefined);
-            }}
-          >
-            <Filter size={16} />
-            フィルタ
-          </button>
-          <button
-            className="quiet"
-            aria-label="スライドを複数選択"
-            aria-pressed={selection.active}
-            onClick={() => {
-              selection.toggle();
-              setConfirmDelete(false);
-              setBatchOpen(false);
-              onMove(undefined);
-            }}
-          >
-            <MousePointer2 size={16} aria-hidden="true" />
-            選択
-          </button>
-          {headingEditable && visible && (
-            <button
-              className="quiet map-batch-trigger"
-              onClick={() => {
-                setBatchOpen(true);
-                selection.close();
-                setFilterOpen(false);
-                onMove(undefined);
-              }}
-              title="このシート全体の行・列を追加・削除"
+        {visible &&
+          toolbarHost &&
+          createPortal(
+            <div
+              className="map-toolbar"
+              role="group"
+              aria-label="全体マップの操作"
             >
-              行・列を一括操作
-            </button>
-          )}
-          {filtered && (
-            <button
-              className="quiet"
-              onClick={() => {
-                setFilter(undefined);
-                setFilterOpen(false);
-              }}
-            >
-              フィルタ解除
-            </button>
-          )}
-          <form
-            className="map-find"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const match = find.trim().match(/^(\d+)[.．・,、-](\d+)$/);
-              const target =
-                match &&
-                displaySlides.find(
-                  (s) =>
-                    s.x === Number(match[2]) - 1 &&
-                    s.y === Number(match[1]) - 1,
-                );
-              if (target) {
-                onSelect(target.id);
-                setFindError("");
-                requestAnimationFrame(() =>
-                  gridRef.current
-                    ?.querySelector(`[data-page-id="${CSS.escape(target.id)}"]`)
-                    ?.scrollIntoView({ block: "nearest", inline: "nearest" }),
-                );
-              } else setFindError("その番号のページはありません");
-            }}
-          >
-            <input
-              aria-label="ページ番号で探す"
-              placeholder="3.2"
-              value={find}
-              onChange={(event) => {
-                setFind(event.target.value);
-                setFindError("");
-              }}
-            />
-            <button
-              className="icon-button"
-              aria-label="番号のページを探す"
-              title="縦.横の番号で探す"
-            >
-              <Search size={15} />
-            </button>
-          </form>
-          <div
-            className="map-zoom"
-            role="group"
-            aria-label="マップの表示サイズ"
-          >
-            <button
-              className="icon-button"
-              aria-label="マップを縮小"
-              title="マップを縮小"
-              disabled={numbers}
-              onClick={zoomOut}
-            >
-              <ZoomOut size={17} />
-            </button>
-            <button
-              className="map-scale-reset"
-              aria-label={`表示サイズを${Math.round(defaultScale * 100)}%に戻す`}
-              title={`標準の${Math.round(defaultScale * 100)}%に戻す`}
-              onClick={() => zoomTo(() => defaultScale)}
-            >
-              {numbers ? "番号" : `${Math.round(scale * 100)}%`}
-            </button>
-            <button
-              className="icon-button"
-              aria-label="マップを拡大"
-              title="マップを拡大"
-              disabled={scale === largestScale}
-              onClick={zoomIn}
-            >
-              <ZoomIn size={17} />
-            </button>
-          </div>
-          {visible && (
-            <MapDisplaySettings
-              numbers={numbers}
-              onNumbers={() =>
-                zoomTo((current) => (current === 0 ? levels[0] : 0))
-              }
-              onLocate={() =>
-                activeCard.current?.scrollIntoView({
-                  block: "center",
-                  inline: "center",
-                  behavior: matchMedia("(prefers-reduced-motion: reduce)")
-                    .matches
-                    ? "instant"
-                    : "smooth",
-                })
-              }
-              onFit={fitColumns}
-              steps={zoomSteps}
-              onSteps={onZoomSteps}
-            >
-              {accountsAvailable && !filtered && (
+              <div className="map-summary">
+                <span className="map-stats">
+                  <PageScopeSummary scope={scope} />
+                </span>
+              </div>
+              <button
+                className="quiet filter-toggle"
+                aria-label="マップをフィルタ"
+                disabled={lockedFilter}
+                aria-expanded={filterOpen}
+                onClick={() => {
+                  selection.close();
+                  setBatchOpen(false);
+                  setDraftFilter(filter ?? emptyFilter());
+                  setDraftEditor(filterEditor);
+                  setFilterOpen(!filterOpen);
+                  onMove(undefined);
+                }}
+              >
+                <Filter size={16} />
+                フィルタ
+              </button>
+              <button
+                className="quiet"
+                aria-label="スライドを複数選択"
+                aria-pressed={selection.active}
+                onClick={() => {
+                  selection.toggle();
+                  setConfirmDelete(false);
+                  setBatchOpen(false);
+                  onMove(undefined);
+                }}
+              >
+                <MousePointer2 size={16} aria-hidden="true" />
+                選択
+              </button>
+              {headingEditable && visible && (
                 <button
-                  className="quiet map-row-accounts"
-                  role="switch"
-                  aria-label="行に共有相手の名前を表示"
-                  aria-checked={!!sheet.showRowAccounts}
-                  disabled={!headingEditable}
-                  title="共有相手の名前を縦書きで表示（参加前はメールアドレスの@より前）"
-                  onClick={() =>
-                    onHeadingChange({ showRowAccounts: !sheet.showRowAccounts })
-                  }
+                  className="quiet map-batch-trigger"
+                  onClick={() => {
+                    setBatchOpen(true);
+                    selection.close();
+                    setFilterOpen(false);
+                    onMove(undefined);
+                  }}
+                  title="このシート全体の行・列を追加・削除"
                 >
-                  <UsersRound size={16} />
-                  行に名前{" "}
-                  <span>{sheet.showRowAccounts ? "オン" : "オフ"}</span>
+                  行・列を一括操作
                 </button>
               )}
-            </MapDisplaySettings>
+              {filtered && (
+                <button
+                  className="quiet"
+                  onClick={() => {
+                    setFilter(undefined);
+                    setFilterOpen(false);
+                  }}
+                >
+                  フィルタ解除
+                </button>
+              )}
+              <form
+                className="map-find"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const match = find.trim().match(/^(\d+)[.．・,、-](\d+)$/);
+                  const target =
+                    match &&
+                    displaySlides.find(
+                      (s) =>
+                        s.x === Number(match[2]) - 1 &&
+                        s.y === Number(match[1]) - 1,
+                    );
+                  if (target) {
+                    onSelect(target.id);
+                    setFindError("");
+                    requestAnimationFrame(() =>
+                      gridRef.current
+                        ?.querySelector(
+                          `[data-page-id="${CSS.escape(target.id)}"]`,
+                        )
+                        ?.scrollIntoView({
+                          block: "nearest",
+                          inline: "nearest",
+                        }),
+                    );
+                  } else setFindError("その番号のページはありません");
+                }}
+              >
+                <input
+                  aria-label="ページ番号で探す"
+                  placeholder="3.2"
+                  value={find}
+                  onChange={(event) => {
+                    setFind(event.target.value);
+                    setFindError("");
+                  }}
+                />
+                <button
+                  className="icon-button"
+                  aria-label="番号のページを探す"
+                  title="縦.横の番号で探す"
+                >
+                  <Search size={15} />
+                </button>
+              </form>
+              <div
+                className="map-zoom"
+                role="group"
+                aria-label="マップの表示サイズ"
+              >
+                <button
+                  className="icon-button"
+                  aria-label="マップを縮小"
+                  title="マップを縮小"
+                  disabled={numbers}
+                  onClick={zoomOut}
+                >
+                  <ZoomOut size={17} />
+                </button>
+                <button
+                  className="map-scale-reset"
+                  aria-label={`表示サイズを${Math.round(defaultScale * 100)}%に戻す`}
+                  title={`標準の${Math.round(defaultScale * 100)}%に戻す`}
+                  onClick={() => zoomTo(() => defaultScale)}
+                >
+                  {numbers ? "番号" : `${Math.round(scale * 100)}%`}
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label="マップを拡大"
+                  title="マップを拡大"
+                  disabled={scale === largestScale}
+                  onClick={zoomIn}
+                >
+                  <ZoomIn size={17} />
+                </button>
+              </div>
+              {visible && (
+                <MapDisplaySettings
+                  numbers={numbers}
+                  onNumbers={() =>
+                    zoomTo((current) => (current === 0 ? levels[0] : 0))
+                  }
+                  onLocate={() =>
+                    activeCard.current?.scrollIntoView({
+                      block: "center",
+                      inline: "center",
+                      behavior: matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? "instant"
+                        : "smooth",
+                    })
+                  }
+                  onFit={fitColumns}
+                  steps={zoomSteps}
+                  onSteps={onZoomSteps}
+                >
+                  {accountsAvailable && !filtered && (
+                    <button
+                      className="quiet map-row-accounts"
+                      role="switch"
+                      aria-label="行に共有相手の名前を表示"
+                      aria-checked={!!sheet.showRowAccounts}
+                      disabled={!headingEditable}
+                      title="共有相手の名前を縦書きで表示（参加前はメールアドレスの@より前）"
+                      onClick={() =>
+                        onHeadingChange({
+                          showRowAccounts: !sheet.showRowAccounts,
+                        })
+                      }
+                    >
+                      <UsersRound size={16} />
+                      行に名前{" "}
+                      <span>{sheet.showRowAccounts ? "オン" : "オフ"}</span>
+                    </button>
+                  )}
+                </MapDisplaySettings>
+              )}
+            </div>,
+            toolbarHost,
           )}
-        </div>
         {readOnly && (
           <p className="map-readonly-note" role="status">
             閲覧のみです。ページの追加・移動・削除はできません。
@@ -2221,5 +2239,8 @@ function MapViewComponent({
 // editor keystrokes and cloud updates do not rerender its thumbnails.
 export const MapView = memo(
   MapViewComponent,
-  (previous, next) => !previous.visible && !next.visible,
+  (previous, next) =>
+    !previous.visible &&
+    !next.visible &&
+    previous.toolbarHost === next.toolbarHost,
 );

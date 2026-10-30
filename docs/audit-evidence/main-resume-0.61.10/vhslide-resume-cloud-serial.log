@@ -1,0 +1,62 @@
+[WebServer] (node:20757) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 128 tests using 1 worker
+
+(node:20774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    1 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (25.6s)
+  ✓    2 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (2.2s)
+  ✓    3 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (2.7s)
+  ✓    4 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (2.3s)
+  ✓    5 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (2.5s)
+  ✓    6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:81:1 › recovers unsent text from this browser after reopening the app (5.1s)
+  ✓    7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (30.5s)
+  ✓    8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:453:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (14.6s)
+  ✓    9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:565:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (17.6s)
+  ✓   10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:694:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (8.8s)
+  ✓   11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:792:1 › failed sticky autosaves keep the input and can be retried (5.3s)
+  ✘   12 [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests (27.0s)
+Testing stopped early after 1 maximum allowed failures.
+
+
+  1) [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByRole('textbox', { name: '行1の見出し', exact: true })
+    Expected: "headings-cloud-desktop-guest"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByRole('textbox', { name: '行1の見出し', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: '行1の見出し', exact: true })
+        2 × locator resolved to <textarea title="" rows="1" readonly placeholder="" maxlength="80" spellcheck="false" aria-label="行1の見出し" class="map-heading-input vertical"></textarea>
+          - unexpected value ""
+
+
+      866 |     await expect(heading(other, "列2の見出し")).toHaveValue("共同調査");
+      867 |     await expect(heading(other, "列2の見出し")).toHaveAttribute("readonly", "");
+    > 868 |     await expect(heading(other, "行1の見出し")).toHaveValue(guest);
+          |                                            ^
+      869 |     await expect(heading(other, "行1の見出し")).toHaveCSS(
+      870 |       "writing-mode",
+      871 |       "vertical-rl",
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:868:44
+
+    Error Context: ../../tmp/vhslide-resume-cloud-serial-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/vhslide-resume-cloud-serial-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/vhslide-resume-cloud-serial-results/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+  116 did not run
+  11 passed (2.5m)
+  1 error was not a part of any test, see above for details

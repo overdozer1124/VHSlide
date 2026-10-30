@@ -1,0 +1,87 @@
+[cloud-desktop] › cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file
+[cloud-desktop] › cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot
+[cloud-desktop] › cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried
+[cloud-desktop] › cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy
+[cloud-desktop] › cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy
+[cloud-desktop] › collaboration.spec.ts:81:1 › recovers unsent text from this browser after reopening the app
+[cloud-desktop] › collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos
+[cloud-desktop] › collaboration.spec.ts:453:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments
+[cloud-desktop] › collaboration.spec.ts:565:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry
+[cloud-desktop] › collaboration.spec.ts:694:1 › sticky cards save in place, flush on navigation, and move by mouse or touch
+[cloud-desktop] › collaboration.spec.ts:792:1 › failed sticky autosaves keep the input and can be retried
+[cloud-desktop] › collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+[cloud-desktop] › collaboration.spec.ts:950:1 › sticky color, presets and direct resize persist with mouse and touch
+[cloud-desktop] › collaboration.spec.ts:1029:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal
+[cloud-desktop] › collaboration.spec.ts:1210:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded
+[cloud-desktop] › collaboration.spec.ts:1318:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses
+[cloud-desktop] › collaboration.spec.ts:1567:1 › restores a signed-in room in the background without flashing the cloud dialog
+[cloud-desktop] › collaboration.spec.ts:1652:1 › cloud versions restore photos and notes into a new work and trash can undo work removal
+[cloud-desktop] › collaboration.spec.ts:1859:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions
+[cloud-desktop] › collaboration.spec.ts:1922:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts
+[cloud-desktop] › content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP
+[cloud-desktop] › deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work
+[cloud-desktop] › editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing
+[cloud-desktop] › forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides
+[cloud-desktop] › guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths
+[cloud-desktop] › guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths
+[cloud-desktop] › guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths
+[cloud-desktop] › guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls
+[cloud-desktop] › host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor
+[cloud-desktop] › host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following
+[cloud-desktop] › host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption
+[cloud-desktop] › host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text
+[cloud-desktop] › host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session
+[cloud-desktop] › host-follow.spec.ts:520:1 › step 6 reload and network reconnection restore follow, controller close releases guest
+[cloud-desktop] › host-follow.spec.ts:585:1 › 40 connections include rendered guest page latency under one second
+[cloud-desktop] › join-waiting.spec.ts:4:1 › a delayed pending response cannot reopen a dismissed cloud screen or switch work in the background
+[cloud-desktop] › library-tools.spec.ts:13:1 › library secondary tools preserve modal keyboard focus, exports and restore preview
+[cloud-desktop] › library-tools.spec.ts:123:1 › unfinished restore and recovery failures remain visible without opening secondary tools
+[cloud-desktop] › library-tools.spec.ts:168:1 › failure to discover unfinished restores stays visible and can be retried
+[cloud-desktop] › library-tools.spec.ts:190:1 › a viewer can find their own recovery tools but cannot export the host backup
+[cloud-desktop] › map-batch.spec.ts:5:1 › host bulk axes synchronize and scoped participants keep their original row, cannot bulk edit axes or delete others
+[cloud-desktop] › objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert
+[cloud-desktop] › page-scope.spec.ts:12:1 › bound row filters survive reordering; a presentation never adopts new matching pages and exits when its own pages disappear
+[cloud-desktop] › page-scope.spec.ts:64:1 › PDF preparation is invalidated by source changes and selected deletions instead of exporting stale or hidden pages
+[cloud-desktop] › page-scope.spec.ts:115:1 › viewers retain ordinary comparison and presentation scopes but a revoked participant cannot keep projecting a cached work
+[cloud-desktop] › page-scope.spec.ts:193:1 › an authentication close stops projection without silently switching to another sheet
+[cloud-desktop] › reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization
+[cloud-desktop] › reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading
+[cloud-desktop] › reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading
+[cloud-desktop] › reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading
+[cloud-desktop] › reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading
+[cloud-desktop] › reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading
+[cloud-desktop] › reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document
+[cloud-desktop] › save-state.spec.ts:18:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved
+[cloud-desktop] › save-state.spec.ts:77:1 › the latest failed draft wins and global retry can also finish a failed note deletion
+[cloud-desktop] › save-state.spec.ts:118:1 › read-only participants see a reason rather than a host backup action
+[cloud-desktop] › save-state.spec.ts:160:1 › returning to a failed existing note restores its latest draft and retry never overwrites it with an older value
+[cloud-desktop] › save-state.spec.ts:196:1 › clearing an unsaved new note never replays its old failed text
+[cloud-desktop] › structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive
+[cloud-desktop] › tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work
+[cloud-desktop] › workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly
+[cloud-desktop] › workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes
+[cloud-desktop] › workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls
+[cloud-desktop] › workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths
+[cloud-touch] › cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file
+[cloud-touch] › cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot
+[cloud-touch] › cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried
+[cloud-touch] › cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy
+[cloud-touch] › cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy
+[cloud-touch] › collaboration.spec.ts:81:1 › recovers unsent text from this browser after reopening the app
+[cloud-touch] › collaboration.spec.ts:177:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos
+[cloud-touch] › collaboration.spec.ts:453:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments
+[cloud-touch] › collaboration.spec.ts:565:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry
+[cloud-touch] › collaboration.spec.ts:694:1 › sticky cards save in place, flush on navigation, and move by mouse or touch
+[cloud-touch] › collaboration.spec.ts:792:1 › failed sticky autosaves keep the input and can be retried
+[cloud-touch] › collaboration.spec.ts:825:1 › host edits shared map headings and row account names update vertically for guests
+[cloud-touch] › collaboration.spec.ts:950:1 › sticky color, presets and direct resize persist with mouse and touch
+[cloud-touch] › collaboration.spec.ts:1029:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal
+[cloud-touch] › collaboration.spec.ts:1210:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded
+[cloud-touch] › collaboration.spec.ts:1318:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses
+[cloud-touch] › collaboration.spec.ts:1567:1 › restores a signed-in room in the background without flashing the cloud dialog
+[cloud-touch] › collaboration.spec.ts:1652:1 › cloud versions restore photos and notes into a new work and trash can undo work removal
+[cloud-touch] › collaboration.spec.ts:1859:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions
+[cloud-touch] › collaboration.spec.ts:1922:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts
+[cloud-touch] › content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP
+[cloud-touch] › deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work
+[cloud-touch] › editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing

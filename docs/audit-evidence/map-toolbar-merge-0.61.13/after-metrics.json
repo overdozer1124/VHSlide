@@ -1,0 +1,19 @@
+{
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "map": {
+    "y": 103,
+    "height": 590
+  },
+  "bar": {
+    "y": 48,
+    "height": 44
+  },
+  "toolbar": {
+    "y": 47.5,
+    "height": 44
+  },
+  "mapToolbarInTopBar": true
+}

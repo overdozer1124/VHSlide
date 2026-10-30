@@ -1,3 +1,4 @@
+import { saveJSON } from "../support/file-save";
 import { test, expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 async function openTools(page: any, action: string) {
@@ -318,6 +319,14 @@ test("purpose-specific entrances keep menus keyboard-accessible and restore focu
   await saveMenu.focus();
   await page.keyboard.press("ArrowDown");
   await expect(
+    page.getByRole("menuitem", { name: "新しく", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.getByRole("menuitem", { name: "開く", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(
     page.getByRole("menuitem", { name: /^JSONで保存/ }),
   ).toBeFocused();
   await page.keyboard.press("ArrowDown");
@@ -340,9 +349,7 @@ test("purpose-specific entrances keep menus keyboard-accessible and restore focu
   await page.locator(".deck-title").click();
   await expect(page.getByRole("menu")).toHaveCount(0);
   const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "ファイルに保存", exact: true })
-    .click();
+  await saveJSON(page);
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await page
     .getByRole("button", { name: "マップをフィルタ", exact: true })
