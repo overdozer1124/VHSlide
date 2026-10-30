@@ -1,0 +1,191 @@
+{
+  "kind": "local Chromium substitute; not ChromeOS",
+  "node": "v24.19.0",
+  "chromium": "154.0.8037.57",
+  "cpuThrottle": 4,
+  "date": "2026-10-23T16:51:07.961Z",
+  "measurements": [
+    {
+      "label": "B client prepare",
+      "ms": 2016.2999999970198,
+      "maxTimerGapMs": 1067.5,
+      "ticks": 40,
+      "result": {
+        "imageCount": 1,
+        "imageBytes": 2030312,
+        "totalImageBytes": 2030312,
+        "serverSource": true
+      },
+      "before": {
+        "usedSize": 1288824,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 314544,
+        "backingStorageSize": 265024
+      },
+      "after": {
+        "usedSize": 1441756,
+        "totalSize": 5050368,
+        "embedderHeapUsedSize": 796240,
+        "backingStorageSize": 6685663
+      },
+      "sampledPeakJSBytes": 1513188,
+      "sampledPeakBackingBytes": 6685663
+    },
+    {
+      "label": "B client zip",
+      "ms": 143.1000000089407,
+      "maxTimerGapMs": 79.40000000596046,
+      "ticks": 6,
+      "result": {
+        "bytes": 2031483
+      },
+      "before": {
+        "usedSize": 1395288,
+        "totalSize": 1904640,
+        "embedderHeapUsedSize": 319256,
+        "backingStorageSize": 2295421
+      },
+      "after": {
+        "usedSize": 1511648,
+        "totalSize": 2691072,
+        "embedderHeapUsedSize": 768992,
+        "backingStorageSize": 8389101
+      },
+      "sampledPeakJSBytes": 1511648,
+      "sampledPeakBackingBytes": 8389101
+    },
+    {
+      "label": "B client read",
+      "ms": 36,
+      "maxTimerGapMs": 39.8999999910593,
+      "ticks": 5,
+      "result": {
+        "images": 1,
+        "bytes": 2031165
+      },
+      "before": {
+        "usedSize": 1417580,
+        "totalSize": 1904640,
+        "embedderHeapUsedSize": 320456,
+        "backingStorageSize": 4327024
+      },
+      "after": {
+        "usedSize": 1474824,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 759400,
+        "backingStorageSize": 8389877
+      },
+      "sampledPeakJSBytes": 1474824,
+      "sampledPeakBackingBytes": 8389877
+    },
+    {
+      "label": "B client lost response",
+      "ms": 1571.2000000029802,
+      "maxTimerGapMs": 750.7000000029802,
+      "ticks": 51,
+      "result": {
+        "id": "7343280a-f288-45a1-aac8-ef5e3072f461"
+      },
+      "before": {
+        "usedSize": 1426600,
+        "totalSize": 1904640,
+        "embedderHeapUsedSize": 320456,
+        "backingStorageSize": 6357336
+      },
+      "after": {
+        "usedSize": 1617740,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 758880,
+        "backingStorageSize": 12450244
+      },
+      "sampledPeakJSBytes": 1617740,
+      "sampledPeakBackingBytes": 12450244
+    },
+    {
+      "label": "B client after lost response",
+      "ms": 42.8999999910593,
+      "maxTimerGapMs": 21.100000008940697,
+      "ticks": 6,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 2
+      },
+      "before": {
+        "usedSize": 1542144,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 327064,
+        "backingStorageSize": 6357419
+      },
+      "after": {
+        "usedSize": 1575460,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 699168,
+        "backingStorageSize": 6358233
+      },
+      "sampledPeakJSBytes": 1575460,
+      "sampledPeakBackingBytes": 6358233
+    },
+    {
+      "label": "B client retry",
+      "ms": 74.1000000089407,
+      "maxTimerGapMs": 51.29999999701977,
+      "ticks": 5,
+      "result": "7343280a-f288-45a1-aac8-ef5e3072f461",
+      "before": {
+        "usedSize": 1542924,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 325512,
+        "backingStorageSize": 6357429
+      },
+      "after": {
+        "usedSize": 1585272,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 697080,
+        "backingStorageSize": 8389484
+      },
+      "sampledPeakJSBytes": 1585272,
+      "sampledPeakBackingBytes": 8389484
+    },
+    {
+      "label": "B client after retry",
+      "ms": 121.79999999701977,
+      "maxTimerGapMs": 48,
+      "ticks": 10,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 2
+      },
+      "before": {
+        "usedSize": 1543376,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 327144,
+        "backingStorageSize": 6357429
+      },
+      "after": {
+        "usedSize": 1581932,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 702728,
+        "backingStorageSize": 6358233
+      },
+      "sampledPeakJSBytes": 1581932,
+      "sampledPeakBackingBytes": 6358233
+    }
+  ],
+  "failures": [],
+  "imageFetchRace": {
+    "zipDelivered": false,
+    "error": "取得中に作品・付箋・共有設定が変更されました。編集が落ち着いてから、もう一度バックアップしてください。",
+    "changedDuringImages": true,
+    "downloads": 0,
+    "serverComments": 1,
+    "serverSharing": 1
+  },
+  "cancellationResponseLossRecovered": true,
+  "clientResponseLoss": {
+    "preservedCompletedWork": true,
+    "automaticStatusRecovery": true,
+    "newWorkOnUserRetry": false
+  }
+}

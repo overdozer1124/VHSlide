@@ -1,0 +1,23 @@
+[WebServer] (node:227486) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 12 tests using 1 worker
+
+(node:227656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/library-tools.spec.ts:14:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (5.4s)
+  ✓   2 [cloud-desktop] › tests/cloud/library-tools.spec.ts:110:1 › unfinished restore and recovery failures remain visible without opening secondary tools (2.1s)
+  ✓   3 [cloud-desktop] › tests/cloud/library-tools.spec.ts:155:1 › failure to discover unfinished restores stays visible and can be retried (1.5s)
+  ✓   4 [cloud-desktop] › tests/cloud/library-tools.spec.ts:177:1 › a viewer can find their own recovery tools but cannot export the host backup (3.4s)
+  ✓   5 [cloud-desktop] › tests/cloud/save-state.spec.ts:20:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved (4.7s)
+  ✓   6 [cloud-desktop] › tests/cloud/save-state.spec.ts:120:1 › read-only participants see a reason rather than a host backup action (2.3s)
+(node:228647) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [cloud-touch] › tests/cloud/library-tools.spec.ts:14:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (6.0s)
+  ✓   8 [cloud-touch] › tests/cloud/library-tools.spec.ts:110:1 › unfinished restore and recovery failures remain visible without opening secondary tools (1.4s)
+  ✓   9 [cloud-touch] › tests/cloud/library-tools.spec.ts:155:1 › failure to discover unfinished restores stays visible and can be retried (2.0s)
+  ✓  10 [cloud-touch] › tests/cloud/library-tools.spec.ts:177:1 › a viewer can find their own recovery tools but cannot export the host backup (3.5s)
+  ✓  11 [cloud-touch] › tests/cloud/save-state.spec.ts:20:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved (4.7s)
+  ✓  12 [cloud-touch] › tests/cloud/save-state.spec.ts:120:1 › read-only participants see a reason rather than a host backup action (1.9s)
+
+  12 passed (43.6s)

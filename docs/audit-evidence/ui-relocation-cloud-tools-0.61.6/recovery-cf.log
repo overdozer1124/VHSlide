@@ -1,0 +1,12 @@
+[WebServer] (node:230412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:230433) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1317:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (8.0s)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1569:1 › restores a signed-in room in the background without flashing the cloud dialog (1.8s)
+  ✓  3 [cloud-desktop] › tests/cloud/library-tools.spec.ts:14:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (2.6s)
+
+  3 passed (14.1s)

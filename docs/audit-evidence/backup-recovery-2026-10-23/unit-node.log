@@ -1,0 +1,44 @@
+
+> vhslide@0.37.0 test
+> vitest run src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/model.test.ts (40 tests) 117ms
+ ✓ src/workbook.test.ts (7 tests) 120ms
+ ✓ src/backup.test.ts (4 tests) 526ms
+   ✓ backs up over 25MB of photos without base64 embedding  456ms
+ ✓ src/sharedDeck.test.ts (8 tests) 200ms
+ ✓ src/permissions.test.ts (5 tests) 139ms
+ ✓ src/releaseHistory.test.ts (1 test) 12ms
+ ✓ src/preSharing.test.ts (5 tests) 36ms
+ ✓ src/axes.test.ts (7 tests) 81ms
+
+ Test Files  8 passed (8)
+      Tests  77 passed (77)
+   Start at  11:39:36
+   Duration  2.21s (transform 720ms, setup 0ms, collect 1.72s, tests 1.23s, environment 2ms, prepare 1.08s)
+
+
+> vhslide@0.37.0 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (96.78972ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (79.632102ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (66.475472ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (1589.233099ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (33.333782ms)
+✔ sign-out revokes active sockets and persisted session access (20.836958ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (237.089471ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (174.747557ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (144.521993ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (162.611044ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3110.0692

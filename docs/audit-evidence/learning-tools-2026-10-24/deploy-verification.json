@@ -1,0 +1,32 @@
+{
+  "checks": [
+    {
+      "path": "/healthz",
+      "status": 200,
+      "bytes": 11
+    },
+    {
+      "path": "/api/config",
+      "status": 200,
+      "bytes": 323
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 482
+    },
+    {
+      "path": "/assets/index-D8sjZ7fx.js",
+      "status": 200,
+      "bytes": 577442
+    },
+    {
+      "path": "/assets/ReleaseHistory-5Ru5TYZ6.js",
+      "status": 200,
+      "bytes": 15333
+    }
+  ],
+  "assets_match_local_build": true,
+  "release": "0.38.0",
+  "cloudflare_version_id": "549dda9e-2d4a-4b7a-bc0b-7570b9e43f42"
+}

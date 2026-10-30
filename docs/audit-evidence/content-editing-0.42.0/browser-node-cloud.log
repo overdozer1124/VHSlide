@@ -1,0 +1,22 @@
+[WebServer] (node:425396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:425408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (5.2s)
+  ✓  2 [cloud-desktop] › tests/cloud/objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert (4.7s)
+  ✓  3 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (5.6s)
+(node:425807) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/content-editing.spec.ts:6:1 › rich styles and cell formats sync, own undo preserves peers; cropped private photos survive ZIP (5.2s)
+  ✓  5 [cloud-touch] › tests/cloud/objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert (4.4s)
+  ✓  6 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (5.4s)
+
+  6 passed (34.0s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

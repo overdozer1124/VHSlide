@@ -1,0 +1,8 @@
+{
+  "src/TableTools.tsx": "4d13c92abff099a238b1120fbf8c44bd511f896903be5ca8a6dd964234a35933",
+  "src/style.css": "eb0447138b4d678f59fb9f5fd519ce54d2afbc0e907ebc130502c66002018bbb",
+  "src/releaseHistory.ts": "f170505086e54faed74f97c1d2b0e12656de4b04934ac779d86cda2ff20390aa",
+  "package.json": "fb8f579ae1e7ec3ed1dfb2d7739a875f54f1b48c025aa22543247d34e20bfbba",
+  "package-lock.json": "a04342de932354b2bc5e075fe733c1c2dfd801c385a933d2edf7c712380924eb",
+  "tests/e2e/tables.spec.ts": "a5085b8b7fb0340f1c32aa128de24f314890f9493e16e9589547549879057ab7"
+}

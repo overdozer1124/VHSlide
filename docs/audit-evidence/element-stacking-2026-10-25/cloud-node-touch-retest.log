@@ -1,0 +1,14 @@
+
+> vhslide@0.40.3 test:cloud
+> playwright test --config playwright.cloud.config.ts tests/cloud/collaboration.spec.ts --grep two users sign in --project=cloud-touch --workers=1
+
+[WebServer] (node:404652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:404664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (12.9s)
+
+  1 passed (14.9s)

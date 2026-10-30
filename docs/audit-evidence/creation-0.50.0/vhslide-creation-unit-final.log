@@ -1,0 +1,77 @@
+
+> vhslide@0.50.0 test
+> vitest run src/chartLayout.test.ts src/noteRecovery.test.ts src/saveState.test.ts src/mapBatch.test.ts src/pageScope.test.ts src/cloudDocument.test.ts src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/vhslide-dual-auth
+
+ ✓ src/noteRecovery.test.ts (4 tests) 112ms
+ ✓ src/backup.test.ts (5 tests) 221ms
+ ✓ src/model.test.ts (41 tests) 64ms
+ ✓ src/workbook.test.ts (7 tests) 60ms
+ ✓ src/sharedDeck.test.ts (8 tests) 58ms
+ ✓ src/permissions.test.ts (7 tests) 44ms
+ ✓ src/learningTools.test.ts (6 tests) 806ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  760ms
+ ✓ src/structureEditing.test.ts (8 tests) 40ms
+ ✓ src/tableData.test.ts (5 tests) 30ms
+ ✓ src/contentEditing.test.ts (7 tests) 33ms
+ ✓ src/cloudDocument.test.ts (4 tests) 27ms
+ ✓ src/objectEditing.test.ts (6 tests) 24ms
+ ✓ src/axes.test.ts (7 tests) 33ms
+ ✓ src/preSharing.test.ts (5 tests) 15ms
+ ✓ src/chartLayout.test.ts (4 tests) 23ms
+ ✓ src/joinRequests.test.ts (4 tests) 22ms
+ ✓ src/mapBatch.test.ts (5 tests) 10ms
+ ✓ src/releaseHistory.test.ts (1 test) 12ms
+ ✓ src/backupProtocol.test.ts (3 tests) 6ms
+ ✓ src/pageScope.test.ts (7 tests) 9ms
+ ✓ src/mediaVisibility.test.ts (3 tests) 5ms
+ ✓ src/syncRecovery.test.ts (2 tests) 3ms
+ ✓ src/assignmentReadiness.test.ts (1 test) 4ms
+ ✓ src/cellFormatting.test.ts (1 test) 3ms
+ ✓ src/saveState.test.ts (2 tests) 2ms
+
+ Test Files  25 passed (25)
+      Tests  153 passed (153)
+   Start at  07:01:31
+   Duration  2.61s (transform 683ms, setup 0ms, collect 1.84s, tests 1.67s, environment 3ms, prepare 1.20s)
+
+
+> vhslide@0.50.0 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (48.521432ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (53.885394ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (47.834525ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (731.146615ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (29.406256ms)
+✔ sign-out revokes active sockets and persisted session access (10.038889ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (140.778695ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (111.191056ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (109.592994ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (118.723443ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (118.201234ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (15.745111ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (139.79422ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (19.685346ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (91.767915ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (291.282246ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2335.468113
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

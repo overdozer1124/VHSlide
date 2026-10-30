@@ -1,0 +1,14 @@
+{
+  "src/Canvas.tsx": "75a6478c75e8e0a5614bf4d371f8f5836eace29af00f12d7ed57b24750985bb2",
+  "src/SlideTable.tsx": "cec0eec050e6861b55208b8acf54c7a6b13ff2ce769f6acd8fd53fb3d733ed8b",
+  "src/useSlidePan.ts": "e862314cb03f2b92bdae882a4e983d15f56c2fdc526a2fd0789e34c5ba52177a",
+  "src/style.css": "ce16100dcb62a349dc594ff0b68f1eaf1e1f1e9111ce149504fe54a6c68d32ad",
+  "src/Editor.tsx": "42bc1be67316a682b36362b2763cd3bcd0999ca0f97b41704282896bd944d16d",
+  "src/TableTools.tsx": "6e37c459a2a0dd799bf7d05d82399490d5336c72d6ecd7827a4a65c774619b41",
+  "src/App.tsx": "7f335c26a61ea8a4c247937c98f18839ee716db7e28cfaec80edb687f32df366",
+  "src/releaseHistory.ts": "6a4fdd8de4a84a24ef39ca678df2733edf5129c8601490b656449c2b8c32423e",
+  "tests/e2e/element-border-drag.spec.ts": "1e3c1418181a2215be6cf8b606cfcabfb1dd5ddf20a235073d6429a74f585937",
+  "tests/e2e/editor-swipe.spec.ts": "d43cd69dcc59382b6c3ce37f925cb7ac14b73f53970811cddab7bc6f9517f8fa",
+  "package.json": "b77d20c86150cf0ea203e35916d4e39ec7eaca70525a058c81dea7b9776f0911",
+  "package-lock.json": "1a84878e1bb4d02062b7d11de45a5b639917300b595506066a1b132343d7c540"
+}

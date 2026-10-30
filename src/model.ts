@@ -1,3 +1,17 @@
+import { webLink } from "./webLink.ts";
+import { parseChart } from "./chartData.ts";
+import type { ChartData } from "./chartData.ts";
+import { parseAnchor, copyPages } from "./structureData.ts";
+import type { ConnectorAnchor } from "./structureData.ts";
+import { parseRichText } from "./richText.ts";
+import type { RichOp } from "./richText.ts";
+import { parseCrop } from "./imageData.ts";
+import type { ImageCrop } from "./imageData.ts";
+import { shapeIds } from "./shapeCatalog.ts";
+import type { ShapeKind } from "./shapeCatalog.ts";
+import { parseTable } from "./tableData.ts";
+import type { TableData } from "./tableData.ts";
+import { remapAxis } from "./axes.ts";
 export const MAX_SLIDES = 1000;
 export const MAX_FILE_BYTES = 25_000_000;
 export const W = 960,
@@ -7,15 +21,50 @@ export interface GridMove {
   x: number;
   y: number;
 }
-export type Shape = "rect" | "rounded" | "circle" | "arrow" | "bubble";
+export type Shape = ShapeKind;
 export interface Element {
   id: string;
-  type: "text" | "image" | "shape";
+  type: "text" | "image" | "shape" | "table" | "line" | "chart";
+  groupId?: string;
+  startAnchor?: ConnectorAnchor;
+  endAnchor?: ConnectorAnchor;
+  link?: { slideId?: string; url?: string };
+  drawingTool?:
+    "pen" | "fill" | "eraser" | "line" | "rectangle" | "ellipse" | "select";
+  eraserWidth?: number;
+  inkShapeFill?: string;
+  inkShapeDash?: "solid" | "dash" | "dot";
+  drawing?: {
+    points: { x: number; y: number }[];
+    color: string;
+    width: number;
+    erase?: boolean;
+    shape?: "line" | "rectangle" | "ellipse";
+    fill?: string;
+    dash?: "solid" | "dash" | "dot";
+    fillContours?: { x: number; y: number }[][];
+  }[];
+  writingMode?: "horizontal-tb" | "vertical-rl";
+  chart?: ChartData;
+  rotation?: 0 | 90 | 180 | 270;
+  flipX?: boolean;
+  flipY?: boolean;
+  aspectLocked?: boolean;
+  opacity?: number;
+  strokeWidth?: number;
+  strokeDash?: "solid" | "dash" | "dot";
+  lineKind?: "straight" | "elbow" | "curve";
+  lineStart?: { x: number; y: number };
+  lineEnd?: { x: number; y: number };
+  startArrow?: "none" | "triangle" | "circle";
+  endArrow?: "none" | "triangle" | "circle";
+  table?: TableData;
   x: number;
   y: number;
   w: number;
   h: number;
   text?: string;
+  richText?: RichOp[];
   fontSize?: number;
   bold?: boolean;
   color?: string;
@@ -24,11 +73,14 @@ export interface Element {
   textAlign?: "left" | "center" | "right";
   verticalAlign?: "top" | "middle" | "bottom";
   src?: string;
+  crop?: ImageCrop;
+  altText?: string;
   shape?: Shape;
   fill?: string;
   stroke?: string;
 }
 export interface Slide {
+  speakerNotes?: string;
   footerLabel?: string;
   id: string;
   sheetId?: string;
@@ -44,8 +96,14 @@ export interface Sheet {
   rowLabels?: Record<string, string>;
   columnLabels?: Record<string, string>;
   showRowAccounts?: boolean;
+  rowIds?: Record<string, string>;
+  columnIds?: Record<string, string>;
 }
+export type PresentationRoute = { id: string; name: string; slides: string[] };
 export interface Deck {
+  restrictGuests?: boolean;
+  guestPageCreation?: "none" | "append" | "insert";
+  routes?: PresentationRoute[];
   version: 1;
   title: string;
   slides: Slide[];
@@ -167,7 +225,12 @@ export function insert(
         ? { ...s, y: s.y + 1 }
         : s,
   );
-  return { ...deck, slides: [...slides, blank(x, y)] };
+  return {
+    ...(direction === "right"
+      ? remapAxis(deck, "columns", (i) => (i >= x ? i + 1 : i))
+      : deck),
+    slides: [...slides, blank(x, y)],
+  };
 }
 /** Insert a complete grid line between pages; the origin is never displaced. */
 export function insertGridLine(
@@ -199,7 +262,9 @@ export function insertGridLine(
         : s,
   );
   return {
-    ...deck,
+    ...remapAxis(deck, axis === "row" ? "rows" : "columns", (i) =>
+      i >= index ? i + 1 : i,
+    ),
     slides: [
       ...slides,
       blank(axis === "column" ? index : cross, axis === "row" ? index : cross),
@@ -213,7 +278,13 @@ export function swap(
   to: { x: number; y: number },
 ): Deck {
   return {
-    ...deck,
+    ...(mode === "slide"
+      ? deck
+      : remapAxis(deck, mode === "row" ? "rows" : "columns", (i) => {
+          const a = mode === "row" ? from.y : from.x,
+            b = mode === "row" ? to.y : to.x;
+          return i === a ? b : i === b ? a : i;
+        })),
     slides: deck.slides.map((s) => {
       if (mode === "row")
         return { ...s, y: s.y === from.y ? to.y : s.y === to.y ? from.y : s.y };
@@ -297,7 +368,15 @@ export function moveRowGroup(deck: Deck, from: number, to: number): Deck {
     throw new Error("移動先の段を選んでください。");
   if (from === to) return deck;
   return requireOrigin({
-    ...deck,
+    ...remapAxis(deck, "rows", (i) =>
+      i === from
+        ? to
+        : from < to && i > from && i <= to
+          ? i - 1
+          : from > to && i >= to && i < from
+            ? i + 1
+            : i,
+    ),
     slides: deck.slides.map((s) => ({
       ...s,
       y:
@@ -373,14 +452,8 @@ export function insertMovedPage(
   return requireOrigin(next);
 }
 function copySlide(source: Slide, x: number, y: number): Slide {
-  return {
-    ...source,
-    id: uid(),
-    x,
-    y,
-    title: `${source.title.slice(0, 195)} のコピー`,
-    elements: source.elements.map((element) => ({ ...element, id: uid() })),
-  };
+  const copied = copyPages([source], uid)[0];
+  return { ...copied, x, y, title: `${source.title.slice(0, 195)} のコピー` };
 }
 /** Copy one page to its right, shifting only pages in that row. */
 export function duplicateSlide(deck: Deck, id: string): Deck {
@@ -411,12 +484,16 @@ export function duplicateRowGroup(deck: Deck, y: number, count = 1): Deck {
   if (bounds(deck).rows + count > 100)
     throw new Error("縦・横は100マスまでです。");
   const copies = Array.from({ length: count }, (_, i) =>
-    source.map((s) => copySlide(s, s.x, y + i + 1)),
+    copyPages(source, uid).map((s) => ({
+      ...s,
+      y: y + i + 1,
+      title: `${s.title.slice(0, 195)} のコピー`,
+    })),
   ).flat();
   const chosen = rowPage(deck, y);
   const chosenCopy = copies.find((s) => s.x === chosen?.x);
   const next = {
-    ...deck,
+    ...remapAxis(deck, "rows", (i) => (i > y ? i + count : i)),
     slides: [
       ...deck.slides.map((s) => (s.y > y ? { ...s, y: s.y + count } : s)),
       ...copies,
@@ -433,7 +510,9 @@ export function removeRowGroup(deck: Deck, y: number): Deck {
     .map((s) => (s.y > y ? { ...s, y: s.y - 1 } : s));
   if (!slides.some((s) => s.x === 0 && s.y === 0)) slides.unshift(blank(0, 0));
   return {
-    ...deck,
+    ...remapAxis(deck, "rows", (i) =>
+      i === y ? undefined : i > y ? i - 1 : i,
+    ),
     slides,
     ...(deck.rowSelections === undefined
       ? {}
@@ -495,9 +574,25 @@ export function parseDeck(input: string): Deck {
         }
         return result;
       };
+      const identities = (value: unknown): Record<string, string> => {
+        const result = labels(value);
+        const seen = new Set<string>();
+        for (let i = 0; i < 100; i++) {
+          const value = result[String(i)] ?? String(i);
+          if (!value || seen.has(value)) fail();
+          seen.add(value);
+        }
+        return result;
+      };
       return {
         id: sheetId,
         name,
+        ...(sheet.rowIds === undefined
+          ? {}
+          : { rowIds: identities(sheet.rowIds) }),
+        ...(sheet.columnIds === undefined
+          ? {}
+          : { columnIds: identities(sheet.columnIds) }),
         ...(sheet.rowLabels === undefined
           ? {}
           : { rowLabels: labels(sheet.rowLabels) }),
@@ -541,9 +636,16 @@ export function parseDeck(input: string): Deck {
       ...(s.footerLabel === undefined
         ? {}
         : { footerLabel: str(s.footerLabel, 80) }),
+      ...(s.speakerNotes === undefined
+        ? {}
+        : { speakerNotes: str(s.speakerNotes, 10000) }),
       background: color(s.background),
       elements: s.elements.map((e: any): Element => {
-        if (!e || !["text", "image", "shape"].includes(e.type)) return fail();
+        if (
+          !e ||
+          !["text", "image", "shape", "table", "line", "chart"].includes(e.type)
+        )
+          return fail();
         const base: Element = {
           id: id(e.id),
           type: e.type,
@@ -553,10 +655,52 @@ export function parseDeck(input: string): Deck {
           h: num(e.h, 20, H),
         };
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
+        if (e.rotation !== undefined)
+          base.rotation = [0, 90, 180, 270].includes(e.rotation)
+            ? e.rotation
+            : fail();
+        for (const key of ["flipX", "flipY", "aspectLocked"] as const)
+          if (e[key] !== undefined) base[key] = bool(e[key]);
+        if (e.opacity !== undefined) base.opacity = num(e.opacity, 0, 1);
+        if (e.groupId !== undefined) {
+          base.groupId = str(e.groupId, 100);
+          if (!base.groupId) fail();
+        }
+        if (e.link !== undefined) {
+          if (
+            !e.link ||
+            typeof e.link !== "object" ||
+            Object.keys(e.link).some((k) => k !== "slideId" && k !== "url")
+          )
+            fail();
+          if ((e.link.slideId !== undefined) === (e.link.url !== undefined))
+            fail();
+          if (e.link.url !== undefined)
+            base.link = { url: webLink(str(e.link.url, 2048)) };
+          else {
+            const slideId = str(e.link.slideId, 100);
+            if (!slideId) fail();
+            base.link = { slideId };
+          }
+        }
+        if (e.type === "chart") return { ...base, chart: parseChart(e.chart) };
+
         if (e.type === "text")
           return {
             ...base,
             text: str(e.text),
+            ...(e.writingMode === undefined
+              ? {}
+              : {
+                  writingMode: ["horizontal-tb", "vertical-rl"].includes(
+                    e.writingMode,
+                  )
+                    ? e.writingMode
+                    : fail(),
+                }),
+            ...(e.richText === undefined
+              ? {}
+              : { richText: parseRichText(e.richText, str(e.text)) }),
             fontSize: num(e.fontSize, 12, 120),
             ...(e.bold === undefined ? {} : { bold: bool(e.bold) }),
             ...(e.bullets === undefined ? {} : { bullets: bool(e.bullets) }),
@@ -580,6 +724,21 @@ export function parseDeck(input: string): Deck {
             highlight:
               e.highlight === undefined ? undefined : color(e.highlight),
           };
+        if (e.type === "table")
+          return {
+            ...base,
+            table: parseTable(e.table),
+            fontSize: num(e.fontSize, 12, 72),
+            color: color(e.color),
+            fill: color(e.fill),
+            stroke: color(e.stroke),
+            textAlign:
+              e.textAlign === undefined
+                ? "left"
+                : ["left", "center", "right"].includes(e.textAlign)
+                  ? e.textAlign
+                  : fail(),
+          };
         if (e.type === "image") {
           const src = str(e.src, 12_000_000);
           if (
@@ -589,22 +748,284 @@ export function parseDeck(input: string): Deck {
             !/^\/api\/decks\/[a-f0-9-]{36}\/assets\/[a-f0-9-]{36}$/.test(src)
           )
             fail();
-          return { ...base, src };
+          return {
+            ...base,
+            src,
+            ...(e.drawing === undefined
+              ? {}
+              : {
+                  drawing: (() => {
+                    if (!Array.isArray(e.drawing) || e.drawing.length > 1000)
+                      fail();
+                    let total = 0;
+                    return e.drawing.map((s: any) => {
+                      if (
+                        !s ||
+                        !Array.isArray(s.points) ||
+                        !s.points.length ||
+                        (total += s.points.length) > 50000
+                      )
+                        fail();
+                      return {
+                        points: s.points.map((p: any) => ({
+                          x: num(p.x, 0, 960),
+                          y: num(p.y, 0, 540),
+                        })),
+                        ...(s.fillContours === undefined
+                          ? {}
+                          : {
+                              fillContours: (() => {
+                                if (
+                                  !Array.isArray(s.fillContours) ||
+                                  !s.fillContours.length ||
+                                  s.fillContours.length > 10000
+                                )
+                                  fail();
+                                return s.fillContours.map((c: any) => {
+                                  if (
+                                    !Array.isArray(c) ||
+                                    c.length < 3 ||
+                                    (total += c.length) > 50000
+                                  )
+                                    fail();
+                                  return c.map((p: any) => ({
+                                    x: num(p.x, 0, 960),
+                                    y: num(p.y, 0, 540),
+                                  }));
+                                });
+                              })(),
+                            }),
+                        ...(s.erase === undefined
+                          ? {}
+                          : {
+                              erase:
+                                typeof s.erase === "boolean" &&
+                                !(s.erase && s.fillContours)
+                                  ? s.erase
+                                  : fail(),
+                            }),
+                        ...(s.shape === undefined
+                          ? {}
+                          : {
+                              shape:
+                                ["line", "rectangle", "ellipse"].includes(
+                                  s.shape,
+                                ) &&
+                                !s.erase &&
+                                !s.fillContours
+                                  ? s.shape
+                                  : fail(),
+                            }),
+                        ...(s.fill === undefined
+                          ? {}
+                          : {
+                              fill:
+                                !s.erase && !s.fillContours
+                                  ? s.fill === "none"
+                                    ? "none"
+                                    : color(s.fill)
+                                  : fail(),
+                            }),
+                        ...(s.dash === undefined
+                          ? {}
+                          : {
+                              dash:
+                                ["solid", "dash", "dot"].includes(s.dash) &&
+                                !s.erase &&
+                                !s.fillContours
+                                  ? s.dash
+                                  : fail(),
+                            }),
+                        color: color(s.color),
+                        width: num(s.width, 1, s.erase ? 100 : 30),
+                      };
+                    });
+                  })(),
+                  ...(e.drawingTool === undefined
+                    ? {}
+                    : {
+                        drawingTool: [
+                          "select",
+                          "pen",
+                          "fill",
+                          "eraser",
+                          "line",
+                          "rectangle",
+                          "ellipse",
+                        ].includes(e.drawingTool)
+                          ? e.drawingTool
+                          : fail(),
+                      }),
+                  ...(e.eraserWidth === undefined
+                    ? {}
+                    : { eraserWidth: num(e.eraserWidth, 1, 100) }),
+                  ...(e.inkShapeFill === undefined
+                    ? {}
+                    : {
+                        inkShapeFill:
+                          e.inkShapeFill === "none"
+                            ? "none"
+                            : color(e.inkShapeFill),
+                      }),
+                  ...(e.inkShapeDash === undefined
+                    ? {}
+                    : {
+                        inkShapeDash: ["solid", "dash", "dot"].includes(
+                          e.inkShapeDash,
+                        )
+                          ? e.inkShapeDash
+                          : fail(),
+                      }),
+                  stroke: e.stroke === undefined ? "#173d38" : color(e.stroke),
+                  strokeWidth:
+                    e.strokeWidth === undefined ? 5 : num(e.strokeWidth, 1, 30),
+                }),
+            ...(e.crop === undefined ? {} : { crop: parseCrop(e.crop) }),
+            ...(e.altText === undefined
+              ? {}
+              : { altText: str(e.altText, 500) }),
+          };
         }
-        if (!["rect", "rounded", "circle", "arrow", "bubble"].includes(e.shape))
-          fail();
+        const lineStyle: Partial<Element> = {
+          ...(e.strokeWidth === undefined
+            ? {}
+            : { strokeWidth: num(e.strokeWidth, 0, 20) }),
+          ...(e.strokeDash === undefined
+            ? {}
+            : {
+                strokeDash: ["solid", "dash", "dot"].includes(e.strokeDash)
+                  ? e.strokeDash
+                  : fail(),
+              }),
+        };
+        if (e.type === "line") {
+          if (
+            (e.rotation !== undefined && e.rotation !== 0) ||
+            e.flipX === true ||
+            e.flipY === true
+          )
+            fail();
+          const points: Partial<Element> = {};
+          for (const key of ["lineStart", "lineEnd"] as const)
+            if (e[key] !== undefined)
+              points[key] = {
+                x: num(e[key]?.x, 0, 100),
+                y: num(e[key]?.y, 0, 100),
+              };
+          return {
+            ...base,
+            ...lineStyle,
+            ...points,
+            ...(e.startAnchor === undefined
+              ? {}
+              : { startAnchor: parseAnchor(e.startAnchor) }),
+            ...(e.endAnchor === undefined
+              ? {}
+              : { endAnchor: parseAnchor(e.endAnchor) }),
+            stroke: color(e.stroke),
+            ...(e.lineKind === undefined
+              ? {}
+              : {
+                  lineKind: ["straight", "elbow", "curve"].includes(e.lineKind)
+                    ? e.lineKind
+                    : fail(),
+                }),
+            ...(e.startArrow === undefined
+              ? {}
+              : {
+                  startArrow: ["none", "triangle", "circle"].includes(
+                    e.startArrow,
+                  )
+                    ? e.startArrow
+                    : fail(),
+                }),
+            ...(e.endArrow === undefined
+              ? {}
+              : {
+                  endArrow: ["none", "triangle", "circle"].includes(e.endArrow)
+                    ? e.endArrow
+                    : fail(),
+                }),
+          };
+        }
+        if (!shapeIds.includes(e.shape)) fail();
         return {
           ...base,
           shape: e.shape,
-          fill: color(e.fill),
+          fill: e.fill === "none" ? "none" : color(e.fill),
           stroke: color(e.stroke),
+          ...lineStyle,
+          ...(e.text === undefined
+            ? {}
+            : {
+                text: str(e.text),
+                ...(e.richText === undefined
+                  ? {}
+                  : { richText: parseRichText(e.richText, str(e.text)) }),
+                ...(e.bullets === undefined
+                  ? {}
+                  : { bullets: bool(e.bullets) }),
+                ...(e.highlight === undefined
+                  ? {}
+                  : { highlight: color(e.highlight) }),
+                fontSize: num(e.fontSize ?? 24, 12, 120),
+                color: color(e.color ?? "#173d38"),
+                ...(e.bold === undefined ? {} : { bold: bool(e.bold) }),
+                textAlign:
+                  e.textAlign === undefined
+                    ? "center"
+                    : ["left", "center", "right"].includes(e.textAlign)
+                      ? e.textAlign
+                      : fail(),
+                verticalAlign:
+                  e.verticalAlign === undefined
+                    ? "middle"
+                    : ["top", "middle", "bottom"].includes(e.verticalAlign)
+                      ? e.verticalAlign
+                      : fail(),
+              }),
         };
       }),
     };
   });
+  for (const slide of slides)
+    for (const e of slide.elements)
+      for (const key of ["startAnchor", "endAnchor"] as const) {
+        const a = e[key];
+        if (a) {
+          const target = slide.elements.find((t) => t.id === a.elementId);
+          if (target?.type === "line" || a.elementId === e.id) fail();
+        }
+      }
   for (const sheet of sheets ?? [{ id: "main" }])
     if (!cells.has(`${sheet.id}:0,0`)) fail();
   const result: Deck = { version: 1, title: str(d.title, 200), slides };
+  if (d.guestPageCreation !== undefined)
+    result.guestPageCreation = ["none", "append", "insert"].includes(
+      d.guestPageCreation,
+    )
+      ? d.guestPageCreation
+      : fail();
+  if (d.restrictGuests !== undefined)
+    result.restrictGuests = bool(d.restrictGuests);
+  if (d.routes !== undefined) {
+    if (!Array.isArray(d.routes) || d.routes.length > 30) fail();
+    const ids = new Set<string>();
+    result.routes = d.routes.map((r: any) => {
+      const id = str(r?.id, 100),
+        name = str(r?.name, 80);
+      if (
+        !id ||
+        !name.trim() ||
+        ids.has(id) ||
+        !Array.isArray(r.slides) ||
+        r.slides.length > 1000
+      )
+        fail();
+      ids.add(id);
+      return { id, name, slides: r.slides.map((id: unknown) => str(id, 100)) };
+    });
+  }
   if (sheets) result.sheets = sheets;
   if (d.activeSheetId !== undefined) {
     const active = str(d.activeSheetId, 100);

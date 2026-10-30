@@ -1,0 +1,36 @@
+▶ isolated recovery faults: publication, replay, cancellation, lost response and capture races
+  ✔ permanent deletion interrupted after Room cleanup remains non-restorable and retries after restart (3325.180865ms)
+  ✔ A1: Room committed, Directory failed; private; retry preserves one copy (511.14074ms)
+  ✔ A2: queued cancellation cannot remove a finalized work (60.747946ms)
+  ✔ A3: cancellation after partial commit removes staging data and refuses replay (44.560343ms)
+  ✔ A4: a lost Room response leaves an uploading job but replay preserves the committed notes (3312.441001ms)
+  ✔ B: lost commit response is queryable and replay returns the same work (61.511322ms)
+AUDIT_CAPTURE slide status=409
+AUDIT_CAPTURE image status=409
+AUDIT_CAPTURE note status=409
+AUDIT_CAPTURE sharing status=409
+AUDIT_CAPTURE sharing-ABA status=409
+REGRESSION_MIXED status=409; inconsistent snapshot rejected
+  ✔ C: every slide, image, note and sharing change including ABA is rejected (192.121355ms)
+✔ isolated recovery faults: publication, replay, cancellation, lost response and capture races (7961.990567ms)
+✔ checks real JWT signatures/audience, session cookies, origin and membership (28518.789751ms)
+✔ stores 1000 pages and private photos through a runtime restart and rejects page 1001 (2197.901316ms)
+✔ 40 authenticated WebSockets converge on simultaneous edits and persist acknowledgements (2698.96905ms)
+✔ refuses foreign assets and closes a signed-out connection (20252.226696ms)
+✔ reserves photo space atomically and stops uploading at the owner's limit (938.003271ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (313.175802ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (502.619575ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (142.507779ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (400.06908ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (6984.047649ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (3737.960142ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (3420.319288ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (567.493019ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72633.69509

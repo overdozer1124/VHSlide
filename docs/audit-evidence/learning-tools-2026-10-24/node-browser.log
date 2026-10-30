@@ -1,0 +1,43 @@
+
+> vhslide@0.38.0 test:cloud
+> playwright test --config playwright.cloud.config.ts
+
+[WebServer] (node:300298) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 28 tests using 1 worker
+
+(node:300310) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:42:1 › recovers unsent text from this browser after reopening the app (3.6s)
+  ✓   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:138:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (11.4s)
+  ✓   3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:409:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (10.2s)
+  ✓   4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:521:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (9.6s)
+  ✓   5 [cloud-desktop] › tests/cloud/collaboration.spec.ts:650:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (6.8s)
+  ✓   6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:748:1 › failed sticky autosaves keep the input and can be retried (3.6s)
+  ✓   7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (8.4s)
+  ✓   8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:902:1 › sticky color, presets and direct resize persist with mouse and touch (4.9s)
+  ✓   9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:971:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (15.5s)
+  ✓  10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1152:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (4.0s)
+  ✓  11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (10.9s)
+  ✓  12 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1481:1 › restores a signed-in room in the background without flashing the cloud dialog (3.1s)
+  ✓  13 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1566:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (9.6s)
+  ✓  14 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1770:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (5.2s)
+(node:301463) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  15 [cloud-touch] › tests/cloud/collaboration.spec.ts:42:1 › recovers unsent text from this browser after reopening the app (5.9s)
+  ✓  16 [cloud-touch] › tests/cloud/collaboration.spec.ts:138:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (12.7s)
+  ✓  17 [cloud-touch] › tests/cloud/collaboration.spec.ts:409:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (9.6s)
+  ✓  18 [cloud-touch] › tests/cloud/collaboration.spec.ts:521:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (9.5s)
+  ✓  19 [cloud-touch] › tests/cloud/collaboration.spec.ts:650:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (6.1s)
+  ✓  20 [cloud-touch] › tests/cloud/collaboration.spec.ts:748:1 › failed sticky autosaves keep the input and can be retried (3.6s)
+  ✓  21 [cloud-touch] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (8.5s)
+  ✓  22 [cloud-touch] › tests/cloud/collaboration.spec.ts:902:1 › sticky color, presets and direct resize persist with mouse and touch (4.6s)
+  ✓  23 [cloud-touch] › tests/cloud/collaboration.spec.ts:971:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (7.0s)
+  ✓  24 [cloud-touch] › tests/cloud/collaboration.spec.ts:1152:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (3.0s)
+  ✓  25 [cloud-touch] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (8.5s)
+  ✓  26 [cloud-touch] › tests/cloud/collaboration.spec.ts:1481:1 › restores a signed-in room in the background without flashing the cloud dialog (2.9s)
+  ✓  27 [cloud-touch] › tests/cloud/collaboration.spec.ts:1566:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (8.7s)
+  ✓  28 [cloud-touch] › tests/cloud/collaboration.spec.ts:1770:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (3.5s)
+
+  28 passed (3.4m)

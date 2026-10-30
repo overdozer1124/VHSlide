@@ -1,0 +1,30 @@
+▶ isolated recovery faults: publication, replay, cancellation, lost response and capture races
+  ✔ A1: Room committed, Directory failed; private; retry preserves one copy (399.326312ms)
+  ✔ A2: queued cancellation cannot remove a finalized work (57.816539ms)
+  ✔ A3: cancellation after partial commit removes staging data and refuses replay (31.637837ms)
+  ✔ B: discard committed response; work survives; explicit restore-status endpoint is absent (50.507822ms)
+AUDIT_CAPTURE slide status=200
+AUDIT_CAPTURE image status=200
+AUDIT_CAPTURE note status=200
+AUDIT_CAPTURE sharing status=409
+AUDIT_CAPTURE sharing-ABA status=200
+AUDIT_MIXED status=200 returned D1/P0; no common capture instant
+  ✔ C: slide, image reference and note changes after capture are not detected; sharing change is detected (206.709097ms)
+✔ isolated recovery faults: publication, replay, cancellation, lost response and capture races (4262.813588ms)
+✔ checks real JWT signatures/audience, session cookies, origin and membership (25696.636806ms)
+✔ stores 1000 pages and private photos through a runtime restart and rejects page 1001 (1669.025153ms)
+✔ 40 authenticated WebSockets converge on simultaneous edits and persist acknowledgements (2648.044336ms)
+✔ refuses foreign assets and closes a signed-out connection (20172.904171ms)
+✔ reserves photo space atomically and stops uploading at the owner's limit (968.354134ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (234.359665ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (519.187766ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (148.007942ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (401.581943ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53570.916707

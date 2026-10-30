@@ -1,0 +1,310 @@
+[WebServer] (node:285291) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:285304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 18 tests using 1 worker
+
+(node:285322) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:21 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:48:22 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+[WebServer] 10:48:23 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   2 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (1.9s)
+[WebServer] 10:48:25 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   3 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (1.7s)
+(node:285516) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:27 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:48:29 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   4 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+[WebServer] 10:48:29 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (1.9s)
+[WebServer] 10:48:31 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   6 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (1.7s)
+(node:285719) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:33 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:48:35 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   7 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+[WebServer] 10:48:35 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   8 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (1.9s)
+[WebServer] 10:48:37 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   9 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (1.7s)
+(node:285915) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:40 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  10 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.7s)
+(node:286046) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:42 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  11 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (6.7s)
+(node:286191) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:49 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  12 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.4s)
+(node:286318) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:52 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  13 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.7s)
+(node:286457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:55 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  14 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (6.7s)
+(node:286586) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:49:02 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  15 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.4s)
+(node:286719) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:49:05 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  16 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.6s)
+(node:286851) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:49:07 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  17 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (6.7s)
+(node:286976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:49:15 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  18 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.5s)
+
+
+  1) [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 20
+    Received:   20
+
+      168 |     JSON.parse(localStorage.getItem("vhslide-deck-v1")!),
+      169 |   );
+    > 170 |   expect(data.slides[0].elements.at(-1).w).toBeGreaterThan(20);
+          |                                            ^
+      171 |   await page.locator(".editor-workspace").evaluate((node, base64) => {
+      172 |     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      173 |     const transfer = new DataTransfer();
+        at /workspace/vhslide-dual-auth/tests/e2e/app.spec.ts:170:44
+
+    Error Context: test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 20
+    Received:   20
+
+      168 |     JSON.parse(localStorage.getItem("vhslide-deck-v1")!),
+      169 |   );
+    > 170 |   expect(data.slides[0].elements.at(-1).w).toBeGreaterThan(20);
+          |                                            ^
+      171 |   await page.locator(".editor-workspace").evaluate((node, base64) => {
+      172 |     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      173 |     const transfer = new DataTransfer();
+        at /workspace/vhslide-dual-auth/tests/e2e/app.spec.ts:170:44
+
+    Error Context: test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch-repeat1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch-repeat1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch-repeat1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 20
+    Received:   20
+
+      168 |     JSON.parse(localStorage.getItem("vhslide-deck-v1")!),
+      169 |   );
+    > 170 |   expect(data.slides[0].elements.at(-1).w).toBeGreaterThan(20);
+          |                                            ^
+      171 |   await page.locator(".editor-workspace").evaluate((node, base64) => {
+      172 |     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      173 |     const transfer = new DataTransfer();
+        at /workspace/vhslide-dual-auth/tests/e2e/app.spec.ts:170:44
+
+    Error Context: test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch-repeat2/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch-repeat2/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/app-embedded-images-surviv-fa338-d-resizing-changes-geometry-touch-repeat2/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('textbox', { name: '表 3行 3列', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" getByRole('textbox', { name: '表 3行 3列', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: '表 3行 3列', exact: true })
+        14 × locator resolved to <textarea maxlength="2000" spellcheck="true" aria-label="表 3行 3列" aria-selected="false" data-cell="cell-3:cell-6"></textarea>
+           - unexpected value "inactive"
+
+
+      89 |     await page.touchscreen.tap(r!.x + r!.width / 2, r!.y + r!.height - 5);
+      90 |   else await page.mouse.click(r!.x + r!.width / 2, r!.y + r!.height - 5);
+    > 91 |   await expect(cell(page, 3, 3)).toBeFocused();
+         |                                  ^
+      92 |   await cell(page, 3, 3).fill("長い文\n".repeat(40));
+      93 |   await cell(page, 3, 3).press("End");
+      94 |   await cell(page, 3, 3).press("!");
+        at /workspace/vhslide-dual-auth/tests/e2e/editor-inspector-ux.spec.ts:91:34
+
+    Error Context: test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('textbox', { name: '表 3行 3列', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" getByRole('textbox', { name: '表 3行 3列', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: '表 3行 3列', exact: true })
+        14 × locator resolved to <textarea maxlength="2000" spellcheck="true" aria-label="表 3行 3列" aria-selected="false" data-cell="cell-3:cell-6"></textarea>
+           - unexpected value "inactive"
+
+
+      89 |     await page.touchscreen.tap(r!.x + r!.width / 2, r!.y + r!.height - 5);
+      90 |   else await page.mouse.click(r!.x + r!.width / 2, r!.y + r!.height - 5);
+    > 91 |   await expect(cell(page, 3, 3)).toBeFocused();
+         |                                  ^
+      92 |   await cell(page, 3, 3).fill("長い文\n".repeat(40));
+      93 |   await cell(page, 3, 3).press("End");
+      94 |   await cell(page, 3, 3).press("!");
+        at /workspace/vhslide-dual-auth/tests/e2e/editor-inspector-ux.spec.ts:91:34
+
+    Error Context: test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch-repeat1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch-repeat1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch-repeat1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('textbox', { name: '表 3行 3列', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" getByRole('textbox', { name: '表 3行 3列', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: '表 3行 3列', exact: true })
+        14 × locator resolved to <textarea maxlength="2000" spellcheck="true" aria-label="表 3行 3列" aria-selected="false" data-cell="cell-3:cell-6"></textarea>
+           - unexpected value "inactive"
+
+
+      89 |     await page.touchscreen.tap(r!.x + r!.width / 2, r!.y + r!.height - 5);
+      90 |   else await page.mouse.click(r!.x + r!.width / 2, r!.y + r!.height - 5);
+    > 91 |   await expect(cell(page, 3, 3)).toBeFocused();
+         |                                  ^
+      92 |   await cell(page, 3, 3).fill("長い文\n".repeat(40));
+      93 |   await cell(page, 3, 3).press("End");
+      94 |   await cell(page, 3, 3).press("!");
+        at /workspace/vhslide-dual-auth/tests/e2e/editor-inspector-ux.spec.ts:91:34
+
+    Error Context: test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch-repeat2/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch-repeat2/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/editor-inspector-ux-cell-s-84068-able-and-fixed-in-the-table-touch-repeat2/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+    [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+    [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+    [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+    [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+    [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+  12 passed (57.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

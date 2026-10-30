@@ -1,0 +1,9 @@
+{
+  "unit": 128,
+  "nodeApi": 16,
+  "nodeBrowser": 36,
+  "cloudflareBrowser": 36,
+  "realDevicesTested": false,
+  "productionRoomDataAccessed": false,
+  "workerBundleUnchangedFrom0432": true
+}

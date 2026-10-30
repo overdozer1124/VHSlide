@@ -164,7 +164,7 @@ test("sheets add, duplicate, rename, reorder, delete and undo independently and 
   await button(page, "もとに戻す").click();
   await expect(page.getByRole("tab")).toHaveCount(3);
   const download = page.waitForEvent("download");
-  await button(page, "保存").click();
+  await button(page, "ファイルに保存").click();
   const file = await download,
     book = JSON.parse(await readFile((await file.path())!, "utf8"));
   expect(book.sheets.map((s: any) => s.name)).toEqual([

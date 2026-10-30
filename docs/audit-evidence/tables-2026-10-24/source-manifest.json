@@ -1,0 +1,25 @@
+{
+  "version": "0.40.0",
+  "date": "2026-10-24",
+  "node": "v24.19.0",
+  "chromium": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+  "sha256": {
+    "src/tableData.ts": "849cfa7e7cdd80c76b0abed81ba86802197cefd2656b4d67bf7c738091f4bedf",
+    "src/tableData.test.ts": "a07e5f7e4e8875e79b41d8704a7c5bd268e179b037f6d21c0673e628b7c4cacc",
+    "src/SlideTable.tsx": "497e3a744b072b6a8f2e56642c76da2948d56f20fb49bec808d95f2098faccdf",
+    "src/TableTools.tsx": "5a2aa2873445089f719fc8ed9b2bc56d3510e45d487276656968dd6ccbdc99bb",
+    "src/Canvas.tsx": "bfc3d35dbf7b94dbd9c4a81c794f2c7010123e2067fd89e949a8c8625acd45ff",
+    "src/Editor.tsx": "f1cadf9eba2db55c8b9d224cfe8aefbf067b13ec3a74d3b3fae2641294af5e93",
+    "src/App.tsx": "d8e01ecbfb7d439cab99c471b682076550182fa7823e8b4b188bf57b3a26d739",
+    "src/model.ts": "2428e9c814278b188902c9cd65934d5153595d5645ef89517b41213770591c00",
+    "src/sharedDeck.ts": "79f48fa6b528cfaf2dd56d0d702918aa2d98329329154f534d5228a52c5463af",
+    "src/useSlidePan.ts": "1ce6d4c10d7c333768f4aa03126111a0415aec5fdaa3a33d43124a888868a1be",
+    "src/releaseHistory.ts": "005f7a38d7abae9e8553fbb7e9d68b10cd9d8c9a749447179587e5d88d6b0385",
+    "tests/e2e/tables.spec.ts": "23b9c3b1b4f9269f567143cb3c392f41c999ca3023a6a196b9f52fe30b463ef2",
+    "tests/cloud/tables.spec.ts": "c05deefa032ba09c0ae0793113b2a1995b24d1f42332734a0aa1be581240770d",
+    "docs/deck.schema.json": "09e536afaf93c38b0ab1e61018ea07293c81053d1bc8ecb959fad7815bac598c",
+    "package.json": "1db67602da1de5ce97ac66d52bae8cad13bc67dea09f4c3a6d2190238fe9a3db",
+    "package-lock.json": "a867da60f26b77f710d6f263c4f381cfa915e3c4a9dd88d237ced71f00f07b83"
+  }
+}

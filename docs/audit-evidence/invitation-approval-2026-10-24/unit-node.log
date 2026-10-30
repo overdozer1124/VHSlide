@@ -1,0 +1,53 @@
+
+> vhslide@0.39.0 test
+> vitest run src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/permissions.test.ts (5 tests) 105ms
+ ✓ src/sharedDeck.test.ts (8 tests) 107ms
+ ✓ src/backup.test.ts (5 tests) 715ms
+   ✓ backs up over 25MB of photos without base64 embedding  557ms
+ ✓ src/model.test.ts (40 tests) 80ms
+ ✓ src/workbook.test.ts (7 tests) 82ms
+ ✓ src/axes.test.ts (7 tests) 72ms
+ ✓ src/learningTools.test.ts (6 tests) 1699ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  1540ms
+ ✓ src/joinRequests.test.ts (4 tests) 26ms
+ ✓ src/preSharing.test.ts (5 tests) 43ms
+ ✓ src/backupProtocol.test.ts (3 tests) 34ms
+ ✓ src/releaseHistory.test.ts (1 test) 12ms
+
+ Test Files  11 passed (11)
+      Tests  91 passed (91)
+   Start at  11:21:54
+   Duration  3.12s (transform 855ms, setup 0ms, collect 1.85s, tests 2.97s, environment 2ms, prepare 1.15s)
+
+
+> vhslide@0.39.0 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (82.904836ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (70.288964ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (62.872082ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (995.475956ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (32.35498ms)
+✔ sign-out revokes active sockets and persisted session access (12.48533ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (179.068805ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (159.10603ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (119.879996ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (164.95284ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (224.938866ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (25.401156ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (209.061356ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (47.183538ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (132.879269ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2879.317707

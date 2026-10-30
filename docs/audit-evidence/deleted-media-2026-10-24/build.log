@@ -1,0 +1,22 @@
+
+> vhslide@0.39.1 build
+> tsc -b && tsc -p tsconfig.server.json && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2395 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                           0.48 kB │ gzip:   0.34 kB
+dist/assets/backup.worker-DBr4yQsT.js    20.38 kB
+dist/assets/index-CiX8Zypg.css           95.36 kB │ gzip:  19.63 kB
+dist/assets/backupWorker-CZZ--pHz.js      1.05 kB │ gzip:   0.67 kB
+dist/assets/ReleaseHistory-JmPdQ7dO.js   17.49 kB │ gzip:   6.01 kB
+dist/assets/CloudText-C6d9UNqQ.js       203.57 kB │ gzip:  60.87 kB
+dist/assets/index-BLGJHcP2.js           587.37 kB │ gzip: 185.79 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.57s

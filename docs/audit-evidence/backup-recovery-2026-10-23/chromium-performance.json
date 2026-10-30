@@ -1,0 +1,802 @@
+{
+  "kind": "local Chromium substitute; not ChromeOS",
+  "node": "v24.19.0",
+  "chromium": "154.0.8037.57",
+  "cpuThrottle": 4,
+  "date": "2026-10-23T11:36:42.835Z",
+  "measurements": [
+    {
+      "label": "5MB prepare",
+      "ms": 2949.0999999940395,
+      "maxTimerGapMs": 890,
+      "ticks": 73,
+      "result": {
+        "imageCount": 2,
+        "imageBytes": 2030312,
+        "totalImageBytes": 4060624,
+        "serverSource": true
+      },
+      "before": {
+        "usedSize": 1286792,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 314544,
+        "backingStorageSize": 260809
+      },
+      "after": {
+        "usedSize": 1445604,
+        "totalSize": 4788224,
+        "embedderHeapUsedSize": 783040,
+        "backingStorageSize": 8712079
+      },
+      "sampledPeakJSBytes": 1477216,
+      "sampledPeakBackingBytes": 8712079
+    },
+    {
+      "label": "5MB zip",
+      "ms": 281.3999999910593,
+      "maxTimerGapMs": 153.09999999403954,
+      "ticks": 9,
+      "result": {
+        "bytes": 4062303
+      },
+      "before": {
+        "usedSize": 1394596,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 321488,
+        "backingStorageSize": 4321518
+      },
+      "after": {
+        "usedSize": 1443796,
+        "totalSize": 3477504,
+        "embedderHeapUsedSize": 323528,
+        "backingStorageSize": 16507347
+      },
+      "sampledPeakJSBytes": 1503408,
+      "sampledPeakBackingBytes": 16507386
+    },
+    {
+      "label": "5MB read",
+      "ms": 89.1000000089407,
+      "maxTimerGapMs": 90.40000000596046,
+      "ticks": 5,
+      "result": {
+        "images": 2,
+        "bytes": 4061885
+      },
+      "before": {
+        "usedSize": 1415852,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 322880,
+        "backingStorageSize": 8384032
+      },
+      "after": {
+        "usedSize": 1458044,
+        "totalSize": 2691072,
+        "embedderHeapUsedSize": 323688,
+        "backingStorageSize": 16507301
+      },
+      "sampledPeakJSBytes": 1474996,
+      "sampledPeakBackingBytes": 16508546
+    },
+    {
+      "label": "5MB corrupt",
+      "ms": 113.20000000298023,
+      "maxTimerGapMs": 121,
+      "ticks": 4,
+      "result": {
+        "rejected": true
+      },
+      "before": {
+        "usedSize": 1430980,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 323128,
+        "backingStorageSize": 12444656
+      },
+      "after": {
+        "usedSize": 1470200,
+        "totalSize": 3739648,
+        "embedderHeapUsedSize": 388256,
+        "backingStorageSize": 24630228
+      },
+      "sampledPeakJSBytes": 1470200,
+      "sampledPeakBackingBytes": 24630228
+    },
+    {
+      "label": "5MB restore",
+      "ms": 2179.9000000059605,
+      "maxTimerGapMs": 763.1999999880791,
+      "ticks": 50,
+      "result": {
+        "id": "21b1222e-097e-4c86-b032-8735ebe030a9"
+      },
+      "before": {
+        "usedSize": 1440716,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 323384,
+        "backingStorageSize": 12444656
+      },
+      "after": {
+        "usedSize": 1504592,
+        "totalSize": 2691072,
+        "embedderHeapUsedSize": 738416,
+        "backingStorageSize": 16505605
+      },
+      "sampledPeakJSBytes": 1504592,
+      "sampledPeakBackingBytes": 16505605
+    },
+    {
+      "label": "5MB verify",
+      "ms": 27.900000005960464,
+      "maxTimerGapMs": 19.299999997019768,
+      "ticks": 5,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 2
+      },
+      "before": {
+        "usedSize": 1451364,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 328112,
+        "backingStorageSize": 12444719
+      },
+      "after": {
+        "usedSize": 1484620,
+        "totalSize": 2691072,
+        "embedderHeapUsedSize": 706008,
+        "backingStorageSize": 12445651
+      },
+      "sampledPeakJSBytes": 1484620,
+      "sampledPeakBackingBytes": 12445651
+    },
+    {
+      "label": "20MB prepare",
+      "ms": 8942.5,
+      "maxTimerGapMs": 840.9000000059605,
+      "ticks": 196,
+      "result": {
+        "imageCount": 9,
+        "imageBytes": 2030312,
+        "totalImageBytes": 18272808,
+        "serverSource": true
+      },
+      "before": {
+        "usedSize": 1451732,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 335752,
+        "backingStorageSize": 12444729
+      },
+      "after": {
+        "usedSize": 1555492,
+        "totalSize": 4788224,
+        "embedderHeapUsedSize": 781320,
+        "backingStorageSize": 20567604
+      },
+      "sampledPeakJSBytes": 1828220,
+      "sampledPeakBackingBytes": 20567604
+    },
+    {
+      "label": "20MB zip",
+      "ms": 1160.4000000059605,
+      "maxTimerGapMs": 511.90000000596046,
+      "ticks": 26,
+      "result": {
+        "bytes": 18278045
+      },
+      "before": {
+        "usedSize": 1469428,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 352888,
+        "backingStorageSize": 18533804
+      },
+      "after": {
+        "usedSize": 1539648,
+        "totalSize": 4526080,
+        "embedderHeapUsedSize": 359000,
+        "backingStorageSize": 63211209
+      },
+      "sampledPeakJSBytes": 1539648,
+      "sampledPeakBackingBytes": 63211209
+    },
+    {
+      "label": "20MB read",
+      "ms": 306.5,
+      "maxTimerGapMs": 310,
+      "ticks": 4,
+      "result": {
+        "images": 9,
+        "bytes": 18276927
+      },
+      "before": {
+        "usedSize": 1496640,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 355968,
+        "backingStorageSize": 36812680
+      },
+      "after": {
+        "usedSize": 1556736,
+        "totalSize": 3739648,
+        "embedderHeapUsedSize": 359168,
+        "backingStorageSize": 73368826
+      },
+      "sampledPeakJSBytes": 1583432,
+      "sampledPeakBackingBytes": 73368826
+    },
+    {
+      "label": "20MB corrupt",
+      "ms": 400.29999999701977,
+      "maxTimerGapMs": 404,
+      "ticks": 4,
+      "result": {
+        "rejected": true
+      },
+      "before": {
+        "usedSize": 1513804,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 356248,
+        "backingStorageSize": 55085476
+      },
+      "after": {
+        "usedSize": 1550156,
+        "totalSize": 3477504,
+        "embedderHeapUsedSize": 358400,
+        "backingStorageSize": 101796319
+      },
+      "sampledPeakJSBytes": 1562012,
+      "sampledPeakBackingBytes": 101796319
+    },
+    {
+      "label": "20MB restore",
+      "ms": 9368.20000000298,
+      "maxTimerGapMs": 809.4000000059605,
+      "ticks": 210,
+      "result": {
+        "id": "9fbfb2f3-38df-448d-ba99-3cc50ebb51d2"
+      },
+      "before": {
+        "usedSize": 1514384,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 356496,
+        "backingStorageSize": 55085476
+      },
+      "after": {
+        "usedSize": 1590664,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 828248,
+        "backingStorageSize": 67268014
+      },
+      "sampledPeakJSBytes": 1590664,
+      "sampledPeakBackingBytes": 67268014
+    },
+    {
+      "label": "20MB verify",
+      "ms": 25.5,
+      "maxTimerGapMs": 22.5,
+      "ticks": 5,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 2
+      },
+      "before": {
+        "usedSize": 1526216,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 373472,
+        "backingStorageSize": 55085476
+      },
+      "after": {
+        "usedSize": 1563176,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 763192,
+        "backingStorageSize": 55087726
+      },
+      "sampledPeakJSBytes": 1563176,
+      "sampledPeakBackingBytes": 55087726
+    },
+    {
+      "label": "45MB prepare",
+      "ms": 19376.89999999106,
+      "maxTimerGapMs": 952.4000000059605,
+      "ticks": 399,
+      "result": {
+        "imageCount": 22,
+        "imageBytes": 2030312,
+        "totalImageBytes": 44666864,
+        "serverSource": true
+      },
+      "before": {
+        "usedSize": 1526512,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 378336,
+        "backingStorageSize": 55085476
+      },
+      "after": {
+        "usedSize": 1610596,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 704376,
+        "backingStorageSize": 46963763
+      },
+      "sampledPeakJSBytes": 1826524,
+      "sampledPeakBackingBytes": 61506457
+    },
+    {
+      "label": "45MB zip",
+      "ms": 3626.5,
+      "maxTimerGapMs": 1084.4000000059605,
+      "ticks": 67,
+      "result": {
+        "bytes": 44678741
+      },
+      "before": {
+        "usedSize": 1535760,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 416832,
+        "backingStorageSize": 44927860
+      },
+      "after": {
+        "usedSize": 1565544,
+        "totalSize": 3215360,
+        "embedderHeapUsedSize": 443360,
+        "backingStorageSize": 144436920
+      },
+      "sampledPeakJSBytes": 1644580,
+      "sampledPeakBackingBytes": 144437211
+    },
+    {
+      "label": "45MB read",
+      "ms": 882.1999999880791,
+      "maxTimerGapMs": 886.4000000059605,
+      "ticks": 4,
+      "result": {
+        "images": 22,
+        "bytes": 44676299
+      },
+      "before": {
+        "usedSize": 1542672,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 429472,
+        "backingStorageSize": 89608603
+      },
+      "after": {
+        "usedSize": 1601224,
+        "totalSize": 4263936,
+        "embedderHeapUsedSize": 431624,
+        "backingStorageSize": 178961376
+      },
+      "sampledPeakJSBytes": 1656176,
+      "sampledPeakBackingBytes": 178966366
+    },
+    {
+      "label": "45MB corrupt",
+      "ms": 1070.1000000089407,
+      "maxTimerGapMs": 1071.699999988079,
+      "ticks": 5,
+      "result": {
+        "rejected": true
+      },
+      "before": {
+        "usedSize": 1557288,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 429720,
+        "backingStorageSize": 134275467
+      },
+      "after": {
+        "usedSize": 1591920,
+        "totalSize": 3477504,
+        "embedderHeapUsedSize": 430752,
+        "backingStorageSize": 247999112
+      },
+      "sampledPeakJSBytes": 1623840,
+      "sampledPeakBackingBytes": 248004102
+    },
+    {
+      "label": "45MB restore",
+      "ms": 2300.5,
+      "maxTimerGapMs": 488.70000000298023,
+      "ticks": 68,
+      "error": "Error: 写真の保存容量の上限です（作成者ごと50MB・アプリ全体500MB）。不要な作品を整理してください。",
+      "before": {
+        "usedSize": 1558352,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 429968,
+        "backingStorageSize": 134275467
+      },
+      "after": {
+        "usedSize": 1615060,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 850400,
+        "backingStorageSize": 140366733
+      },
+      "sampledPeakJSBytes": 1615060,
+      "sampledPeakBackingBytes": 140366733
+    },
+    {
+      "label": "45MB verify",
+      "ms": 36.6000000089407,
+      "maxTimerGapMs": 20.600000008940697,
+      "ticks": 5,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 1
+      },
+      "before": {
+        "usedSize": 1558440,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 441320,
+        "backingStorageSize": 134275473
+      },
+      "after": {
+        "usedSize": 1602664,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 802392,
+        "backingStorageSize": 134280054
+      },
+      "sampledPeakJSBytes": 1602664,
+      "sampledPeakBackingBytes": 134280054
+    },
+    {
+      "label": "120MB prepare",
+      "ms": 624.3000000119209,
+      "maxTimerGapMs": 365.20000000298023,
+      "ticks": 13,
+      "result": {
+        "imageCount": 59,
+        "imageBytes": 2030312,
+        "totalImageBytes": 119788408,
+        "serverSource": false
+      },
+      "before": {
+        "usedSize": 1558460,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 448544,
+        "backingStorageSize": 134275473
+      },
+      "after": {
+        "usedSize": 1653028,
+        "totalSize": 4788224,
+        "embedderHeapUsedSize": 772344,
+        "backingStorageSize": 122083888
+      },
+      "sampledPeakJSBytes": 1892964,
+      "sampledPeakBackingBytes": 136634769
+    },
+    {
+      "label": "120MB zip",
+      "ms": 3145.699999988079,
+      "maxTimerGapMs": 3349.2999999970198,
+      "ticks": 1,
+      "result": {
+        "bytes": 119819194
+      },
+      "before": {
+        "usedSize": 1573100,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 450264,
+        "backingStorageSize": 120049410
+      },
+      "after": {
+        "usedSize": 1663764,
+        "totalSize": 4001792,
+        "embedderHeapUsedSize": 753392,
+        "backingStorageSize": 347502942
+      },
+      "sampledPeakJSBytes": 1663764,
+      "sampledPeakBackingBytes": 347502942
+    },
+    {
+      "label": "120MB read",
+      "ms": 1910.0999999940395,
+      "maxTimerGapMs": 1940.4000000059605,
+      "ticks": 3,
+      "result": {
+        "images": 59,
+        "bytes": 119812978
+      },
+      "before": {
+        "usedSize": 1574792,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 450456,
+        "backingStorageSize": 239868604
+      },
+      "after": {
+        "usedSize": 1701216,
+        "totalSize": 3215360,
+        "embedderHeapUsedSize": 751248,
+        "backingStorageSize": 479494772
+      },
+      "sampledPeakJSBytes": 1701216,
+      "sampledPeakBackingBytes": 479494772
+    },
+    {
+      "label": "120MB corrupt",
+      "ms": 4288.5,
+      "maxTimerGapMs": 4301.79999999702,
+      "ticks": 4,
+      "result": {
+        "rejected": true
+      },
+      "before": {
+        "usedSize": 1588668,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 452752,
+        "backingStorageSize": 359657012
+      },
+      "after": {
+        "usedSize": 1678604,
+        "totalSize": 3477504,
+        "embedderHeapUsedSize": 709816,
+        "backingStorageSize": 660224106
+      },
+      "sampledPeakJSBytes": 1678604,
+      "sampledPeakBackingBytes": 660224106
+    },
+    {
+      "label": "280MB prepare",
+      "ms": 1502.7999999970198,
+      "maxTimerGapMs": 1169.5,
+      "ticks": 14,
+      "result": {
+        "imageCount": 137,
+        "imageBytes": 2030312,
+        "totalImageBytes": 278152744,
+        "serverSource": false
+      },
+      "before": {
+        "usedSize": 1590492,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 457400,
+        "backingStorageSize": 359657012
+      },
+      "after": {
+        "usedSize": 1759356,
+        "totalSize": 6885376,
+        "embedderHeapUsedSize": 733856,
+        "backingStorageSize": 280453480
+      },
+      "sampledPeakJSBytes": 2248584,
+      "sampledPeakBackingBytes": 364047427
+    },
+    {
+      "label": "280MB zip",
+      "ms": 6799.100000008941,
+      "maxTimerGapMs": 6847.0999999940395,
+      "ticks": 2,
+      "result": {
+        "bytes": 278223628
+      },
+      "before": {
+        "usedSize": 1615584,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 459080,
+        "backingStorageSize": 278413746
+      },
+      "after": {
+        "usedSize": 1651868,
+        "totalSize": 4001792,
+        "embedderHeapUsedSize": 505512,
+        "backingStorageSize": 648061322
+      },
+      "sampledPeakJSBytes": 1651868,
+      "sampledPeakBackingBytes": 648061322
+    },
+    {
+      "label": "280MB read",
+      "ms": 5009.70000000298,
+      "maxTimerGapMs": 5022,
+      "ticks": 4,
+      "result": {
+        "images": 137,
+        "bytes": 278209382
+      },
+      "before": {
+        "usedSize": 1616576,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 459168,
+        "backingStorageSize": 556637374
+      },
+      "after": {
+        "usedSize": 1889028,
+        "totalSize": 3215360,
+        "embedderHeapUsedSize": 687600,
+        "backingStorageSize": 899844042
+      },
+      "sampledPeakJSBytes": 1889028,
+      "sampledPeakBackingBytes": 899844042
+    },
+    {
+      "label": "280MB corrupt",
+      "ms": 3860.800000011921,
+      "maxTimerGapMs": 3894,
+      "ticks": 2,
+      "result": {
+        "rejected": true
+      },
+      "before": {
+        "usedSize": 1650912,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 461592,
+        "backingStorageSize": 834790118
+      },
+      "after": {
+        "usedSize": 1776168,
+        "totalSize": 3477504,
+        "embedderHeapUsedSize": 482128,
+        "backingStorageSize": 1531343206
+      },
+      "sampledPeakJSBytes": 1776168,
+      "sampledPeakBackingBytes": 1531343206
+    },
+    {
+      "label": "B client prepare",
+      "ms": 1050.2999999970198,
+      "maxTimerGapMs": 532.8999999910593,
+      "ticks": 31,
+      "result": {
+        "imageCount": 1,
+        "imageBytes": 2030312,
+        "totalImageBytes": 2030312,
+        "serverSource": true
+      },
+      "before": {
+        "usedSize": 1659392,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 469056,
+        "backingStorageSize": 834790118
+      },
+      "after": {
+        "usedSize": 2047352,
+        "totalSize": 4788224,
+        "embedderHeapUsedSize": 821176,
+        "backingStorageSize": 841211522
+      },
+      "sampledPeakJSBytes": 2047352,
+      "sampledPeakBackingBytes": 841211522
+    },
+    {
+      "label": "B client zip",
+      "ms": 116.40000000596046,
+      "maxTimerGapMs": 96.70000000298023,
+      "ticks": 5,
+      "result": {
+        "bytes": 2031483
+      },
+      "before": {
+        "usedSize": 1550288,
+        "totalSize": 1904640,
+        "embedderHeapUsedSize": 469776,
+        "backingStorageSize": 2291314
+      },
+      "after": {
+        "usedSize": 1719364,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 662296,
+        "backingStorageSize": 8384965
+      },
+      "sampledPeakJSBytes": 1719364,
+      "sampledPeakBackingBytes": 8384965
+    },
+    {
+      "label": "B client read",
+      "ms": 27,
+      "maxTimerGapMs": 28.899999991059303,
+      "ticks": 5,
+      "result": {
+        "images": 1,
+        "bytes": 2031165
+      },
+      "before": {
+        "usedSize": 1550200,
+        "totalSize": 1904640,
+        "embedderHeapUsedSize": 470832,
+        "backingStorageSize": 4322888
+      },
+      "after": {
+        "usedSize": 1586496,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 653832,
+        "backingStorageSize": 8385741
+      },
+      "sampledPeakJSBytes": 1586496,
+      "sampledPeakBackingBytes": 8385741
+    },
+    {
+      "label": "B client lost response",
+      "ms": 784.5999999940395,
+      "maxTimerGapMs": 536.0999999940395,
+      "ticks": 20,
+      "error": "Error: 復元を完了できませんでした。作品一覧で「audit-1MB」を確認してください。元の作品とバックアップは変更していません。",
+      "before": {
+        "usedSize": 1551228,
+        "totalSize": 1904640,
+        "embedderHeapUsedSize": 470832,
+        "backingStorageSize": 6353200
+      },
+      "after": {
+        "usedSize": 1685388,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 688104,
+        "backingStorageSize": 8383683
+      },
+      "sampledPeakJSBytes": 1685388,
+      "sampledPeakBackingBytes": 8383683
+    },
+    {
+      "label": "B client after lost response",
+      "ms": 22.100000008940697,
+      "maxTimerGapMs": 16.80000001192093,
+      "ticks": 5,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 2
+      },
+      "before": {
+        "usedSize": 1633188,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 479480,
+        "backingStorageSize": 6353200
+      },
+      "after": {
+        "usedSize": 1665076,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 674384,
+        "backingStorageSize": 6353961
+      },
+      "sampledPeakJSBytes": 1665076,
+      "sampledPeakBackingBytes": 6353961
+    },
+    {
+      "label": "B client retry",
+      "ms": 799.7000000029802,
+      "maxTimerGapMs": 513,
+      "ticks": 22,
+      "result": "290426d0-6683-4271-8995-f32f3e199b76",
+      "before": {
+        "usedSize": 1633188,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 480256,
+        "backingStorageSize": 6353200
+      },
+      "after": {
+        "usedSize": 1673796,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 687240,
+        "backingStorageSize": 8383673
+      },
+      "sampledPeakJSBytes": 1673796,
+      "sampledPeakBackingBytes": 8383673
+    },
+    {
+      "label": "B client after retry",
+      "ms": 26.19999998807907,
+      "maxTimerGapMs": 17,
+      "ticks": 5,
+      "result": {
+        "sourceUnchanged": true,
+        "staging": 0,
+        "works": 3
+      },
+      "before": {
+        "usedSize": 1633284,
+        "totalSize": 2166784,
+        "embedderHeapUsedSize": 485152,
+        "backingStorageSize": 6353200
+      },
+      "after": {
+        "usedSize": 1664988,
+        "totalSize": 2428928,
+        "embedderHeapUsedSize": 795232,
+        "backingStorageSize": 6354099
+      },
+      "sampledPeakJSBytes": 1664988,
+      "sampledPeakBackingBytes": 6354099
+    }
+  ],
+  "failures": [],
+  "clientResponseLoss": {
+    "preservedCompletedWork": true,
+    "automaticStatusRecovery": false,
+    "newWorkOnUserRetry": true
+  }
+}

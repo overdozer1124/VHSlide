@@ -1,3 +1,13 @@
+import {
+  exerciseHostFollow,
+  measureHostFollow40,
+} from "../support/host-follow.ts";
+import { COLLABORATION_PROTOCOL } from "../../src/collaborationProtocol.ts";
+import { exerciseDeletedMedia } from "../support/deleted-media.ts";
+import { exerciseJoinApprovals } from "../support/join-approval-features.ts";
+import { acceptAndApprove } from "../support/join-approval.ts";
+import { swapRowGroups } from "../../src/model.ts";
+import { applyDeckChange } from "../../src/sharedDeck.ts";
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
@@ -58,11 +68,7 @@ async function invitation(id: string) {
 }
 async function joinRoom(id: string, cookie: string, invite?: string | null) {
   const token = invite || (await invitation(id));
-  assert.equal(
-    (await request(`/api/invites/${token}/accept`, "POST", undefined, cookie))
-      .status,
-    200,
-  );
+  await acceptAndApprove(request, id, token, cookie, owner);
   const { user } = (await (
     await request("/api/session", "GET", undefined, cookie)
   ).json()) as { user: { id: string } };
@@ -117,6 +123,61 @@ before(async () => {
 after(async () => {
   await mf.dispose();
   await rm(storage, { recursive: true, force: true });
+});
+
+test("both configured Google clients identify the same account and reject other audiences", async () => {
+  const config = (await (await request("/api/config")).json()) as {
+    clientId: string;
+    schoolClientId: string;
+    schoolDomain: string;
+  };
+  assert.equal(config.clientId, "test.apps.googleusercontent.com");
+  assert.equal(config.schoolClientId, "school.apps.googleusercontent.com");
+  assert.equal(config.schoolDomain, "kaga.ed.jp");
+  const general = await request(
+    "/api/auth/google",
+    "POST",
+    { credential: await fixture.sign("same-user") },
+    "",
+  );
+  const school = await request(
+    "/api/auth/google",
+    "POST",
+    {
+      credential: await fixture.sign(
+        "same-user",
+        "school.apps.googleusercontent.com",
+      ),
+    },
+    "",
+  );
+  assert.equal(general.status, 200);
+  assert.equal(school.status, 200);
+  const session = async (r: Response) =>
+    (await (
+      await request(
+        "/api/session",
+        "GET",
+        undefined,
+        r.headers.get("set-cookie")!.split(";")[0],
+      )
+    ).json()) as { user: { id: string } };
+  assert.equal(
+    (await session(general)).user.id,
+    (await session(school)).user.id,
+  );
+  const wrong = await request(
+    "/api/auth/google",
+    "POST",
+    {
+      credential: await fixture.sign(
+        "same-user",
+        "other.apps.googleusercontent.com",
+      ),
+    },
+    "",
+  );
+  assert.equal(wrong.status, 401);
 });
 
 test("checks real JWT signatures/audience, session cookies, origin and membership", async () => {
@@ -252,8 +313,29 @@ test("40 authenticated WebSockets converge on simultaneous edits and persist ack
   const id = await create(),
     token = await invitation(id),
     peers: Awaited<ReturnType<typeof connect>>[] = [];
+  const cookies: string[] = [],
+    joins: string[] = [];
   for (let i = 0; i < 40; i++) {
     const cookie = await login(`student-${i}`);
+    cookies.push(cookie);
+    const r = await request(
+      `/api/invites/${token}/accept`,
+      "POST",
+      undefined,
+      cookie,
+    );
+    assert.equal(r.status, 202);
+    joins.push(((await r.json()) as any).requestId);
+  }
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/join-requests/approve`, "POST", {
+        requestIds: joins,
+      })
+    ).status,
+    200,
+  );
+  for (const cookie of cookies) {
     await joinRoom(id, cookie, token);
     peers.push(await connect(id, cookie));
   }
@@ -267,6 +349,7 @@ test("40 authenticated WebSockets converge on simultaneous edits and persist ack
     peer.ws.send(
       JSON.stringify({
         type: "update",
+        protocol: COLLABORATION_PROTOCOL,
         id: `edit-${i}`,
         update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
       }),
@@ -335,6 +418,7 @@ test("refuses foreign assets and closes a signed-out connection", async () => {
   peer.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "bad-asset",
       update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
     }),
@@ -388,11 +472,7 @@ test("reserves photo space atomically and stops uploading at the owner's limit",
 test("host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes", async () => {
   const id = await create();
   const token = await invitation(id);
-  assert.equal(
-    (await request(`/api/invites/${token}/accept`, "POST", undefined, friend))
-      .status,
-    200,
-  );
+  await acceptAndApprove(request, id, token, friend, owner);
   const initial = (await (
     await request(`/api/decks/${id}`, "GET", undefined, friend)
   ).json()) as any;
@@ -642,6 +722,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   peer.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "allowed",
       update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
     }),
@@ -658,6 +739,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   peer.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "bad",
       update: toBase64(Y.encodeStateAsUpdate(peer.doc, badVector)),
     }),
@@ -707,6 +789,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   live.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "revoked",
       update: toBase64(Y.encodeStateAsUpdate(live.doc, v)),
     }),
@@ -837,6 +920,7 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
   first.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "own-row",
       update: toBase64(Y.encodeStateAsUpdate(first.doc, v)),
     }),
@@ -857,6 +941,7 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
   second.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "other-row",
       update: toBase64(Y.encodeStateAsUpdate(second.doc, bad)),
     }),
@@ -899,11 +984,7 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
       (await (await request("/api/decks", "GET", undefined, a)).json()) as any
     ).decks.some((d: any) => d.id === id),
   );
-  assert.equal(
-    (await request(`/api/invites/${token}/accept`, "POST", undefined, a))
-      .status,
-    200,
-  );
+  await acceptAndApprove(request, id, token, a, owner);
   assert.equal(
     (
       (await (
@@ -978,5 +1059,484 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
       ).json()) as any
     ).access.rows,
     grant(1).rows,
+  );
+});
+
+test("legacy row grants follow a host reorder, protected edits and obsolete clients are rejected", async () => {
+  const id = await create();
+  await joinRoom(id, friend);
+  const access = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 0 }],
+    columns: [],
+    slides: [],
+  };
+  assert.equal(
+    (await request(`/api/decks/${id}/members/friend`, "PATCH", access)).status,
+    200,
+  );
+  const host = await connect(id, owner),
+    guest = await connect(id, friend);
+  const before = readSharedDeck(host.doc),
+    own = before.slides.find((s) => s.y === 0)!,
+    protectedPage = before.slides.find((s) => s.y === 1)!;
+  const vector = Y.encodeStateVector(host.doc);
+  applyDeckChange(host.doc, before, swapRowGroups(before, 0, 1));
+  host.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "reorder",
+      update: toBase64(Y.encodeStateAsUpdate(host.doc, vector)),
+    }),
+  );
+  await until(() =>
+    host.messages.some((m) => m.type === "ack" && m.id === "reorder"),
+  );
+  await until(
+    () =>
+      readSharedDeck(guest.doc).slides.find((s) => s.id === own.id)?.y === 1,
+  );
+  let v = Y.encodeStateVector(guest.doc);
+  sharedText(guest.doc, own.id, own.elements[0].id)!.insert(0, "担当のまま");
+  guest.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "own",
+      update: toBase64(Y.encodeStateAsUpdate(guest.doc, v)),
+    }),
+  );
+  await until(() =>
+    guest.messages.some((m) => m.type === "ack" && m.id === "own"),
+  );
+  v = Y.encodeStateVector(guest.doc);
+  sharedText(guest.doc, protectedPage.id, protectedPage.elements[0].id)!.insert(
+    0,
+    "不許可",
+  );
+  guest.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "forbidden",
+      update: toBase64(Y.encodeStateAsUpdate(guest.doc, v)),
+    }),
+  );
+  await until(() => guest.messages.some((m) => m.code === "forbidden"));
+  const persisted = (await (await request(`/api/decks/${id}`)).json()) as {
+    state: string;
+  };
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, fromBase64(persisted.state));
+  assert.equal(readSharedDeck(doc).sheets![0].rowIds!["1"], "0");
+  assert.ok(
+    sharedText(doc, own.id, own.elements[0].id)!
+      .toString()
+      .includes("担当のまま"),
+  );
+  assert.ok(
+    !sharedText(doc, protectedPage.id, protectedPage.elements[0].id)!
+      .toString()
+      .includes("不許可"),
+  );
+  const obsolete = await connect(id, owner);
+  obsolete.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "old-client",
+      protocol: 4,
+      update: toBase64(Y.encodeStateAsUpdate(obsolete.doc)),
+    }),
+  );
+  await until(() =>
+    obsolete.messages.some(
+      (m) => m.type === "error" && m.message.includes("再読み込み"),
+    ),
+  );
+  assert.ok(!obsolete.messages.some((m) => m.type === "ack"));
+  for (const client of [host, guest, obsolete]) {
+    client.ws.close();
+    client.doc.destroy();
+  }
+  doc.destroy();
+});
+
+test("full backups restore only into private new works, preserve photos and notes, and require explicit sharing", async () => {
+  const id = await create();
+  await joinRoom(id, friend);
+  const host = await connect(id, owner);
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const asset = (await (
+    await request(`/api/decks/${id}/assets`, "POST", png)
+  ).json()) as { src: string };
+  const before = readSharedDeck(host.doc),
+    deck = structuredClone(swapRowGroups(before, 0, 1));
+  deck.slides[0].elements.push({
+    id: "backup-photo",
+    type: "image",
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    src: asset.src,
+  });
+  const vector = Y.encodeStateVector(host.doc);
+  applyDeckChange(host.doc, before, deck);
+  host.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "backup-photo",
+      update: toBase64(Y.encodeStateAsUpdate(host.doc, vector)),
+    }),
+  );
+  await until(() =>
+    host.messages.some((m) => m.type === "ack" && m.id === "backup-photo"),
+  );
+  const grant = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 1, axisId: "0" }],
+    columns: [],
+    slides: [],
+  };
+  assert.equal(
+    (await request(`/api/decks/${id}/members/friend`, "PATCH", grant)).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments`,
+        "POST",
+        {
+          slide: deck.slides[0].id,
+          text: "感想",
+          x: 0.3,
+          y: 0.4,
+          color: "#aaddff",
+          w: 0.4,
+          h: 0.5,
+        },
+        friend,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/decks/${id}/backup`, "GET", undefined, friend)).status,
+    404,
+  );
+  const backup = (await (
+    await request(`/api/decks/${id}/backup`)
+  ).json()) as any;
+  assert.equal(backup.format, "vhslide-backup");
+  assert.equal(
+    backup.deck.slides
+      .flatMap((s: any) => s.elements)
+      .filter((e: any) => e.type === "image").length,
+    1,
+  );
+  assert.equal(backup.comments[0].text, "感想");
+  assert.equal(backup.comments[0].author, undefined);
+  assert.equal(backup.sharing[0].access.rows[0].axisId, "0");
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/restore`, "POST", {
+        snapshot: backup,
+        applySharing: false,
+      })
+    ).status,
+    409,
+  );
+  async function prepare() {
+    const response = await request("/api/restores", "POST", {
+      title: backup.deck.title,
+    });
+    assert.equal(response.status, 201);
+    const result = (await response.json()) as { id: string };
+    assert.ok((await request(`/api/decks/${result.id}`)).status >= 400);
+    assert.ok(
+      (await request(`/api/decks/${result.id}/invite`, "POST")).status >= 400,
+    );
+    const uploaded = await request(
+      `/api/decks/${result.id}/assets`,
+      "POST",
+      png,
+    );
+    assert.equal(uploaded.status, 201, await uploaded.clone().text());
+    const saved = (await uploaded.json()) as { src: string };
+    const snapshot = structuredClone(backup);
+    snapshot.deck.slides
+      .flatMap((s: any) => s.elements)
+      .filter((e: any) => e.type === "image")
+      .forEach((e: any) => (e.src = saved.src));
+    return { id: result.id, snapshot, src: saved.src };
+  }
+  const first = await prepare();
+  assert.ok(
+    (
+      await request(`/api/decks/${first.id}/restore`, "POST", {
+        snapshot: backup,
+        applySharing: false,
+      })
+    ).status >= 400,
+  );
+  const completed = await request(`/api/decks/${first.id}/restore`, "POST", {
+    snapshot: first.snapshot,
+    applySharing: false,
+  });
+  assert.equal(completed.status, 200, await completed.text());
+  assert.equal(
+    (await request(`/api/decks/${first.id}/restore`, "DELETE")).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${first.id}/restore`, "POST", {
+        snapshot: first.snapshot,
+        applySharing: false,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/decks/${first.id}`, "GET", undefined, friend)).status,
+    404,
+  );
+  const restored = (await (
+    await request(`/api/decks/${first.id}/backup`)
+  ).json()) as any;
+  assert.deepEqual(restored.deck, first.snapshot.deck);
+  assert.equal(restored.comments[0].color, "#aaddff");
+  assert.equal(restored.comments[0].created, backup.comments[0].created);
+  assert.ok(restored.comments[0].authorName.endsWith("（復元）"));
+  assert.equal(restored.sharing.length, 0);
+  const photo = await request(first.src);
+  assert.equal(photo.status, 200);
+  assert.deepEqual(Buffer.from(await photo.arrayBuffer()), png);
+  const second = await prepare();
+  assert.equal(
+    (
+      await request(`/api/decks/${second.id}/restore`, "POST", {
+        snapshot: second.snapshot,
+        applySharing: true,
+      })
+    ).status,
+    200,
+  );
+  const joined = (await (
+    await request(`/api/decks/${second.id}`, "GET", undefined, friend)
+  ).json()) as any;
+  assert.deepEqual(joined.access, grant);
+  const sourceNow = (await (
+    await request(`/api/decks/${id}/backup`)
+  ).json()) as any;
+  assert.deepEqual(sourceNow.deck, backup.deck);
+  assert.deepEqual(sourceNow.comments, backup.comments);
+  const cancelled = await prepare();
+  assert.equal(
+    (await request(`/api/decks/${cancelled.id}/restore`, "DELETE")).status,
+    200,
+  );
+  assert.equal((await request(`/api/decks/${cancelled.id}`)).status, 404);
+  const ns = await mf.getDurableObjectNamespace("ROOMS");
+  const deletedRoom = ns.get(ns.idFromName(cancelled.id));
+  const lateAsset = crypto.randomUUID();
+  const late = await deletedRoom.fetch(`https://internal/assets/${lateAsset}`, {
+    method: "POST",
+    headers: { "Content-Type": "image/png" },
+    body: png,
+  });
+  assert.equal(late.status, 409);
+  assert.equal(
+    (await deletedRoom.fetch(`https://internal/assets/${lateAsset}`)).status,
+    404,
+  );
+  assert.equal(
+    (
+      await deletedRoom.fetch("https://internal/init", {
+        method: "POST",
+        body: JSON.stringify({ id: cancelled.id, deck: sample() }),
+      })
+    ).status,
+    409,
+  );
+  host.ws.close();
+  host.doc.destroy();
+});
+
+test("revision checkpoints and durable idempotent restore jobs survive restart and cancellation races", async () => {
+  const { exerciseBackupProtocol } =
+    await import("../support/backup-protocol.ts");
+  const owner = await login("protocol-owner"),
+    guest = await login("protocol-guest");
+  await exerciseBackupProtocol(
+    async (path, method = "GET", value, cookie = owner, headers = {}) =>
+      mf.dispatchFetch(origin + path, {
+        method,
+        headers: { Origin: origin, Cookie: cookie, ...headers },
+        ...(value === undefined
+          ? {}
+          : {
+              body: value instanceof Uint8Array ? value : JSON.stringify(value),
+            }),
+      }),
+    owner,
+    guest,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+    async (id) => {
+      const p = await connect(id, owner),
+        before = readSharedDeck(p.doc),
+        after = structuredClone(before),
+        vector = Y.encodeStateVector(p.doc);
+      after.slides[0].title = "変更";
+      applyDeckChange(p.doc, before, after);
+      p.ws.send(
+        JSON.stringify({
+          type: "update",
+          protocol: COLLABORATION_PROTOCOL,
+          id: "protocol-test",
+          update: toBase64(Y.encodeStateAsUpdate(p.doc, vector)),
+        }),
+      );
+      await until(() =>
+        p.messages.some((m) => m.type === "ack" && m.id === "protocol-test"),
+      );
+      p.ws.close();
+      p.doc.destroy();
+    },
+  );
+});
+
+test("learning versions, deletion checkpoints and work trash enforce ownership and survive restart", async () => {
+  const { exerciseLearningFeatures } =
+    await import("../support/learning-features.ts");
+  const owner = await login("tools-owner"),
+    guest = await login("tools-guest");
+  await exerciseLearningFeatures(
+    request,
+    owner,
+    guest,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+    async (id) => {
+      const peer = await connect(id, owner),
+        before = readSharedDeck(peer.doc),
+        after = structuredClone(before),
+        vector = Y.encodeStateVector(peer.doc);
+      after.slides = after.slides.filter((s) => s.y === 0);
+      applyDeckChange(peer.doc, before, after);
+      peer.ws.send(
+        JSON.stringify({
+          type: "update",
+          protocol: COLLABORATION_PROTOCOL,
+          id: "history-delete",
+          update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
+        }),
+      );
+      await until(() =>
+        peer.messages.some(
+          (m) => m.type === "ack" && m.id === "history-delete",
+        ),
+      );
+      peer.ws.close();
+      peer.doc.destroy();
+    },
+  );
+});
+
+test("invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay", async () => {
+  const teacher = await login("join-teacher"),
+    a = await login("join-a"),
+    b = await login("join-b"),
+    c = await login("join-c");
+  await exerciseJoinApprovals(request, teacher, [a, b, c], async () => {
+    await mf.dispose();
+    mf = fixture.start();
+  });
+});
+
+test("deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart", async () => {
+  const host = await login("media-host"),
+    editor = await login("media-editor"),
+    viewer = await login("media-viewer");
+  await exerciseDeletedMedia(
+    request,
+    host,
+    editor,
+    viewer,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+    async (id, cookie, change, allowed) => {
+      const peer = await connect(id, cookie);
+      try {
+        const before = readSharedDeck(peer.doc),
+          vector = Y.encodeStateVector(peer.doc);
+        applyDeckChange(peer.doc, before, change(before));
+        const key = crypto.randomUUID();
+        peer.ws.send(
+          JSON.stringify({
+            type: "update",
+            protocol: COLLABORATION_PROTOCOL,
+            id: key,
+            update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
+          }),
+        );
+        await until(() =>
+          peer.messages.some(
+            (m) => m.type === "error" || (m.type === "ack" && m.id === key),
+          ),
+        );
+        if (allowed)
+          assert.ok(
+            peer.messages.some((m) => m.type === "ack" && m.id === key),
+            JSON.stringify(peer.messages),
+          );
+        else {
+          assert.ok(
+            peer.messages.some(
+              (m) => m.type === "error" && m.code === "forbidden",
+            ),
+          );
+          assert.match(
+            peer.messages.find((m) => m.type === "error").message,
+            /ホスト/,
+          );
+        }
+      } finally {
+        peer.ws.close();
+        peer.doc.destroy();
+      }
+    },
+  );
+});
+
+test("host follow state validates host, initiator, target and session without editing the work", async () => {
+  await exerciseHostFollow({
+    create,
+    join: joinRoom,
+    connect,
+    owner,
+    guest: friend,
+  });
+});
+
+test("host follow 40 live connections P95 target", async () => {
+  await measureHostFollow40(
+    { create, join: joinRoom, connect, owner: owner, guest: friend },
+    "Cloudflare/workerd",
   );
 });

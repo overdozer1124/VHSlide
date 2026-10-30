@@ -1,0 +1,352 @@
+[WebServer] (node:289625) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:289638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 2 workers
+
+(node:289657) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:289656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:58:26 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/content-fit.spec.ts:112:1 › chart labels use numbered names with legend off, stay inside the chart, and keep full original data (2.1s)
+[WebServer] 10:58:28 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   2 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (3.1s)
+  ✓   3 [desktop] › tests/e2e/content-fit.spec.ts:202:1 › acknowledged warnings stay out of print and do not bypass failed image decoding (2.2s)
+[WebServer] 10:58:29 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:58:30 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/editor-interactions.spec.ts:264:1 › a single page can be dropped into a new last row (1.8s)
+  ✓   4 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (3.7s)
+[WebServer] 10:58:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   6 [desktop] › tests/e2e/page-scope.spec.ts:331:1 › an outside link requires an explicit action and never expands the presentation scope (2.1s)
+[WebServer] 10:58:34 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   7 [desktop] › tests/e2e/resize-frame.spec.ts:123:1 › tiny image corner targets remain distinct and the bottom-right corner really grows it (3.0s)
+  ✓   8 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.1s)
+[WebServer] 10:58:35 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:58:36 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:58:38 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  10 [desktop] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation (9.4s)
+(node:290913) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:58:46 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:58:47 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  11 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+  ✓  12 [touch] › tests/e2e/content-fit.spec.ts:112:1 › chart labels use numbered names with legend off, stay inside the chart, and keep full original data (675ms)
+  ✓  13 [touch] › tests/e2e/content-fit.spec.ts:202:1 › acknowledged warnings stay out of print and do not bypass failed image decoding (752ms)
+[WebServer] 10:58:49 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  14 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (2.0s)
+[WebServer] 10:58:51 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  15 [touch] › tests/e2e/editor-interactions.spec.ts:264:1 › a single page can be dropped into a new last row (958ms)
+  ✘   9 [desktop] › tests/e2e/structure-editing.spec.ts:292:1 › internal links select another sheet, present jump/back work (30.1s)
+(node:291217) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:59:06 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:59:07 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  17 [desktop] › tests/e2e/structure-editing.spec.ts:381:1 › a deleted destination never opens another room or loses the current page (2.4s)
+(node:291348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:59:09 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  18 [touch] › tests/e2e/resize-frame.spec.ts:123:1 › tiny image corner targets remain distinct and the bottom-right corner really grows it (2.7s)
+[WebServer] 10:59:12 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  19 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.4s)
+[WebServer] 10:59:14 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  16 [touch] › tests/e2e/page-scope.spec.ts:331:1 › an outside link requires an explicit action and never expands the presentation scope (30.1s)
+(node:291557) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:59:23 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:59:25 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  21 [touch] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation (9.0s)
+  ✘  20 [touch] › tests/e2e/structure-editing.spec.ts:292:1 › internal links select another sheet, present jump/back work (30.1s)
+(node:291715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:59:45 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:59:46 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  22 [touch] › tests/e2e/structure-editing.spec.ts:381:1 › a deleted destination never opens another room or loses the current page (2.4s)
+
+
+  1) [desktop] › tests/e2e/structure-editing.spec.ts:292:1 › internal links select another sheet, present jump/back work 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'リンク元へ戻る', exact: true })
+
+
+      322 |   await page
+      323 |     .getByRole("button", { name: "リンク元へ戻る", exact: true })
+    > 324 |     .click({ force: true });
+          |      ^
+      325 |   await expect(
+      326 |     page
+      327 |       .locator(".present-mode")
+        at /workspace/vhslide-dual-auth/tests/e2e/structure-editing.spec.ts:324:6
+
+    Error Context: test-results-preview/structure-editing-internal-8f4b2-heet-present-jump-back-work-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/structure-editing-internal-8f4b2-heet-present-jump-back-work-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/structure-editing-internal-8f4b2-heet-present-jump-back-work-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog', { name: '表示チェック', exact: true })
+    Expected substring: "全文が表示されません"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" getByRole('dialog', { name: '表示チェック', exact: true }) with timeout 5000ms
+      - waiting for getByRole('dialog', { name: '表示チェック', exact: true })
+
+
+      136 |     .click();
+      137 |   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
+    > 138 |   await expect(review).toContainText("全文が表示されません");
+          |                        ^
+      139 |   await review
+      140 |     .getByRole("button", { name: "このまま進む", exact: true })
+      141 |     .click();
+        at /workspace/vhslide-dual-auth/tests/e2e/tables.spec.ts:138:24
+
+    Error Context: test-results-preview/tables-creates-and-directl-07abe-esize-JSON-and-presentation-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/tables-creates-and-directl-07abe-esize-JSON-and-presentation-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/tables-creates-and-directl-07abe-esize-JSON-and-presentation-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [touch] › tests/e2e/page-scope.spec.ts:331:1 › an outside link requires an explicit action and never expands the presentation scope 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Browser logs:
+
+    <launching> /usr/bin/chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-bjhmdw --remote-debugging-pipe --no-startup-window
+    <launched> pid=290925
+    [pid=290925][err] [290925:290925:1029/225846.013727:ERROR:third_party/crashpad/crashpad/util/file/filesystem_posix.cc:63] mkdir : No such file or directory (2)
+    [pid=290925][err] chrome_crashpad_handler: --database is required
+    [pid=290925][err] Try 'chrome_crashpad_handler --help' for more information.
+    [pid=290925][err] [290925:290949:1029/225846.053829:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=290925][err] [290925:290949:1029/225846.053861:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290949:1029/225846.056773:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=290925][err] [290925:290949:1029/225846.056824:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=290925][err] [290925:290949:1029/225846.056831:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290961:1029/225846.060237:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 290964: Read-only file system (30)
+    [pid=290925][err] Fontconfig error: No writable cache directories
+    [pid=290925][err] [290925:290949:1029/225846.100762:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290961:1029/225846.101303:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 290988: Read-only file system (30)
+    [pid=290925][err] [290925:290925:1029/225846.114818:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290925:1029/225846.114941:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290949:1029/225846.115078:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290949:1029/225846.115093:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290925:1029/225846.118369:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290949:1029/225846.118439:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290925:1029/225846.120490:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290925:1029/225846.120582:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290949:1029/225846.120611:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=290925][err] [290925:290949:1029/225846.120629:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=290925][err] [290925:290949:1029/225846.120635:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290925:1029/225846.121786:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290925:1029/225846.122352:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
+    [pid=290925][err] [290925:290925:1029/225846.122366:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290949:1029/225846.122412:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290925:1029/225846.124215:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] [290925:290949:1029/225846.127060:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=290925][err] [290925:290925:1029/225846.127081:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=290925][err] 
+    [pid=290925][err] (process:290925): dconf-CRITICAL **: 22:58:46.142: unable to create directory '/home/agent/.cache/dconf': Read-only file system.  dconf will not work properly.
+    [pid=290925][err] 
+    [pid=290925][err] (process:290925): dconf-CRITICAL **: 22:58:46.142: unable to create directory '/home/agent/.cache/dconf': Read-only file system.  dconf will not work properly.
+    [pid=290925][err] 
+    [pid=290925][err] (process:290925): dconf-CRITICAL **: 22:58:46.142: unable to create directory '/home/agent/.cache/dconf': Read-only file system.  dconf will not work properly.
+    [pid=290925][err] [290925:290961:1029/225846.164608:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291007: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225846.181449:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291016: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225846.184146:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291017: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225848.054187:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291043: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225848.069931:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291052: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225848.070894:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291053: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225848.744016:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291076: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225848.764473:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291085: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225848.765820:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291087: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225849.511749:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291110: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225849.527615:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291119: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225849.528815:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291120: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225851.538534:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291146: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225851.553898:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291155: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225851.556360:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291157: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225852.515439:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291181: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225852.530319:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291190: Read-only file system (30)
+    [pid=290925][err] [290925:290961:1029/225852.531264:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 291191: Read-only file system (30)
+    [pid=290925] <gracefully close start>
+    Call log:
+      - waiting for locator('.present-mode .element[data-object-link="true"]')
+        - locator resolved to <div class="element  " data-object-link="true" data-element-id="text-0">…</div>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not stable
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not stable
+        - retrying click action
+          - waiting 100ms
+        56 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <strong>発表対象外のページを開きます</strong> from <div role="dialog" aria-label="発表対象外のリンク" class="present-link-prompt">…</div> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+
+
+      345 |   await page.keyboard.press("Escape");
+      346 |   await expect(current(page)).toContainText("S1.1");
+    > 347 |   await page.locator('.present-mode .element[data-object-link="true"]').click();
+          |                                                                         ^
+      348 |   await page
+      349 |     .getByRole("button", { name: "リンク先を開く", exact: true })
+      350 |     .click();
+        at /workspace/vhslide-dual-auth/tests/e2e/page-scope.spec.ts:347:73
+
+    Error Context: test-results-preview/page-scope-an-outside-link-95520-ands-the-presentation-scope-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/page-scope-an-outside-link-95520-ands-the-presentation-scope-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/page-scope-an-outside-link-95520-ands-the-presentation-scope-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [touch] › tests/e2e/structure-editing.spec.ts:292:1 › internal links select another sheet, present jump/back work 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'リンク元へ戻る', exact: true })
+
+
+      322 |   await page
+      323 |     .getByRole("button", { name: "リンク元へ戻る", exact: true })
+    > 324 |     .click({ force: true });
+          |      ^
+      325 |   await expect(
+      326 |     page
+      327 |       .locator(".present-mode")
+        at /workspace/vhslide-dual-auth/tests/e2e/structure-editing.spec.ts:324:6
+
+    Error Context: test-results-preview/structure-editing-internal-8f4b2-heet-present-jump-back-work-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/structure-editing-internal-8f4b2-heet-present-jump-back-work-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/structure-editing-internal-8f4b2-heet-present-jump-back-work-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [touch] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog', { name: '表示チェック', exact: true })
+    Expected substring: "全文が表示されません"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" getByRole('dialog', { name: '表示チェック', exact: true }) with timeout 5000ms
+      - waiting for getByRole('dialog', { name: '表示チェック', exact: true })
+        - locator resolved to <dialog open="" aria-label="表示チェック" class="tools-dialog fit-review">…</dialog>
+        - unexpected value "表示チェック取り消す表・グラフを確認しています… 1 / 5ページ"
+
+
+      136 |     .click();
+      137 |   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
+    > 138 |   await expect(review).toContainText("全文が表示されません");
+          |                        ^
+      139 |   await review
+      140 |     .getByRole("button", { name: "このまま進む", exact: true })
+      141 |     .click();
+        at /workspace/vhslide-dual-auth/tests/e2e/tables.spec.ts:138:24
+
+    Error Context: test-results-preview/tables-creates-and-directl-07abe-esize-JSON-and-presentation-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/tables-creates-and-directl-07abe-esize-JSON-and-presentation-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/tables-creates-and-directl-07abe-esize-JSON-and-presentation-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5 failed
+    [desktop] › tests/e2e/structure-editing.spec.ts:292:1 › internal links select another sheet, present jump/back work 
+    [desktop] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation 
+    [touch] › tests/e2e/page-scope.spec.ts:331:1 › an outside link requires an explicit action and never expands the presentation scope 
+    [touch] › tests/e2e/structure-editing.spec.ts:292:1 › internal links select another sheet, present jump/back work 
+    [touch] › tests/e2e/tables.spec.ts:4:1 › creates and directly edits a table, preserves layout, undo, resize, JSON and presentation 
+  17 passed (1.4m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 export type PinchPoint = { x: number; y: number };
 export type PinchSample = PinchPoint & {
   ratio: number;
+  input?: "touch" | "wheel";
   direction?: "in" | "out";
 };
 
@@ -12,6 +13,8 @@ export type PinchSample = PinchPoint & {
 export function usePinch(
   surface: RefObject<HTMLElement | null>,
   options: {
+    /** Runs before a pinch begins; `start` sees any re-render it causes. */
+    prepare?: () => void;
     start: (point: PinchPoint) => void;
     change: (sample: PinchSample) => void;
     end: (sample: PinchSample, cancelled: boolean) => void;
@@ -49,6 +52,7 @@ export function usePinch(
           : undefined);
       sample = {
         ...next,
+        input: source,
         direction,
         ratio:
           direction === "in"
@@ -73,6 +77,7 @@ export function usePinch(
       const point = measure(event.touches);
       distance = Math.max(20, point.distance);
       sample = { x: point.x, y: point.y, ratio: 1 };
+      latest.current.prepare?.();
       source = "touch";
       active.current = true;
       latest.current.start(point);
@@ -100,6 +105,7 @@ export function usePinch(
       if (!event.ctrlKey || source === "touch") return;
       event.preventDefault();
       if (!source) {
+        latest.current.prepare?.();
         source = "wheel";
         active.current = true;
         wheelRatio = 1;

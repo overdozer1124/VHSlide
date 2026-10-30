@@ -1,0 +1,69 @@
+
+> vhslide@0.43.2 cf:deploy
+> npm run build && tsc -p tsconfig.cloudflare.json && wrangler deploy
+
+
+> vhslide@0.43.2 build
+> tsc -b && tsc -p tsconfig.server.json && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2422 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                           0.48 kB │ gzip:   0.34 kB
+dist/assets/backup.worker-D88bv2TW.js    30.42 kB
+dist/assets/index-DoO3y45Z.css          118.12 kB │ gzip:  23.83 kB
+dist/assets/backupWorker-2Ua2EnyM.js      1.05 kB │ gzip:   0.67 kB
+dist/assets/ReleaseHistory-t-h9Jl_V.js   24.16 kB │ gzip:   8.10 kB
+dist/assets/index-jCO54bQ0.js           897.74 kB │ gzip: 280.92 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.32s
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.151.3 (update available 4.152.0)
+───────────────────────────────────────────────
+🌀 Building list of assets...
+✨ Read 9 files from the assets directory /workspace/VHSlide/dist
+🌀 Starting asset upload...
+🌀 Found 5 new or modified static assets to upload. Proceeding with upload...
++ /index.html
++ /assets/index-DoO3y45Z.css
++ /assets/backupWorker-2Ua2EnyM.js
++ /assets/index-jCO54bQ0.js
++ /assets/ReleaseHistory-t-h9Jl_V.js
+Uploaded 1 of 5 assets
+Uploaded 3 of 5 assets
+Uploaded 5 of 5 assets
+✨ Success! Uploaded 5 files (2 already uploaded) (2.17 sec)
+
+Total Upload: 425.16 KiB / gzip: 91.33 KiB
+Worker Startup Time: 2 ms
+Your Worker has access to the following bindings:
+Binding                                                                Resource                  
+env.DIRECTORY (Directory)                                              Durable Object            
+env.ROOMS (SlideRoom)                                                  Durable Object            
+env.ASSETS                                                             Assets                    
+env.GOOGLE_CLIENT_ID ("187339871113-2j074eot6i41e2ts1g3129ch...")      Environment Variable      
+env.PUBLIC_ORIGIN ("https://vhslide.overdozer1124.workers...")         Environment Variable      
+
+Uploaded vhslide (10.86 sec)
+Deployed vhslide triggers (1.54 sec)
+  https://vhslide.overdozer1124.workers.dev
+Current Version ID: d0243335-5e73-4d33-a28b-90ac3cd4b75a
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

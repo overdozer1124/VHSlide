@@ -1,0 +1,51 @@
+
+> vhslide@0.40.0 test:e2e
+> playwright test tests/e2e/tables.spec.ts --grep physically clickable.*1366 --project=desktop --workers=1
+
+[WebServer] (node:370776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:370794) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 2:34:27 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 2:34:27 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  1 [desktop] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1366x768 (6.3s)
+
+
+  1) [desktop] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1366x768 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      173 |         }),
+      174 |       )
+    > 175 |       .toBe(true);
+          |        ^
+      176 |     const box = (await add.boundingBox())!;
+      177 |     if (info.project.name === "touch")
+      178 |       await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+        at /workspace/VHSlide/tests/e2e/tables.spec.ts:175:8
+
+    Error Context: test-results/tables-table-insertion-is--ba503-ing-the-toolbar-at-1366x768-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/tables-table-insertion-is--ba503-ing-the-toolbar-at-1366x768-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/tables-table-insertion-is--ba503-ing-the-toolbar-at-1366x768-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [desktop] › tests/e2e/tables.spec.ts:144:3 › table insertion is physically clickable without scrolling the toolbar at 1366x768 

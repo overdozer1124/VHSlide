@@ -26,11 +26,13 @@ export interface ThumbnailMenuState extends ThumbnailTarget {
 /** One menu for mouse, keyboard context-menu events, and touch-accessible ⋯ buttons. */
 export function ThumbnailMenu({
   deck,
+  readOnly = false,
   menu,
   onClose,
   onAction,
 }: {
   deck: Deck;
+  readOnly?: boolean;
   menu: ThumbnailMenuState;
   onClose: () => void;
   onAction: (action: ThumbnailAction) => void;
@@ -45,7 +47,14 @@ export function ThumbnailMenu({
     if (restoreFocus)
       requestAnimationFrame(() => {
         if (menu.trigger.isConnected)
-          menu.trigger.focus({ preventScroll: true });
+          (menu.trigger.matches(
+            "button,a[href],input,select,textarea,[tabindex]",
+          )
+            ? menu.trigger
+            : menu.trigger.querySelector<HTMLElement>(
+                "button:not(:disabled),[tabindex='0']",
+              )
+          )?.focus({ preventScroll: true });
       });
   }
   useLayoutEffect(() => {
@@ -56,9 +65,9 @@ export function ThumbnailMenu({
       left: Math.max(8, Math.min(menu.left, window.innerWidth - box.width - 8)),
       top: Math.max(8, Math.min(menu.top, window.innerHeight - box.height - 8)),
     });
-    node
-      .querySelector<HTMLButtonElement>("button:not(:disabled)")
-      ?.focus({ preventScroll: true });
+    (
+      node.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? node
+    ).focus({ preventScroll: true });
     function outside(event: Event) {
       if (!ref.current?.contains(event.target as Node)) onClose();
     }
@@ -73,8 +82,9 @@ export function ThumbnailMenu({
       window.removeEventListener("resize", resize);
       window.removeEventListener("scroll", resize);
     };
-  }, [menu]);
+  }, [menu, readOnly]);
   const act = (action: ThumbnailAction) => {
+    if (readOnly) return;
     onClose();
     onAction(action);
   };
@@ -83,6 +93,7 @@ export function ThumbnailMenu({
       ref={ref}
       className="thumbnail-menu"
       role="menu"
+      tabIndex={-1}
       aria-label={
         menu.row === undefined ? "ページの操作" : `${menu.row + 1}段目の操作`
       }
@@ -128,9 +139,14 @@ export function ThumbnailMenu({
           ? page?.title
           : `${menu.row + 1}段目 · ${count}ページ`}
       </div>
+      {readOnly && (
+        <p className="thumbnail-menu-readonly" role="status">
+          閲覧のみのため、ページの複製・削除はできません。
+        </p>
+      )}
       <button
         role="menuitem"
-        disabled={!page}
+        disabled={readOnly || !page}
         onClick={() => page && act({ kind: "duplicate-page", id: page.id })}
       >
         <Copy size={16} />
@@ -139,7 +155,7 @@ export function ThumbnailMenu({
       <button
         role="menuitem"
         className="menu-delete"
-        disabled={!page}
+        disabled={readOnly || !page}
         onClick={() => page && act({ kind: "delete-page", id: page.id })}
       >
         <Trash2 size={16} />
@@ -150,7 +166,7 @@ export function ThumbnailMenu({
           <div role="separator" className="thumbnail-menu-separator" />
           <button
             role="menuitem"
-            disabled={!count}
+            disabled={readOnly || !count}
             onClick={() => act({ kind: "duplicate-row", y: menu.row! })}
           >
             <Layers size={16} />
@@ -165,13 +181,18 @@ export function ThumbnailMenu({
                 max={99}
                 aria-label="複製する段の数"
                 value={copies}
+                disabled={readOnly}
                 onChange={(e) => setCopies(Number(e.target.value))}
               />
             </label>
             <button
               role="menuitem"
               disabled={
-                !count || !Number.isInteger(copies) || copies < 1 || copies > 99
+                readOnly ||
+                !count ||
+                !Number.isInteger(copies) ||
+                copies < 1 ||
+                copies > 99
               }
               onClick={() =>
                 act({ kind: "duplicate-row", y: menu.row!, count: copies })
@@ -183,6 +204,7 @@ export function ThumbnailMenu({
           <button
             role="menuitem"
             className="menu-delete"
+            disabled={readOnly}
             onClick={() => act({ kind: "delete-row", y: menu.row! })}
           >
             <Trash2 size={16} />

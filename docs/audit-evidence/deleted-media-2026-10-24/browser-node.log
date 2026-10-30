@@ -1,0 +1,49 @@
+
+> vhslide@0.39.1 test:cloud
+> playwright test --config playwright.cloud.config.ts
+
+[WebServer] (node:351117) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 34 tests using 1 worker
+
+(node:351129) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:70:1 › recovers unsent text from this browser after reopening the app (4.6s)
+  ✓   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:166:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (13.8s)
+  ✓   3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:437:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (14.0s)
+  ✓   4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:549:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (11.3s)
+  ✓   5 [cloud-desktop] › tests/cloud/collaboration.spec.ts:678:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (7.0s)
+  ✓   6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:776:1 › failed sticky autosaves keep the input and can be retried (4.5s)
+  ✓   7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:809:1 › host edits shared map headings and row account names update vertically for guests (16.6s)
+  ✓   8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:930:1 › sticky color, presets and direct resize persist with mouse and touch (18.6s)
+  ✓   9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:999:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (14.6s)
+  ✓  10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1180:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (3.4s)
+  ✓  11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1284:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (10.3s)
+  ✓  12 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1509:1 › restores a signed-in room in the background without flashing the cloud dialog (4.1s)
+  ✓  13 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1594:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (8.8s)
+  ✓  14 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1798:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (4.5s)
+  ✓  15 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1863:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (19.0s)
+  ✓  16 [cloud-desktop] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (3.9s)
+  ✓  17 [cloud-desktop] › tests/cloud/join-waiting.spec.ts:4:1 › a delayed pending response cannot reopen a dismissed cloud screen or switch work in the background (3.2s)
+(node:352985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  18 [cloud-touch] › tests/cloud/collaboration.spec.ts:70:1 › recovers unsent text from this browser after reopening the app (5.8s)
+  ✓  19 [cloud-touch] › tests/cloud/collaboration.spec.ts:166:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (14.4s)
+  ✓  20 [cloud-touch] › tests/cloud/collaboration.spec.ts:437:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (11.8s)
+  ✓  21 [cloud-touch] › tests/cloud/collaboration.spec.ts:549:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (12.2s)
+  ✓  22 [cloud-touch] › tests/cloud/collaboration.spec.ts:678:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (6.6s)
+  ✓  23 [cloud-touch] › tests/cloud/collaboration.spec.ts:776:1 › failed sticky autosaves keep the input and can be retried (4.3s)
+  ✓  24 [cloud-touch] › tests/cloud/collaboration.spec.ts:809:1 › host edits shared map headings and row account names update vertically for guests (10.1s)
+  ✓  25 [cloud-touch] › tests/cloud/collaboration.spec.ts:930:1 › sticky color, presets and direct resize persist with mouse and touch (5.4s)
+  ✓  26 [cloud-touch] › tests/cloud/collaboration.spec.ts:999:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (7.9s)
+  ✓  27 [cloud-touch] › tests/cloud/collaboration.spec.ts:1180:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (3.2s)
+  ✓  28 [cloud-touch] › tests/cloud/collaboration.spec.ts:1284:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (9.7s)
+  ✓  29 [cloud-touch] › tests/cloud/collaboration.spec.ts:1509:1 › restores a signed-in room in the background without flashing the cloud dialog (3.3s)
+  ✓  30 [cloud-touch] › tests/cloud/collaboration.spec.ts:1594:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (10.6s)
+  ✓  31 [cloud-touch] › tests/cloud/collaboration.spec.ts:1798:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (4.3s)
+  ✓  32 [cloud-touch] › tests/cloud/collaboration.spec.ts:1863:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (18.2s)
+  ✓  33 [cloud-touch] › tests/cloud/deleted-media.spec.ts:5:1 › deleting a page hides its media from members while host version recovery creates a private new work (3.9s)
+  ✓  34 [cloud-touch] › tests/cloud/join-waiting.spec.ts:4:1 › a delayed pending response cannot reopen a dismissed cloud screen or switch work in the background (3.3s)
+
+  34 passed (5.0m)

@@ -43,6 +43,9 @@ test("editable map headings stay readable and meet the scrollport without gaps a
   await expect(column).toHaveValue("自然と公園");
   await expect(row).toHaveValue("8班の調査");
   await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "マップの倍率を設定", exact: true })
     .click();
   await page
@@ -91,6 +94,8 @@ test("editable map headings stay readable and meet the scrollport without gaps a
     path: info.outputPath("map-readable-headers-300.png"),
   });
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ファイルに保存", exact: true })
+    .click();
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
 });

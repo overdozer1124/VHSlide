@@ -1,0 +1,65 @@
+[WebServer] (node:53949) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 2 workers
+(node:53968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:53969) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 11:41:24 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 11:41:24 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 11:41:24 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 11:41:24 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 11:41:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 11:41:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+F·
+
+  1) [touch] › tests/e2e/creation-tools.spec.ts:239:1 › eraser removes only the traced area, persists and lets new ink cover it 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+        0,
+        0,
+        0,
+    -   0,
+    +   255,
+      ]
+
+      361 |     );
+      362 |   await expect(svg.locator("mask")).toHaveCount(1);
+    > 363 |   expect(await sample(480, 270)).toEqual([0, 0, 0, 0]);
+          |                                  ^
+      364 |   expect(await sample(400, 270)).toEqual([0, 0, 0, 255]);
+      365 |   expect(await sample(400, 200)).toEqual([0, 0, 255, 255]);
+      366 |   expect(await sample(480, 200)).toEqual([0, 0, 0, 0]);
+        at /workspace/vhslide-dual-auth/tests/e2e/creation-tools.spec.ts:363:34
+
+    Error Context: test-results/creation-tools-eraser-remo-bd488-s-and-lets-new-ink-cover-it-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/creation-tools-eraser-remo-bd488-s-and-lets-new-ink-cover-it-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/creation-tools-eraser-remo-bd488-s-and-lets-new-ink-cover-it-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [touch] › tests/e2e/creation-tools.spec.ts:239:1 › eraser removes only the traced area, persists and lets new ink cover it 
+  1 passed (6.5s)

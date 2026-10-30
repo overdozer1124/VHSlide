@@ -1,7 +1,7 @@
 import { Miniflare, createFetchMock } from "miniflare";
 import { generateKeyPair, exportJWK, SignJWT } from "jose";
 import { readFile } from "node:fs/promises";
-import { resolve, extname } from "node:path";
+import { resolve, extname, dirname } from "node:path";
 
 /** Only test processes own this signing key. Production verifies Google's JWKS. */
 export async function harness(storage: string, origin: string, port?: number) {
@@ -25,7 +25,10 @@ export async function harness(storage: string, origin: string, port?: number) {
       .setIssuedAt()
       .setExpirationTime("1h")
       .sign(privateKey);
-  const start = () => {
+  const start = (audit?: {
+    scriptPath: string;
+    hook: (request: any) => Promise<Response>;
+  }) => {
     const mock = createFetchMock();
     mock.disableNetConnect();
     mock
@@ -35,12 +38,15 @@ export async function harness(storage: string, origin: string, port?: number) {
       .persist();
     return new Miniflare({
       modules: true,
-      scriptPath: ".wrangler-build/index.js",
+      scriptPath: audit?.scriptPath ?? ".wrangler-build/index.js",
+      ...(audit ? { modulesRoot: dirname(audit.scriptPath) } : {}),
       compatibilityDate: "2026-08-01",
       host: "127.0.0.1",
       ...(port ? { port } : {}),
       bindings: {
         GOOGLE_CLIENT_ID: "test.apps.googleusercontent.com",
+        GOOGLE_SCHOOL_CLIENT_ID: "school.apps.googleusercontent.com",
+        GOOGLE_SCHOOL_DOMAIN: "kaga.ed.jp",
         PUBLIC_ORIGIN: origin,
       },
       durableObjects: {
@@ -50,6 +56,7 @@ export async function harness(storage: string, origin: string, port?: number) {
       durableObjectsPersist: storage,
       fetchMock: mock,
       serviceBindings: {
+        ...(audit ? { RECOVERY_AUDIT: audit.hook } : {}),
         ASSETS: async (request) => {
           const url = new URL(request.url);
           // Browser fixtures request a real test-signed JWT via this local-only service.

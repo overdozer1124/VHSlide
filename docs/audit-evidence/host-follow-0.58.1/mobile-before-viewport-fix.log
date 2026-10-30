@@ -1,0 +1,45 @@
+[WebServer] (node:130738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:130750) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+FOLLOW_FIT_LAYOUT {"innerWidth":894,"innerHeight":1192,"client":810,"visual":810,"scale":1,"frame":{"x":0,"y":101,"width":894,"height":1091,"top":101,"right":894,"bottom":1192,"left":0},"canvas":{"x":10,"y":413.6875,"width":874,"height":491.625,"top":413.6875,"right":884,"bottom":905.3125,"left":10}}
+  ✘  1 [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (2.6s)
+
+
+  1) [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 811
+    Received:    884
+
+      117 |       expect(canvas.x).toBeGreaterThanOrEqual(0);
+      118 |       expect(canvas.y).toBeGreaterThanOrEqual(0);
+    > 119 |       expect(canvas.x + canvas.width).toBeLessThanOrEqual(viewport.width + 1);
+          |                                       ^
+      120 |       expect(canvas.y + canvas.height).toBeLessThanOrEqual(viewport.height + 1);
+      121 |     };
+      122 |     await assertFillsPage();
+        at assertFillsPage (/workspace/vhslide-dual-auth/tests/cloud/host-follow.spec.ts:119:39)
+        at /workspace/vhslide-dual-auth/tests/cloud/host-follow.spec.ts:122:5
+
+    Error Context: test-results-cloud/host-follow-step-2-receive-bf2db--replacing-the-guest-editor-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/host-follow-step-2-receive-bf2db--replacing-the-guest-editor-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/host-follow-step-2-receive-bf2db--replacing-the-guest-editor-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

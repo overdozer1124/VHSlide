@@ -1,0 +1,52 @@
+{
+  "version": "0.45.0",
+  "deploymentVersion": "ccbcb7ee-2f8f-4966-b4bd-abf2e2f37d5c",
+  "verifiedAtUtc": "2026-10-26T03:43:31.340095+00:00",
+  "health": {
+    "ok": true
+  },
+  "assets": [
+    {
+      "file": "index.html",
+      "path": "/",
+      "sha256": "939bd686b15d9bac904a10add8026403a8512e0fb77210565cc24d2834de6408",
+      "match": true
+    },
+    {
+      "file": "assets/index-DG0Gnh5O.js",
+      "path": "/assets/index-DG0Gnh5O.js",
+      "sha256": "6df8d578bae56928329b649ca21e18f55c7faf21d53469c687acd6eb790ecfa6",
+      "match": true
+    },
+    {
+      "file": "assets/backupWorker-K8X9hveU.js",
+      "path": "/assets/backupWorker-K8X9hveU.js",
+      "sha256": "d38234cab3da946fa617346905aab966d20dec9a2028d3d69573cbae69a47de2",
+      "match": true
+    },
+    {
+      "file": "assets/backup.worker-D88bv2TW.js",
+      "path": "/assets/backup.worker-D88bv2TW.js",
+      "sha256": "431fb9a5f03d68b3020e5e73c120a7cde28d09e462eb4da580090168a40f3617",
+      "match": true
+    },
+    {
+      "file": "assets/index-CePnWw-p.css",
+      "path": "/assets/index-CePnWw-p.css",
+      "sha256": "787f85d538090965569b489049a219e6ffd4b5411dc45fed1755f7bbf171476e",
+      "match": true
+    },
+    {
+      "file": "assets/ReleaseHistory-CUq4GF-3.js",
+      "path": "/assets/ReleaseHistory-CUq4GF-3.js",
+      "sha256": "6284255d25202d15ebee13d35ca8847a096b13817e493b6b7b9fc5a1be639973",
+      "match": true
+    },
+    {
+      "file": "samples/vhslide-10x40.json",
+      "path": "/samples/vhslide-10x40.json",
+      "sha256": "c3aebc626701ce2f81392c38234ca9abe82b6f0309a059ae54d461eb86e67ba7",
+      "match": true
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+[WebServer] (node:113565) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 24 tests using 1 worker
+
+(node:113609) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:778:1 › failed sticky autosaves keep the input and can be retried (3.8s)
+  ✓   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:932:1 › sticky color, presets and direct resize persist with mouse and touch (4.7s)
+  ✓   3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1296:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (8.7s)
+  ✓   4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1521:1 › restores a signed-in room in the background without flashing the cloud dialog (2.6s)
+  ✓   5 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1606:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (8.8s)
+  ✓   6 [cloud-desktop] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (1.3s)
+  ✓   7 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (2.4s)
+  ✓   8 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (1.9s)
+  ✓   9 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (1.6s)
+  ✓  10 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (1.5s)
+  ✓  11 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (1.2s)
+  ✓  12 [cloud-desktop] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (2.3s)
+(node:115775) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 [cloud-touch] › tests/cloud/collaboration.spec.ts:778:1 › failed sticky autosaves keep the input and can be retried (2.7s)
+  ✓  14 [cloud-touch] › tests/cloud/collaboration.spec.ts:932:1 › sticky color, presets and direct resize persist with mouse and touch (3.2s)
+  ✓  15 [cloud-touch] › tests/cloud/collaboration.spec.ts:1296:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (5.8s)
+  ✓  16 [cloud-touch] › tests/cloud/collaboration.spec.ts:1521:1 › restores a signed-in room in the background without flashing the cloud dialog (1.6s)
+  ✓  17 [cloud-touch] › tests/cloud/collaboration.spec.ts:1606:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (5.5s)
+  ✓  18 [cloud-touch] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (797ms)
+  ✓  19 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (1.9s)
+  ✓  20 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (887ms)
+  ✓  21 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (967ms)
+  ✓  22 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (970ms)
+  ✓  23 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (604ms)
+  ✓  24 [cloud-touch] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (1.4s)
+
+  24 passed (1.2m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

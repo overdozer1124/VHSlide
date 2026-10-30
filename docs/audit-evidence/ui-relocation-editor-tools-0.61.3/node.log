@@ -1,0 +1,100 @@
+[WebServer] (node:198259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:198271) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [cloud-desktop] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (7.6s)
+(node:198464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.7s)
+  ✓  3 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.1s)
+(node:198764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  4 [cloud-touch] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (7.5s)
+(node:198959) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.9s)
+  ✓  6 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.0s)
+
+
+  1) [cloud-desktop] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing 
+
+    Error: expect(locator).not.toBeChecked() failed
+
+    Locator:  getByRole('switch', { name: '縦の連動', exact: true })
+    Expected: not checked
+    Received: checked
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "not toBeChecked" getByRole('switch', { name: '縦の連動', exact: true }) with timeout 5000ms
+      - waiting for getByRole('switch', { name: '縦の連動', exact: true })
+        14 × locator resolved to <button role="switch" aria-label="縦の連動" aria-checked="true" title="同じ話題で縦のページをそろえています" class="tool-button row-link-toggle">…</button>
+           - unexpected value "checked"
+
+
+      25 |     await expect(guest.getByRole("dialog", { name: "表示の設定", exact: true })).toBeVisible();
+      26 |     await guest.getByRole("switch", { name: "縦の連動", exact: true }).click();
+    > 27 |     await expect(guest.getByRole("switch", { name: "縦の連動", exact: true })).not.toBeChecked();
+         |                                                                                ^
+      28 |     await guest.keyboard.press("Escape");
+      29 |     await expect(guest.getByRole("button", { name: "表示の設定", exact: true })).toBeFocused();
+      30 |     await expect(guest.getByRole("button", { name: "全員の画面を同期", exact: true })).toHaveCount(0);
+        at /workspace/vhslide-dual-auth/tests/cloud/editor-tools.spec.ts:27:80
+
+    Error Context: test-results-cloud/editor-tools-read-only-gue-85be4-hout-gaining-object-editing-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/editor-tools-read-only-gue-85be4-hout-gaining-object-editing-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/editor-tools-read-only-gue-85be4-hout-gaining-object-editing-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-touch] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing 
+
+    Error: expect(locator).not.toBeChecked() failed
+
+    Locator:  getByRole('switch', { name: '縦の連動', exact: true })
+    Expected: not checked
+    Received: checked
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "not toBeChecked" getByRole('switch', { name: '縦の連動', exact: true }) with timeout 5000ms
+      - waiting for getByRole('switch', { name: '縦の連動', exact: true })
+        14 × locator resolved to <button role="switch" aria-label="縦の連動" aria-checked="true" title="同じ話題で縦のページをそろえています" class="tool-button row-link-toggle">…</button>
+           - unexpected value "checked"
+
+
+      25 |     await expect(guest.getByRole("dialog", { name: "表示の設定", exact: true })).toBeVisible();
+      26 |     await guest.getByRole("switch", { name: "縦の連動", exact: true }).click();
+    > 27 |     await expect(guest.getByRole("switch", { name: "縦の連動", exact: true })).not.toBeChecked();
+         |                                                                                ^
+      28 |     await guest.keyboard.press("Escape");
+      29 |     await expect(guest.getByRole("button", { name: "表示の設定", exact: true })).toBeFocused();
+      30 |     await expect(guest.getByRole("button", { name: "全員の画面を同期", exact: true })).toHaveCount(0);
+        at /workspace/vhslide-dual-auth/tests/cloud/editor-tools.spec.ts:27:80
+
+    Error Context: test-results-cloud/editor-tools-read-only-gue-85be4-hout-gaining-object-editing-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/editor-tools-read-only-gue-85be4-hout-gaining-object-editing-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/editor-tools-read-only-gue-85be4-hout-gaining-object-editing-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [cloud-desktop] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing 
+    [cloud-touch] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing 
+  4 passed (1.0m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

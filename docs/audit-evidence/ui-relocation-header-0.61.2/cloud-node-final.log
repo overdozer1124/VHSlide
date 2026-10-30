@@ -1,0 +1,52 @@
+[WebServer] (node:187377) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:187389) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (1.5m)
+(node:187678) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.7s)
+  ✓   3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (3.0s)
+  ✓   4 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (2.5s)
+  ✓   5 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:90:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (2.1s)
+(node:188116) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (5.6s)
+  ✓   7 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.6s)
+  ✓   8 [cloud-touch] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (2.9s)
+  ✓   9 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (2.6s)
+  ✓  10 [cloud-touch] › tests/cloud/workspace-more.spec.ts:90:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (2.5s)
+
+
+  1) [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: apiRequestContext._wrapApiCall: ENOENT: no such file or directory, copyfile '/workspace/vhslide-dual-auth/test-results-cloud/.playwright-artifacts-0/traces/7224f01a6b17dcba090b-566667fcd669eaa81ca1-recording1.network' -> '/workspace/vhslide-dual-auth/test-results-cloud/.playwright-artifacts-0/traces/7224f01a6b17dcba090b-566667fcd669eaa81ca1-recording1-pwnetcopy-1.network'
+
+    Error: apiRequestContext._wrapApiCall: ENOENT: no such file or directory, copyfile '/workspace/vhslide-dual-auth/test-results-cloud/.playwright-artifacts-0/traces/7224f01a6b17dcba090b-566667fcd669eaa81ca1-recording3.network' -> '/workspace/vhslide-dual-auth/test-results-cloud/.playwright-artifacts-0/traces/7224f01a6b17dcba090b-566667fcd669eaa81ca1-recording3-pwnetcopy-1.network'
+
+    Error: browserContext.close: ENOENT: no such file or directory, open '/workspace/vhslide-dual-auth/test-results-cloud/.playwright-artifacts-0/traces/7224f01a6b17dcba090b-566667fcd669eaa81ca1-recording2.trace'
+
+      200 |     await expect(other.locator(".slide-card")).toHaveCount(11);
+      201 |   } finally {
+    > 202 |     await ctx.close();
+          |     ^
+      203 |   }
+      204 | });
+      205 |
+        at /workspace/vhslide-dual-auth/tests/cloud/forced-filter.spec.ts:202:5
+
+    Error: ENOENT: no such file or directory, open '/workspace/vhslide-dual-auth/test-results-cloud/.playwright-artifacts-0/82e671f2e9b3aca5baa6ebcc2805703e.zip'
+
+  1 failed
+    [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+  9 passed (2.5m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

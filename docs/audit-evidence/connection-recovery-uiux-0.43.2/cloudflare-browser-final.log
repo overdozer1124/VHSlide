@@ -1,0 +1,68 @@
+[WebServer] (node:47359) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 52 tests using 1 worker
+
+(node:47380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:71:1 › recovers unsent text from this browser after reopening the app (2.4s)
+  ✓   2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (23.8s)
+  ✓   3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:439:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (7.1s)
+  ✓   4 [cloud-desktop] › tests/cloud/collaboration.spec.ts:551:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (7.8s)
+  ✓   5 [cloud-desktop] › tests/cloud/collaboration.spec.ts:680:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (5.0s)
+  ✓   6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:778:1 › failed sticky autosaves keep the input and can be retried (2.6s)
+  ✓   7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:811:1 › host edits shared map headings and row account names update vertically for guests (10.0s)
+  ✓   8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:932:1 › sticky color, presets and direct resize persist with mouse and touch (3.2s)
+  ✓   9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1011:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (7.0s)
+  ✓  10 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1192:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (1.4s)
+  ✓  11 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1296:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (7.0s)
+  ✓  12 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1521:1 › restores a signed-in room in the background without flashing the cloud dialog (1.9s)
+  ✓  13 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1606:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (9.3s)
+  ✓  14 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1816:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (2.3s)
+  ✓  15 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1881:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (14.2s)
+  ✓  16 [cloud-desktop] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (925ms)
+  ✓  17 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (3.7s)
+  ✓  18 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (2.8s)
+  ✓  19 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (2.8s)
+  ✓  20 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (2.7s)
+  ✓  21 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (1.5s)
+  ✓  22 [cloud-desktop] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (2.3s)
+  ✓  23 [cloud-desktop] › tests/cloud/structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive (7.0s)
+  ✓  24 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (9.3s)
+  ✓  25 [cloud-desktop] › tests/cloud/workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly (1.4s)
+  ✓  26 [cloud-desktop] › tests/cloud/workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes (2.9s)
+(node:49382) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  27 [cloud-touch] › tests/cloud/collaboration.spec.ts:71:1 › recovers unsent text from this browser after reopening the app (4.0s)
+  ✓  28 [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (23.7s)
+  ✓  29 [cloud-touch] › tests/cloud/collaboration.spec.ts:439:1 › host selects editing scopes visually, guests stay read-only elsewhere and exchange persistent sticky comments (7.2s)
+  ✓  30 [cloud-touch] › tests/cloud/collaboration.spec.ts:551:1 › pasted accounts receive ordered rows before joining, open without an invite, and retain assignments through invite entry (7.4s)
+  ✓  31 [cloud-touch] › tests/cloud/collaboration.spec.ts:680:1 › sticky cards save in place, flush on navigation, and move by mouse or touch (4.9s)
+  ✓  32 [cloud-touch] › tests/cloud/collaboration.spec.ts:778:1 › failed sticky autosaves keep the input and can be retried (2.5s)
+  ✓  33 [cloud-touch] › tests/cloud/collaboration.spec.ts:811:1 › host edits shared map headings and row account names update vertically for guests (10.1s)
+  ✓  34 [cloud-touch] › tests/cloud/collaboration.spec.ts:932:1 › sticky color, presets and direct resize persist with mouse and touch (3.3s)
+  ✓  35 [cloud-touch] › tests/cloud/collaboration.spec.ts:1011:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (6.4s)
+  ✓  36 [cloud-touch] › tests/cloud/collaboration.spec.ts:1192:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (1.3s)
+  ✓  37 [cloud-touch] › tests/cloud/collaboration.spec.ts:1296:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (6.7s)
+  ✓  38 [cloud-touch] › tests/cloud/collaboration.spec.ts:1521:1 › restores a signed-in room in the background without flashing the cloud dialog (1.7s)
+  ✓  39 [cloud-touch] › tests/cloud/collaboration.spec.ts:1606:1 › cloud versions restore photos and notes into a new work and trash can undo work removal (9.1s)
+  ✓  40 [cloud-touch] › tests/cloud/collaboration.spec.ts:1816:1 › assigned slide jump respects row grants and clients cannot edit presentation routes or versions (2.1s)
+  ✓  41 [cloud-touch] › tests/cloud/collaboration.spec.ts:1881:1 › host approves only checked invitation requests, approves all, and must readmit revoked accounts (14.4s)
+  ✓  42 [cloud-touch] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (798ms)
+  ✓  43 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (3.6s)
+  ✓  44 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (2.5s)
+  ✓  45 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (2.6s)
+  ✓  46 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (2.7s)
+  ✓  47 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (1.4s)
+  ✓  48 [cloud-touch] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (2.3s)
+  ✓  49 [cloud-touch] › tests/cloud/structure-editing.spec.ts:6:1 › structured objects sync, own undo preserves remote data, scoped rights and ZIP restore survive (6.9s)
+  ✓  50 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (9.2s)
+  ✓  51 [cloud-touch] › tests/cloud/workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly (1.6s)
+  ✓  52 [cloud-touch] › tests/cloud/workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes (3.1s)
+
+  52 passed (4.8m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

@@ -1,0 +1,48 @@
+[WebServer] (node:67158) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 32 tests using 1 worker
+
+(node:67299) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (17.2s)
+  ✓   2 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (1.4s)
+  ✓   3 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (2.5s)
+  ✓   4 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (1.7s)
+  ✓   5 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (2.0s)
+  ✓   6 [cloud-desktop] › tests/cloud/page-scope.spec.ts:12:1 › bound row filters survive reordering; a presentation never adopts new matching pages and exits when its own pages disappear (2.1s)
+  ✓   7 [cloud-desktop] › tests/cloud/page-scope.spec.ts:64:1 › PDF preparation is invalidated by source changes and selected deletions instead of exporting stale or hidden pages (2.4s)
+  ✓   8 [cloud-desktop] › tests/cloud/page-scope.spec.ts:117:1 › viewers retain ordinary comparison and presentation scopes but a revoked participant cannot keep projecting a cached work (2.7s)
+  ✓   9 [cloud-desktop] › tests/cloud/page-scope.spec.ts:184:1 › an authentication close stops projection without silently switching to another sheet (1.6s)
+  ✓  10 [cloud-desktop] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (1.4s)
+  ✓  11 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (2.1s)
+  ✓  12 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (1.7s)
+  ✓  13 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (1.4s)
+  ✓  14 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (2.0s)
+  ✓  15 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (1.5s)
+  ✓  16 [cloud-desktop] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (2.3s)
+(node:70247) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  17 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (15.5s)
+  ✓  18 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (765ms)
+  ✓  19 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (1.0s)
+  ✓  20 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (792ms)
+  ✓  21 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (767ms)
+  ✓  22 [cloud-touch] › tests/cloud/page-scope.spec.ts:12:1 › bound row filters survive reordering; a presentation never adopts new matching pages and exits when its own pages disappear (1.0s)
+  ✓  23 [cloud-touch] › tests/cloud/page-scope.spec.ts:64:1 › PDF preparation is invalidated by source changes and selected deletions instead of exporting stale or hidden pages (1.2s)
+  ✓  24 [cloud-touch] › tests/cloud/page-scope.spec.ts:117:1 › viewers retain ordinary comparison and presentation scopes but a revoked participant cannot keep projecting a cached work (1.8s)
+  ✓  25 [cloud-touch] › tests/cloud/page-scope.spec.ts:184:1 › an authentication close stops projection without silently switching to another sheet (683ms)
+  ✓  26 [cloud-touch] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (847ms)
+  ✓  27 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (2.0s)
+  ✓  28 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (1.1s)
+  ✓  29 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (1.1s)
+  ✓  30 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (904ms)
+  ✓  31 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (649ms)
+  ✓  32 [cloud-touch] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (1.5s)
+
+  32 passed (1.4m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

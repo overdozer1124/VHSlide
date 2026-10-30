@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-24",
+  "version": "0.39.1",
+  "environment": {
+    "os": "Linux-6.18.55-x86_64-with-glibc2.41",
+    "node": "v24.19.0",
+    "chromium": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)"
+  },
+  "productionAccess": false,
+  "deployed": false,
+  "sourceSha256": {
+    "src/mediaVisibility.ts": "00a520502f37c3382dc5c3cfe502f51b8738a8c329705ec3746b92a6652408d2",
+    "src/mediaVisibility.test.ts": "6f67d47680258ab44c726eda1a35cae941e2fb7398088cb381e5f3cb27e9bb4f",
+    "server/app.ts": "c68dc2520574f9594c20e93215337d20c1ecb864d9060e7f813232b453273438",
+    "cloudflare/directory.ts": "3e3330bf5242bbebc4a3af8c1a775ebbe8758594a7abe2f783c59d88919ea9bf",
+    "cloudflare/room.ts": "2716f063a435b3641d371535b5e30eb49c6336b62503cdd0165706a88f6a6e84",
+    "src/App.tsx": "f275a930708ee6b6a5106b2e8be481223fcaa8cfed3faf8cf8f33450b2d277bd",
+    "src/releaseHistory.ts": "12b8b26da7a70d0ce4b8576c4faba361dc6c48929effbe87131ccb10aa6dd365",
+    "tests/support/deleted-media.ts": "e86378689f4d41590228e771544d470087b02550f6e7c26f7d7bcdd07cc95cbe",
+    "tests/server/app.test.ts": "56b53aca9c10101e0d9fcde5b1c1132908cf5e03f4ebe399e2776222a41c7c1b",
+    "tests/cloudflare/worker.test.ts": "2252e1c60af9b59c80f6a9a3824362798bc393fa9946e1a5ba46459062e5cb54",
+    "tests/cloud/deleted-media.spec.ts": "8d6286dc9a1ce55679ecbf361b1b0cfc8d5a1bff5beb9afa2b6c00c333983b7c",
+    "tests/audit/privacy-audit.ts": "ec6e16a043bfdcb8215186035f3837ec6e849dd92ee9c555e04f0670d125001c",
+    "package.json": "e89671a2055247f9d35774a0db41ce85d8a236bdbda6313b4d6730a1587b69a9",
+    "package-lock.json": "45dc6a10d57511872fd1c3234281a5e3dae0bc350c9297d34b96f6616433fd6b",
+    "tests/cloud/collaboration.spec.ts": "bc1974a22fb73c127b2530fdcce307c9698cf99f983648275b0ad94a52f58627"
+  }
+}

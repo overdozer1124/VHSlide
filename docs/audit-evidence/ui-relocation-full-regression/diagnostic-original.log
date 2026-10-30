@@ -1,0 +1,123 @@
+[WebServer] (node:287153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:287166) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:287184) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:49:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+IMAGE_RESIZE_DIAGNOSTIC {
+  stored: {
+    id: 'd21975a2-8547-4ea9-9857-280c8f4aaa66',
+    type: 'image',
+    src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=',
+    x: 470,
+    y: 260,
+    w: 20,
+    h: 20
+  },
+  elements: [
+    'left: 68px; top: 62px; width: 780px; height: 60px; z-index: 0;',
+    'left: 68px; top: 148px; width: 780px; height: 174px; z-index: 1;',
+    'left: 72px; top: 415px; width: 780px; height: 66px; z-index: 2;',
+    'left: 735px; top: 55px; width: 145px; height: 145px; z-index: 3;',
+    'left: 470px; top: 260px; width: 20px; height: 20px; z-index: 4;'
+  ],
+  flight: 0
+}
+  ✘  1 [touch] › tests/e2e/z-temp-image-diagnostic.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (6.6s)
+(node:287315) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:49:40 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+TABLE_TOUCH_DIAGNOSTIC {
+  hits: [
+    {
+      target: '<button type="button" class="resize-handle resize-edge resize-s" data-resize-direction="s" aria-label="要素の下の枠でサイズを変更" title="下の枠をドラッグしてサイズ変更（Altキーで移動）"></button>',
+      cell: undefined,
+      hit: '<div class="table-cell-content" style="justify-content: flex-start;"><textarea aria-label="表 3行 3列" data-cell="cell-3:cell-6" aria-selected="false" maxlength="2000" spellcheck="tru',
+      physicalCell: 'cell-3:cell-6'
+    }
+  ],
+  active: '<textarea aria-label="表 2行 2列" data-cell="cell-2:cell-5" aria-selected="true" maxlength="2000" spellcheck="true" style="height: 33px;">ううう</textarea>'
+}
+  ✘  2 [touch] › tests/e2e/z-temp-table-diagnostic.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (6.8s)
+
+
+  1) [touch] › tests/e2e/z-temp-image-diagnostic.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 20
+    Received:   20
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      166 |   await page.mouse.up();
+      167 |   console.log('IMAGE_RESIZE_DIAGNOSTIC', await page.evaluate(() => ({stored:JSON.parse(localStorage.getItem('vhslide-deck-v1')!).slides[0].elements.at(-1),elements:[...document.querySelectorAll('.editor-page-current .element')].map(e=>e.getAttribute('style')),flight:document.querySelectorAll('.workspace-flight').length})));
+    > 168 |   await expect.poll(async()=>await page.evaluate(()=>JSON.parse(localStorage.getItem('vhslide-deck-v1')!).slides[0].elements.at(-1).w)).toBeGreaterThan(20);
+          |                                                                                                                                         ^
+      169 |   let data = await page.evaluate(() => JSON.parse(localStorage.getItem('vhslide-deck-v1')!));
+      170 |   await page.locator(".editor-workspace").evaluate((node, base64) => {
+      171 |     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        at /workspace/vhslide-dual-auth/tests/e2e/z-temp-image-diagnostic.spec.ts:168:137
+
+    Error Context: test-results-preview/z-temp-image-diagnostic-em-b1117-d-resizing-changes-geometry-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/z-temp-image-diagnostic-em-b1117-d-resizing-changes-geometry-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/z-temp-image-diagnostic-em-b1117-d-resizing-changes-geometry-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [touch] › tests/e2e/z-temp-table-diagnostic.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('textbox', { name: '表 3行 3列', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" getByRole('textbox', { name: '表 3行 3列', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: '表 3行 3列', exact: true })
+        14 × locator resolved to <textarea maxlength="2000" spellcheck="true" aria-label="表 3行 3列" aria-selected="false" data-cell="cell-3:cell-6"></textarea>
+           - unexpected value "inactive"
+
+
+       98 |   else await page.mouse.click(r!.x + r!.width / 2, r!.y + r!.height - 5);
+       99 |   console.log('TABLE_TOUCH_DIAGNOSTIC', await page.evaluate(() => ({hits:(window as any).__hits,active:document.activeElement?.outerHTML.slice(0,200)})));
+    > 100 |   await expect(cell(page, 3, 3)).toBeFocused();
+          |                                  ^
+      101 |   await cell(page, 3, 3).fill("長い文\n".repeat(40));
+      102 |   await cell(page, 3, 3).press("End");
+      103 |   await cell(page, 3, 3).press("!");
+        at /workspace/vhslide-dual-auth/tests/e2e/z-temp-table-diagnostic.spec.ts:100:34
+
+    Error Context: test-results-preview/z-temp-table-diagnostic-ce-a54ca-able-and-fixed-in-the-table-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/z-temp-table-diagnostic-ce-a54ca-able-and-fixed-in-the-table-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/z-temp-table-diagnostic-ce-a54ca-able-and-fixed-in-the-table-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [touch] › tests/e2e/z-temp-image-diagnostic.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+    [touch] › tests/e2e/z-temp-table-diagnostic.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

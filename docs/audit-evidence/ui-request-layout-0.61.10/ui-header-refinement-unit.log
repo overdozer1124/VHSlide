@@ -1,0 +1,81 @@
+
+> vhslide@0.61.10 test
+> vitest run src/chartLayout.test.ts src/noteRecovery.test.ts src/saveState.test.ts src/mapBatch.test.ts src/pageScope.test.ts src/cloudDocument.test.ts src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/vhslide-dual-auth
+
+ ✓ src/model.test.ts (49 tests) 150ms
+ ✓ src/backup.test.ts (5 tests) 362ms
+   ✓ backs up over 25MB of photos without base64 embedding  306ms
+ ✓ src/sharedDeck.test.ts (10 tests) 189ms
+ ✓ src/noteRecovery.test.ts (4 tests) 138ms
+ ✓ src/workbook.test.ts (7 tests) 159ms
+ ✓ src/learningTools.test.ts (6 tests) 1587ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  1503ms
+ ✓ src/tableData.test.ts (5 tests) 190ms
+ ✓ src/axes.test.ts (7 tests) 43ms
+ ✓ src/permissions.test.ts (12 tests) 272ms
+ ✓ src/contentEditing.test.ts (7 tests) 69ms
+ ✓ src/structureEditing.test.ts (9 tests) 94ms
+ ✓ src/cloudDocument.test.ts (4 tests) 69ms
+ ✓ src/preSharing.test.ts (5 tests) 16ms
+ ✓ src/objectEditing.test.ts (10 tests) 27ms
+ ✓ src/chartLayout.test.ts (4 tests) 47ms
+ ✓ src/mapBatch.test.ts (5 tests) 36ms
+ ✓ src/joinRequests.test.ts (4 tests) 25ms
+ ✓ src/releaseHistory.test.ts (1 test) 13ms
+ ✓ src/backupProtocol.test.ts (3 tests) 13ms
+ ✓ src/pageScope.test.ts (7 tests) 24ms
+ ✓ src/cellFormatting.test.ts (1 test) 5ms
+ ✓ src/mediaVisibility.test.ts (3 tests) 13ms
+ ✓ src/assignmentReadiness.test.ts (1 test) 9ms
+ ✓ src/syncRecovery.test.ts (2 tests) 4ms
+ ✓ src/saveState.test.ts (2 tests) 5ms
+
+ Test Files  25 passed (25)
+      Tests  173 passed (173)
+   Start at  03:15:46
+   Duration  5.77s (transform 1.64s, setup 0ms, collect 4.60s, tests 3.56s, environment 5ms, prepare 2.50s)
+
+
+> vhslide@0.61.10 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (64.155131ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (58.003717ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (51.380932ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (835.252489ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (30.787374ms)
+✔ sign-out revokes active sockets and persisted session access (11.137728ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (167.675469ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (159.202792ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (123.097754ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (249.271386ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (243.65917ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (25.580615ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (172.220238ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (25.889292ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (117.299924ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (332.861787ms)
+✔ host follow state validates host, initiator, target and session without editing the work (46018.134253ms)
+FOLLOW_40_METRICS {"backend":"Node","connections":40,"samples":20,"p95Ms":5.197701999997662,"maxMs":5.293827000001329,"allMs":[5.197701999997662,5.178203000003123,5.114315999999235,5.121047000000544,5.16846799999621,5.293827000001329,5.092713999998523,5.063120000006165,5.144531999998435,5.072513999999501,5.11113099999784,5.037370999998529,5.078742999998212,5.041236000004574,5.015628000001016,5.033755000004021,5.048407000002044,5.017180999995617,5.019513999999617,5.123119999996561]}
+✔ host follow 40 live connections P95 target (183.550843ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49182.149938
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

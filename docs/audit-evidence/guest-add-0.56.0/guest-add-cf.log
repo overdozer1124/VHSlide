@@ -1,0 +1,74 @@
+
+> vhslide@0.56.0 test:cloudflare
+> npm run cf:check && node --test tests/cloudflare/*.test.ts
+
+
+> vhslide@0.56.0 cf:check
+> tsc -p tsconfig.cloudflare.json && wrangler deploy --dry-run --outdir .wrangler-build
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.151.3 (update available 4.154.0)
+───────────────────────────────────────────────
+✨ Read 9 files from the assets directory /workspace/vhslide-dual-auth/dist
+Total Upload: 431.72 KiB / gzip: 92.75 KiB
+Your Worker has access to the following bindings:
+Binding                                                                       Resource                  
+env.DIRECTORY (Directory)                                                     Durable Object            
+env.ROOMS (SlideRoom)                                                         Durable Object            
+env.ASSETS                                                                    Assets                    
+env.GOOGLE_CLIENT_ID ("187339871113-2j074eot6i41e2ts1g3129ch...")             Environment Variable      
+env.GOOGLE_SCHOOL_CLIENT_ID ("142634110367-rongbdrtm1u416ch26orar13...")      Environment Variable      
+env.GOOGLE_SCHOOL_DOMAIN ("kaga.ed.jp")                                       Environment Variable      
+env.PUBLIC_ORIGIN ("https://vhslide.overdozer1124.workers...")                Environment Variable      
+
+--dry-run: exiting now.
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+▶ isolated recovery faults: publication, replay, cancellation, lost response and capture races
+  ✔ permanent deletion interrupted after Room cleanup remains non-restorable and retries after restart (230.709197ms)
+  ✔ A1: Room committed, Directory failed; private; retry preserves one copy (3405.437353ms)
+  ✔ A2: queued cancellation cannot remove a finalized work (41.256987ms)
+  ✔ A3: cancellation after partial commit removes staging data and refuses replay (33.178669ms)
+  ✔ A4: a lost Room response leaves an uploading job but replay preserves the committed notes (199.763913ms)
+  ✔ B: lost commit response is queryable and replay returns the same work (38.140479ms)
+AUDIT_CAPTURE slide status=409
+AUDIT_CAPTURE image status=409
+AUDIT_CAPTURE note status=409
+AUDIT_CAPTURE sharing status=409
+AUDIT_CAPTURE sharing-ABA status=409
+REGRESSION_MIXED status=409; inconsistent snapshot rejected
+  ✔ C: every slide, image, note and sharing change including ABA is rejected (157.890126ms)
+✔ isolated recovery faults: publication, replay, cancellation, lost response and capture races (7458.374286ms)
+✔ both configured Google clients identify the same account and reject other audiences (369.197544ms)
+✔ checks real JWT signatures/audience, session cookies, origin and membership (24971.005406ms)
+✔ stores 1000 pages and private photos through a runtime restart and rejects page 1001 (946.87824ms)
+✔ 40 authenticated WebSockets converge on simultaneous edits and persist acknowledgements (1034.259429ms)
+✔ refuses foreign assets and closes a signed-out connection (20083.157242ms)
+✔ reserves photo space atomically and stops uploading at the owner's limit (564.111269ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (155.797297ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (340.397566ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (107.563019ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (253.770471ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (6586.308244ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (3403.152094ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (227.708798ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (3415.884275ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64705.576731
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

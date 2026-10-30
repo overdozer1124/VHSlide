@@ -1,0 +1,59 @@
+[WebServer] (node:230877) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:230898) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (46.5s)
+(node:231117) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [cloud-desktop] › tests/cloud/collaboration.spec.ts:971:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (42.1s)
+  ✓  3 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (39.7s)
+(node:231563) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests (35.6s)
+  ✓  5 [cloud-touch] › tests/cloud/collaboration.spec.ts:971:1 › cloud workspace cards and bulk sharing support mixed accounts, row assignment and retry after partial removal (10.9s)
+  ✓  6 [cloud-touch] › tests/cloud/collaboration.spec.ts:1256:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (14.8s)
+
+
+  1) [cloud-desktop] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByRole('textbox', { name: '行1の見出し', exact: true })
+    Expected: "1班"
+    Received: "headings-cloud-desktop-guest"
+
+    Call log:
+      - Expect "toHaveValue" getByRole('textbox', { name: '行1の見出し', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: '行1の見出し', exact: true })
+        5 × locator resolved to <textarea rows="1" readonly placeholder="" maxlength="80" spellcheck="false" aria-label="行1の見出し" class="map-heading-input vertical" title="headings-cloud-desktop-guest">headings-cloud-desktop-guest</textarea>
+          - unexpected value "headings-cloud-desktop-guest"
+      - Test ended.
+
+
+      833 |     await heading(page, "行1の見出し").fill("1班");
+      834 |     await heading(page, "行1の見出し").press("Enter");
+    > 835 |     await expect(heading(other, "行1の見出し")).toHaveValue("1班");
+          |                                            ^
+      836 |     await heading(page, "行1の見出し").fill("");
+      837 |     await heading(page, "行1の見出し").press("Enter");
+      838 |     await expect(heading(other, "行1の見出し")).toHaveValue(guest);
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:835:44
+
+    Error Context: test-results-cloudflare/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/collaboration-host-edits-s-ec9f0-pdate-vertically-for-guests-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-desktop] › tests/cloud/collaboration.spec.ts:781:1 › host edits shared map headings and row account names update vertically for guests 
+  5 passed (3.7m)

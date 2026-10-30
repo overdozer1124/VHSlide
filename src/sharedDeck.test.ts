@@ -224,3 +224,58 @@ it("shares custom thumbnail footer labels, preserves them in JSON and restores a
   expect(() => parseDeck(JSON.stringify(next))).toThrow();
   doc.destroy();
 });
+
+it("speaker notes merge with remote slide edits and undo only local notes", () => {
+  const base = sample();
+  base.slides[0].speakerNotes = "初めのメモ";
+  const a = createSharedDeck(base),
+    b = new Y.Doc();
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  const undo = new Y.UndoManager(a.getMap("slides"), {
+    trackedOrigins: new Set([LOCAL_CHANGE]),
+  });
+  const a0 = readSharedDeck(a),
+    b0 = readSharedDeck(b);
+  applyDeckChange(a, a0, {
+    ...a0,
+    slides: a0.slides.map((s, i) =>
+      i ? s : { ...s, speakerNotes: "編集したメモ" },
+    ),
+  });
+  applyDeckChange(b, b0, {
+    ...b0,
+    slides: b0.slides.map((s, i) => (i ? s : { ...s, background: "#ff0000" })),
+  });
+  Y.applyUpdate(a, Y.encodeStateAsUpdate(b));
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  expect(readSharedDeck(a).slides[0].speakerNotes).toBe("編集したメモ");
+  expect(readSharedDeck(a).slides[0].background).toBe("#ff0000");
+  undo.undo();
+  expect(readSharedDeck(a).slides[0].speakerNotes).toBe("初めのメモ");
+  expect(readSharedDeck(a).slides[0].background).toBe("#ff0000");
+});
+
+it("concurrent speaker note edits converge as Y.Text", () => {
+  const base = sample();
+  base.slides[0].speakerNotes = "AB";
+  const a = createSharedDeck(base),
+    b = new Y.Doc();
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  const a0 = readSharedDeck(a),
+    b0 = readSharedDeck(b);
+  applyDeckChange(a, a0, {
+    ...a0,
+    slides: a0.slides.map((s, i) => (i ? s : { ...s, speakerNotes: "AB1" })),
+  });
+  applyDeckChange(b, b0, {
+    ...b0,
+    slides: b0.slides.map((s, i) => (i ? s : { ...s, speakerNotes: "AB2" })),
+  });
+  Y.applyUpdate(a, Y.encodeStateAsUpdate(b));
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  const av = readSharedDeck(a).slides[0].speakerNotes,
+    bv = readSharedDeck(b).slides[0].speakerNotes;
+  expect(av).toBe(bv);
+  expect(av).toContain("1");
+  expect(av).toContain("2");
+});

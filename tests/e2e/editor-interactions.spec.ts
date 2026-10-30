@@ -277,7 +277,7 @@ test("a single page can be dropped into a new last row", async ({ page }) => {
   await expect(
     page.locator(".rail-trigger.rail-active .rail-coordinate"),
   ).toHaveText("3.2");
-  await expect(page.locator(".canvas-title > span")).toHaveText("3.2 / 16:9");
+  await expect(page.locator(".canvas-page-position")).toHaveText("3.2 / 16:9");
 });
 
 test("Japanese composition remains in the canvas textbox across live updates", async ({

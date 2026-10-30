@@ -1,9 +1,15 @@
 import type { Slide } from "./model";
+import type { AxisGrant } from "./axes";
 export type MapFilter = {
   ids: string[];
   rows: number[];
   columns: number[];
   excludedIds?: string[];
+  rowAxes?: AxisGrant[];
+  columnAxes?: AxisGrant[];
+  assigned?: boolean;
+  /** Derived from current access; never persisted as the assigned condition. */
+  assignedIds?: string[];
 };
 export const emptyFilter = (): MapFilter => ({
   ids: [],
@@ -14,7 +20,8 @@ export const matchesFilter = (s: Slide, filter: MapFilter) =>
   !filter.excludedIds?.includes(s.id) &&
   (filter.ids.includes(s.id) ||
     filter.rows.includes(s.y) ||
-    filter.columns.includes(s.x));
+    filter.columns.includes(s.x) ||
+    !!(filter.assigned && filter.assignedIds?.includes(s.id)));
 export function toggleFilterSlide(filter: MapFilter, slide: Slide): MapFilter {
   const selected = matchesFilter(slide, filter);
   return {

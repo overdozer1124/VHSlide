@@ -1,0 +1,13 @@
+{
+  "src/backupProtocol.ts": "78ef321280ca428da379e20d7aae4c434d748d6ca2f4eba589e55f4541f6a617",
+  "src/backupClient.ts": "847737159b13f063c3c47795ca289ce18993f38f093ffad926f1046d051f6285",
+  "src/BackupPanel.tsx": "13bfff9ae344003c988165492b69c61023a545606e3b77b537e6bfd614697e39",
+  "src/backupArchive.ts": "e1aafdec9ef0a8346e9d367e0810138e0dcf695b515721cc94928db91d8a3d3e",
+  "server/app.ts": "5c808fa01c398a1603b980655ab9b179a4b691061c894d1f396d53f004dfae17",
+  "cloudflare/directory.ts": "8a5fcddcfa8ecf112b368eb4ca179a4eaec90e892cd17d4fc9fa9e1d82aab25f",
+  "cloudflare/room.ts": "78256f72ceb53b7f608acceec6b5c5aa00782370111380ee8af904963c3f8717",
+  "src/releaseHistory.ts": "1c78f30fc44f7084b7c2baee7e6fff20a26124ec77d4de284d394ced6f25d9ad",
+  "package.json": "0a93beee6fb43272e8718a2a4121bf2fab1de1cb8b08b11a633649362820caae",
+  "package-lock.json": "d476a76d4467bbcc86e5585b5be086bb8c8ba179495d38cd0a80b0000a3c54ca",
+  ".wrangler-build/index.js": "cde506a5f3e63eb8293ca76c95cf7c29fb9ed0a0ff470e563428b5729060ec47"
+}

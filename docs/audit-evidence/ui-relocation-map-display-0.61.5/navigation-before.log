@@ -1,0 +1,105 @@
+[WebServer] (node:220966) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:220979) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 2 workers
+
+(node:220997) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:220998) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:45:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:45:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:45:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:45:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  1 [desktop] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation (7.2s)
+  ✘  2 [touch] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation (7.1s)
+
+
+  1) [desktop] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'マップの表示設定', exact: true })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByRole('dialog', { name: 'マップの表示設定', exact: true }) with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'マップの表示設定', exact: true })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      130 |   await page.keyboard.press("Enter");
+      131 |   await expect(page.locator(".editor-layout")).toBeVisible();
+    > 132 |   await expect(page.getByRole("dialog", { name: "マップの表示設定", exact: true })).toHaveCount(0);
+          |                                                                             ^
+      133 |   await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
+      134 |   await expect(trigger).toBeVisible();
+      135 |   await expect(page.getByRole("dialog", { name: "マップの表示設定", exact: true })).toHaveCount(0);
+        at /workspace/vhslide-dual-auth/tests/e2e/map-display-layout.spec.ts:132:77
+
+    Error Context: test-results/map-display-layout-display-cc495-through-keyboard-navigation-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-display-layout-display-cc495-through-keyboard-navigation-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-display-layout-display-cc495-through-keyboard-navigation-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [touch] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'マップの表示設定', exact: true })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByRole('dialog', { name: 'マップの表示設定', exact: true }) with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'マップの表示設定', exact: true })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      130 |   await page.keyboard.press("Enter");
+      131 |   await expect(page.locator(".editor-layout")).toBeVisible();
+    > 132 |   await expect(page.getByRole("dialog", { name: "マップの表示設定", exact: true })).toHaveCount(0);
+          |                                                                             ^
+      133 |   await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
+      134 |   await expect(trigger).toBeVisible();
+      135 |   await expect(page.getByRole("dialog", { name: "マップの表示設定", exact: true })).toHaveCount(0);
+        at /workspace/vhslide-dual-auth/tests/e2e/map-display-layout.spec.ts:132:77
+
+    Error Context: test-results/map-display-layout-display-cc495-through-keyboard-navigation-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-display-layout-display-cc495-through-keyboard-navigation-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-display-layout-display-cc495-through-keyboard-navigation-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation 
+    [touch] › tests/e2e/map-display-layout.spec.ts:126:1 › display popup closes when leaving the map through keyboard navigation 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

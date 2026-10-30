@@ -1,0 +1,47 @@
+[WebServer] (node:127832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:127844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (6.6s)
+
+
+  1) [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0.9
+    Received:   0.3380281690140845
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      102 |         if (!frame || !canvas) return 0;
+      103 |         return canvas.width / Math.min(frame.width - 20, (frame.height - 55) * 16 / 9);
+    > 104 |       }).toBeGreaterThan(0.9);
+          |          ^
+      105 |       const viewport = guest.viewportSize()!, canvas = (await guest.locator(".host-follow-page .slide-canvas").boundingBox())!;
+      106 |       expect(canvas.x).toBeGreaterThanOrEqual(0);
+      107 |       expect(canvas.y).toBeGreaterThanOrEqual(0);
+        at assertFillsPage (/workspace/vhslide-dual-auth/tests/cloud/host-follow.spec.ts:104:10)
+        at /workspace/vhslide-dual-auth/tests/cloud/host-follow.spec.ts:111:11
+
+    Error Context: test-results-cloud/host-follow-step-2-receive-bf2db--replacing-the-guest-editor-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/host-follow-step-2-receive-bf2db--replacing-the-guest-editor-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/host-follow-step-2-receive-bf2db--replacing-the-guest-editor-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

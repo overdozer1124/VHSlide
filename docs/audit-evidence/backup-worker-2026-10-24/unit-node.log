@@ -1,0 +1,47 @@
+
+> vhslide@0.37.2 test
+> vitest run src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/model.test.ts (40 tests) 232ms
+ ✓ src/sharedDeck.test.ts (8 tests) 269ms
+ ✓ src/backup.test.ts (5 tests) 608ms
+   ✓ backs up over 25MB of photos without base64 embedding  478ms
+ ✓ src/permissions.test.ts (5 tests) 105ms
+ ✓ src/workbook.test.ts (7 tests) 167ms
+ ✓ src/axes.test.ts (7 tests) 36ms
+ ✓ src/preSharing.test.ts (5 tests) 23ms
+ ✓ src/releaseHistory.test.ts (1 test) 14ms
+ ✓ src/backupProtocol.test.ts (3 tests) 13ms
+
+ Test Files  9 passed (9)
+      Tests  81 passed (81)
+   Start at  17:13:42
+   Duration  3.58s (transform 1.36s, setup 0ms, collect 2.58s, tests 1.47s, environment 2ms, prepare 1.99s)
+
+
+> vhslide@0.37.2 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (95.542381ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (83.096458ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (72.129291ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (1093.154935ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (34.05634ms)
+✔ sign-out revokes active sockets and persisted session access (16.387222ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (188.161528ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (147.153157ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (122.25589ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (164.827365ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (195.676818ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (24.139317ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2642.844958

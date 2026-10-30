@@ -1,0 +1,28 @@
+[WebServer] (node:131029) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:131041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+FOLLOW_FIT_LAYOUT {"innerWidth":1440,"innerHeight":1000,"client":1440,"visual":1440,"scale":1,"frame":{"x":0,"y":101,"width":1440,"height":899,"top":101,"right":1440,"bottom":1000,"left":0},"canvas":{"x":10,"y":164.125,"width":1420,"height":798.75,"top":164.125,"right":1430,"bottom":962.875,"left":10}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1366,"innerHeight":768,"client":1366,"visual":1366,"scale":1,"frame":{"x":0,"y":101,"width":1366,"height":667,"top":101,"right":1366,"bottom":768,"left":0},"canvas":{"x":131,"y":137,"width":1104,"height":621,"top":137,"right":1235,"bottom":758,"left":131}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1024,"innerHeight":600,"client":1024,"visual":1024,"scale":1,"frame":{"x":0,"y":101,"width":1024,"height":499,"top":101,"right":1024,"bottom":600,"left":0},"canvas":{"x":109.328125,"y":137,"width":805.3333129882812,"height":453,"top":137,"right":914.6614379882812,"bottom":590,"left":109.328125}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1920,"innerHeight":1080,"client":1920,"visual":1920,"scale":1,"frame":{"x":0,"y":101,"width":1920,"height":979,"top":101,"right":1920,"bottom":1080,"left":0},"canvas":{"x":130.671875,"y":137,"width":1658.6666259765625,"height":933,"top":137,"right":1789.3385009765625,"bottom":1070,"left":130.671875}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1920,"innerHeight":1080,"client":1920,"visual":1920,"scale":1,"frame":{"x":0,"y":101,"width":1920,"height":979,"top":101,"right":1920,"bottom":1080,"left":0},"canvas":{"x":130.671875,"y":137,"width":1658.6666259765625,"height":933,"top":137,"right":1789.3385009765625,"bottom":1070,"left":130.671875}}
+  ✓  1 [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.2s)
+(node:131225) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+FOLLOW_FIT_LAYOUT {"innerWidth":894,"innerHeight":1192,"client":810,"visual":810,"scale":1,"frame":{"x":0,"y":135.5,"width":810,"height":944.5,"top":135.5,"right":810,"bottom":1080,"left":0},"canvas":{"x":10,"y":398.5625,"width":790,"height":444.375,"top":398.5625,"right":800,"bottom":842.9375,"left":10}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1366,"innerHeight":768,"client":1366,"visual":1237.6510009765625,"scale":1.1037037372589111,"frame":{"x":0,"y":101,"width":1366,"height":667,"top":101,"right":1366,"bottom":768,"left":0},"canvas":{"x":131,"y":137,"width":1104,"height":621,"top":137,"right":1235,"bottom":758,"left":131}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1159,"innerHeight":680,"client":1024,"visual":1050.1005859375,"scale":0.9751446843147278,"frame":{"x":0,"y":101,"width":1024,"height":499,"top":101,"right":1024,"bottom":600,"left":0},"canvas":{"x":109.328125,"y":137,"width":805.3333129882812,"height":453,"top":137,"right":914.6614379882812,"bottom":590,"left":109.328125}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1920,"innerHeight":1080,"client":1920,"visual":1739.5972900390625,"scale":1.1037037372589111,"frame":{"x":0,"y":101,"width":1920,"height":979,"top":101,"right":1920,"bottom":1080,"left":0},"canvas":{"x":130.671875,"y":137,"width":1658.6666259765625,"height":933,"top":137,"right":1789.3385009765625,"bottom":1070,"left":130.671875}}
+FOLLOW_FIT_LAYOUT {"innerWidth":1920,"innerHeight":1080,"client":1920,"visual":1739.5972900390625,"scale":1.1037037372589111,"frame":{"x":0,"y":101,"width":1920,"height":979,"top":101,"right":1920,"bottom":1080,"left":0},"canvas":{"x":130.671875,"y":137,"width":1658.6666259765625,"height":933,"top":137,"right":1789.3385009765625,"bottom":1070,"left":130.671875}}
+  ✓  2 [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.4s)
+
+  2 passed (8.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

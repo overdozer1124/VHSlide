@@ -1,0 +1,71 @@
+
+> vhslide@0.43.2 test
+> vitest run src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide
+
+ ✓ src/model.test.ts (40 tests) 66ms
+ ✓ src/backup.test.ts (5 tests) 217ms
+ ✓ src/sharedDeck.test.ts (8 tests) 55ms
+ ✓ src/contentEditing.test.ts (7 tests) 36ms
+ ✓ src/workbook.test.ts (7 tests) 56ms
+ ✓ src/structureEditing.test.ts (8 tests) 40ms
+ ✓ src/learningTools.test.ts (6 tests) 791ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  734ms
+ ✓ src/permissions.test.ts (5 tests) 66ms
+ ✓ src/objectEditing.test.ts (6 tests) 28ms
+ ✓ src/tableData.test.ts (5 tests) 34ms
+ ✓ src/preSharing.test.ts (5 tests) 39ms
+ ✓ src/joinRequests.test.ts (4 tests) 18ms
+ ✓ src/axes.test.ts (7 tests) 35ms
+ ✓ src/backupProtocol.test.ts (3 tests) 19ms
+ ✓ src/releaseHistory.test.ts (1 test) 7ms
+ ✓ src/cellFormatting.test.ts (1 test) 12ms
+ ✓ src/mediaVisibility.test.ts (3 tests) 5ms
+ ✓ src/assignmentReadiness.test.ts (1 test) 11ms
+ ✓ src/syncRecovery.test.ts (2 tests) 3ms
+
+ Test Files  19 passed (19)
+      Tests  124 passed (124)
+   Start at  22:29:06
+   Duration  2.27s (transform 544ms, setup 0ms, collect 1.50s, tests 1.54s, environment 3ms, prepare 1.00s)
+
+
+> vhslide@0.43.2 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (48.133162ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (54.273884ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (48.197059ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (1070.727966ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (35.071669ms)
+✔ sign-out revokes active sockets and persisted session access (35.976007ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (197.994794ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (147.15676ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (123.35076ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (132.783843ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (171.448415ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (23.095151ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (240.003456ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (26.700402ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (110.353258ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (428.660086ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3175.86654
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

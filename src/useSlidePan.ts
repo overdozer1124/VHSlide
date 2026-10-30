@@ -23,7 +23,19 @@ type Gesture = {
   startTime: number;
   text: boolean;
 };
-const EDIT_HANDLE = ".element-move-handle, .resize-handle, .sticky-note";
+function isEditSurface(
+  target: EventTarget | null,
+  point?: { x: number; y: number },
+) {
+  if (point) target = document.elementFromPoint(point.x, point.y);
+  if (!(target instanceof Element)) return false;
+  return (
+    !!target.closest(
+      ".ink-editing, .element-drag-border, .resize-handle, .line-endpoint, .slide-table[data-cell-range=true], .sticky-note, .slide-canvas[data-selection-mode=true]",
+    ) ||
+    (!!target.closest(".editable .slide-table") && !target.closest("textarea"))
+  );
+}
 
 /** Keep a page attached to the finger; commit navigation only after it settles. */
 export function useSlidePan(options: {
@@ -152,7 +164,7 @@ export function useSlidePan(options: {
         const active = document.activeElement;
         if (
           active instanceof HTMLElement &&
-          active.isContentEditable &&
+          (active.isContentEditable || active instanceof HTMLTextAreaElement) &&
           viewport.current?.contains(active)
         )
           active.blur();
@@ -185,7 +197,7 @@ export function useSlidePan(options: {
       if (
         event.ctrlKey ||
         latest.current.pinching?.() ||
-        (event.target as Element).closest(EDIT_HANDLE)
+        isEditSurface(event.target)
       )
         return;
       event.preventDefault();
@@ -295,7 +307,8 @@ export function useSlidePan(options: {
           event.stopPropagation();
           return;
         }
-        if ((event.target as Element).closest(EDIT_HANDLE)) return;
+        if (isEditSurface(event.target, { x: event.clientX, y: event.clientY }))
+          return;
         if (settling.current) {
           event.stopPropagation();
           return;
@@ -310,7 +323,9 @@ export function useSlidePan(options: {
           dx: 0,
           dy: 0,
           startTime: performance.now(),
-          text: !!(event.target as Element).closest("[contenteditable]"),
+          text: !!(event.target as Element).closest(
+            "[contenteditable],textarea",
+          ),
         };
       },
       onPointerMoveCapture(event: ReactPointerEvent<HTMLDivElement>) {

@@ -1,3 +1,5 @@
+import { axisIndex } from "./axes";
+import { AssignmentStatus } from "./AssignmentStatus";
 import { useMemo, useState } from "react";
 import { Check, Search, Settings2, Trash2, Users } from "lucide-react";
 import type { Deck } from "./model";
@@ -29,11 +31,11 @@ export function accessLabel(access: EditAccess, deck: Deck) {
     [
       ...access.rows.map(
         (r) =>
-          `${sheets.find((s) => s.id === r.sheetId)?.name ?? "シート"}・${r.index + 1}行目`,
+          `${sheets.find((s) => s.id === r.sheetId)?.name ?? "シート"}・${axisIndex(deck, "rows", r) === undefined ? "削除された行" : `${axisIndex(deck, "rows", r)! + 1}行目`}`,
       ),
       ...access.columns.map(
         (r) =>
-          `${sheets.find((s) => s.id === r.sheetId)?.name ?? "シート"}・${r.index + 1}列目`,
+          `${sheets.find((s) => s.id === r.sheetId)?.name ?? "シート"}・${axisIndex(deck, "columns", r) === undefined ? "削除された列" : `${axisIndex(deck, "columns", r)! + 1}列目`}`,
       ),
       ...(access.slides.length
         ? [`個別スライド ${access.slides.length}枚`]
@@ -159,6 +161,8 @@ export function SharingManager({
             targets.map((p) => p.email),
             sheet,
             start,
+            true,
+            deck,
           ).map((r) => r.access)
         : targets.map(() => grant);
     setMessage("");
@@ -453,11 +457,12 @@ export function SharingManager({
               <strong>{p.name}</strong>
               <span>{p.email}</span>
               <span className={`sharing-status ${p.userId ? "joined" : ""}`}>
-                {p.userId ? "参加済み" : "参加待ち"}
+                {p.userId ? "参加済み" : "参加前（承認済み）"}
               </span>
             </div>
             <div className="sharing-person-access">
               <strong>{accessLabel(p.access, deck)}</strong>
+              <AssignmentStatus book={deck} access={p.access} />
               <small>
                 {p.access.comment ? "付箋コメント可" : "付箋コメント不可"}
               </small>

@@ -1,0 +1,14 @@
+[
+  {
+    "asset": "./assets/index-C-8c93eD.js",
+    "localSha256": "5942df6dcb745aca77501f41c732e67d005120d667c527a0b8e9e1c0ba621e6d",
+    "publicSha256": "5942df6dcb745aca77501f41c732e67d005120d667c527a0b8e9e1c0ba621e6d",
+    "match": true
+  },
+  {
+    "asset": "./assets/index-CgpVl46X.css",
+    "localSha256": "bfd0e54bf0fecdfe404bf9ed0c333bbcf73e6b28d1c5cbf09b70f76de911df89",
+    "publicSha256": "bfd0e54bf0fecdfe404bf9ed0c333bbcf73e6b28d1c5cbf09b70f76de911df89",
+    "match": true
+  }
+]

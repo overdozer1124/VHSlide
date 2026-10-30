@@ -1,0 +1,59 @@
+
+> vhslide@0.40.3 test:cloud
+> playwright test --config playwright.cloud.config.ts --grep tables sync|two users sign in
+
+[WebServer] (node:403297) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:403329) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (18.8s)
+  ✓  2 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (5.9s)
+(node:403896) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos (17.4s)
+(node:404087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (6.2s)
+
+
+  1) [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.editor-workspace')
+    Expected substring: "フィルタ内の共同編集"
+    Received string:    "共有：touch-owner-friend1.2 / 16:901  /  NATURE自然がいっぱい。緑の道を、歩いてみよう。ページ移動：どこでも1本指でスワイプ · タッチパッドは2本指"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" locator('.editor-workspace') with timeout 5000ms
+      - waiting for locator('.editor-workspace')
+        14 × locator resolved to <div class="editor-workspace">…</div>
+           - unexpected value "共有：touch-owner-friend1.2 / 16:901  /  NATURE自然がいっぱい。緑の道を、歩いてみよう。ページ移動：どこでも1本指でスワイプ · タッチパッドは2本指"
+
+
+      407 |       .getByRole("button", { name: "自然がいっぱいを編集", exact: true })
+      408 |       .click();
+    > 409 |     await expect(other.locator(".editor-workspace")).toContainText(
+          |                                                      ^
+      410 |       "フィルタ内の共同編集",
+      411 |     );
+      412 |     const fullDownload = page.waitForEvent("download");
+        at /workspace/VHSlide/tests/cloud/collaboration.spec.ts:409:54
+
+    Error Context: test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/collaboration-two-users-si-1f1a9-reconnect-and-export-photos-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-touch] › tests/cloud/collaboration.spec.ts:167:1 › two users sign in, join by invitation, edit the same text, reconnect, and export photos 
+  3 passed (54.4s)

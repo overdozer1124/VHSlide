@@ -97,7 +97,9 @@ test("overlapping vertical thumbnails swaps complete groups and leaves the middl
       y: 2 - slide.y,
     });
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
-  expect((await readDeck(page)).slides).toEqual(before.slides);
+  await expect
+    .poll(async () => (await readDeck(page)).slides)
+    .toEqual(before.slides);
 });
 
 test("vertical gaps animate and insert a group, including the expanded gap and final boundary", async ({

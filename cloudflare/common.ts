@@ -1,8 +1,11 @@
+import { JoinRequestError } from "../src/joinRequests.ts";
 export interface Env {
   ASSETS: Fetcher;
   DIRECTORY: DurableObjectNamespace;
   ROOMS: DurableObjectNamespace;
   GOOGLE_CLIENT_ID: string;
+  GOOGLE_SCHOOL_CLIENT_ID?: string;
+  GOOGLE_SCHOOL_DOMAIN?: string;
   PUBLIC_ORIGIN?: string;
 }
 export interface User {
@@ -51,7 +54,7 @@ export const json = (data: unknown, status = 200, headers?: HeadersInit) =>
   });
 export function failure(error: unknown) {
   const status =
-    error instanceof HttpError
+    error instanceof HttpError || error instanceof JoinRequestError
       ? error.status
       : error instanceof SyntaxError
         ? 400

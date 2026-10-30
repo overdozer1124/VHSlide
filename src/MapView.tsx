@@ -1,4 +1,17 @@
-import { useLayoutEffect, useMemo, useRef, useState, memo } from "react";
+import { useMapSelection } from "./useMapSelection";
+import { MapBatchPanel } from "./MapBatchPanel";
+import type { BatchAxis } from "./mapBatch";
+import { axisId } from "./axes";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+} from "react";
+import { flushSync } from "react-dom";
 import { ThumbnailFooter } from "./ThumbnailFooter";
 import { MapHeading } from "./MapHeading";
 import { activeSheet } from "./workbook";
@@ -9,25 +22,25 @@ import {
   ArrowRight,
   GripVertical,
   LayoutGrid,
-  Maximize2,
   MoreHorizontal,
+  MousePointer2,
   Plus,
   Trash2,
   ZoomIn,
   ZoomOut,
-  Hash,
-  LocateFixed,
   Search,
   Filter,
+  Columns2,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
 import { bounds, W, H } from "./model";
 import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
+import { editorSlideWidth } from "./EditorPager";
 import type { PinchPoint } from "./usePinch";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
 const ThumbnailCanvas = memo(Canvas);
-import { MapZoomSettings } from "./MapZoomSettings";
+import { MapDisplaySettings } from "./MapDisplaySettings";
 import { closestZoom } from "./workspacePreferences";
 import { useMapTouchDrag } from "./useMapTouchDrag";
 import type { MapDrop } from "./useMapTouchDrag";
@@ -42,8 +55,89 @@ import {
   groupSelection,
 } from "./mapFilter";
 import type { MapFilter } from "./mapFilter";
+import type { AssignmentReadiness } from "./assignmentReadiness";
+import { pageOrigin, type ResolvedPageScope } from "./pageScope";
+import { PageScopeSummary } from "./PageScopeSummary";
+
+// A released pinch carries on at the fingers' speed and comes to rest on its
+// display step within this many ms (sooner when released quickly).
+const SNAP_TIME = 250;
+// Beyond the next display step, the preview follows this share of the pinch.
+const OVERSTRETCH = 0.3;
+const FRAME = 1000 / 60;
+// The length of the paused animations a pinch's spread follows.
+const SCRUB_TIME = 1000;
+
+type Preview = { dx: number; dy: number; ratio: number };
+type SpreadCard = {
+  card: HTMLElement;
+  x: number;
+  y: number;
+  thumbnail: HTMLElement | null;
+  height: number;
+  base: number;
+  labels: { el: HTMLElement; top: number }[];
+  // The add buttons beside the card, by their centres from its corner.
+  width: number;
+  buttons: { el: HTMLElement; cx: number; cy: number }[];
+};
+const previewTransform = ({ dx, dy, ratio }: Preview) =>
+  `translate(${dx}px, ${dy}px) scale(${ratio})`;
+// While the fingers are down, transforms are drawn through paused animations,
+// not inline styles. Chrome repaints and re-layerizes the whole map when an
+// inline scale changes, which slower devices such as Chromebooks cannot do
+// every frame; an animated transform it only moves.
+const holds = new WeakMap<Element, Animation>();
+function hold(el: HTMLElement, transform: string) {
+  const frames = [{ transform }, { transform }];
+  const held = holds.get(el);
+  if (held?.playState === "paused")
+    return (held.effect as KeyframeEffect).setKeyframes(frames);
+  const animation = el.animate(frames, { duration: 1, fill: "both" });
+  animation.pause();
+  holds.set(el, animation);
+}
+function letGo(el: HTMLElement) {
+  holds.get(el)?.cancel();
+  holds.delete(el);
+}
+/** Per-frame progress (0 to 1) of a curve that starts at `speed` (a share of
+ * the distance per ms) and comes to rest at 1 without overshooting it. */
+function snapProgress(speed: number) {
+  // A fast release arrives sooner, so that it only slows down from there.
+  const duration = Math.max(
+    FRAME,
+    speed > 0 ? Math.min(SNAP_TIME, 3 / speed) : SNAP_TIME,
+  );
+  // The starting slope over the whole curve; from rest when it turns back.
+  const slope = Math.max(0, Math.min(3, speed * duration));
+  const frames = Math.round(duration / FRAME);
+  const progress = Array.from({ length: frames + 1 }, (_, i) => {
+    const s = i / frames;
+    return slope * s * (1 - s) ** 2 + s * s * (3 - 2 * s);
+  });
+  return { duration, progress };
+}
 
 interface MapViewProps {
+  readOnly: boolean;
+  lockedFilter?: boolean;
+  remainingPages: number;
+  onBatchAxes: (
+    axis: BatchAxis,
+    action: "add" | "delete",
+    start: number,
+    count: number,
+  ) => boolean;
+  onDeleteMany: (ids: string[]) => boolean;
+  scope: ResolvedPageScope;
+  presentationStartId?: string;
+  restoreScroll?: { token: number; left: number; top: number };
+  assignedIds: string[];
+  assignment?: AssignmentReadiness;
+  assignmentChecking?: boolean;
+  onAssignmentSheet?: (id: string) => void;
+  onCompare: (ids: string[]) => void;
   visible: boolean;
   headingEditable: boolean;
   footerLabel: (slide: Slide) => string;
@@ -74,6 +168,18 @@ interface MapViewProps {
   onOpenMenu: OpenThumbnailMenu;
 }
 function MapViewComponent({
+  readOnly,
+  remainingPages,
+  onBatchAxes,
+  onDeleteMany,
+  scope,
+  presentationStartId,
+  restoreScroll,
+  assignedIds,
+  assignment,
+  assignmentChecking,
+  onAssignmentSheet,
+  onCompare,
   visible,
   headingEditable,
   footerLabel,
@@ -102,12 +208,25 @@ function MapViewComponent({
   scale,
   onScale,
   onOpenMenu,
+  lockedFilter = false,
 }: MapViewProps) {
   const sheet = activeSheet(deck);
-  const [draftFilter, setDraftFilter] = useState(emptyFilter);
+  const [draftFilterState, setDraftFilter] = useState(emptyFilter);
+  const draftFilter = draftFilterState.assigned
+    ? { ...draftFilterState, assignedIds }
+    : draftFilterState;
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftEditor, setDraftEditor] = useState(filterEditor);
-  const filtered = filter !== undefined && !filterOpen;
+  const filtered = filter !== undefined && (!filterOpen || lockedFilter);
+  useEffect(() => {
+    if (!readOnly) return;
+    onMove(undefined);
+    setConfirmDelete(false);
+    hint();
+  }, [readOnly, onMove]);
+  useEffect(() => {
+    if (lockedFilter) setFilterOpen(false);
+  }, [lockedFilter]);
   const displaySlides = useMemo(
     () =>
       filtered && filter
@@ -133,7 +252,31 @@ function MapViewComponent({
       ),
     [displaySlides, filtered, cols],
   );
+  const selection = useMapSelection(
+    displaySlides,
+    positions,
+    visible && !filterOpen,
+  );
+  const compareReasonId = useId();
+  const compareReason =
+    selection.ids.length > 4
+      ? "比較できるのは2〜4ページです。4ページ以下に減らしてください。"
+      : selection.ids.length < 2
+        ? "比較するページを2〜4枚選んでください。"
+        : "";
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  // A trackpad pinch over the toolbar must not zoom the whole page either.
+  useEffect(() => {
+    const node = mainRef.current!;
+    const keep = (event: WheelEvent) => {
+      if (event.ctrlKey) event.preventDefault();
+    };
+    node.addEventListener("wheel", keep, { passive: false });
+    return () => node.removeEventListener("wheel", keep);
+  }, []);
   const gridRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({
     width: 1000,
@@ -178,10 +321,12 @@ function MapViewComponent({
   const levels = zoomSteps.map((percent) => percent / 100);
   const defaultScale = closestZoom(zoomSteps) / 100;
   const largestScale = levels[levels.length - 1];
-  const smallerScale =
-    [...levels].reverse().find((level) => level < scale - 0.0001) ?? 0;
-  const largerScale =
-    levels.find((level) => level > scale + 0.0001) ?? largestScale;
+  const below = (current: number) =>
+    [...levels].reverse().find((level) => level < current - 0.0001) ?? 0;
+  const above = (current: number) =>
+    levels.find((level) => level > current + 0.0001) ?? largestScale;
+  const smallerScale = below(scale),
+    largerScale = above(scale);
   const numbers = scale === 0;
   const rowHeaderWidth = numbers ? 48 : 56;
   const headerHeight = 68;
@@ -199,7 +344,7 @@ function MapViewComponent({
       ? Math.max(20, Math.min(32, (viewportSize.height - 60) / rows))
       : (thumbWidth * H) / W;
   const cardWidth = thumbWidth + 2,
-    cardHeight = thumbHeight + (numbers ? 0 : 34);
+    cardHeight = thumbHeight + (numbers ? 0 : 34 + (filtered ? 22 : 0));
   const anchor = useRef<{
     id?: string;
     point: PinchPoint;
@@ -229,13 +374,575 @@ function MapViewComponent({
   function keepAnchor(next: number, point: PinchPoint) {
     const a = anchor.current;
     if (a?.id) pending.current = { id: a.id, point, rx: a.rx, ry: a.ry };
+    letGo(gridRef.current!);
     gridRef.current!.style.transform = "";
+    clearSpread();
     skipFocusScroll.current = next !== scale;
     onScale(next);
     if (next === scale) restoreAnchor();
   }
+  // The preview the pinch last drew and its recent scales (log, by time), and
+  // the release animation carrying it into a display step until `finish`
+  // commits that step.
+  const shown = useRef<Preview>({ dx: 0, dy: 0, ratio: 1 });
+  const motion = useRef<{ t: number; x: number }[]>([]);
+  const trackpadStarted = useRef(false);
+  // Map parts that keep their physical gaps, card borders and labels while the
+  // grid is scaled, each by its steps from the pinched slide. Only parts that
+  // can come into view are moved, on layers of their own, by transforms alone:
+  // frames neither lay out nor repaint anything.
+  const spread = useRef<{
+    point: PinchPoint;
+    // The smallest scale for which every part in view has been gathered.
+    reach: number;
+    rest: { el: HTMLElement; rect: DOMRect; x: number; y: number }[];
+    items: { el: HTMLElement; x: number; y: number }[];
+    cards: SpreadCard[];
+    animations: Animation[];
+    // While the fingers are down, each part follows on a paused animation
+    // that is only moved in time (see `drawSpread`).
+    held: Map<HTMLElement, Animation>;
+    scrub?: {
+      end: number;
+      offsets: number[];
+      steps: ReturnType<typeof spreadStyles>[];
+    };
+  } | null>(null);
+  const labelHeight = numbers ? 0 : 34 + (filtered ? 22 : 0);
+  function gatherSpread(ax: number, ay: number, point: PinchPoint) {
+    const rest = [
+      ...gridRef.current!.querySelectorAll<HTMLElement>(
+        ".grid-cell, .column-heading, .row-axis, .axis-origin, .axis-horizontal, .map-axis-corner",
+      ),
+    ].map((el) => {
+      // Headings move with the first row and column next to them.
+      const [x, y] = (
+        el.dataset.mapCell ??
+        `${el.dataset.pinchX ?? 0},${el.dataset.pinchY ?? 0}`
+      )
+        .split(",")
+        .map(Number);
+      return { el, rect: el.getBoundingClientRect(), x: x - ax, y: y - ay };
+    });
+    spread.current = {
+      point,
+      reach: Infinity,
+      rest,
+      items: [],
+      cards: [],
+      animations: [],
+      held: new Map(),
+    };
+    extendSpread(1);
+  }
+  /** Take in the parts that scaling the grid down to `ratio` shows. */
+  function extendSpread(ratio: number) {
+    const s = spread.current;
+    if (!s || ratio >= s.reach) return;
+    s.reach = ratio;
+    const view = scrollRef.current!.getBoundingClientRect(),
+      grow = 1 / Math.min(1, ratio) - 1,
+      pad = 48;
+    const left = view.left - (s.point.x - view.left) * grow - pad,
+      right = view.right + (view.right - s.point.x) * grow + pad,
+      top = view.top - (s.point.y - view.top) * grow - pad,
+      bottom = view.bottom + (view.bottom - s.point.y) * grow + pad;
+    // Lay out every new part first, then measure them all: alternating the
+    // two would recalculate styles for each card.
+    const taken: {
+      el: HTMLElement;
+      x: number;
+      y: number;
+      card: HTMLElement;
+      thumbnail: HTMLElement | null;
+      labels: HTMLElement[];
+      buttons: HTMLElement[];
+    }[] = [];
+    s.rest = s.rest.filter(({ el, rect, x, y }) => {
+      if (
+        rect.right < left ||
+        rect.left > right ||
+        rect.bottom < top ||
+        rect.top > bottom
+      )
+        return true;
+      const card = numbers
+        ? null
+        : el.querySelector<HTMLElement>(":scope > .slide-card");
+      if (!card) {
+        el.style.willChange = "transform";
+        s.items.push({ el, x, y });
+        return false;
+      }
+      // A card carries its cell's move, and keeps a physical label height by
+      // stretching only vertically, which its thumbnail and labels undo.
+      const thumbnail = card.querySelector<HTMLElement>(":scope > .thumbnail");
+      const labels = [
+        ...card.querySelectorAll<HTMLElement>(
+          ":scope > .card-footer, :scope > .filtered-origin",
+        ),
+      ];
+      for (const part of [card, thumbnail, ...labels])
+        if (part) {
+          part.style.transformOrigin = "0 0";
+          part.style.willChange = "transform";
+        }
+      const buttons = [
+        ...el.querySelectorAll<HTMLElement>(":scope > .add-dot"),
+      ];
+      for (const button of buttons) button.style.willChange = "transform";
+      taken.push({ el, x, y, card, thumbnail, labels, buttons });
+      return false;
+    });
+    // Measured on their own layers, as the card is now its parts' offset parent.
+    for (const { x, y, card, thumbnail, labels, buttons } of taken) {
+      const height = card.offsetHeight;
+      s.cards.push({
+        card,
+        thumbnail,
+        x,
+        y,
+        height,
+        // Where the thumbnail ends and the labels start.
+        base: thumbnail
+          ? thumbnail.offsetTop + thumbnail.offsetHeight
+          : height - labelHeight,
+        labels: labels.map((label) => ({ el: label, top: label.offsetTop })),
+        width: card.offsetWidth,
+        buttons: buttons.map((button) => ({
+          el: button,
+          cx: button.offsetLeft + button.offsetWidth / 2 - card.offsetLeft,
+          cy: button.offsetTop + button.offsetHeight / 2 - card.offsetTop,
+        })),
+      });
+    }
+  }
+  /** The transforms that undo the preview's scaling of gaps and labels. */
+  function spreadStyles(ratio: number) {
+    const adjust = 1 / ratio - 1;
+    const move = (x: number, y: number) =>
+      `translate(${x * (gap + 2) * adjust}px, ${y * (gap + labelHeight) * adjust}px)`;
+    return {
+      move,
+      card(c: SpreadCard) {
+        const k = (ratio * c.base + c.height - c.base) / (ratio * c.height);
+        return {
+          card: `${move(c.x, c.y)} scaleY(${k})`,
+          thumbnail: `scaleY(${1 / k})`,
+          labels: c.labels.map(
+            ({ top }) =>
+              `translateY(${(c.base + (top - c.base) / ratio) / k - top}px) scale(${1 / ratio}, ${1 / (ratio * k)})`,
+          ),
+          // Beside the card a button keeps its physical size and distance from
+          // the card's edge; along the card it goes with the thumbnail.
+          buttons: c.buttons.map(({ cx, cy }) => {
+            const x = cx > c.width ? c.width + (cx - c.width) / ratio : cx,
+              y =
+                cy > c.height
+                  ? (ratio * c.base + c.height - c.base + cy - c.height) / ratio
+                  : cy;
+            return `${move(c.x, c.y)} translate(${x - cx}px, ${y - cy}px) scale(${1 / ratio})`;
+          }),
+        };
+      },
+    };
+  }
+  /** Draw the spread at `ratio`. Each part runs a paused animation over every
+   * scale the pinch can reach, and frames only move it in time: far cheaper
+   * than new transforms for hundreds of parts. Time runs with 1/ratio, along
+   * which the moves are linear; the steps lie closest where curves bend most. */
+  function drawSpread(ratio: number) {
+    const s = spread.current;
+    if (!s || (ratio === 1 && !s.scrub)) return;
+    extendSpread(ratio);
+    // A pinch keeps its first direction, so it stays on one side of 1.
+    if (!s.scrub) {
+      const end = ratio < 1 ? 1 / 0.12 : 1 / 5;
+      const steps = Array.from(
+        { length: 17 },
+        (_, i) => 1 + (end - 1) * (i / 16) ** 2,
+      );
+      s.scrub = {
+        end,
+        offsets: steps.map((u) => (u - 1) / (end - 1)),
+        steps: steps.map((u) => spreadStyles(1 / u)),
+      };
+    }
+    const { end, offsets, steps } = s.scrub;
+    const time =
+      SCRUB_TIME * Math.max(0, Math.min(1, (1 / ratio - 1) / (end - 1)));
+    const follow = (el: HTMLElement, transforms: () => string[]) => {
+      let animation = s.held.get(el);
+      if (!animation) {
+        const frames = transforms();
+        animation = el.animate(
+          frames.map((transform, i) => ({
+            offset: frames.length === 2 ? i : offsets[i],
+            transform,
+          })),
+          { duration: SCRUB_TIME, fill: "both" },
+        );
+        animation.pause();
+        s.held.set(el, animation);
+      }
+      animation.currentTime = time;
+    };
+    // Moves, cards and buttons are linear in time: their ends suffice.
+    const ends = [steps[0], steps[steps.length - 1]];
+    type Frame = ReturnType<ReturnType<typeof spreadStyles>["card"]>;
+    for (const { el, x, y } of s.items)
+      follow(el, () => ends.map((style) => style.move(x, y)));
+    for (const c of s.cards) {
+      let edge: Frame[] | undefined, all: Frame[] | undefined;
+      const at = (bends: boolean) =>
+        bends
+          ? (all ??= steps.map((style) => style.card(c)))
+          : (edge ??= ends.map((style) => style.card(c)));
+      follow(c.card, () => at(false).map((t) => t.card));
+      if (c.thumbnail)
+        follow(c.thumbnail, () => at(true).map((t) => t.thumbnail));
+      c.labels.forEach(({ el }, i) =>
+        follow(el, () => at(true).map((t) => t.labels[i])),
+      );
+      c.buttons.forEach(({ el }, i) =>
+        follow(el, () => at(false).map((t) => t.buttons[i])),
+      );
+    }
+  }
+  /** Stop the parts following the fingers; with `ratio`, leave them drawn
+   * there as inline styles. */
+  function dropSpread(ratio?: number) {
+    const s = spread.current;
+    if (!s) return;
+    for (const animation of s.held.values()) animation.cancel();
+    s.held.clear();
+    s.scrub = undefined;
+    if (ratio === undefined) return;
+    const styles = spreadStyles(ratio);
+    for (const { el, x, y } of s.items) el.style.transform = styles.move(x, y);
+    for (const c of s.cards) {
+      const t = styles.card(c);
+      c.card.style.transform = t.card;
+      if (c.thumbnail) c.thumbnail.style.transform = t.thumbnail;
+      c.labels.forEach(({ el }, i) => (el.style.transform = t.labels[i]));
+      c.buttons.forEach(({ el }, i) => (el.style.transform = t.buttons[i]));
+    }
+  }
+  /** Animate the spread alongside the grid with the same timing. */
+  function animateSpread(ratios: number[], timing: KeyframeAnimationOptions) {
+    const s = spread.current;
+    if (!s) return;
+    extendSpread(Math.min(...ratios));
+    // Every fourth step of the grid's is close enough here, and far cheaper to
+    // set up for each of hundreds of parts at the moment of release.
+    const picks = ratios
+      .map((_, i) => i)
+      .filter((i) => i % 4 === 0 || i === ratios.length - 1);
+    const steps = picks.map((i) => spreadStyles(ratios[i]));
+    const animate = (el: HTMLElement, transforms: string[]) =>
+      s.animations.push(
+        el.animate(
+          transforms.map((transform, i) => ({
+            offset: picks[i] / (ratios.length - 1),
+            transform,
+          })),
+          timing,
+        ),
+      );
+    for (const { el, x, y } of s.items)
+      animate(
+        el,
+        steps.map((style) => style.move(x, y)),
+      );
+    for (const c of s.cards) {
+      const frames = steps.map((style) => style.card(c));
+      animate(
+        c.card,
+        frames.map((t) => t.card),
+      );
+      if (c.thumbnail)
+        animate(
+          c.thumbnail,
+          frames.map((t) => t.thumbnail),
+        );
+      c.labels.forEach(({ el }, i) =>
+        animate(
+          el,
+          frames.map((t) => t.labels[i]),
+        ),
+      );
+      c.buttons.forEach(({ el }, i) =>
+        animate(
+          el,
+          frames.map((t) => t.buttons[i]),
+        ),
+      );
+    }
+    // These animations start from what the fingers left drawn.
+    dropSpread();
+  }
+  function clearSpread() {
+    dropSpread();
+    const s = spread.current;
+    spread.current = null;
+    if (!s) return;
+    for (const animation of s.animations) animation.cancel();
+    for (const { el } of s.items) {
+      el.style.transform = "";
+      el.style.willChange = "";
+    }
+    for (const c of s.cards)
+      for (const part of [
+        c.card,
+        c.thumbnail,
+        ...c.labels.map((l) => l.el),
+        ...c.buttons.map((b) => b.el),
+      ])
+        if (part) {
+          part.style.transform = "";
+          part.style.transformOrigin = "";
+          part.style.willChange = "";
+        }
+    // Settle these styles while transitions are still off for the preview, so
+    // ending it does not ease the cards back.
+    if (s.cards[0]) getComputedStyle(s.cards[0].card).transform;
+  }
+  /** Take the pinch preview off the grid without committing a step. */
+  function endPreview() {
+    const grid = gridRef.current!;
+    clearSpread();
+    delete grid.dataset.pinching;
+    letGo(grid);
+    grid.style.transform = "";
+  }
+  const snap = useRef<{
+    animation: Animation;
+    scale: number;
+    finish: () => void;
+  } | null>(null);
+  /** Commit a running release animation at once; returns the settled scale. */
+  function settle() {
+    const running = snap.current;
+    if (!running) return scale;
+    snap.current = null;
+    running.animation.cancel();
+    // Draw the committed step and its anchor before the browser paints again,
+    // since the preview transform has just come off.
+    flushSync(running.finish);
+    return running.scale;
+  }
+  /** Carry the preview from what is shown to `to`, then commit in the same
+   * task, so the transform never comes off before the new layout is drawn. */
+  function release(
+    to: Preview,
+    next: number,
+    commit: () => void,
+    uniform = false,
+  ) {
+    const grid = gridRef.current!,
+      from = shown.current;
+    const finish = () => {
+      clearSpread();
+      delete grid.dataset.pinching;
+      commit();
+    };
+    const distance = Math.log(to.ratio / from.ratio),
+      move = Math.hypot(to.dx - from.dx, to.dy - from.dy);
+    if (
+      (!distance && !move) ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return finish();
+    // Carry on at the speed the scale changed over the last 100ms.
+    const now = performance.now(),
+      last = motion.current.at(-1);
+    const first = motion.current.find((m) => now - m.t <= 100) ?? last;
+    const speed =
+      distance && first && last && now > first.t
+        ? (last.x - first.x) / (now - first.t) / distance
+        : 0;
+    const { duration, progress } = uniform
+      ? {
+          duration: SNAP_TIME,
+          progress: Array.from({ length: 17 }, (_, i) => i / 16),
+        }
+      : snapProgress(speed);
+    const ratios = progress.map((p) =>
+      uniform
+        ? from.ratio + (to.ratio - from.ratio) * p
+        : from.ratio * Math.exp(distance * p),
+    );
+    const timing = { duration, fill: "forwards" } as const;
+    const animation = grid.animate(
+      progress.map((p, i) => ({
+        offset: i / (progress.length - 1),
+        transform: previewTransform({
+          dx: from.dx + (to.dx - from.dx) * p,
+          dy: from.dy + (to.dy - from.dy) * p,
+          ratio: ratios[i],
+        }),
+      })),
+      timing,
+    );
+    letGo(grid);
+    animateSpread(ratios, timing);
+    snap.current = { animation, scale: next, finish };
+    animation.onfinish = () => {
+      if (snap.current?.animation === animation) settle();
+    };
+  }
+  /** Between the smallest thumbnails and the numbered overview, let the one
+   * view shrink or grow away while the other comes in around the pinched
+   * slide, rather than switching at once. Returns false when it cannot, so
+   * the switch happens at once. */
+  function fadeBetween(next: number, point: PinchPoint) {
+    const a = anchor.current,
+      grid = gridRef.current!,
+      view = scrollRef.current!;
+    // The slide as each view draws it: a thumbnail, or its number.
+    const part = (scale: number) => (scale ? ".thumbnail" : ".number-tile");
+    const thumbnail = a?.id
+      ? grid.querySelector<HTMLElement>(
+          `[data-page-id="${CSS.escape(a.id)}"] ${part(scale)}`,
+        )
+      : null;
+    if (
+      !a?.id ||
+      !thumbnail ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return false;
+    // Copy what is on screen of the preview, as it is drawn now.
+    const box = view.getBoundingClientRect();
+    const clip = {
+      left: box.left + view.clientLeft,
+      top: box.top + view.clientTop,
+      width: view.clientWidth,
+      height: view.clientHeight,
+    };
+    const from = thumbnail.getBoundingClientRect(),
+      drawn = grid.style.transform || previewTransform(shown.current);
+    // The copy takes inline styles only, so draw the spread with them.
+    dropSpread(shown.current.ratio);
+    letGo(grid);
+    grid.style.transform = "";
+    const at = grid.getBoundingClientRect();
+    const cells = [...grid.querySelectorAll<HTMLElement>(".grid-cell")].map(
+      (cell) => {
+        const r = cell.getBoundingClientRect();
+        return (
+          r.right < clip.left - clip.width ||
+          r.left > clip.left + clip.width * 2 ||
+          r.bottom < clip.top - clip.height ||
+          r.top > clip.top + clip.height * 2
+        );
+      },
+    );
+    grid.style.transform = drawn;
+    const copy = grid.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll(".grid-cell").forEach((cell, i) => {
+      if (cells[i]) cell.replaceChildren();
+    });
+    Object.assign(copy.style, {
+      position: "absolute",
+      left: `${at.left - clip.left}px`,
+      top: `${at.top - clip.top}px`,
+      width: `${grid.offsetWidth}px`,
+      margin: "0",
+      transform: drawn,
+    });
+    const leaving = document.createElement("div");
+    leaving.className = "map-fade-out";
+    leaving.setAttribute("aria-hidden", "true");
+    leaving.inert = true;
+    Object.assign(leaving.style, {
+      left: `${clip.left}px`,
+      top: `${clip.top}px`,
+      width: `${clip.width}px`,
+      height: `${clip.height}px`,
+    });
+    // Moved as one, about the pinched slide.
+    const mover = document.createElement("div");
+    Object.assign(mover.style, {
+      position: "absolute",
+      inset: "0",
+      transformOrigin: `${from.x + from.width / 2 - clip.left}px ${from.y + from.height / 2 - clip.top}px`,
+    });
+    mover.append(copy);
+    leaving.append(mover);
+    view.parentElement!.append(leaving);
+    // Commit the other view with the pinched slide under the fingers, then
+    // start both views at the same size there.
+    endPreview();
+    flushSync(() => keepAnchor(next, point));
+    const tile = grid
+      .querySelector(`[data-page-id="${CSS.escape(a.id)}"] ${part(next)}`)
+      ?.getBoundingClientRect();
+    if (!tile?.width) {
+      leaving.remove();
+      return true;
+    }
+    // The two views meet where the slide is drawn in the new one: it may not
+    // be under the fingers, when that view cannot scroll that far.
+    const shrink = Math.log(tile.width / from.width),
+      dx = tile.x + tile.width / 2 - (from.x + from.width / 2),
+      dy = tile.y + tile.height / 2 - (from.y + from.height / 2);
+    const now = performance.now(),
+      last = motion.current.at(-1);
+    const first = motion.current.find((m) => now - m.t <= 100) ?? last;
+    const speed =
+      first && last && now > first.t
+        ? (last.x - first.x) / (now - first.t) / shrink
+        : 0;
+    const { duration, progress } = snapProgress(speed);
+    const offset = (i: number) => i / (progress.length - 1);
+    const timing = { duration, fill: "forwards" } as const;
+    const out = mover.animate(
+      progress.map((p, i) => ({
+        offset: offset(i),
+        transform: `translate(${dx * p}px, ${dy * p}px) scale(${Math.exp(shrink * p)})`,
+        opacity: 1 - p,
+      })),
+      timing,
+    );
+    const rect = grid.getBoundingClientRect();
+    grid.style.transformOrigin = `${tile.x + tile.width / 2 - rect.x}px ${tile.y + tile.height / 2 - rect.y}px`;
+    const animation = grid.animate(
+      progress.map((p, i) => ({
+        offset: offset(i),
+        transform: `translate(${-dx * (1 - p)}px, ${-dy * (1 - p)}px) scale(${Math.exp(-shrink * (1 - p))})`,
+        opacity: p,
+      })),
+      timing,
+    );
+    snap.current = {
+      animation,
+      scale: next,
+      finish: () => {
+        out.cancel();
+        leaving.remove();
+      },
+    };
+    animation.onfinish = () => {
+      if (snap.current?.animation === animation) settle();
+    };
+    return true;
+  }
+  useEffect(
+    () => () => {
+      snap.current?.animation.cancel();
+      for (const animation of spread.current?.animations ?? [])
+        animation.cancel();
+    },
+    [],
+  );
   const pinching = usePinch(scrollRef, {
+    prepare: settle,
     start(point) {
+      selection.close();
+      trackpadStarted.current = false;
+      shown.current = { dx: 0, dy: 0, ratio: 1 };
+      motion.current = [{ t: performance.now(), x: 0 }];
       const grid = gridRef.current!,
         rect = grid.getBoundingClientRect();
       // Read the touched card directly. For gaps, use fixed grid coordinates
@@ -275,20 +982,96 @@ function MapViewComponent({
         rx: tile ? (point.x - tile.x) / tile.width : 0.5,
         ry: tile ? (point.y - tile.y) / tile.height : 0.5,
       };
+      gatherSpread(
+        Number(nearest?.dataset.x ?? 0),
+        Number(nearest?.dataset.y ?? 0),
+        point,
+      );
       grid.style.transformOrigin = `${point.x - rect.x}px ${point.y - rect.y}px`;
       grid.dataset.pinching = "true";
     },
     change(sample) {
+      if (sample.input === "wheel") {
+        if (!sample.direction || trackpadStarted.current) return;
+        trackpadStarted.current = true;
+        const a = anchor.current!,
+          grid = gridRef.current!;
+        if (numbers && sample.direction === "in") return endPreview();
+        if (
+          !filterOpen &&
+          a.scale === largestScale &&
+          sample.direction === "out" &&
+          a.id
+        ) {
+          endPreview();
+          const tile = grid.querySelector(
+            `[data-page-id="${CSS.escape(a.id)}"] .thumbnail`,
+          );
+          onEdit(a.id, tile?.getBoundingClientRect());
+          return;
+        }
+        const next = sample.direction === "in" ? smallerScale : largerScale;
+        if (a.scale && next && next !== a.scale)
+          release(
+            { dx: 0, dy: 0, ratio: next / a.scale },
+            next,
+            () => keepAnchor(next, a.point),
+            true,
+          );
+        else if (!(!a.scale !== !next && fadeBetween(next, a.point))) {
+          endPreview();
+          if (next !== a.scale) keepAnchor(next, a.point);
+        }
+        return;
+      }
       if (numbers && sample.direction === "in") return;
       const a = anchor.current!;
-      const ratio = Math.max(0.12, Math.min(5, sample.ratio));
-      gridRef.current!.style.transform = `translate(${sample.x - a.point.x}px, ${sample.y - a.point.y}px) scale(${ratio})`;
+      let ratio = Math.max(0.12, Math.min(5, sample.ratio));
+      const next = sample.direction === "in" ? smallerScale : largerScale;
+      // Follow the fingers up to the next display step, then resist. Opening
+      // the editor and the numbered overview have no step to stop at.
+      if (sample.direction && a.scale && next && next !== a.scale) {
+        const limit = Math.log(next / a.scale),
+          stretch = Math.log(ratio);
+        if (Math.abs(stretch) > Math.abs(limit))
+          ratio = Math.exp(limit + (stretch - limit) * OVERSTRETCH);
+      }
+      // Opening the editor, resist past the size it will show the slide at,
+      // so the slide does not shrink back into it after the fingers lift.
+      if (
+        sample.direction === "out" &&
+        !filterOpen &&
+        a.scale === largestScale &&
+        a.id
+      ) {
+        const view = scrollRef.current!;
+        const editor =
+          editorSlideWidth() ??
+          W *
+            Math.min((view.clientWidth - 48) / W, (view.clientHeight - 85) / H);
+        const limit = Math.log(Math.max(1, editor / thumbWidth)),
+          stretch = Math.log(ratio);
+        if (stretch > limit)
+          ratio = Math.exp(limit + (stretch - limit) * OVERSTRETCH);
+      }
+      shown.current = {
+        dx: sample.x - a.point.x,
+        dy: sample.y - a.point.y,
+        ratio,
+      };
+      motion.current.push({ t: performance.now(), x: Math.log(ratio) });
+      if (motion.current.length > 12) motion.current.shift();
+      // Make the layers a pinch-in will need now, not when it is released.
+      if (sample.direction === "in" && a.scale && next)
+        extendSpread(next / a.scale);
+      drawSpread(ratio);
+      hold(gridRef.current!, previewTransform(shown.current));
     },
     end(sample) {
+      if (sample.input === "wheel" && trackpadStarted.current) return;
       const a = anchor.current!;
-      delete gridRef.current!.dataset.pinching;
       if (!sample.direction) {
-        gridRef.current!.style.transform = "";
+        release({ dx: 0, dy: 0, ratio: 1 }, scale, endPreview);
         return;
       }
       if (
@@ -302,18 +1085,28 @@ function MapViewComponent({
         );
         const rect = tile?.getBoundingClientRect();
         // The map stays mounted while editing; do not retain its pinch preview.
-        gridRef.current!.style.transform = "";
+        endPreview();
         // Keep the last useful map size when returning from the editor.
         onEdit(a.id, rect);
         return;
       }
       // Always complete the display step chosen by the initial pinch direction.
       const next = sample.direction === "in" ? smallerScale : largerScale;
-      keepAnchor(next, sample);
+      if (a.scale && next)
+        release({ ...shown.current, ratio: next / a.scale }, next, () =>
+          keepAnchor(next, sample),
+        );
+      else if (!a.scale !== !next && fadeBetween(next, sample)) {
+        // The thumbnails and the numbered overview make way for each other.
+      } else {
+        endPreview();
+        keepAnchor(next, sample);
+      }
     },
   });
   useMapTouchDrag(scrollRef, {
-    enabled: visible && !filtered && !filterOpen,
+    enabled:
+      visible && !readOnly && !filtered && !filterOpen && !selection.active,
     start: (source) => onMove(source),
     hit(point, source) {
       const target = document
@@ -339,13 +1132,34 @@ function MapViewComponent({
     },
   });
   useLayoutEffect(restoreAnchor, [scale]);
+  const restoredScroll = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     if (!visible) return;
+    if (
+      restoreScroll &&
+      restoredScroll.current !== restoreScroll.token &&
+      scrollRef.current
+    ) {
+      restoredScroll.current = restoreScroll.token;
+      scrollRef.current.scrollTo({
+        left: restoreScroll.left,
+        top: restoreScroll.top,
+        behavior: "instant",
+      });
+      return;
+    }
     const node = scrollRef.current!;
     let frame: number | undefined;
     function measure() {
       frame = undefined;
-      if (pinching.current || !node.clientWidth || !node.clientHeight) return;
+      // Not while a pinch preview is drawn (a trackpad gesture may still be
+      // going on after its step has been committed).
+      if (
+        (pinching.current && gridRef.current?.dataset.pinching) ||
+        !node.clientWidth ||
+        !node.clientHeight
+      )
+        return;
       const width = node.clientWidth,
         height = node.clientHeight;
       setViewportSize((before) =>
@@ -395,13 +1209,17 @@ function MapViewComponent({
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [cardWidth, cardHeight, gap, pinching, visible]);
+  function zoomTo(choose: (current: number) => number) {
+    onScale(choose(settle()));
+  }
   function zoomOut() {
-    onScale(smallerScale);
+    zoomTo(below);
   }
   function zoomIn() {
-    onScale(largerScale);
+    zoomTo(above);
   }
   function fitColumns() {
+    settle();
     if (!scrollRef.current) return;
     const width = scrollRef.current.clientWidth - 80;
     onScale(
@@ -423,14 +1241,57 @@ function MapViewComponent({
       inline: "center",
       behavior: "instant",
     });
-  }, [activeId, scale, visible, filtered, cols]);
+  }, [activeId, scale, visible, filtered, cols, restoreScroll]);
   return (
     <main
+      // A new touch, click or key first completes a running pinch snap.
+      onPointerDownCapture={settle}
+      onKeyDownCapture={(e) => {
+        settle();
+        if (
+          !selection.active ||
+          (e.target as HTMLElement).closest(
+            "input,textarea,select,[role=menu],[role=dialog]",
+          )
+        )
+          return;
+        if (["Delete", "Backspace"].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (
+            !readOnly &&
+            selection.ids.length > 0 &&
+            selection.ids.every((id) => {
+              const page = deck.slides.find((s) => s.id === id);
+              return page && footerEditable(page);
+            })
+          )
+            setConfirmDelete(true);
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+          e.preventDefault();
+          e.stopPropagation();
+          selection.all();
+        }
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          selection.close();
+          setConfirmDelete(false);
+        }
+      }}
       className="map-main"
+      ref={mainRef}
       data-filter-selecting={filterOpen}
       hidden={!visible}
       style={visible ? undefined : { display: "none" }}
     >
+      {selection.box && (
+        <div
+          className="map-selection-box"
+          style={selection.box}
+          aria-hidden="true"
+        />
+      )}
       <section className="map-panel" aria-label="ページの全体マップ">
         <div className="map-toolbar">
           <div className="map-summary">
@@ -439,20 +1300,17 @@ function MapViewComponent({
               全体マップ
             </h1>
             <span className="map-stats">
-              {filtered
-                ? `${displaySlides.length} / ${deck.slides.length}`
-                : deck.slides.length}
-              ページ{" "}
-              <span>
-                ／ {size.cols}話題・{size.rows}段
-              </span>
+              <PageScopeSummary scope={scope} />
             </span>
           </div>
           <button
             className="quiet filter-toggle"
             aria-label="マップをフィルタ"
+            disabled={lockedFilter}
             aria-expanded={filterOpen}
             onClick={() => {
+              selection.close();
+              setBatchOpen(false);
               setDraftFilter(filter ?? emptyFilter());
               setDraftEditor(filterEditor);
               setFilterOpen(!filterOpen);
@@ -462,20 +1320,32 @@ function MapViewComponent({
             <Filter size={16} />
             フィルタ
           </button>
-          {accountsAvailable && !filtered && (
+          <button
+            className="quiet"
+            aria-label="スライドを複数選択"
+            aria-pressed={selection.active}
+            onClick={() => {
+              selection.toggle();
+              setConfirmDelete(false);
+              setBatchOpen(false);
+              onMove(undefined);
+            }}
+          >
+            <MousePointer2 size={16} aria-hidden="true" />
+            選択
+          </button>
+          {headingEditable && visible && (
             <button
-              className="quiet map-row-accounts"
-              role="switch"
-              aria-label="行に共有相手の名前を表示"
-              aria-checked={!!sheet.showRowAccounts}
-              disabled={!headingEditable}
-              title="共有相手の名前を縦書きで表示（参加前はメールアドレスの@より前）"
-              onClick={() =>
-                onHeadingChange({ showRowAccounts: !sheet.showRowAccounts })
-              }
+              className="quiet map-batch-trigger"
+              onClick={() => {
+                setBatchOpen(true);
+                selection.close();
+                setFilterOpen(false);
+                onMove(undefined);
+              }}
+              title="このシート全体の行・列を追加・削除"
             >
-              <UsersRound size={16} />
-              行に名前 <span>{sheet.showRowAccounts ? "オン" : "オフ"}</span>
+              行・列を一括操作
             </button>
           )}
           {filtered && (
@@ -547,7 +1417,7 @@ function MapViewComponent({
               className="map-scale-reset"
               aria-label={`表示サイズを${Math.round(defaultScale * 100)}%に戻す`}
               title={`標準の${Math.round(defaultScale * 100)}%に戻す`}
-              onClick={() => onScale(defaultScale)}
+              onClick={() => zoomTo(() => defaultScale)}
             >
               {numbers ? "番号" : `${Math.round(scale * 100)}%`}
             </button>
@@ -560,20 +1430,14 @@ function MapViewComponent({
             >
               <ZoomIn size={17} />
             </button>
-            <button
-              className="icon-button map-numbers-toggle"
-              aria-label="番号だけの一覧"
-              aria-pressed={numbers}
-              title="番号だけの一覧"
-              onClick={() => onScale(numbers ? levels[0] : 0)}
-            >
-              <Hash size={17} />
-            </button>
-            <button
-              className="icon-button"
-              aria-label="いまのページを表示"
-              title="いまのページを表示"
-              onClick={() =>
+          </div>
+          {visible && (
+            <MapDisplaySettings
+              numbers={numbers}
+              onNumbers={() =>
+                zoomTo((current) => (current === 0 ? levels[0] : 0))
+              }
+              onLocate={() =>
                 activeCard.current?.scrollIntoView({
                   block: "center",
                   inline: "center",
@@ -583,19 +1447,159 @@ function MapViewComponent({
                     : "smooth",
                 })
               }
+              onFit={fitColumns}
+              steps={zoomSteps}
+              onSteps={onZoomSteps}
             >
-              <LocateFixed size={17} />
-            </button>
-            <MapZoomSettings steps={zoomSteps} onApply={onZoomSteps} />
-            <button className="quiet map-fit" onClick={fitColumns}>
-              <Maximize2 size={15} />
-              横をおさめる
-            </button>
-          </div>
+              {accountsAvailable && !filtered && (
+                <button
+                  className="quiet map-row-accounts"
+                  role="switch"
+                  aria-label="行に共有相手の名前を表示"
+                  aria-checked={!!sheet.showRowAccounts}
+                  disabled={!headingEditable}
+                  title="共有相手の名前を縦書きで表示（参加前はメールアドレスの@より前）"
+                  onClick={() =>
+                    onHeadingChange({ showRowAccounts: !sheet.showRowAccounts })
+                  }
+                >
+                  <UsersRound size={16} />
+                  行に名前{" "}
+                  <span>{sheet.showRowAccounts ? "オン" : "オフ"}</span>
+                </button>
+              )}
+            </MapDisplaySettings>
+          )}
         </div>
+        {readOnly && (
+          <p className="map-readonly-note" role="status">
+            閲覧のみです。ページの追加・移動・削除はできません。
+          </p>
+        )}
+        {batchOpen && headingEditable && (
+          <MapBatchPanel
+            remainingPages={remainingPages}
+            deck={deck}
+            onApply={onBatchAxes}
+            onClose={() => setBatchOpen(false)}
+          />
+        )}
+        {selection.active && (
+          <section
+            className="map-selection-toolbar"
+            aria-label="選択したスライドの操作"
+          >
+            <strong>{selection.ids.length}ページ選択</strong>
+            <button
+              className="button outline map-compare"
+              disabled={!!compareReason}
+              aria-describedby={compareReason ? compareReasonId : undefined}
+              title={compareReason || "選択したページを比較"}
+              onClick={() => onCompare([...selection.ids])}
+            >
+              <Columns2 size={16} aria-hidden="true" />
+              比較
+            </button>
+            {compareReason && (
+              <span
+                id={compareReasonId}
+                className="map-compare-reason"
+                role="status"
+              >
+                {compareReason}
+              </span>
+            )}
+
+            <button
+              className="quiet"
+              onClick={() => {
+                selection.all();
+                setConfirmDelete(false);
+              }}
+            >
+              表示中をすべて選択
+            </button>
+            <button
+              className="quiet"
+              onClick={() => {
+                selection.clear();
+                setConfirmDelete(false);
+              }}
+            >
+              選択を解除
+            </button>
+            <button
+              className="button outline"
+              disabled={!selection.ids.length}
+              onClick={() => {
+                setFilter({ ids: selection.ids, rows: [], columns: [] });
+                selection.close();
+              }}
+            >
+              選択したページでフィルタ
+            </button>
+            <button
+              className="button outline danger"
+              disabled={
+                !selection.ids.length ||
+                selection.ids.some(
+                  (id) =>
+                    !footerEditable(deck.slides.find((s) => s.id === id)!),
+                )
+              }
+              onClick={() => setConfirmDelete(true)}
+            >
+              選択したページを削除
+            </button>
+            <button
+              className="quiet"
+              onClick={() => {
+                selection.close();
+                setConfirmDelete(false);
+              }}
+            >
+              選択を終了
+            </button>
+            <small>
+              ドラッグで囲む · Ctrl／⌘で追加・解除 · Shiftで矩形範囲 ·
+              Deleteで削除
+            </small>
+            {confirmDelete && !readOnly && selection.ids.length > 0 && (
+              <div className="selection-delete-confirm" role="alert">
+                <span>
+                  {selection.ids.length}
+                  ページを削除します。選んでいないページの位置は変わりません。先頭が空く場合は空白ページを残します。
+                </span>
+                <button
+                  className="button outline danger"
+                  onClick={() => {
+                    if (onDeleteMany(selection.ids)) {
+                      setConfirmDelete(false);
+                    }
+                  }}
+                >
+                  この{selection.ids.length}ページを削除する
+                </button>
+                <button
+                  className="quiet"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  取り消す
+                </button>
+              </div>
+            )}
+          </section>
+        )}
         {filterOpen && (
           <MapFilterPanel
             deck={deck}
+            assignedIds={assignedIds}
+            assignment={assignment}
+            assignmentChecking={assignmentChecking}
+            onAssignmentSheet={(id) => {
+              setFilterOpen(false);
+              onAssignmentSheet?.(id);
+            }}
             value={draftFilter}
             onChange={setDraftFilter}
             editor={draftEditor}
@@ -611,7 +1615,13 @@ function MapViewComponent({
         )}
         {filtered && (
           <div className="filtered-note">
-            絞り込み表示 · 元のスライド番号で表示しています
+            元の行・列はカード下部に表示 · 配置を変えるには絞り込みを解除
+            {scope.issues.length > 0 && (
+              <span role="status"> {scope.issues.join(" ")}</span>
+            )}
+            {!displaySlides.length && (
+              <strong> 条件に合うページがありません。</strong>
+            )}
           </div>
         )}
         {findError && (
@@ -633,6 +1643,8 @@ function MapViewComponent({
           </div>
         )}
         <div
+          {...selection.handlers}
+          data-multi-selecting={selection.active}
           className="map-scroll"
           ref={scrollRef}
           role="region"
@@ -676,7 +1688,7 @@ function MapViewComponent({
                 filtered ? (
                   <div key={x} />
                 ) : (
-                  <div className="column-heading" key={x}>
+                  <div className="column-heading" key={x} data-pinch-x={x}>
                     {filterOpen ? (
                       <button
                         className="filter-axis-button"
@@ -722,8 +1734,9 @@ function MapViewComponent({
                           }}
                         />
                         <button
-                          draggable
-                          data-map-drag-source="column"
+                          disabled={readOnly}
+                          draggable={!readOnly}
+                          data-map-drag-source={readOnly ? undefined : "column"}
                           data-x={x}
                           data-y={0}
                           data-map-drag-handle
@@ -754,19 +1767,26 @@ function MapViewComponent({
                   className="row-axis"
                   title={
                     sheet.rowLabels?.[y] ||
-                    (sheet.showRowAccounts ? rowAccounts?.[y]?.join("・") : "")
+                    (sheet.showRowAccounts
+                      ? rowAccounts?.[axisId(deck, sheet.id, "rows", y)]?.join(
+                          "・",
+                        )
+                      : "")
                   }
+                  data-pinch-y={y}
                   style={filtered ? { visibility: "hidden" } : undefined}
                 >
                   <button
                     className="row-move"
-                    draggable={!filterOpen}
-                    data-map-drag-source={filterOpen ? undefined : "row"}
+                    draggable={!readOnly && !filterOpen}
+                    data-map-drag-source={
+                      filterOpen || readOnly ? undefined : "row"
+                    }
                     data-x={0}
                     data-y={y}
                     data-map-drag-handle
                     onDragStart={(e) => {
-                      if (filterOpen) {
+                      if (filterOpen || readOnly) {
                         e.preventDefault();
                         return;
                       }
@@ -801,7 +1821,11 @@ function MapViewComponent({
                           )
                         : undefined
                     }
-                    disabled={filterOpen && !deck.slides.some((s) => s.y === y)}
+                    disabled={
+                      filterOpen
+                        ? !deck.slides.some((s) => s.y === y)
+                        : readOnly
+                    }
                     title="同じ高さのページを移動"
                   >
                     {String(y + 1).padStart(2, "0")}
@@ -813,7 +1837,9 @@ function MapViewComponent({
                       value={
                         sheet.rowLabels?.[y] ||
                         (sheet.showRowAccounts
-                          ? rowAccounts?.[y]?.join("・")
+                          ? rowAccounts?.[
+                              axisId(deck, sheet.id, "rows", y)
+                            ]?.join("・")
                           : "") ||
                         ""
                       }
@@ -903,6 +1929,9 @@ function MapViewComponent({
                           <div
                             ref={s.id === activeId ? activeCard : undefined}
                             data-page-id={s.id}
+                            data-multi-selected={
+                              selection.active && selection.ids.includes(s.id)
+                            }
                             data-filter-selecting={filterOpen}
                             data-filter-selected={
                               filterOpen
@@ -910,7 +1939,12 @@ function MapViewComponent({
                                 : undefined
                             }
                             data-map-drag-source={
-                              filtered || filterOpen ? undefined : "slide"
+                              readOnly ||
+                              filtered ||
+                              filterOpen ||
+                              selection.active
+                                ? undefined
+                                : "slide"
                             }
                             data-x={x}
                             data-y={y}
@@ -921,13 +1955,23 @@ function MapViewComponent({
                             }
                             className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
                             onContextMenu={(event) =>
-                              filterOpen
+                              filterOpen || selection.active
                                 ? event.preventDefault()
                                 : onOpenMenu(event, { pageId: s.id })
                             }
-                            draggable={!filtered && !filterOpen}
+                            draggable={
+                              !readOnly &&
+                              !filtered &&
+                              !filterOpen &&
+                              !selection.active
+                            }
                             onDragStart={(e) => {
-                              if (filtered || filterOpen) {
+                              if (
+                                readOnly ||
+                                filtered ||
+                                filterOpen ||
+                                selection.active
+                              ) {
                                 e.preventDefault();
                                 return;
                               }
@@ -953,16 +1997,20 @@ function MapViewComponent({
                               aria-current={
                                 s.id === activeId ? "page" : undefined
                               }
-                              title={`${s.y + 1}.${s.x + 1} ${s.title}${s.id === activeId ? "（いまのページ）" : ""}`}
+                              title={`${s.y + 1}.${s.x + 1} ${s.title} / ${pageOrigin(deck, s)}${s.id === activeId ? "（いまのページ）" : ""}`}
                               aria-label={
-                                filterOpen
-                                  ? `フィルタ選択: ${s.y + 1}.${s.x + 1} ${s.title}`
-                                  : `${s.title}を${moving ? "移動先にする" : "編集"}`
+                                selection.active
+                                  ? `${s.title}を選択`
+                                  : filterOpen
+                                    ? `フィルタ選択: ${s.y + 1}.${s.x + 1} ${s.title}`
+                                    : `${s.title}を${moving ? "移動先にする" : readOnly ? "表示" : "編集"}`
                               }
                               aria-pressed={
-                                filterOpen
-                                  ? matchesFilter(s, draftFilter)
-                                  : undefined
+                                selection.active
+                                  ? selection.ids.includes(s.id)
+                                  : filterOpen
+                                    ? matchesFilter(s, draftFilter)
+                                    : undefined
                               }
                               onClick={() => {
                                 if (filterOpen)
@@ -996,9 +2044,10 @@ function MapViewComponent({
                               ) : null}
                               {detailed &&
                                 !filterOpen &&
-                                x === 0 &&
-                                y === 0 && (
-                                  <span className="start-badge">START</span>
+                                s.id === presentationStartId && (
+                                  <span className="start-badge">
+                                    発表の先頭
+                                  </span>
                                 )}
                             </button>
                             {detailed && (
@@ -1009,13 +2058,18 @@ function MapViewComponent({
                                 <ThumbnailFooter
                                   slide={s}
                                   label={footerLabel(s)}
-                                  editable={!filterOpen && footerEditable(s)}
+                                  editable={
+                                    !filterOpen &&
+                                    !selection.active &&
+                                    footerEditable(s)
+                                  }
                                   onChange={onFooterChange}
                                 />
                                 {!filterOpen && (
                                   <>
                                     <button
                                       className="card-tool"
+                                      disabled={readOnly}
                                       aria-label={`${s.title}のページメニュー`}
                                       onClick={(event) =>
                                         onOpenMenu(event, { pageId: s.id })
@@ -1024,6 +2078,7 @@ function MapViewComponent({
                                       <MoreHorizontal size={14} />
                                     </button>
                                     <button
+                                      disabled={readOnly}
                                       style={{
                                         display:
                                           filtered || filterOpen
@@ -1041,6 +2096,7 @@ function MapViewComponent({
                                     </button>
                                     <button
                                       className="card-tool delete"
+                                      disabled={readOnly}
                                       aria-label={`${s.title}を削除`}
                                       onClick={() => onDelete(s.id)}
                                     >
@@ -1050,11 +2106,20 @@ function MapViewComponent({
                                 )}
                               </div>
                             )}
+                            {filtered && detailed && (
+                              <div
+                                className="filtered-origin"
+                                title={pageOrigin(deck, s)}
+                              >
+                                {pageOrigin(deck, s)}
+                              </div>
+                            )}
                           </div>
                           {detailed && !filtered && !filterOpen && (
                             <>
                               <button
                                 className="add-right add-dot"
+                                disabled={readOnly}
                                 aria-label={`${s.title}の右に次の話題を追加`}
                                 title="次の話題へ（右）"
                                 onClick={() => add(s, "right")}
@@ -1063,6 +2128,7 @@ function MapViewComponent({
                               </button>
                               <button
                                 className="add-down add-dot"
+                                disabled={readOnly}
                                 aria-label={`${s.title}の下に詳しいページを追加`}
                                 title="くわしく（下）"
                                 onClick={() => add(s, "down")}
@@ -1077,7 +2143,7 @@ function MapViewComponent({
                       ) : (
                         <button
                           className="empty-cell"
-                          disabled={filterOpen}
+                          disabled={readOnly || filterOpen}
                           aria-label={`${y + 1}.${x + 1}にページを${moving ? "移動" : "追加"}`}
                           onClick={() => {
                             if (moving) dropAt(x, y);

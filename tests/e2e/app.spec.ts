@@ -54,8 +54,16 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   await page
     .getByRole("textbox", { name: "スライド内の文字", exact: true })
     .fill("わたしたちの発見\n公園のひみつ");
+  if (
+    !(await page
+      .locator(".whole-text-settings")
+      .evaluate((n: HTMLDetailsElement) => n.open))
+  )
+    await page.getByText("ボックス全体の基本書式", { exact: true }).click();
   await page.getByRole("button", { name: "B 太字", exact: true }).click();
-  await page.getByRole("spinbutton", { name: "文字の大きさ" }).fill("36");
+  await page
+    .getByRole("spinbutton", { name: "文字の大きさ", exact: true })
+    .fill("36");
   await expect(page.locator(".selected-element")).toContainText(
     "わたしたちの発見",
   );
@@ -66,7 +74,8 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   await page.mouse.down();
   await page.mouse.move(box!.x + 50, box!.y + 30, { steps: 4 });
   await page.mouse.up();
-  await page.getByLabel("図形を追加").selectOption("circle");
+  await page.getByRole("button", { name: "図形を追加", exact: true }).click();
+  await page.getByRole("button", { name: "丸を追加", exact: true }).click();
   await expect(page.locator(".selected-element svg ellipse")).toHaveCount(1);
   await page.screenshot({
     path: testInfo.outputPath("editor.png"),
@@ -76,7 +85,9 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   await page.reload();
   await expect(page.locator(".slide-card")).toHaveCount(7);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ファイルに保存", exact: true })
+    .click();
   const file = await download;
   const exported = JSON.parse(await fs.readFile((await file.path())!, "utf8"));
   expect(exported.slides).toHaveLength(7);
@@ -234,7 +245,8 @@ test("row and column moves preserve all pages; delete and new project are undoab
   await expect(page.locator(".slide-card")).toHaveCount(4);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  await page.getByRole("button", { name: "新しく", exact: true }).click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
+  await page.getByRole("menuitem", { name: "新しく", exact: true }).click();
   await expect(page.locator(".slide-card")).toHaveCount(1);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   await expect(page.locator(".slide-card")).toHaveCount(5);

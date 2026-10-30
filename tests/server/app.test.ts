@@ -1,3 +1,13 @@
+import {
+  exerciseHostFollow,
+  measureHostFollow40,
+} from "../support/host-follow.ts";
+import { COLLABORATION_PROTOCOL } from "../../src/collaborationProtocol.ts";
+import { exerciseDeletedMedia } from "../support/deleted-media.ts";
+import { exerciseJoinApprovals } from "../support/join-approval-features.ts";
+import { acceptAndApprove } from "../support/join-approval.ts";
+import { swapRowGroups } from "../../src/model.ts";
+import { applyDeckChange } from "../../src/sharedDeck.ts";
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -76,13 +86,7 @@ async function create() {
 async function invite(id: string, cookie: string) {
   const response = await request(`/api/decks/${id}/invite`, "POST");
   const token = new URL((await response.json()).url).searchParams.get("join");
-  const accepted = await request(
-    `/api/invites/${token}/accept`,
-    "POST",
-    undefined,
-    cookie,
-  );
-  assert.equal(accepted.status, 200);
+  await acceptAndApprove(request, id, token, cookie, alice);
   const { user } = await (
     await request("/api/session", "GET", undefined, cookie)
   ).json();
@@ -239,6 +243,7 @@ test("stores private photos, validates file type, and denies cross-project asset
   peer.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "bad",
       update: toBase64(Y.encodeStateAsUpdate(peer.doc)),
     }),
@@ -263,16 +268,28 @@ test("40 authenticated peers merge simultaneous text edits and survive a server 
   const token = new URL((await inviteResponse.json()).url).searchParams.get(
     "join",
   );
-  const cookies: string[] = [];
+  const cookies: string[] = [],
+    joins: string[] = [];
   for (let i = 0; i < 40; i++) {
     const cookie = await signIn(`student-${i}`);
     cookies.push(cookie);
-    assert.equal(
-      (await request(`/api/invites/${token}/accept`, "POST", undefined, cookie))
-        .status,
-      200,
+    const joined = await request(
+      `/api/invites/${token}/accept`,
+      "POST",
+      undefined,
+      cookie,
     );
+    assert.equal(joined.status, 202);
+    joins.push((await joined.json()).requestId);
   }
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/join-requests/approve`, "POST", {
+        requestIds: joins,
+      })
+    ).status,
+    200,
+  );
   for (let i = 0; i < 40; i++)
     assert.equal(
       (
@@ -296,6 +313,7 @@ test("40 authenticated peers merge simultaneous text edits and survive a server 
     client.ws.send(
       JSON.stringify({
         type: "update",
+        protocol: COLLABORATION_PROTOCOL,
         id: String(i),
         update: toBase64(Y.encodeStateAsUpdate(client.doc)),
       }),
@@ -391,11 +409,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   const id = await create();
   const made = await request(`/api/decks/${id}/invite`, "POST");
   const token = new URL((await made.json()).url).searchParams.get("join");
-  assert.equal(
-    (await request(`/api/invites/${token}/accept`, "POST", undefined, bob))
-      .status,
-    200,
-  );
+  await acceptAndApprove(request, id, token, bob, alice);
   const initial = (await (
     await request(`/api/decks/${id}`, "GET", undefined, bob)
   ).json()) as any;
@@ -633,6 +647,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   peer.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "allowed",
       update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
     }),
@@ -649,6 +664,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   peer.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "bad",
       update: toBase64(Y.encodeStateAsUpdate(peer.doc, badVector)),
     }),
@@ -692,6 +708,7 @@ test("host grants are enforced on live edits; read-only guests can comment but c
   live.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "revoked",
       update: toBase64(Y.encodeStateAsUpdate(live.doc, v)),
     }),
@@ -822,6 +839,7 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
   first.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "own-row",
       update: toBase64(Y.encodeStateAsUpdate(first.doc, v)),
     }),
@@ -842,6 +860,7 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
   second.ws.send(
     JSON.stringify({
       type: "update",
+      protocol: COLLABORATION_PROTOCOL,
       id: "other-row",
       update: toBase64(Y.encodeStateAsUpdate(second.doc, bad)),
     }),
@@ -884,11 +903,7 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
       (await (await request("/api/decks", "GET", undefined, a)).json()) as any
     ).decks.some((d: any) => d.id === id),
   );
-  assert.equal(
-    (await request(`/api/invites/${token}/accept`, "POST", undefined, a))
-      .status,
-    200,
-  );
+  await acceptAndApprove(request, id, token, a, alice);
   assert.equal(
     (
       (await (
@@ -963,5 +978,593 @@ test("pre-shared verified emails claim ordered row grants without an invite, pre
       ).json()) as any
     ).access.rows,
     grant(1).rows,
+  );
+});
+
+test("legacy row grants follow a host reorder, protected edits and obsolete clients are rejected", async () => {
+  const id = await create();
+  await invite(id, bob);
+  const access = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 0 }],
+    columns: [],
+    slides: [],
+  };
+  assert.equal(
+    (await request(`/api/decks/${id}/members/bob`, "PATCH", access)).status,
+    200,
+  );
+  const host = await connect(id, alice),
+    guest = await connect(id, bob);
+  const before = readSharedDeck(host.doc),
+    own = before.slides.find((s) => s.y === 0)!,
+    protectedPage = before.slides.find((s) => s.y === 1)!;
+  const vector = Y.encodeStateVector(host.doc);
+  applyDeckChange(host.doc, before, swapRowGroups(before, 0, 1));
+  host.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "reorder",
+      update: toBase64(Y.encodeStateAsUpdate(host.doc, vector)),
+    }),
+  );
+  await until(() =>
+    host.messages.some((m) => m.type === "ack" && m.id === "reorder"),
+  );
+  await until(
+    () =>
+      readSharedDeck(guest.doc).slides.find((s) => s.id === own.id)?.y === 1,
+  );
+  let v = Y.encodeStateVector(guest.doc);
+  sharedText(guest.doc, own.id, own.elements[0].id)!.insert(0, "担当のまま");
+  guest.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "own",
+      update: toBase64(Y.encodeStateAsUpdate(guest.doc, v)),
+    }),
+  );
+  await until(() =>
+    guest.messages.some((m) => m.type === "ack" && m.id === "own"),
+  );
+  v = Y.encodeStateVector(guest.doc);
+  sharedText(guest.doc, protectedPage.id, protectedPage.elements[0].id)!.insert(
+    0,
+    "不許可",
+  );
+  guest.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "forbidden",
+      update: toBase64(Y.encodeStateAsUpdate(guest.doc, v)),
+    }),
+  );
+  await until(() => guest.messages.some((m) => m.code === "forbidden"));
+  const persisted = (await (await request(`/api/decks/${id}`)).json()) as {
+    state: string;
+  };
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, fromBase64(persisted.state));
+  assert.equal(readSharedDeck(doc).sheets![0].rowIds!["1"], "0");
+  assert.ok(
+    sharedText(doc, own.id, own.elements[0].id)!
+      .toString()
+      .includes("担当のまま"),
+  );
+  assert.ok(
+    !sharedText(doc, protectedPage.id, protectedPage.elements[0].id)!
+      .toString()
+      .includes("不許可"),
+  );
+  const obsolete = await connect(id, alice);
+  obsolete.ws.send(
+    JSON.stringify({
+      type: "update",
+      id: "old-client",
+      protocol: 4,
+      update: toBase64(Y.encodeStateAsUpdate(obsolete.doc)),
+    }),
+  );
+  await until(() =>
+    obsolete.messages.some(
+      (m) => m.type === "error" && m.message.includes("再読み込み"),
+    ),
+  );
+  assert.ok(!obsolete.messages.some((m) => m.type === "ack"));
+  for (const client of [host, guest, obsolete]) {
+    client.ws.close();
+    client.doc.destroy();
+  }
+  doc.destroy();
+});
+
+test("full backups restore only into private new works, preserve photos and notes, and require explicit sharing", async () => {
+  const id = await create();
+  await invite(id, bob);
+  const host = await connect(id, alice);
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const asset = (await (
+    await request(`/api/decks/${id}/assets`, "POST", png)
+  ).json()) as { src: string };
+  const before = readSharedDeck(host.doc),
+    deck = structuredClone(swapRowGroups(before, 0, 1));
+  deck.slides[0].elements.push({
+    id: "backup-photo",
+    type: "image",
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    src: asset.src,
+  });
+  const vector = Y.encodeStateVector(host.doc);
+  applyDeckChange(host.doc, before, deck);
+  host.ws.send(
+    JSON.stringify({
+      type: "update",
+      protocol: COLLABORATION_PROTOCOL,
+      id: "backup-photo",
+      update: toBase64(Y.encodeStateAsUpdate(host.doc, vector)),
+    }),
+  );
+  await until(() =>
+    host.messages.some((m) => m.type === "ack" && m.id === "backup-photo"),
+  );
+  const grant = {
+    mode: "scoped",
+    comment: true,
+    rows: [{ sheetId: "main", index: 1, axisId: "0" }],
+    columns: [],
+    slides: [],
+  };
+  assert.equal(
+    (await request(`/api/decks/${id}/members/bob`, "PATCH", grant)).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/comments`,
+        "POST",
+        {
+          slide: deck.slides[0].id,
+          text: "感想",
+          x: 0.3,
+          y: 0.4,
+          color: "#aaddff",
+          w: 0.4,
+          h: 0.5,
+        },
+        bob,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/decks/${id}/backup`, "GET", undefined, bob)).status,
+    404,
+  );
+  const backup = (await (
+    await request(`/api/decks/${id}/backup`)
+  ).json()) as any;
+  assert.equal(backup.format, "vhslide-backup");
+  assert.equal(
+    backup.deck.slides
+      .flatMap((s: any) => s.elements)
+      .filter((e: any) => e.type === "image").length,
+    1,
+  );
+  assert.equal(backup.comments[0].text, "感想");
+  assert.equal(backup.comments[0].author, undefined);
+  assert.equal(backup.sharing[0].access.rows[0].axisId, "0");
+  assert.equal(
+    (
+      await request(`/api/decks/${id}/restore`, "POST", {
+        snapshot: backup,
+        applySharing: false,
+      })
+    ).status,
+    409,
+  );
+  async function prepare() {
+    const response = await request("/api/restores", "POST", {
+      title: backup.deck.title,
+    });
+    assert.equal(response.status, 201);
+    const result = (await response.json()) as { id: string };
+    assert.ok((await request(`/api/decks/${result.id}`)).status >= 400);
+    assert.ok(
+      (await request(`/api/decks/${result.id}/invite`, "POST")).status >= 400,
+    );
+    const saved = (await (
+      await request(`/api/decks/${result.id}/assets`, "POST", png)
+    ).json()) as { src: string };
+    const snapshot = structuredClone(backup);
+    snapshot.deck.slides
+      .flatMap((s: any) => s.elements)
+      .filter((e: any) => e.type === "image")
+      .forEach((e: any) => (e.src = saved.src));
+    return { id: result.id, snapshot, src: saved.src };
+  }
+  const first = await prepare();
+  assert.ok(
+    (
+      await request(`/api/decks/${first.id}/restore`, "POST", {
+        snapshot: backup,
+        applySharing: false,
+      })
+    ).status >= 400,
+  );
+  const completed = await request(`/api/decks/${first.id}/restore`, "POST", {
+    snapshot: first.snapshot,
+    applySharing: false,
+  });
+  assert.equal(completed.status, 200, await completed.text());
+  assert.equal(
+    (await request(`/api/decks/${first.id}/restore`, "DELETE")).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(`/api/decks/${first.id}/restore`, "POST", {
+        snapshot: first.snapshot,
+        applySharing: false,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/decks/${first.id}`, "GET", undefined, bob)).status,
+    404,
+  );
+  const restored = (await (
+    await request(`/api/decks/${first.id}/backup`)
+  ).json()) as any;
+  assert.deepEqual(restored.deck, first.snapshot.deck);
+  assert.equal(restored.comments[0].color, "#aaddff");
+  assert.equal(restored.comments[0].created, backup.comments[0].created);
+  assert.ok(restored.comments[0].authorName.endsWith("（復元）"));
+  assert.equal(restored.sharing.length, 0);
+  const photo = await request(first.src);
+  assert.equal(photo.status, 200);
+  assert.deepEqual(Buffer.from(await photo.arrayBuffer()), png);
+  const second = await prepare();
+  assert.equal(
+    (
+      await request(`/api/decks/${second.id}/restore`, "POST", {
+        snapshot: second.snapshot,
+        applySharing: true,
+      })
+    ).status,
+    200,
+  );
+  const joined = (await (
+    await request(`/api/decks/${second.id}`, "GET", undefined, bob)
+  ).json()) as any;
+  assert.deepEqual(joined.access, grant);
+  const sourceNow = (await (
+    await request(`/api/decks/${id}/backup`)
+  ).json()) as any;
+  assert.deepEqual(sourceNow.deck, backup.deck);
+  assert.deepEqual(sourceNow.comments, backup.comments);
+  const cancelled = await prepare();
+  assert.equal(
+    (await request(`/api/decks/${cancelled.id}/restore`, "DELETE")).status,
+    200,
+  );
+  assert.equal((await request(`/api/decks/${cancelled.id}`)).status, 404);
+  host.ws.close();
+  host.doc.destroy();
+});
+
+test("revision checkpoints and durable idempotent restore jobs survive restart and cancellation races", async () => {
+  const { exerciseBackupProtocol } =
+    await import("../support/backup-protocol.ts");
+  const owner = await signIn("student-971"),
+    guest = await signIn("student-972");
+  await exerciseBackupProtocol(
+    async (path, method = "GET", value, cookie = owner, headers = {}) =>
+      fetch(base + path, {
+        method,
+        headers: { Origin: origin, Cookie: cookie, ...headers },
+        ...(value === undefined
+          ? {}
+          : {
+              body:
+                value instanceof Uint8Array
+                  ? new Uint8Array(value).buffer
+                  : JSON.stringify(value),
+            }),
+      }),
+    owner,
+    guest,
+    async () => {
+      await app.close();
+      await start();
+    },
+    async (id) => {
+      const p = await connect(id, owner),
+        before = readSharedDeck(p.doc),
+        after = structuredClone(before),
+        vector = Y.encodeStateVector(p.doc);
+      after.slides[0].title = "変更";
+      applyDeckChange(p.doc, before, after);
+      p.ws.send(
+        JSON.stringify({
+          type: "update",
+          protocol: COLLABORATION_PROTOCOL,
+          id: "protocol-test",
+          update: toBase64(Y.encodeStateAsUpdate(p.doc, vector)),
+        }),
+      );
+      await until(() =>
+        p.messages.some((m) => m.type === "ack" && m.id === "protocol-test"),
+      );
+      p.ws.close();
+      p.doc.destroy();
+    },
+  );
+});
+
+test("an interrupted image reservation cannot finalize before its bytes are recovered", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { imageId, digestBytes } = await import("../../src/backupProtocol.ts");
+  const { backupSnapshot } = await import("../../src/backupData.ts");
+  const owner = await signIn("student-973");
+  const created = await request(
+      "/api/restores",
+      "POST",
+      { title: "予約の復旧" },
+      owner,
+    ),
+    id = (await created.json()).id;
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const hash = await digestBytes(png),
+    asset = await imageId(id, hash);
+  // Simulate a crash after quota reservation but before storage.put completes.
+  const sql = new DatabaseSync(join(directory, "vhslide.sqlite"));
+  sql
+    .prepare("INSERT INTO assets VALUES(?,?,?,?,?)")
+    .run(asset, id, "student-973", "image/png", png.length);
+  sql.exec(
+    "CREATE TABLE IF NOT EXISTS restore_uploads(asset TEXT PRIMARY KEY,ready INTEGER NOT NULL)",
+  );
+  sql.prepare("INSERT INTO restore_uploads VALUES(?,0)").run(asset);
+  sql.close();
+  const slide = blank(0, 0);
+  slide.elements.push({
+    id: "pending-photo",
+    type: "image",
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    src: `/api/decks/${id}/assets/${asset}`,
+  });
+  const snapshot = backupSnapshot(
+      { version: 1, title: "予約の復旧", slides: [slide] },
+      [],
+      [],
+      [],
+    ),
+    body = { snapshot, applySharing: false };
+  const incomplete = await request(
+    `/api/decks/${id}/restore`,
+    "POST",
+    body,
+    owner,
+  );
+  assert.equal(
+    incomplete.status,
+    400,
+    "a quota row alone is not a saved image",
+  );
+  assert.equal(
+    (
+      await (
+        await request(`/api/restores/${id}`, "GET", undefined, owner)
+      ).json()
+    ).status,
+    "uploading",
+  );
+  const recovered = await fetch(`${base}/api/decks/${id}/assets`, {
+    method: "POST",
+    headers: { Origin: origin, Cookie: owner, "X-Restore-Image": hash },
+    body: png,
+  });
+  assert.equal(recovered.status, 201, await recovered.clone().text());
+  assert.equal((await recovered.json()).src, slide.elements[0].src);
+  assert.equal(
+    (await request(`/api/decks/${id}/restore`, "POST", body, owner)).status,
+    200,
+  );
+});
+
+test("learning versions, deletion checkpoints and work trash enforce ownership and survive restart", async () => {
+  const { exerciseLearningFeatures } =
+    await import("../support/learning-features.ts");
+  const owner = await signIn("student-90"),
+    guest = await signIn("student-91");
+  await exerciseLearningFeatures(
+    request,
+    owner,
+    guest,
+    async () => {
+      await app.close();
+      await start();
+    },
+    async (id) => {
+      const peer = await connect(id, owner),
+        before = readSharedDeck(peer.doc),
+        after = structuredClone(before),
+        vector = Y.encodeStateVector(peer.doc);
+      after.slides = after.slides.filter((s) => s.y === 0);
+      applyDeckChange(peer.doc, before, after);
+      peer.ws.send(
+        JSON.stringify({
+          type: "update",
+          protocol: COLLABORATION_PROTOCOL,
+          id: "history-delete",
+          update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
+        }),
+      );
+      await until(() =>
+        peer.messages.some(
+          (m) => m.type === "ack" && m.id === "history-delete",
+        ),
+      );
+      peer.ws.close();
+      peer.doc.destroy();
+    },
+  );
+});
+
+test("a failed permanent deletion cannot be untrashed and can be retried after restart", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const owner = await signIn("student-94"),
+    book = sample();
+  book.slides[0].elements.push({
+    id: "purge-photo",
+    type: "image",
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+  });
+  const r = await request("/api/decks", "POST", book, owner),
+    { id } = await r.json();
+  assert.equal(r.status, 201);
+  assert.equal(
+    (await request(`/api/decks/${id}/trash`, "POST", undefined, owner)).status,
+    200,
+  );
+  const sql = new DatabaseSync(join(directory, "vhslide.sqlite"));
+  try {
+    sql.exec(
+      `CREATE TRIGGER purge_failure BEFORE DELETE ON decks WHEN OLD.id='${id}' BEGIN SELECT RAISE(ABORT,'injected purge failure'); END;`,
+    );
+    assert.equal(
+      (await request(`/api/decks/${id}`, "DELETE", undefined, owner)).status,
+      500,
+    );
+    assert.equal(
+      (await request(`/api/decks/${id}/untrash`, "POST", undefined, owner))
+        .status,
+      409,
+    );
+    await app.close();
+    await start();
+    assert.equal(
+      (await request(`/api/decks/${id}/untrash`, "POST", undefined, owner))
+        .status,
+      409,
+    );
+    const trash = await (
+      await request("/api/trash", "GET", undefined, owner)
+    ).json();
+    assert.equal(trash.decks.find((d: any) => d.id === id).purging, 1);
+    sql.exec("DROP TRIGGER purge_failure");
+    assert.equal(
+      (await request(`/api/decks/${id}`, "DELETE", undefined, owner)).status,
+      200,
+    );
+  } finally {
+    sql.close();
+  }
+});
+
+test("invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay", async () => {
+  const teacher = await signIn("student-96"),
+    a = await signIn("student-97"),
+    b = await signIn("student-98"),
+    c = await signIn("student-99");
+  await exerciseJoinApprovals(request, teacher, [a, b, c], async () => {
+    await app.close();
+    await start();
+  });
+});
+
+test("deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart", async () => {
+  const host = await signIn("student-110"),
+    editor = await signIn("student-111"),
+    viewer = await signIn("student-112");
+  await exerciseDeletedMedia(
+    request,
+    host,
+    editor,
+    viewer,
+    async () => {
+      await app.close();
+      await start();
+    },
+    async (id, cookie, change, allowed) => {
+      const peer = await connect(id, cookie);
+      try {
+        const before = readSharedDeck(peer.doc),
+          vector = Y.encodeStateVector(peer.doc);
+        applyDeckChange(peer.doc, before, change(before));
+        const key = crypto.randomUUID();
+        peer.ws.send(
+          JSON.stringify({
+            type: "update",
+            protocol: COLLABORATION_PROTOCOL,
+            id: key,
+            update: toBase64(Y.encodeStateAsUpdate(peer.doc, vector)),
+          }),
+        );
+        await until(() =>
+          peer.messages.some(
+            (m) => m.type === "error" || (m.type === "ack" && m.id === key),
+          ),
+        );
+        if (allowed)
+          assert.ok(
+            peer.messages.some((m) => m.type === "ack" && m.id === key),
+            JSON.stringify(peer.messages),
+          );
+        else {
+          assert.ok(
+            peer.messages.some(
+              (m) => m.type === "error" && m.code === "forbidden",
+            ),
+          );
+          assert.match(
+            peer.messages.find((m) => m.type === "error").message,
+            /ホスト/,
+          );
+        }
+      } finally {
+        peer.ws.terminate();
+        peer.doc.destroy();
+      }
+    },
+  );
+});
+
+test("host follow state validates host, initiator, target and session without editing the work", async () => {
+  await exerciseHostFollow({
+    create,
+    join: invite,
+    connect,
+    owner: alice,
+    guest: bob,
+  });
+});
+
+test("host follow 40 live connections P95 target", async () => {
+  await measureHostFollow40(
+    { create, join: invite, connect, owner: alice, guest: bob },
+    "Node",
   );
 });

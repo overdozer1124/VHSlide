@@ -1,0 +1,258 @@
+{
+  "date": "2026-10-23T17:16:30.762Z",
+  "environment": "Linux headless Chromium; CPU throttle 1; not a physical Chromebook",
+  "memory": "50 ms sampled sum of browser process-tree VmRSS, includes workers; shared pages counted per process; not exclusive physical memory",
+  "measurements": [
+    {
+      "mb": 5,
+      "mode": "baseline",
+      "action": "create",
+      "ms": 143.2000000178814,
+      "maxTimerGapMs": 78.30000001192093,
+      "probeClicks": 8,
+      "zipBytes": 5001148,
+      "completed": true,
+      "rssBeforeBytes": 547340288,
+      "rssPeakBytes": 603070464
+    },
+    {
+      "mb": 5,
+      "mode": "baseline",
+      "action": "read",
+      "ms": 20,
+      "maxTimerGapMs": 20.19999998807907,
+      "probeClicks": 4,
+      "zipBytes": 5001148,
+      "completed": true,
+      "rssBeforeBytes": 582926336,
+      "rssPeakBytes": 598458368
+    },
+    {
+      "mb": 5,
+      "mode": "worker",
+      "action": "create",
+      "ms": 174.5,
+      "maxTimerGapMs": 17.400000005960464,
+      "probeClicks": 14,
+      "zipBytes": 5001196,
+      "completed": true,
+      "rssBeforeBytes": 550862848,
+      "rssPeakBytes": 576970752
+    },
+    {
+      "mb": 5,
+      "mode": "worker",
+      "action": "read",
+      "ms": 56.69999998807907,
+      "maxTimerGapMs": 17.299999982118607,
+      "probeClicks": 7,
+      "zipBytes": 5001196,
+      "completed": true,
+      "rssBeforeBytes": 576954368,
+      "rssPeakBytes": 583413760
+    },
+    {
+      "mb": 20,
+      "mode": "baseline",
+      "action": "create",
+      "ms": 838.4000000059605,
+      "maxTimerGapMs": 166,
+      "probeClicks": 40,
+      "zipBytes": 20002573,
+      "completed": true,
+      "rssBeforeBytes": 534437888,
+      "rssPeakBytes": 689405952
+    },
+    {
+      "mb": 20,
+      "mode": "baseline",
+      "action": "read",
+      "ms": 108.2000000178814,
+      "maxTimerGapMs": 92.39999997615814,
+      "probeClicks": 6,
+      "zipBytes": 20002573,
+      "completed": true,
+      "rssBeforeBytes": 634793984,
+      "rssPeakBytes": 695390208
+    },
+    {
+      "mb": 20,
+      "mode": "worker",
+      "action": "create",
+      "ms": 856.4000000059605,
+      "maxTimerGapMs": 18.099999994039536,
+      "probeClicks": 57,
+      "zipBytes": 20002669,
+      "completed": true,
+      "rssBeforeBytes": 545837056,
+      "rssPeakBytes": 650801152
+    },
+    {
+      "mb": 20,
+      "mode": "worker",
+      "action": "read",
+      "ms": 186.19999998807907,
+      "maxTimerGapMs": 16.5,
+      "probeClicks": 15,
+      "zipBytes": 20002669,
+      "completed": true,
+      "rssBeforeBytes": 608460800,
+      "rssPeakBytes": 631345152
+    },
+    {
+      "mb": 50,
+      "mode": "baseline",
+      "action": "create",
+      "ms": 2269,
+      "maxTimerGapMs": 364.80000001192093,
+      "probeClicks": 116,
+      "zipBytes": 50005424,
+      "completed": true,
+      "rssBeforeBytes": 558616576,
+      "rssPeakBytes": 837414912
+    },
+    {
+      "mb": 50,
+      "mode": "baseline",
+      "action": "read",
+      "ms": 223.7000000178814,
+      "maxTimerGapMs": 193.2000000178814,
+      "probeClicks": 6,
+      "zipBytes": 50005424,
+      "completed": true,
+      "rssBeforeBytes": 736727040,
+      "rssPeakBytes": 887300096
+    },
+    {
+      "mb": 50,
+      "mode": "worker",
+      "action": "create",
+      "ms": 3748.199999988079,
+      "maxTimerGapMs": 108.40000000596046,
+      "probeClicks": 231,
+      "zipBytes": 50005616,
+      "completed": true,
+      "rssBeforeBytes": 536100864,
+      "rssPeakBytes": 754434048
+    },
+    {
+      "mb": 50,
+      "mode": "worker",
+      "action": "read",
+      "ms": 239,
+      "maxTimerGapMs": 17.599999994039536,
+      "probeClicks": 18,
+      "zipBytes": 50005616,
+      "completed": true,
+      "rssBeforeBytes": 669679616,
+      "rssPeakBytes": 825278464
+    },
+    {
+      "mb": 100,
+      "mode": "baseline",
+      "action": "create",
+      "ms": 4746.799999982119,
+      "maxTimerGapMs": 1121,
+      "probeClicks": 202,
+      "zipBytes": 100010214,
+      "completed": true,
+      "rssBeforeBytes": 535011328,
+      "rssPeakBytes": 1145503744
+    },
+    {
+      "mb": 100,
+      "mode": "baseline",
+      "action": "read",
+      "ms": 996.9000000059605,
+      "maxTimerGapMs": 622.7999999821186,
+      "probeClicks": 14,
+      "zipBytes": 100010214,
+      "completed": true,
+      "rssBeforeBytes": 850788352,
+      "rssPeakBytes": 1114578944
+    },
+    {
+      "mb": 100,
+      "mode": "worker",
+      "action": "create",
+      "ms": 5333.700000017881,
+      "maxTimerGapMs": 68.39999997615814,
+      "probeClicks": 334,
+      "zipBytes": 100010566,
+      "completed": true,
+      "rssBeforeBytes": 534667264,
+      "rssPeakBytes": 899452928
+    },
+    {
+      "mb": 100,
+      "mode": "worker",
+      "action": "read",
+      "ms": 546,
+      "maxTimerGapMs": 18.799999982118607,
+      "probeClicks": 37,
+      "zipBytes": 100010566,
+      "completed": true,
+      "rssBeforeBytes": 717758464,
+      "rssPeakBytes": 1015889920
+    },
+    {
+      "mb": 280,
+      "mode": "baseline",
+      "action": "create",
+      "ms": 13162.5,
+      "maxTimerGapMs": 3028,
+      "probeClicks": 571,
+      "zipBytes": 280027458,
+      "completed": true,
+      "rssBeforeBytes": 542822400,
+      "rssPeakBytes": 1921544192
+    },
+    {
+      "mb": 280,
+      "mode": "baseline",
+      "action": "read",
+      "ms": 2223.0999999940395,
+      "maxTimerGapMs": 1898.199999988079,
+      "probeClicks": 24,
+      "zipBytes": 280027458,
+      "completed": true,
+      "rssBeforeBytes": 1268719616,
+      "rssPeakBytes": 1852006400
+    },
+    {
+      "mb": 280,
+      "mode": "worker",
+      "action": "create",
+      "ms": 14546.40000000596,
+      "maxTimerGapMs": 102.7000000178814,
+      "probeClicks": 904,
+      "zipBytes": 280028386,
+      "completed": true,
+      "rssBeforeBytes": 542900224,
+      "rssPeakBytes": 1155350528
+    },
+    {
+      "mb": 280,
+      "mode": "worker",
+      "action": "read",
+      "ms": 1121.5999999940395,
+      "maxTimerGapMs": 20.200000017881393,
+      "probeClicks": 73,
+      "zipBytes": 280028386,
+      "completed": true,
+      "rssBeforeBytes": 898428928,
+      "rssPeakBytes": 1551564800
+    }
+  ],
+  "checks": [
+    {
+      "corruptionRejected": true,
+      "cancelled": [
+        true,
+        true
+      ],
+      "recovered": true
+    }
+  ],
+  "chromium": "154.0.8037.57"
+}

@@ -1,0 +1,40 @@
+{
+  "verifiedAtUtc": "2026-10-25T22:41:35.899006+00:00",
+  "appVersion": "0.43.2",
+  "deploymentVersion": "d0243335-5e73-4d33-a28b-90ac3cd4b75a",
+  "health": {
+    "ok": true
+  },
+  "assets": [
+    {
+      "file": "index.html",
+      "sha256": "f46d8498965d00b901a7d03a37073516c2af62d28cf7390c01cb8d2b00f23ba6",
+      "publicMatch": true
+    },
+    {
+      "file": "assets/backupWorker-2Ua2EnyM.js",
+      "sha256": "fafce2b9309d67f2f221c60b009b180c083c8f97f1850e1f8ca0d3f4eb50f537",
+      "publicMatch": true
+    },
+    {
+      "file": "assets/ReleaseHistory-t-h9Jl_V.js",
+      "sha256": "77c241880c26a7f3b0f6b23298522745c828ca95eed53ea9edbd3950c66844c0",
+      "publicMatch": true
+    },
+    {
+      "file": "assets/index-jCO54bQ0.js",
+      "sha256": "57a11c405349cdd99d218769fec2e14fbf0f6308d1866856a69b0eb584506232",
+      "publicMatch": true
+    },
+    {
+      "file": "assets/backup.worker-D88bv2TW.js",
+      "sha256": "431fb9a5f03d68b3020e5e73c120a7cde28d09e462eb4da580090168a40f3617",
+      "publicMatch": true
+    },
+    {
+      "file": "assets/index-DoO3y45Z.css",
+      "sha256": "6350e9a59164eecc7a2cc8f6d094b2b5b30b9b7c26c481b585d147d915ce8a1e",
+      "publicMatch": true
+    }
+  ]
+}

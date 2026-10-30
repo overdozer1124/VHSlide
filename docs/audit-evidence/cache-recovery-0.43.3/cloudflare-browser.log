@@ -1,0 +1,52 @@
+[WebServer] (node:57141) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 36 tests using 1 worker
+
+(node:57162) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (13.5s)
+  ✓   2 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (782ms)
+  ✓   3 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (1.1s)
+  ✓   4 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (828ms)
+  ✓   5 [cloud-desktop] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (791ms)
+  ✓   6 [cloud-desktop] › tests/cloud/collaboration.spec.ts:71:1 › recovers unsent text from this browser after reopening the app (2.2s)
+  ✓   7 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1192:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (1.3s)
+  ✓   8 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1296:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (7.0s)
+  ✓   9 [cloud-desktop] › tests/cloud/collaboration.spec.ts:1521:1 › restores a signed-in room in the background without flashing the cloud dialog (1.7s)
+  ✓  10 [cloud-desktop] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (883ms)
+  ✓  11 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (3.5s)
+  ✓  12 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (2.6s)
+  ✓  13 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (2.6s)
+  ✓  14 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (2.7s)
+  ✓  15 [cloud-desktop] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (1.5s)
+  ✓  16 [cloud-desktop] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (2.2s)
+  ✓  17 [cloud-desktop] › tests/cloud/workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly (1.4s)
+  ✓  18 [cloud-desktop] › tests/cloud/workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes (2.9s)
+(node:58119) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:129:1 › host automatically opens a 400-page work after isolating an invalid cache and retains its recovery file (13.5s)
+  ✓  20 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:193:1 › malformed Yjs bytes cannot contaminate the authoritative snapshot (757ms)
+  ✓  21 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:207:1 › failed quarantine preserves the source and stays read-only until protection can be retried (996ms)
+  ✓  22 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:250:1 › an intervening cache write from another tab is archived with the inspected copy (794ms)
+  ✓  23 [cloud-touch] › tests/cloud/cache-recovery.spec.ts:290:1 › invalid server data is reported separately and never replaces either saved copy (845ms)
+  ✓  24 [cloud-touch] › tests/cloud/collaboration.spec.ts:71:1 › recovers unsent text from this browser after reopening the app (4.0s)
+  ✓  25 [cloud-touch] › tests/cloud/collaboration.spec.ts:1192:1 › legacy offline row moves are kept for JSON recovery and never automatically uploaded (1.2s)
+  ✓  26 [cloud-touch] › tests/cloud/collaboration.spec.ts:1296:1 › full ZIP backups preserve failed jobs and resume after reload with lost upload and commit responses (6.7s)
+  ✓  27 [cloud-touch] › tests/cloud/collaboration.spec.ts:1521:1 › restores a signed-in room in the background without flashing the cloud dialog (1.7s)
+  ✓  28 [cloud-touch] › tests/cloud/reconnection.spec.ts:34:1 › a missing initial handshake has a deadline and preserves edits before synchronization (716ms)
+  ✓  29 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies before-save without reloading (3.6s)
+  ✓  30 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies after-save without reloading (2.5s)
+  ✓  31 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies silent-ack without reloading (2.6s)
+  ✓  32 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rate-limit without reloading (2.6s)
+  ✓  33 [cloud-touch] › tests/cloud/reconnection.spec.ts:76:3 › host preserves edits and classifies rejected without reloading (1.5s)
+  ✓  34 [cloud-touch] › tests/cloud/reconnection.spec.ts:214:1 › bounded retries can be resumed without discarding the pending document (2.3s)
+  ✓  35 [cloud-touch] › tests/cloud/workflow-readiness.spec.ts:51:1 › uncreated assigned rows are preparation, become ready on a live page addition, and never create pages implicitly (1.6s)
+  ✓  36 [cloud-touch] › tests/cloud/workflow-readiness.spec.ts:162:1 › JSON import preserves the cloud source and refuses to detach with unsent changes (3.0s)
+
+  36 passed (1.7m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

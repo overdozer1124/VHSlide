@@ -1,0 +1,82 @@
+[WebServer] (node:188815) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:188827) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (5.9s)
+  ✘  2 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (1.4s)
+(node:189100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:94:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.0s)
+(node:189282) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (5.9s)
+  ✘  5 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (1.5s)
+(node:189553) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  6 [cloud-touch] › tests/cloud/workspace-more.spec.ts:94:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.6s)
+
+
+  1) [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -9
+
+      45 |     await expect(guest.locator(".slide-card")).toHaveCount(3);
+      46 |     await guest.setViewportSize({ width: 810, height: 768 });
+    > 47 |     expect((await guest.getByLabel("作品のタイトル").boundingBox())!.y).toBeGreaterThanOrEqual(0);
+         |                                                                  ^
+      48 |     await guest.screenshot({ path: info.outputPath("guest-header-810.png") });
+      49 |     const more = guest.getByRole("button", { name: "その他", exact: true });
+      50 |     await more.click();
+        at /workspace/vhslide-dual-auth/tests/cloud/workspace-more.spec.ts:47:66
+
+    Error Context: test-results-cloud/workspace-more-guest-secon-0be0a-nd-exposes-no-host-controls-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/workspace-more-guest-secon-0be0a-nd-exposes-no-host-controls-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/workspace-more-guest-secon-0be0a-nd-exposes-no-host-controls-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -9
+
+      45 |     await expect(guest.locator(".slide-card")).toHaveCount(3);
+      46 |     await guest.setViewportSize({ width: 810, height: 768 });
+    > 47 |     expect(
+         |            ^
+      48 |       (await guest.getByLabel("作品のタイトル").boundingBox())!.y,
+      49 |     ).toBeGreaterThanOrEqual(0);
+      50 |     await guest.screenshot({ path: info.outputPath("guest-header-810.png") });
+        at /workspace/vhslide-dual-auth/tests/cloud/workspace-more.spec.ts:47:66
+
+    Error Context: test-results-cloud/workspace-more-guest-secon-0be0a-nd-exposes-no-host-controls-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/workspace-more-guest-secon-0be0a-nd-exposes-no-host-controls-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/workspace-more-guest-secon-0be0a-nd-exposes-no-host-controls-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls 
+    [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls 
+  4 passed (36.6s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

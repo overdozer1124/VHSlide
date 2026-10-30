@@ -1,0 +1,223 @@
+[WebServer] (node:246251) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:246263) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (7.3s)
+(node:246457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.3s)
+(node:246638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (7.3s)
+(node:246841) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  4 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (7.6s)
+(node:247035) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.7s)
+(node:247233) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  6 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (7.8s)
+
+
+  1) [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Cannot set properties of null (setting 'requestFullscreen')",
+    + ]
+
+      114 |         await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+      115 |       }
+    > 116 |       expect(errors).toEqual([]);
+          |                      ^
+      117 |     } finally {
+      118 |       await context.close();
+      119 |     }
+        at /workspace/vhslide-dual-auth/tests/cloud/guest-inventory.spec.ts:116:22
+
+    Error Context: test-results-cloud/guest-inventory-guest-inve-ff0a4-ble-at-school-screen-widths-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/guest-inventory-guest-inve-ff0a4-ble-at-school-screen-widths-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/guest-inventory-guest-inve-ff0a4-ble-at-school-screen-widths-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Cannot set properties of null (setting 'requestFullscreen')",
+    + ]
+
+      114 |         await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+      115 |       }
+    > 116 |       expect(errors).toEqual([]);
+          |                      ^
+      117 |     } finally {
+      118 |       await context.close();
+      119 |     }
+        at /workspace/vhslide-dual-auth/tests/cloud/guest-inventory.spec.ts:116:22
+
+    Error Context: test-results-cloud/guest-inventory-guest-inve-0c457-ble-at-school-screen-widths-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/guest-inventory-guest-inve-0c457-ble-at-school-screen-widths-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/guest-inventory-guest-inve-0c457-ble-at-school-screen-widths-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Cannot set properties of null (setting 'requestFullscreen')",
+    + ]
+
+      114 |         await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+      115 |       }
+    > 116 |       expect(errors).toEqual([]);
+          |                      ^
+      117 |     } finally {
+      118 |       await context.close();
+      119 |     }
+        at /workspace/vhslide-dual-auth/tests/cloud/guest-inventory.spec.ts:116:22
+
+    Error Context: test-results-cloud/guest-inventory-guest-inve-7672f-ble-at-school-screen-widths-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/guest-inventory-guest-inve-7672f-ble-at-school-screen-widths-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/guest-inventory-guest-inve-7672f-ble-at-school-screen-widths-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Cannot set properties of null (setting 'requestFullscreen')",
+    + ]
+
+      114 |         await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+      115 |       }
+    > 116 |       expect(errors).toEqual([]);
+          |                      ^
+      117 |     } finally {
+      118 |       await context.close();
+      119 |     }
+        at /workspace/vhslide-dual-auth/tests/cloud/guest-inventory.spec.ts:116:22
+
+    Error Context: test-results-cloud/guest-inventory-guest-inve-ff0a4-ble-at-school-screen-widths-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/guest-inventory-guest-inve-ff0a4-ble-at-school-screen-widths-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/guest-inventory-guest-inve-ff0a4-ble-at-school-screen-widths-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Cannot set properties of null (setting 'requestFullscreen')",
+    + ]
+
+      114 |         await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+      115 |       }
+    > 116 |       expect(errors).toEqual([]);
+          |                      ^
+      117 |     } finally {
+      118 |       await context.close();
+      119 |     }
+        at /workspace/vhslide-dual-auth/tests/cloud/guest-inventory.spec.ts:116:22
+
+    Error Context: test-results-cloud/guest-inventory-guest-inve-0c457-ble-at-school-screen-widths-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/guest-inventory-guest-inve-0c457-ble-at-school-screen-widths-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/guest-inventory-guest-inve-0c457-ble-at-school-screen-widths-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Cannot set properties of null (setting 'requestFullscreen')",
+    + ]
+
+      114 |         await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+      115 |       }
+    > 116 |       expect(errors).toEqual([]);
+          |                      ^
+      117 |     } finally {
+      118 |       await context.close();
+      119 |     }
+        at /workspace/vhslide-dual-auth/tests/cloud/guest-inventory.spec.ts:116:22
+
+    Error Context: test-results-cloud/guest-inventory-guest-inve-7672f-ble-at-school-screen-widths-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/guest-inventory-guest-inve-7672f-ble-at-school-screen-widths-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/guest-inventory-guest-inve-7672f-ble-at-school-screen-widths-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths 
+    [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths 
+    [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths 
+    [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths 
+    [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths 
+    [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

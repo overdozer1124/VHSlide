@@ -1,0 +1,26 @@
+
+> vhslide@0.58.0 build
+> tsc -b && tsc -p tsconfig.server.json && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2452 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                             0.48 kB │ gzip:   0.34 kB
+dist/assets/backup.worker-aHLxmJ7M.js      32.67 kB
+dist/assets/index-B-6DDJeL.css            131.33 kB │ gzip:  26.30 kB
+dist/assets/backupWorker-BJNebsz1.js        1.05 kB │ gzip:   0.67 kB
+dist/assets/ReleaseHistory-B2XCR6pj.js     37.56 kB │ gzip:  11.33 kB
+dist/assets/index-B4_5-xxB.js           1,004.37 kB │ gzip: 314.92 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.63s
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

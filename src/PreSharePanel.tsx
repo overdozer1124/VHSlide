@@ -1,3 +1,6 @@
+import { axisIndex } from "./axes";
+import { AssignmentStatus } from "./AssignmentStatus";
+import { assignmentReadiness } from "./assignmentReadiness";
 import { useEffect, useMemo, useState } from "react";
 import type { Deck } from "./model";
 import { activeSheet, sheetList } from "./workbook";
@@ -21,6 +24,7 @@ export function PreSharePanel({
 }) {
   const [expanded, setExpanded] = useState(false),
     [text, setText] = useState("");
+  const [feedback, setFeedback] = useState("");
   const [mode, setMode] = useState("rows"),
     [sheet, setSheet] = useState(activeSheet(deck).id);
   const [start, setStart] = useState(0),
@@ -32,11 +36,14 @@ export function PreSharePanel({
       r.access.mode === "scoped"
         ? r.access.rows
             .filter((row) => row.sheetId === sheet)
-            .map((row) => row.index)
+            .flatMap((row) => {
+              const index = axisIndex(deck, "rows", row);
+              return index === undefined ? [] : [index];
+            })
         : [],
     );
     setStart(used.length ? Math.max(...used) + 1 : 0);
-  }, [recipients, sheet, manual]);
+  }, [recipients, sheet, manual, deck]);
   const draft = useMemo(() => {
     if (!text.trim()) return { rows: [] as Recipient[], error: "" };
     try {
@@ -46,14 +53,14 @@ export function PreSharePanel({
       return {
         rows:
           mode === "rows"
-            ? sequentialRecipients(emails, sheet, start)
+            ? sequentialRecipients(emails, sheet, start, true, deck)
             : emails.map((email) => ({ email, access: common })),
         error: "",
       };
     } catch (error) {
       return { rows: [] as Recipient[], error: (error as Error).message };
     }
-  }, [text, mode, sheet, start, common, cloud.user]);
+  }, [text, mode, sheet, start, common, cloud.user, deck]);
   function label(access: EditAccess) {
     if (access.mode === "none") return "閲覧のみ";
     if (access.mode === "all") return "すべてのスライドを編集";
@@ -63,7 +70,7 @@ export function PreSharePanel({
       !access.slides.length
     ) {
       const row = access.rows[0];
-      return `${sheetList(deck).find((s) => s.id === row.sheetId)?.name ?? "シート"}・${row.index + 1}行目`;
+      return `${sheetList(deck).find((s) => s.id === row.sheetId)?.name ?? "シート"}・${axisIndex(deck, "rows", row) === undefined ? "削除された行" : `${axisIndex(deck, "rows", row)! + 1}行目`}`;
     }
     return `${access.rows.length}行・${access.columns.length}列・${access.slides.length}枚を指定`;
   }
@@ -173,6 +180,7 @@ export function PreSharePanel({
                   <li key={r.email}>
                     <span>{r.email}</span>
                     <strong>{label(r.access)}</strong>
+                    <AssignmentStatus book={deck} access={r.access} />
                     {recipients.some((old) => old.email === r.email) && (
                       <small>設定済みの権限を更新します</small>
                     )}
@@ -194,6 +202,12 @@ export function PreSharePanel({
                   },
                 );
                 onChange(result.recipients);
+                const waiting = draft.rows.filter(
+                  (r) => assignmentReadiness(deck, r.access).pending.length,
+                ).length;
+                setFeedback(
+                  `${draft.rows.length}アカウントの共有設定を保存しました。${waiting ? ` ${waiting}アカウントは担当ページの準備待ちです。ページは自動作成されません。` : ""}`,
+                );
                 setText("");
                 setManual(false);
               })
@@ -201,6 +215,7 @@ export function PreSharePanel({
           >
             事前共有を保存
           </button>
+          {feedback && <p role="status">{feedback}</p>}
           <small>
             保存後はこの作品のリンクを相手に伝えてください。登録されたアカウントでサインインすると作品を開けます。招待リンクから参加した場合も事前設定が適用されます。
           </small>

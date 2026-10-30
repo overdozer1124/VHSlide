@@ -1,0 +1,11 @@
+{
+  "src/backup.worker.ts": "f3ff0ac55fe60d46d4d172c659906e08e384ec58feee1800c2513a917069ca06",
+  "src/backupWorker.ts": "dfb80c72a1677c1cd7371b6c6af13b4f096938db223fa2196f86d245f6d5ea4a",
+  "src/backupArchive.ts": "0e2dfadbea6dff3c10b8f75d0ece31e22496c2528a37db5dd0d4727bb20ee1e5",
+  "src/backupClient.ts": "9c1767a7f70a65d9ac41700fde24ddcf3f22ed4cbb82d85e2a86f6fb8f2c260f",
+  "src/BackupPanel.tsx": "318700194f79f9831582ea029dfe379f3be9093db9f8f72f8e099948367e6f5c",
+  "tests/audit/fixtures/backupArchive-0371.ts": "3b594a1248d86cf590273d68c0ea680f9100fa957bc629b9737d44a8799f5e35",
+  "tests/audit/backup-worker-performance.ts": "8c366d0625379e731d8876dd436f05d4a4220861cab9c71d71dfe231af673c64",
+  "tests/audit/worker-entry.ts": "9394c76bfce6a70ad70d8e8acc0ac8c5465319c5d970441e3c1a5acabee7ebb3",
+  "tests/cloud/collaboration.spec.ts": "09114e1214c25ff946e4d414f94a3bfcfddf7e460d4b791c4348222979cc8189"
+}

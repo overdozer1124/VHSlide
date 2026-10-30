@@ -151,6 +151,7 @@ test("can keep the map filtered and independently enable or disable the editor f
   await expect(page.locator(".rail-trigger")).toHaveCount(3);
   await button(page, "編集画面にもフィルタを適用").click();
   await expect(page.locator(".rail-trigger")).toHaveCount(2);
+  await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await page.getByRole("switch", { name: "縦の連動", exact: true }).click();
   await expect(page.locator(".rail-empty")).toHaveCount(0);
   await button(page, "3段目の横のページをひらく").click();

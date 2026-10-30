@@ -1,0 +1,39 @@
+{
+  "date_jst": "2026-10-24",
+  "release": "0.38.1",
+  "cloudflare_version_id": "16dca6e6-8a3b-4401-bc45-76524ed01c94",
+  "checks": [
+    {
+      "path": "/healthz",
+      "status": 200,
+      "bytes": 11
+    },
+    {
+      "path": "/api/config",
+      "status": 200,
+      "bytes": 323
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 482
+    },
+    {
+      "path": "/assets/index-xPT8OWyF.js",
+      "status": 200,
+      "bytes": 581034
+    },
+    {
+      "path": "/assets/ReleaseHistory-BGNo0Pd5.js",
+      "status": 200,
+      "bytes": 16003
+    },
+    {
+      "path": "/assets/index-DHL5620L.css",
+      "status": 200,
+      "bytes": 93823
+    }
+  ],
+  "assets_match_local_build": true,
+  "public_room_accessed": false
+}

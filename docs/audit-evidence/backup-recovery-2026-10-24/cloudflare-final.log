@@ -1,0 +1,32 @@
+▶ isolated recovery faults: publication, replay, cancellation, lost response and capture races
+  ✔ A1: Room committed, Directory failed; private; retry preserves one copy (3689.762116ms)
+  ✔ A2: queued cancellation cannot remove a finalized work (67.828769ms)
+  ✔ A3: cancellation after partial commit removes staging data and refuses replay (52.641213ms)
+  ✔ A4: a lost Room response leaves an uploading job but replay preserves the committed notes (369.767324ms)
+  ✔ B: lost commit response is queryable and replay returns the same work (73.083507ms)
+AUDIT_CAPTURE slide status=409
+AUDIT_CAPTURE image status=409
+AUDIT_CAPTURE note status=409
+AUDIT_CAPTURE sharing status=409
+AUDIT_CAPTURE sharing-ABA status=409
+REGRESSION_MIXED status=409; inconsistent snapshot rejected
+  ✔ C: every slide, image, note and sharing change including ABA is rejected (237.111738ms)
+✔ isolated recovery faults: publication, replay, cancellation, lost response and capture races (5107.81661ms)
+✔ checks real JWT signatures/audience, session cookies, origin and membership (28566.260513ms)
+✔ stores 1000 pages and private photos through a runtime restart and rejects page 1001 (1601.399349ms)
+✔ 40 authenticated WebSockets converge on simultaneous edits and persist acknowledgements (1888.436633ms)
+✔ refuses foreign assets and closes a signed-out connection (20117.531849ms)
+✔ reserves photo space atomically and stops uploading at the owner's limit (989.293873ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (245.154151ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (604.776743ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (132.660417ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (449.004209ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (4584.81531ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60808.655129

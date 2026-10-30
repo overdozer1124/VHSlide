@@ -1,0 +1,52 @@
+{
+  "version": "0.44.0",
+  "deploymentVersion": "fd90949e-18fe-4765-8066-61b4e76c77db",
+  "verifiedAtUtc": "2026-10-26T00:40:44.046200+00:00",
+  "health": {
+    "ok": true
+  },
+  "assets": [
+    {
+      "file": "index.html",
+      "path": "/",
+      "sha256": "18866d4fa5e966ae814955b794c1553f0ea5a594b14c6a5f3678e8be5cc0507a",
+      "match": true
+    },
+    {
+      "file": "assets/index-hZh4IXML.css",
+      "path": "/assets/index-hZh4IXML.css",
+      "sha256": "2645b7e1088a79c357aea1d1324849b31fcf30247a5fd87ef6c7787776d78e40",
+      "match": true
+    },
+    {
+      "file": "assets/ReleaseHistory-C4IVpQtg.js",
+      "path": "/assets/ReleaseHistory-C4IVpQtg.js",
+      "sha256": "2bbf128b6555bd8fb8dc36ff746c26cb888d2ba0402f8be59cbc59a1f38cad5b",
+      "match": true
+    },
+    {
+      "file": "assets/backup.worker-D88bv2TW.js",
+      "path": "/assets/backup.worker-D88bv2TW.js",
+      "sha256": "431fb9a5f03d68b3020e5e73c120a7cde28d09e462eb4da580090168a40f3617",
+      "match": true
+    },
+    {
+      "file": "assets/index-C-xzyuBi.js",
+      "path": "/assets/index-C-xzyuBi.js",
+      "sha256": "87ca2a7ca2f8952f8d9c6c3553daf7a1fb2371b4b5a2e7d8cf87fb4fc422825e",
+      "match": true
+    },
+    {
+      "file": "assets/backupWorker-CBb3MSdi.js",
+      "path": "/assets/backupWorker-CBb3MSdi.js",
+      "sha256": "4e6dea48ff05baded20b278deaac1cdceb000655e06faaf6713a2ccad733fc05",
+      "match": true
+    },
+    {
+      "file": "samples/vhslide-10x40.json",
+      "path": "/samples/vhslide-10x40.json",
+      "sha256": "c3aebc626701ce2f81392c38234ca9abe82b6f0309a059ae54d461eb86e67ba7",
+      "match": true
+    }
+  ]
+}

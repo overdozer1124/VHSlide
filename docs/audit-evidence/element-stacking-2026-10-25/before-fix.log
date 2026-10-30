@@ -1,0 +1,51 @@
+
+> vhslide@0.40.2 test:e2e
+> playwright test tests/e2e/element-stacking.spec.ts --grep rear text --project=desktop --workers=1
+
+[WebServer] (node:401471) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:401489) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:37:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:37:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  1 [desktop] › tests/e2e/element-stacking.spec.ts:6:3 › front shape wins over rear text content, frames and resize controls, including after layer reorder (5.9s)
+
+
+  1) [desktop] › tests/e2e/element-stacking.spec.ts:6:3 › front shape wins over rear text content, frames and resize controls, including after layer reorder 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      101 |             ),
+      102 |         )
+    > 103 |         .toBe(true);
+          |          ^
+      104 |       await click(p.x, p.y);
+      105 |       await expect(elements.nth(1)).toHaveClass(/selected-element/);
+      106 |       await expect(elements.nth(0)).not.toHaveClass(/selected-element/);
+        at /workspace/VHSlide/tests/e2e/element-stacking.spec.ts:103:10
+
+    Error Context: test-results/element-stacking-front-sha-14737-cluding-after-layer-reorder-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/element-stacking-front-sha-14737-cluding-after-layer-reorder-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/element-stacking-front-sha-14737-cluding-after-layer-reorder-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [desktop] › tests/e2e/element-stacking.spec.ts:6:3 › front shape wins over rear text content, frames and resize controls, including after layer reorder 

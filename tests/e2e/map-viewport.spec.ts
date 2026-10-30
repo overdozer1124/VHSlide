@@ -41,6 +41,9 @@ test("Chromebook map starts at 100%, shows two full rows at 60%, fits ten topics
   }
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await page.screenshot({ path: info.outputPath("chromebook-map.png") });
+  await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
   await page.getByRole("button", { name: "横をおさめる", exact: true }).click();
   await expect
     .poll(() => map.evaluate((node) => node.scrollWidth - node.clientWidth))
@@ -95,6 +98,9 @@ test("map zoom and editing remain usable on a narrow touch screen", async ({
     .toBeLessThan(width);
   await page.getByRole("button", { name: "マップを拡大", exact: true }).tap();
   await expect(reset).toHaveText("100%");
+  await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
   await page.getByRole("button", { name: "横をおさめる", exact: true }).tap();
   await expect
     .poll(() =>
@@ -194,6 +200,9 @@ test("a thousand pages render nearby thumbnails only, keep their grid positions,
   const up = page.getByRole("button", { name: "マップを拡大", exact: true });
   await expect(reset).toHaveText("100%");
   await expect(up).toBeDisabled();
+  await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
   await page.getByRole("button", { name: "横をおさめる", exact: true }).click();
   await expect(reset).toHaveText("番号");
   await expect

@@ -1,0 +1,10 @@
+{
+  "test": "cloud versions restore photos and notes into a new work and trash can undo work removal",
+  "backend": "cloudflare",
+  "project": "cloud-desktop",
+  "phase": "poll backup title immediately after editing restored work",
+  "status": 409,
+  "response": {"error":"取得中に作品・付箋・共有設定が変更されました。編集が落ち着いてから、もう一度バックアップしてください。"},
+  "testError": "TypeError: Cannot read properties of undefined (reading 'title')",
+  "cause": "The existing polling callback dereferenced deck.title even when the backup endpoint correctly rejected a concurrent snapshot."
+}

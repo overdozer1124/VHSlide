@@ -1,3 +1,5 @@
+import type { Deck } from "./model.ts";
+import { axisGrant } from "./axes.ts";
 import { defaultAccess, parseAccess } from "./permissions.ts";
 import type { EditAccess } from "./permissions.ts";
 export type Recipient = {
@@ -39,6 +41,7 @@ export function sequentialRecipients(
   sheetId: string,
   startRow: number,
   comment = true,
+  deck?: Deck,
 ): Recipient[] {
   if (
     !sheetId ||
@@ -55,7 +58,11 @@ export function sequentialRecipients(
       ...defaultAccess(),
       mode: "scoped",
       comment,
-      rows: [{ sheetId, index: startRow + index }],
+      rows: [
+        deck
+          ? axisGrant(deck, sheetId, "rows", startRow + index)
+          : { sheetId, index: startRow + index },
+      ],
     },
   }));
 }
@@ -128,7 +135,7 @@ export function sharedAccountNames(
     for (const axis of ["rows", "columns"] as const)
       for (const row of person.access[axis]) {
         const sheet = (result[axis][row.sheetId] ??= Object.create(null));
-        (sheet[String(row.index)] ??= []).push(person.name);
+        (sheet[row.axisId ?? String(row.index)] ??= []).push(person.name);
       }
     for (const id of person.access.slides)
       (result.slides[id] ??= []).push(person.name);

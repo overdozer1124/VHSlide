@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 async function configure(page: Page, text: string) {
   await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "マップの倍率を設定", exact: true })
     .click();
   await page

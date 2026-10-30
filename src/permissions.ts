@@ -1,9 +1,11 @@
+import { axisId } from "./axes.ts";
+import type { AxisGrant } from "./axes.ts";
 import type { Deck, Slide } from "./model.ts";
 export type EditAccess = {
   mode: "none" | "all" | "scoped";
   comment: boolean;
-  rows: { sheetId: string; index: number }[];
-  columns: { sheetId: string; index: number }[];
+  rows: AxisGrant[];
+  columns: AxisGrant[];
   slides: string[];
 };
 export const defaultAccess = (): EditAccess => ({
@@ -37,13 +39,18 @@ export function parseAccess(value: unknown): EditAccess {
           s.sheetId.length > 100 ||
           !Number.isInteger(s.index) ||
           s.index < 0 ||
-          s.index > 99,
+          s.index > 99 ||
+          (s.axisId !== undefined &&
+            (typeof s.axisId !== "string" ||
+              !s.axisId ||
+              s.axisId.length > 80)),
       )
     )
       throw new Error("行・列の設定が正しくありません。");
     return items.map((s) => ({
       sheetId: s.sheetId as string,
       index: s.index as number,
+      ...(s.axisId === undefined ? {} : { axisId: s.axisId as string }),
     }));
   };
   if (
@@ -60,21 +67,31 @@ export function parseAccess(value: unknown): EditAccess {
     slides: [...new Set(v.slides)],
   };
 }
-export function canEdit(access: EditAccess, slide: Slide) {
+export function canEdit(access: EditAccess, slide: Slide, deck?: Deck) {
   const sheetId = slide.sheetId ?? "main";
   return (
     access.mode === "all" ||
     (access.mode === "scoped" &&
       (access.slides.includes(slide.id) ||
-        access.rows.some((r) => r.sheetId === sheetId && r.index === slide.y) ||
+        access.rows.some(
+          (r) =>
+            r.sheetId === sheetId &&
+            (r.axisId ?? String(r.index)) ===
+              axisId(deck, sheetId, "rows", slide.y),
+        ) ||
         access.columns.some(
-          (c) => c.sheetId === sheetId && c.index === slide.x,
+          (c) =>
+            c.sheetId === sheetId &&
+            (c.axisId ?? String(c.index)) ===
+              axisId(deck, sheetId, "columns", slide.x),
         )))
   );
 }
 export class AccessError extends Error {
-  constructor() {
-    super("この操作はホストから許可された編集範囲を超えています。");
+  constructor(
+    message = "この操作はホストから許可された編集範囲を超えています。",
+  ) {
+    super(message);
   }
 }
 export function assertDeckAccess(
@@ -86,16 +103,59 @@ export function assertDeckAccess(
   if (host) return;
   if (
     before.title !== after.title ||
+    before.guestPageCreation !== after.guestPageCreation ||
+    !!before.restrictGuests !== !!after.restrictGuests ||
+    JSON.stringify(before.routes ?? []) !==
+      JSON.stringify(after.routes ?? []) ||
     JSON.stringify(before.sheets) !== JSON.stringify(after.sheets)
   )
     throw new AccessError();
   const old = new Map(before.slides.map((s) => [s.id, s]));
   const next = new Map(after.slides.map((s) => [s.id, s]));
+  if (before.restrictGuests) {
+    const added = after.slides.filter((s) => !old.has(s.id)),
+      policy = before.guestPageCreation ?? "append";
+    if (added.length && policy === "none")
+      throw new AccessError("ホストがページの追加を許可していません。");
+    if (added.length && policy === "append") {
+      if (
+        before.slides.some((a) => {
+          const b = next.get(a.id);
+          return b && (a.x !== b.x || a.y !== b.y || a.sheetId !== b.sheetId);
+        })
+      )
+        throw new AccessError();
+      for (const page of added) {
+        const sheet = page.sheetId ?? "main",
+          pages = before.slides.filter((s) => (s.sheetId ?? "main") === sheet),
+          row = pages.filter((s) => s.y === page.y);
+        if (row.length) {
+          if (page.x <= Math.max(...row.map((s) => s.x)))
+            throw new AccessError();
+        } else {
+          const rowGranted =
+            access.mode === "all" ||
+            access.rows.some(
+              (r) =>
+                r.sheetId === sheet &&
+                (r.axisId ?? String(r.index)) ===
+                  axisId(before, sheet, "rows", page.y),
+            );
+          const column = pages.filter((s) => s.x === page.x);
+          if (
+            !(rowGranted && page.x === 0) &&
+            (!column.length || page.y <= Math.max(...column.map((s) => s.y)))
+          )
+            throw new AccessError();
+        }
+      }
+    }
+  }
   for (const id of new Set([...old.keys(), ...next.keys()])) {
     const a = old.get(id),
       b = next.get(id);
     if (JSON.stringify(a) === JSON.stringify(b)) continue;
-    if ((a && !canEdit(access, a)) || (b && !canEdit(access, b)))
+    if ((a && !canEdit(access, a, before)) || (b && !canEdit(access, b, after)))
       throw new AccessError();
   }
 }

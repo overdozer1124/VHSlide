@@ -1,0 +1,11 @@
+{
+  "release": "0.40.2",
+  "cloudflareVersion": "66bb2d11-ca82-41ec-a9c5-d783b8f824d4",
+  "health": {
+    "ok": true
+  },
+  "asset": "./assets/index-BvuVq1uE.js",
+  "sha256": "2097421c5378745093fc6ad2a17381d2a94849e7bc67eb04d5926ea8a9d64788",
+  "matchesTestedBuild": true,
+  "productionRoomAccessed": false
+}
