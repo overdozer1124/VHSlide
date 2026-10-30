@@ -11,7 +11,15 @@ import {
   cancelRestoreTask,
 } from "./backupClient";
 import type { RestoreTask } from "./backupProtocol";
-export function BackupPanel({ cloud }: { cloud: CloudWorkspace }) {
+export function BackupPanel({
+  cloud,
+  collapsed = false,
+  onCollapse,
+}: {
+  cloud: CloudWorkspace;
+  collapsed?: boolean;
+  onCollapse?: () => void;
+}) {
   const input = useRef<HTMLInputElement>(null),
     controller = useRef<AbortController | undefined>(undefined);
   const [backup, setBackup] = useState<LoadedBackup>(),
@@ -21,8 +29,17 @@ export function BackupPanel({ cloud }: { cloud: CloudWorkspace }) {
     [jobs, setJobs] = useState<RestoreTask[]>([]),
     [resume, setResume] = useState<RestoreTask>(),
     [jobId, setJobId] = useState<string>();
+  const [jobsError, setJobsError] = useState("");
   async function refreshJobs() {
-    setJobs(await listRestoreTasks());
+    try {
+      const next = await listRestoreTasks();
+      setJobs(next);
+      setJobsError("");
+      return next;
+    } catch (error) {
+      setJobsError((error as Error).message);
+      throw error;
+    }
   }
   useEffect(() => {
     if (cloud.user) void refreshJobs().catch(() => {});
@@ -50,9 +67,49 @@ export function BackupPanel({ cloud }: { cloud: CloudWorkspace }) {
       setWorking(false);
     }
   }
+  const important =
+    working ||
+    !!backup ||
+    !!message ||
+    !!resume ||
+    !!jobsError ||
+    jobs.some((j) => j.status !== "ready");
   return (
-    <section className="backup-panel" aria-label="完全バックアップと復元">
-      <h3>バックアップと復元</h3>
+    <section
+      className="backup-panel"
+      aria-label="完全バックアップと復元"
+      hidden={collapsed && !important}
+    >
+      <div className="backup-panel-heading">
+        <h3>バックアップと復元</h3>
+        {onCollapse && !important && (
+          <button
+            className="quiet"
+            aria-label="バックアップと復元を閉じる"
+            onClick={onCollapse}
+          >
+            閉じる
+          </button>
+        )}
+      </div>
+      {jobsError && (
+        <div role="alert" className="backup-job-error">
+          <p>未完了の復元を確認できません。{jobsError}</p>
+          <button
+            className="button outline"
+            onClick={() =>
+              void refreshJobs()
+                .then((next) => {
+                  if (collapsed && next.every((j) => j.status === "ready"))
+                    onCollapse?.();
+                })
+                .catch(() => {})
+            }
+          >
+            未完了の復元を再確認
+          </button>
+        </div>
+      )}
       <p>
         写真・付箋・見出し・共有設定をまとめて保存します。元の作品は上書きされません。同じファイルと共有設定で再実行すると、前回の復元先を開きます。
       </p>

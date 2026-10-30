@@ -1,0 +1,83 @@
+[WebServer] (node:98749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+(node:98910) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F(node:99565) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F
+
+  1) [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByLabel('このスライドのスピーカーノート', { exact: true })
+    Expected: "担当ページの発表メモ"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByLabel('このスライドのスピーカーノート', { exact: true }) with timeout 5000ms
+      - waiting for getByLabel('このスライドのスピーカーノート', { exact: true })
+        14 × locator resolved to <textarea maxlength="10000" id="speaker-notes-input" aria-label="このスライドのスピーカーノート" placeholder="発表で話すことや補足を書きます"></textarea>
+           - unexpected value ""
+
+
+      137 |     await expect(
+      138 |       other.getByLabel("このスライドのスピーカーノート", { exact: true }),
+    > 139 |     ).toHaveValue("担当ページの発表メモ");
+          |       ^
+      140 |     await other
+      141 |       .getByRole("button", { name: "スピーカーノートを閉じる", exact: true })
+      142 |       .click();
+        at /workspace/vhslide-dual-auth/tests/cloud/forced-filter.spec.ts:139:7
+
+    Error Context: test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByLabel('このスライドのスピーカーノート', { exact: true })
+    Expected: "担当ページの発表メモ"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByLabel('このスライドのスピーカーノート', { exact: true }) with timeout 5000ms
+      - waiting for getByLabel('このスライドのスピーカーノート', { exact: true })
+        14 × locator resolved to <textarea maxlength="10000" id="speaker-notes-input" aria-label="このスライドのスピーカーノート" placeholder="発表で話すことや補足を書きます"></textarea>
+           - unexpected value ""
+
+
+      137 |     await expect(
+      138 |       other.getByLabel("このスライドのスピーカーノート", { exact: true }),
+    > 139 |     ).toHaveValue("担当ページの発表メモ");
+          |       ^
+      140 |     await other
+      141 |       .getByRole("button", { name: "スピーカーノートを閉じる", exact: true })
+      142 |       .click();
+        at /workspace/vhslide-dual-auth/tests/cloud/forced-filter.spec.ts:139:7
+
+    Error Context: test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+    [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 

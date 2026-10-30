@@ -1,0 +1,15 @@
+locator.click: Error: strict mode violation: locator('.editor-workspace .slide-canvas').locator('[data-element-id=e2]') resolved to 5 elements:
+    1) <div tabindex="0" class="element  " data-element-id="e2" aria-label="テキストボックス" data-object-link="false">…</div> aka getByLabel('テキストボックス').nth(2)
+    2) <span aria-hidden="true" title="枠をドラッグして移動" data-element-id="e2" class="element-drag-border border-top"></span> aka locator('div:nth-child(3) > .element-drag-border.border-top')
+    3) <span aria-hidden="true" title="枠をドラッグして移動" data-element-id="e2" class="element-drag-border border-right"></span> aka locator('div:nth-child(3) > .element-drag-border.border-right')
+    4) <span aria-hidden="true" title="枠をドラッグして移動" data-element-id="e2" class="element-drag-border border-bottom"></span> aka locator('div:nth-child(3) > .element-drag-border.border-bottom')
+    5) <span aria-hidden="true" title="枠をドラッグして移動" data-element-id="e2" class="element-drag-border border-left"></span> aka locator('div:nth-child(3) > .element-drag-border.border-left')
+
+Call log:
+[2m  - waiting for locator('.editor-workspace .slide-canvas').locator('[data-element-id=e2]')[22m
+
+    at /tmp/vhslide-selection-public.cjs:11:46 {
+  log: [
+    "  - waiting for locator('.editor-workspace .slide-canvas').locator('[data-element-id=e2]')"
+  ]
+}

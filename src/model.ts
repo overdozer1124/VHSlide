@@ -1,3 +1,4 @@
+import { webLink } from "./webLink.ts";
 import { parseChart } from "./chartData.ts";
 import type { ChartData } from "./chartData.ts";
 import { parseAnchor, copyPages } from "./structureData.ts";
@@ -27,7 +28,23 @@ export interface Element {
   groupId?: string;
   startAnchor?: ConnectorAnchor;
   endAnchor?: ConnectorAnchor;
-  link?: { slideId: string };
+  link?: { slideId?: string; url?: string };
+  drawingTool?:
+    "pen" | "fill" | "eraser" | "line" | "rectangle" | "ellipse" | "select";
+  eraserWidth?: number;
+  inkShapeFill?: string;
+  inkShapeDash?: "solid" | "dash" | "dot";
+  drawing?: {
+    points: { x: number; y: number }[];
+    color: string;
+    width: number;
+    erase?: boolean;
+    shape?: "line" | "rectangle" | "ellipse";
+    fill?: string;
+    dash?: "solid" | "dash" | "dot";
+    fillContours?: { x: number; y: number }[][];
+  }[];
+  writingMode?: "horizontal-tb" | "vertical-rl";
   chart?: ChartData;
   rotation?: 0 | 90 | 180 | 270;
   flipX?: boolean;
@@ -63,6 +80,7 @@ export interface Element {
   stroke?: string;
 }
 export interface Slide {
+  speakerNotes?: string;
   footerLabel?: string;
   id: string;
   sheetId?: string;
@@ -83,6 +101,8 @@ export interface Sheet {
 }
 export type PresentationRoute = { id: string; name: string; slides: string[] };
 export interface Deck {
+  restrictGuests?: boolean;
+  guestPageCreation?: "none" | "append" | "insert";
   routes?: PresentationRoute[];
   version: 1;
   title: string;
@@ -616,6 +636,9 @@ export function parseDeck(input: string): Deck {
       ...(s.footerLabel === undefined
         ? {}
         : { footerLabel: str(s.footerLabel, 80) }),
+      ...(s.speakerNotes === undefined
+        ? {}
+        : { speakerNotes: str(s.speakerNotes, 10000) }),
       background: color(s.background),
       elements: s.elements.map((e: any): Element => {
         if (
@@ -647,12 +670,18 @@ export function parseDeck(input: string): Deck {
           if (
             !e.link ||
             typeof e.link !== "object" ||
-            Object.keys(e.link).some((k) => k !== "slideId")
+            Object.keys(e.link).some((k) => k !== "slideId" && k !== "url")
           )
             fail();
-          const slideId = str(e.link.slideId, 100);
-          if (!slideId) fail();
-          base.link = { slideId };
+          if ((e.link.slideId !== undefined) === (e.link.url !== undefined))
+            fail();
+          if (e.link.url !== undefined)
+            base.link = { url: webLink(str(e.link.url, 2048)) };
+          else {
+            const slideId = str(e.link.slideId, 100);
+            if (!slideId) fail();
+            base.link = { slideId };
+          }
         }
         if (e.type === "chart") return { ...base, chart: parseChart(e.chart) };
 
@@ -660,6 +689,15 @@ export function parseDeck(input: string): Deck {
           return {
             ...base,
             text: str(e.text),
+            ...(e.writingMode === undefined
+              ? {}
+              : {
+                  writingMode: ["horizontal-tb", "vertical-rl"].includes(
+                    e.writingMode,
+                  )
+                    ? e.writingMode
+                    : fail(),
+                }),
             ...(e.richText === undefined
               ? {}
               : { richText: parseRichText(e.richText, str(e.text)) }),
@@ -713,6 +751,135 @@ export function parseDeck(input: string): Deck {
           return {
             ...base,
             src,
+            ...(e.drawing === undefined
+              ? {}
+              : {
+                  drawing: (() => {
+                    if (!Array.isArray(e.drawing) || e.drawing.length > 1000)
+                      fail();
+                    let total = 0;
+                    return e.drawing.map((s: any) => {
+                      if (
+                        !s ||
+                        !Array.isArray(s.points) ||
+                        !s.points.length ||
+                        (total += s.points.length) > 50000
+                      )
+                        fail();
+                      return {
+                        points: s.points.map((p: any) => ({
+                          x: num(p.x, 0, 960),
+                          y: num(p.y, 0, 540),
+                        })),
+                        ...(s.fillContours === undefined
+                          ? {}
+                          : {
+                              fillContours: (() => {
+                                if (
+                                  !Array.isArray(s.fillContours) ||
+                                  !s.fillContours.length ||
+                                  s.fillContours.length > 10000
+                                )
+                                  fail();
+                                return s.fillContours.map((c: any) => {
+                                  if (
+                                    !Array.isArray(c) ||
+                                    c.length < 3 ||
+                                    (total += c.length) > 50000
+                                  )
+                                    fail();
+                                  return c.map((p: any) => ({
+                                    x: num(p.x, 0, 960),
+                                    y: num(p.y, 0, 540),
+                                  }));
+                                });
+                              })(),
+                            }),
+                        ...(s.erase === undefined
+                          ? {}
+                          : {
+                              erase:
+                                typeof s.erase === "boolean" &&
+                                !(s.erase && s.fillContours)
+                                  ? s.erase
+                                  : fail(),
+                            }),
+                        ...(s.shape === undefined
+                          ? {}
+                          : {
+                              shape:
+                                ["line", "rectangle", "ellipse"].includes(
+                                  s.shape,
+                                ) &&
+                                !s.erase &&
+                                !s.fillContours
+                                  ? s.shape
+                                  : fail(),
+                            }),
+                        ...(s.fill === undefined
+                          ? {}
+                          : {
+                              fill:
+                                !s.erase && !s.fillContours
+                                  ? s.fill === "none"
+                                    ? "none"
+                                    : color(s.fill)
+                                  : fail(),
+                            }),
+                        ...(s.dash === undefined
+                          ? {}
+                          : {
+                              dash:
+                                ["solid", "dash", "dot"].includes(s.dash) &&
+                                !s.erase &&
+                                !s.fillContours
+                                  ? s.dash
+                                  : fail(),
+                            }),
+                        color: color(s.color),
+                        width: num(s.width, 1, s.erase ? 100 : 30),
+                      };
+                    });
+                  })(),
+                  ...(e.drawingTool === undefined
+                    ? {}
+                    : {
+                        drawingTool: [
+                          "select",
+                          "pen",
+                          "fill",
+                          "eraser",
+                          "line",
+                          "rectangle",
+                          "ellipse",
+                        ].includes(e.drawingTool)
+                          ? e.drawingTool
+                          : fail(),
+                      }),
+                  ...(e.eraserWidth === undefined
+                    ? {}
+                    : { eraserWidth: num(e.eraserWidth, 1, 100) }),
+                  ...(e.inkShapeFill === undefined
+                    ? {}
+                    : {
+                        inkShapeFill:
+                          e.inkShapeFill === "none"
+                            ? "none"
+                            : color(e.inkShapeFill),
+                      }),
+                  ...(e.inkShapeDash === undefined
+                    ? {}
+                    : {
+                        inkShapeDash: ["solid", "dash", "dot"].includes(
+                          e.inkShapeDash,
+                        )
+                          ? e.inkShapeDash
+                          : fail(),
+                      }),
+                  stroke: e.stroke === undefined ? "#173d38" : color(e.stroke),
+                  strokeWidth:
+                    e.strokeWidth === undefined ? 5 : num(e.strokeWidth, 1, 30),
+                }),
             ...(e.crop === undefined ? {} : { crop: parseCrop(e.crop) }),
             ...(e.altText === undefined
               ? {}
@@ -833,6 +1000,14 @@ export function parseDeck(input: string): Deck {
   for (const sheet of sheets ?? [{ id: "main" }])
     if (!cells.has(`${sheet.id}:0,0`)) fail();
   const result: Deck = { version: 1, title: str(d.title, 200), slides };
+  if (d.guestPageCreation !== undefined)
+    result.guestPageCreation = ["none", "append", "insert"].includes(
+      d.guestPageCreation,
+    )
+      ? d.guestPageCreation
+      : fail();
+  if (d.restrictGuests !== undefined)
+    result.restrictGuests = bool(d.restrictGuests);
   if (d.routes !== undefined) {
     if (!Array.isArray(d.routes) || d.routes.length > 30) fail();
     const ids = new Set<string>();

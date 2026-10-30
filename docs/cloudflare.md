@@ -92,3 +92,9 @@ npm run test:cloudflare:e2e   # ビルド・cf:check後、PC/タッチでブラ�
 テストはMiniflare/workerdのSQLite型Durable Objectsを使います。Googleの外部通信はテスト用JWKSで置き換えますが、JWTの署名・発行者・audience検証は本番のコードを通します。テスト用の署名鍵・トークン発行は`tests/cloudflare`内にだけあり、本番Workerには含まれません。ローカル実行では本番の日次無料枠・CPU時間の消費や課金停止そのものは再現されません。
 
 Cloudflareのサービス間通信とGoogleの公開鍵取得は本番Worker内で行われます。Codex環境のネットワーク制限を解除しなくてもローカルテストは実行できます。Codex環境でWranglerの設定フォルダに書き込めない場合だけ、実行時の`XDG_CONFIG_HOME`を`/tmp`内の作業用フォルダに設定します。
+
+## 学校用と一般用のGoogleサインイン
+
+学校向けOAuthクライアントを使う場合、`GOOGLE_SCHOOL_CLIENT_ID` に学校が管理するウェブ用クライアントID、`GOOGLE_SCHOOL_DOMAIN` に学校アカウントのメールドメインを指定します。`GOOGLE_CLIENT_ID` は一般向けとして残します。どちらのIDも公開用の識別子であり、秘密鍵ではありません。Google Cloud側で公開先の承認済みJavaScript生成元を設定し、学校のGoogle Workspace設定でも利用できることを確認してください。
+
+サインイン画面で「一般のGoogleアカウント」または「加賀市の学校アカウント」を選択してGoogleボタンを押します。Google認証前にアプリが選択されたアカウントを知ることはできないため、種類を選ぶ必要があります。本人確認はGoogleの署名済みIDトークンで行います。Nodeサーバーでも同名の環境変数を設定できます。学校用の設定がない場合は従来の一般向けサインインを使用します。

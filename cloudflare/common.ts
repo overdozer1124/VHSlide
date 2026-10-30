@@ -4,6 +4,8 @@ export interface Env {
   DIRECTORY: DurableObjectNamespace;
   ROOMS: DurableObjectNamespace;
   GOOGLE_CLIENT_ID: string;
+  GOOGLE_SCHOOL_CLIENT_ID?: string;
+  GOOGLE_SCHOOL_DOMAIN?: string;
   PUBLIC_ORIGIN?: string;
 }
 export interface User {

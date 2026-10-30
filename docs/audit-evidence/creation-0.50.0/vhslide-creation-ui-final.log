@@ -1,0 +1,50 @@
+[WebServer] (node:30190) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 20 tests using 2 workers
+(node:30214) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30210) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 7:02:01 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:02:01 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+··[WebServer] 7:02:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:02:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:02:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:02:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+····(node:30740) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+·····(node:31025) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 7:02:22 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:02:22 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+··[WebServer] 7:02:25 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:02:25 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:02:27 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:02:27 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·····
+  20 passed (33.3s)

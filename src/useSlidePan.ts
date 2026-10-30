@@ -31,7 +31,7 @@ function isEditSurface(
   if (!(target instanceof Element)) return false;
   return (
     !!target.closest(
-      ".element-drag-border, .resize-handle, .line-endpoint, .slide-table[data-cell-range=true], .sticky-note, .slide-canvas[data-selection-mode=true]",
+      ".ink-editing, .element-drag-border, .resize-handle, .line-endpoint, .slide-table[data-cell-range=true], .sticky-note, .slide-canvas[data-selection-mode=true]",
     ) ||
     (!!target.closest(".editable .slide-table") && !target.closest("textarea"))
   );

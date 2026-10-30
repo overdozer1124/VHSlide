@@ -1,0 +1,17 @@
+[WebServer] (node:220052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:220073) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/collaboration.spec.ts:823:1 › host edits shared map headings and row account names update vertically for guests (11.8s)
+  ✓  2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.6s)
+  ✓  3 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.8s)
+(node:220555) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/collaboration.spec.ts:823:1 › host edits shared map headings and row account names update vertically for guests (11.1s)
+  ✓  5 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.7s)
+  ✓  6 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.8s)
+
+  6 passed (1.1m)

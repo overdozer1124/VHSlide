@@ -1,0 +1,166 @@
+[WebServer] (node:166063) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:166076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 16 tests using 2 workers
+
+(node:166123) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:166124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 7:41:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:04 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:05 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:05 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:06 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/speaker-notes.spec.ts:45:1 › notes persist, stay off slides and follow presentation in a separate window (6.8s)
+  ✓   2 [touch] › tests/e2e/speaker-notes.spec.ts:45:1 › notes persist, stay off slides and follow presentation in a separate window (7.0s)
+[WebServer] 7:41:10 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:10 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:10 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:10 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   3 [desktop] › tests/e2e/speaker-notes.spec.ts:102:1 › a blocked presenter popup shows a recoverable error (2.6s)
+  ✓   4 [touch] › tests/e2e/speaker-notes.spec.ts:102:1 › a blocked presenter popup shows a recoverable error (2.6s)
+[WebServer] 7:41:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:12 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:13 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:13 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/speaker-notes.spec.ts:124:1 › one menu action opens notes with presentation, avoids automatic fullscreen and can return to normal presentation (4.6s)
+  ✓   6 [touch] › tests/e2e/speaker-notes.spec.ts:124:1 › one menu action opens notes with presentation, avoids automatic fullscreen and can return to normal presentation (4.5s)
+[WebServer] 7:41:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:17 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   7 [desktop] › tests/e2e/speaker-notes.spec.ts:182:1 › notes menu keeps the selected filter and never navigates to excluded pages (4.8s)
+  ✓   8 [touch] › tests/e2e/speaker-notes.spec.ts:182:1 › notes menu keeps the selected filter and never navigates to excluded pages (4.8s)
+[WebServer] 7:41:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:21 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:22 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:22 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   9 [desktop] › tests/e2e/speaker-notes.spec.ts:212:1 › blocked automatic popup shows an error and the existing notes button retries safely (2.9s)
+  ✓  10 [touch] › tests/e2e/speaker-notes.spec.ts:212:1 › blocked automatic popup shows an error and the existing notes button retries safely (3.2s)
+[WebServer] 7:41:24 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:24 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:25 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:25 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:26 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  11 [desktop] › tests/e2e/speaker-notes.spec.ts:237:1 › display-check cancellation opens no orphan popup and continuing preserves the notes choice (4.7s)
+[WebServer] 7:41:29 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:29 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  12 [touch] › tests/e2e/speaker-notes.spec.ts:237:1 › display-check cancellation opens no orphan popup and continuing preserves the notes choice (5.0s)
+[WebServer] 7:41:30 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:30 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:31 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:31 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:31 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:31 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  13 [desktop] › tests/e2e/speaker-notes.spec.ts:291:1 › presenter preview renders slide contents, follows both windows and fits wide and narrow layouts (5.4s)
+[WebServer] 7:41:35 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:35 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  14 [touch] › tests/e2e/speaker-notes.spec.ts:291:1 › presenter preview renders slide contents, follows both windows and fits wide and narrow layouts (5.4s)
+[WebServer] 7:41:35 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:41:35 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  15 [desktop] › tests/e2e/speaker-notes.spec.ts:457:1 › idle keepalives do not repeatedly copy preview payloads, and reopening requests the current slide (9.2s)
+  ✓  16 [touch] › tests/e2e/speaker-notes.spec.ts:457:1 › idle keepalives do not repeatedly copy preview payloads, and reopening requests the current slide (9.0s)
+
+  16 passed (44.6s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

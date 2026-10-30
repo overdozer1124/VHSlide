@@ -1,0 +1,24 @@
+[WebServer] (node:262493) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:262505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (8.7s)
+  ✓  2 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (9.8s)
+  ✓  3 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (9.4s)
+  ✓  4 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls (1.6s)
+(node:264147) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (7.6s)
+  ✓  6 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.6s)
+  ✓  7 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (9.1s)
+  ✓  8 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls (1.5s)
+
+  8 passed (57.3s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

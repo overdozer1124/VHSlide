@@ -19,6 +19,7 @@ import type { Element } from "./model";
 import type { CellSelection } from "./TableCellControls";
 /** Navigation belongs outside the disabled form: viewers can inspect every section. */
 export function EditorInspector({
+  headerAction,
   element,
   count,
   disabled,
@@ -33,6 +34,7 @@ export function EditorInspector({
   pageElements,
   cellSelection,
 }: {
+  headerAction?: ReactNode;
   element?: Element;
   count: number;
   disabled: boolean;
@@ -110,6 +112,7 @@ export function EditorInspector({
             {element.table!.rows.length}行 × {element.table!.columns.length}列
           </span>
         )}
+        {headerAction}
       </header>
       {count > 0 && (
         <div className="inspector-quick-actions">
@@ -273,7 +276,7 @@ export function TableInspector({
           セルをクリックして入力。Tabで次のセルへ移動します。Shiftクリック、または「セルの範囲を選ぶ」で複数セルを選べます。
         </p>
         <p>
-          Excelなどから複数セルを貼り付けできます。必要な行・列は12まで自動で増えます。表の外枠をドラッグすると移動できます。
+          Excelなどから複数セルを貼り付けできます。必要な行・列は12まで自動で増えます。選択枠の辺・四隅でサイズを変更できます。Altキーを押しながら枠をドラッグすると移動できます。
         </p>
       </details>
     </section>

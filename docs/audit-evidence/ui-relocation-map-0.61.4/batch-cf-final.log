@@ -1,0 +1,13 @@
+[WebServer] (node:213358) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:213379) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/map-batch.spec.ts:5:1 › host bulk axes synchronize and scoped participants keep their original row, cannot bulk edit axes or delete others (6.5s)
+(node:213564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [cloud-touch] › tests/cloud/map-batch.spec.ts:5:1 › host bulk axes synchronize and scoped participants keep their original row, cannot bulk edit axes or delete others (6.4s)
+
+  2 passed (15.0s)

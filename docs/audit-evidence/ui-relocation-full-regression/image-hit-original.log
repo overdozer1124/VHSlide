@@ -1,0 +1,77 @@
+[WebServer] (node:287514) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:287532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:287564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:51:24 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+HANDLE_BOX {
+  x: 353.093994140625,
+  y: 560.593994140625,
+  width: 23.99951171875,
+  height: 23.99951171875
+}
+IMAGE_POINTER {"type":"mouse","target":"<button type=\"button\" class=\"resize-handle resize-corner resize-nw\" data-resize-direction=\"nw\" aria-label=\"要素の左上の枠でサイズを変更\" title=\"左上の枠をドラッグしてサイズ変更（Altキーで移動）\"></button>","hit":"<button type=\"button\" class=\"resize-handle resize-corner resize-nw\" data-resize-direction=\"nw\" aria-label=\"要素の左上の枠でサイズを変更\" title=\"左上の枠をドラッグしてサイズ変更（Altキーで移動）\"></button>"}
+IMAGE_RESIZE_DIAGNOSTIC {
+  stored: {
+    id: '01a0402b-2b42-4203-95f5-ba5ccb760dbb',
+    type: 'image',
+    src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=',
+    x: 470,
+    y: 260,
+    w: 20,
+    h: 20
+  },
+  elements: [
+    'left: 68px; top: 62px; width: 780px; height: 60px; z-index: 0;',
+    'left: 68px; top: 148px; width: 780px; height: 174px; z-index: 1;',
+    'left: 72px; top: 415px; width: 780px; height: 66px; z-index: 2;',
+    'left: 735px; top: 55px; width: 145px; height: 145px; z-index: 3;',
+    'left: 470px; top: 260px; width: 20px; height: 20px; z-index: 4;'
+  ],
+  flight: 0
+}
+  ✘  1 [touch] › tests/e2e/z-temp-image-diagnostic.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (6.6s)
+
+
+  1) [touch] › tests/e2e/z-temp-image-diagnostic.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 20
+    Received:   20
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      171 |   await page.mouse.up();
+      172 |   console.log('IMAGE_RESIZE_DIAGNOSTIC', await page.evaluate(() => ({stored:JSON.parse(localStorage.getItem('vhslide-deck-v1')!).slides[0].elements.at(-1),elements:[...document.querySelectorAll('.editor-page-current .element')].map(e=>e.getAttribute('style')),flight:document.querySelectorAll('.workspace-flight').length})));
+    > 173 |   await expect.poll(async()=>await page.evaluate(()=>JSON.parse(localStorage.getItem('vhslide-deck-v1')!).slides[0].elements.at(-1).w)).toBeGreaterThan(20);
+          |                                                                                                                                         ^
+      174 |   let data = await page.evaluate(() => JSON.parse(localStorage.getItem('vhslide-deck-v1')!));
+      175 |   await page.locator(".editor-workspace").evaluate((node, base64) => {
+      176 |     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        at /workspace/vhslide-dual-auth/tests/e2e/z-temp-image-diagnostic.spec.ts:173:137
+
+    Error Context: test-results-preview/z-temp-image-diagnostic-em-b1117-d-resizing-changes-geometry-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/z-temp-image-diagnostic-em-b1117-d-resizing-changes-geometry-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/z-temp-image-diagnostic-em-b1117-d-resizing-changes-geometry-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [touch] › tests/e2e/z-temp-image-diagnostic.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

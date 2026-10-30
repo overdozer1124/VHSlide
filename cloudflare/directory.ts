@@ -443,6 +443,8 @@ export class Directory extends DurableObject<Env> {
     if (path === "/api/config" && method === "GET")
       return json({
         clientId: this.env.GOOGLE_CLIENT_ID,
+        schoolClientId: this.env.GOOGLE_SCHOOL_CLIENT_ID || "",
+        schoolDomain: this.env.GOOGLE_SCHOOL_DOMAIN || "",
         enabled: !!this.env.GOOGLE_CLIENT_ID,
         syncIntervalMs: 1000,
         notice:
@@ -475,7 +477,10 @@ export class Directory extends DurableObject<Env> {
       let user: User;
       try {
         const { payload } = await jwtVerify(data.credential, keys, {
-          audience: this.env.GOOGLE_CLIENT_ID,
+          audience: [
+            this.env.GOOGLE_CLIENT_ID,
+            this.env.GOOGLE_SCHOOL_CLIENT_ID,
+          ].filter((value): value is string => !!value),
           issuer: ["https://accounts.google.com", "accounts.google.com"],
           algorithms: ["RS256"],
         });

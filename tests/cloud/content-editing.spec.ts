@@ -187,6 +187,18 @@ test("rich styles and cell formats sync, own undo preserves peers; cropped priva
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
     await page.getByRole("tab", { name: /作品一覧/ }).click();
     const download = page.waitForEvent("download");
+    if (
+      !(await page
+        .getByRole("button", { name: "完全バックアップを保存", exact: true })
+        .isVisible())
+    ) {
+      await page
+        .getByRole("button", { name: "作品一覧のその他", exact: true })
+        .click();
+      await page
+        .getByRole("menuitem", { name: "バックアップと復元", exact: true })
+        .click();
+    }
     await page
       .getByRole("button", { name: "完全バックアップを保存", exact: true })
       .click();

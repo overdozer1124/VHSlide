@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { speakerPreview, type SpeakerState } from "./speakerChannel";
+import type { SpeakerLaunch } from "./useSpeakerWindow";
+import { useSpeakerWindow } from "./useSpeakerWindow";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
   Maximize,
+  NotebookPen,
   X,
 } from "lucide-react";
 import type { Deck, Slide } from "./model";
@@ -13,6 +17,7 @@ import { Canvas } from "./Canvas";
 import { useFitCanvas } from "./useFitCanvas";
 import { pageOrigin } from "./pageScope";
 interface PresentationProps {
+  speakerLaunch?: SpeakerLaunch;
   scopeLabel: string;
   scopeCount: number;
   external: boolean;
@@ -29,6 +34,7 @@ interface PresentationProps {
   exitPresent: () => void;
 }
 export function PresentationView({
+  speakerLaunch,
   onOpenLink,
   onLinkBack,
   deck,
@@ -84,9 +90,26 @@ export function PresentationView({
   const routeIndex = route?.findIndex((s) => s.id === slide.id) ?? -1;
   const available = (dx: number, dy: number) =>
     !external &&
+    !pendingLink &&
     (route
       ? !!route[routeIndex + (dx || dy)]
       : !!neighbor(deck, slide, dx, dy));
+  const left = available(-1, 0),
+    right = available(1, 0),
+    up = available(0, -1),
+    down = available(0, 1);
+  const speakerState = useMemo<SpeakerState>(
+    () => ({
+      title: deck.title,
+      slideTitle: slide.title,
+      position: `${slide.y + 1}.${slide.x + 1}`,
+      notes: slide.speakerNotes ?? "",
+      preview: speakerPreview(slide),
+      available: { left, right, up, down },
+    }),
+    [deck.title, slide, left, right, up, down],
+  );
+  const speaker = useSpeakerWindow(speakerState, go, speakerLaunch);
   return (
     <div
       className="present-mode"
@@ -146,6 +169,11 @@ export function PresentationView({
         touch.current = null;
       }}
     >
+      {speaker.error && (
+        <div className="speaker-popup-error" role="alert">
+          {speaker.error}
+        </div>
+      )}
       <div className="present-top" aria-label="発表の操作">
         <span>
           VHSlide <span className="present-deck-title">/ {deck.title}</span>
@@ -155,6 +183,15 @@ export function PresentationView({
           </small>
         </span>
         <div>
+          <button
+            className="quiet"
+            aria-label="発表者用ノートを開く"
+            title="別ウィンドウでスピーカーノートを確認"
+            onClick={speaker.open}
+          >
+            <NotebookPen size={18} />
+            発表者ノート
+          </button>
           <button
             className="quiet"
             aria-label="全画面切り替え"
@@ -265,6 +302,12 @@ export function PresentationView({
           className="present-link-prompt"
           role="dialog"
           aria-label="発表対象外のリンク"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            onCancelLink?.();
+          }}
         >
           <strong>発表対象外のページを開きます</strong>
           <p>{pendingLink.title}</p>

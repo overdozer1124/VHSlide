@@ -45,6 +45,8 @@ export async function harness(storage: string, origin: string, port?: number) {
       ...(port ? { port } : {}),
       bindings: {
         GOOGLE_CLIENT_ID: "test.apps.googleusercontent.com",
+        GOOGLE_SCHOOL_CLIENT_ID: "school.apps.googleusercontent.com",
+        GOOGLE_SCHOOL_DOMAIN: "kaga.ed.jp",
         PUBLIC_ORIGIN: origin,
       },
       durableObjects: {

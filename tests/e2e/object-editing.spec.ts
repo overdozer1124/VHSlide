@@ -7,6 +7,7 @@ async function drag(
   y: number,
   dx: number,
   dy: number,
+  alt = false,
 ) {
   if (!touch) {
     await page.mouse.move(x, y);
@@ -18,15 +19,18 @@ async function drag(
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
+    modifiers: alt ? 1 : 0,
     touchPoints: [{ id: 1, x, y }],
   });
   for (let i = 1; i <= 8; i++)
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
+      modifiers: alt ? 1 : 0,
       touchPoints: [{ id: 1, x: x + (dx * i) / 8, y: y + (dy * i) / 8 }],
     });
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
+    modifiers: alt ? 1 : 0,
     touchPoints: [],
   });
   await cdp.detach();
@@ -149,9 +153,7 @@ test("palette inserts labeled shapes and editable arrow endpoints, settings surv
   await expect(page.locator(".present-slide marker")).toHaveCount(2);
   await page.screenshot({ path: info.outputPath("objects-present.png") });
   await page.keyboard.press("Escape");
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
@@ -172,14 +174,20 @@ test("explicit multi selection aligns, duplicates, undoes and moves together", a
   page,
 }, info) => {
   const canvas = page.locator(".editor-page-current .slide-canvas");
-  await page.getByRole("button", { name: "まとめて選択", exact: true }).click();
+  if (info.project.name === "touch")
+    await page
+      .getByRole("button", { name: "まとめて選択", exact: true })
+      .click();
   for (const id of ["a", "b", "c"]) {
     const el = canvas.locator(`[data-element-id="${id}"].element`);
     if (info.project.name === "touch") await el.tap();
-    else await el.click();
+    else await el.click({ modifiers: ["Shift"] });
   }
   await expect(canvas.locator(".selected-element")).toHaveCount(3);
-  await page.getByRole("button", { name: "まとめて選択", exact: true }).click();
+  if (info.project.name === "touch")
+    await page
+      .getByRole("button", { name: "まとめて選択", exact: true })
+      .click();
   await page.getByRole("button", { name: "横に等間隔", exact: true }).click();
   await expect
     .poll(() =>
@@ -191,10 +199,11 @@ test("explicit multi selection aligns, duplicates, undoes and moves together", a
     )
     .toBe(310);
   const border = canvas
-    .locator('.element[data-element-id="a"] .element-drag-border')
+    .locator('.group-selection-box [data-resize-direction="n"]')
     .first();
   const r = await border.boundingBox();
   expect(r).not.toBeNull();
+  await page.keyboard.down("Alt");
   await drag(
     page,
     info.project.name === "touch",
@@ -202,7 +211,9 @@ test("explicit multi selection aligns, duplicates, undoes and moves together", a
     r!.y + r!.height / 2,
     30,
     20,
+    true,
   );
+  await page.keyboard.up("Alt");
   await expect
     .poll(() =>
       page.evaluate(

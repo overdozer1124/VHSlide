@@ -1,0 +1,118 @@
+[WebServer] (node:208312) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:208325) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 24 tests using 2 workers
+
+(node:208372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:208371) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:16:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/map-action-layout.spec.ts:14:1 › comparison is contextual, inherits exact selected IDs and never silently truncates five pages (3.9s)
+[WebServer] 1:16:52 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:52 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:52 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:52 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   2 [desktop] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides (6.5s)
+[WebServer] 1:16:54 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:54 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   3 [desktop] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope (4.0s)
+  ✓   4 [desktop] › tests/e2e/learning-tools.spec.ts:304:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (5.1s)
+[WebServer] 1:16:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:16:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/map-batch.spec.ts:56:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (4.9s)
+  ✓   7 [desktop] › tests/e2e/map-batch.spec.ts:95:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (2.3s)
+  ✓   8 [desktop] › tests/e2e/map-batch.spec.ts:116:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (3.5s)
+  ✓   6 [desktop] › tests/e2e/learning-tools.spec.ts:414:1 › a thousand-page picker only renders previews near the scroll viewport (8.7s)
+  ✓   9 [desktop] › tests/e2e/map-batch.spec.ts:149:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (3.6s)
+  ✓  10 [desktop] › tests/e2e/page-scope.spec.ts:217:1 › comparison candidates and PDF defaults share the visible scope and never keep hidden selected pages (4.2s)
+  ✓  11 [desktop] › tests/e2e/map-batch.spec.ts:213:1 › selection supports keyboard toggling and touch taps without entering the editor (2.1s)
+(node:209653) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:17:13 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:13 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  12 [desktop] › tests/e2e/map-batch.spec.ts:244:1 › bulk add accounts for pages in other sheets before enabling the operation (3.0s)
+(node:209985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:17:16 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:16 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  13 [touch] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides (5.6s)
+  ✓  14 [touch] › tests/e2e/map-action-layout.spec.ts:14:1 › comparison is contextual, inherits exact selected IDs and never silently truncates five pages (3.5s)
+[WebServer] 1:17:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  16 [touch] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope (2.5s)
+  ✓  15 [touch] › tests/e2e/learning-tools.spec.ts:304:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (4.0s)
+[WebServer] 1:17:23 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:17:23 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  17 [touch] › tests/e2e/map-batch.spec.ts:56:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (4.5s)
+  ✓  19 [touch] › tests/e2e/map-batch.spec.ts:95:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (1.8s)
+  ✓  18 [touch] › tests/e2e/learning-tools.spec.ts:414:1 › a thousand-page picker only renders previews near the scroll viewport (7.2s)
+  ✓  20 [touch] › tests/e2e/map-batch.spec.ts:116:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (3.4s)
+  ✓  21 [touch] › tests/e2e/page-scope.spec.ts:217:1 › comparison candidates and PDF defaults share the visible scope and never keep hidden selected pages (3.9s)
+  ✓  22 [touch] › tests/e2e/map-batch.spec.ts:149:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (2.6s)
+  ✓  23 [touch] › tests/e2e/map-batch.spec.ts:213:1 › selection supports keyboard toggling and touch taps without entering the editor (1.9s)
+  ✓  24 [touch] › tests/e2e/map-batch.spec.ts:244:1 › bulk add accounts for pages in other sheets before enabling the operation (1.8s)
+
+  24 passed (52.6s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

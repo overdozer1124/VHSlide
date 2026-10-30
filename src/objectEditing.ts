@@ -243,3 +243,82 @@ export function canDistribute(
     size = direction === "horizontal" ? "w" : "h";
   return b[size] >= es.reduce((sum, e) => sum + e[size], 0);
 }
+
+/** Objects touched by a marquee; grouping is expanded by the caller. */
+export function objectsInSelection(
+  elements: Element[],
+  box: { x: number; y: number; w: number; h: number },
+) {
+  if (box.w <= 0 || box.h <= 0) return [];
+  return elements
+    .filter(
+      (e) =>
+        e.x < box.x + box.w &&
+        e.x + e.w > box.x &&
+        e.y < box.y + box.h &&
+        e.y + e.h > box.y,
+    )
+    .map((e) => e.id);
+}
+
+export type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
+type ResizeBox = Pick<Element, "x" | "y" | "w" | "h">;
+/** Keep the opposite edge/corner fixed; a locked side resize grows about the other axis' centre. */
+export function resizeBoxFromHandle(
+  b: ResizeBox,
+  direction: ResizeDirection,
+  dx: number,
+  dy: number,
+  lock = false,
+  minimum = { w: 20, h: 20 },
+): ResizeBox {
+  const west = direction.includes("w"),
+    east = direction.includes("e"),
+    north = direction.includes("n"),
+    south = direction.includes("s");
+  const maxW = west
+    ? b.x + b.w
+    : east
+      ? W - b.x
+      : 2 * Math.min(b.x + b.w / 2, W - b.x - b.w / 2);
+  const maxH = north
+    ? b.y + b.h
+    : south
+      ? H - b.y
+      : 2 * Math.min(b.y + b.h / 2, H - b.y - b.h / 2);
+  let w = b.w + (west ? -dx : east ? dx : 0),
+    h = b.h + (north ? -dy : south ? dy : 0);
+  if (lock) {
+    const wanted = !(north || south)
+      ? w / b.w
+      : !(west || east)
+        ? h / b.h
+        : Math.abs(w - b.w) >= Math.abs(h - b.h)
+          ? w / b.w
+          : h / b.h;
+    const min = Math.max(minimum.w / b.w, minimum.h / b.h),
+      max = Math.min(maxW / b.w, maxH / b.h);
+    if (min > max) return b;
+    const scale = Math.max(min, Math.min(max, wanted));
+    w = b.w * scale;
+    h = b.h * scale;
+  } else {
+    w = west || east ? Math.max(minimum.w, Math.min(maxW, w)) : b.w;
+    h = north || south ? Math.max(minimum.h, Math.min(maxH, h)) : b.h;
+  }
+  return {
+    x: west ? b.x + b.w - w : east ? b.x : b.x + (b.w - w) / 2,
+    y: north ? b.y + b.h - h : south ? b.y : b.y + (b.h - h) / 2,
+    w,
+    h,
+  };
+}
+export function resizeElementFromHandle(
+  e: Element,
+  direction: ResizeDirection,
+  dx: number,
+  dy: number,
+  lock = e.aspectLocked ?? false,
+): Element {
+  return { ...e, ...resizeBoxFromHandle(e, direction, dx, dy, lock) };
+}

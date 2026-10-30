@@ -1,0 +1,187 @@
+[WebServer] (node:288018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:288031) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 18 tests using 1 worker
+
+(node:288050) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:55:05 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:55:06 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   1 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+[WebServer] 10:55:07 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   2 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (1.9s)
+[WebServer] 10:55:09 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   3 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (1.7s)
+(node:288250) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:55:11 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:55:12 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   4 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.8s)
+[WebServer] 10:55:13 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (1.9s)
+[WebServer] 10:55:15 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   6 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (1.7s)
+(node:288454) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:55:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:55:18 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   7 [desktop] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+[WebServer] 10:55:19 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   8 [desktop] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (2.0s)
+[WebServer] 10:55:21 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   9 [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (1.7s)
+(node:288653) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:55:23 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:55:25 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  10 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.8s)
+[WebServer] 10:55:25 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  11 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (2.0s)
+[WebServer] 10:55:27 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  12 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.4s)
+(node:288849) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:55:30 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:55:31 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  13 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.9s)
+[WebServer] 10:55:32 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  14 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (2.0s)
+[WebServer] 10:55:34 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  15 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.4s)
+(node:289048) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:55:37 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 10:55:38 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  16 [touch] › tests/e2e/app.spec.ts:143:1 › embedded images survive upload, clipboard paste, drop and reload; resizing changes geometry (1.8s)
+[WebServer] 10:55:39 PM [vite] http proxy error: /api/session
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  17 [touch] › tests/e2e/editor-inspector-ux.spec.ts:76:1 › cell scrollbars are hidden; empty space focuses input, long text stays editable and fixed in the table (2.0s)
+[WebServer] 10:55:41 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  18 [touch] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged (2.4s)
+
+
+  1) [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 4
+    + Received  + 4
+
+    @@ -3,19 +3,19 @@
+          "background": "#e8efdf",
+          "elements": Array [],
+          "id": "page-0",
+          "title": "段1-1",
+          "x": 0,
+    -     "y": 0,
+    +     "y": 2,
+        },
+        Object {
+          "background": "#e8efdf",
+          "elements": Array [],
+          "id": "page-1",
+          "title": "段1-2",
+          "x": 1,
+    -     "y": 0,
+    +     "y": 2,
+        },
+        Object {
+          "background": "#e8efdf",
+          "elements": Array [],
+          "id": "page-2",
+    @@ -35,16 +35,16 @@
+          "background": "#e8efdf",
+          "elements": Array [],
+          "id": "page-4",
+          "title": "段3-1",
+          "x": 0,
+    -     "y": 2,
+    +     "y": 0,
+        },
+        Object {
+          "background": "#e8efdf",
+          "elements": Array [],
+          "id": "page-5",
+          "title": "段3-2",
+          "x": 1,
+    -     "y": 2,
+    +     "y": 0,
+        },
+      ]
+
+       98 |     });
+       99 |   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+    > 100 |   expect((await readDeck(page)).slides).toEqual(before.slides);
+          |                                         ^
+      101 | });
+      102 |
+      103 | test("vertical gaps animate and insert a group, including the expanded gap and final boundary", async ({
+        at /workspace/vhslide-dual-auth/tests/e2e/row-thumbnail-drops.spec.ts:100:41
+
+    Error Context: test-results-preview/row-thumbnail-drops-overla-58298-es-the-middle-row-unchanged-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-preview/row-thumbnail-drops-overla-58298-es-the-middle-row-unchanged-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-preview/row-thumbnail-drops-overla-58298-es-the-middle-row-unchanged-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [desktop] › tests/e2e/row-thumbnail-drops.spec.ts:79:1 › overlapping vertical thumbnails swaps complete groups and leaves the middle row unchanged 
+  17 passed (39.6s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

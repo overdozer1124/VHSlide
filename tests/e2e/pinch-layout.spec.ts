@@ -121,6 +121,9 @@ test("a touch pinch keeps headings, labels and row gaps at their size around the
   }
   // The numbered overview has no labels: its rows keep their gaps too.
   await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "番号だけの一覧", exact: true })
     .click();
   const tile = page.locator(".number-tile").first();
@@ -348,6 +351,9 @@ test("pinching out of the numbered overview crossfades it back into the smallest
     name: "表示サイズを100%に戻す",
     exact: true,
   });
+  await page
+    .getByRole("button", { name: "マップの表示設定", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "番号だけの一覧", exact: true })
     .click();

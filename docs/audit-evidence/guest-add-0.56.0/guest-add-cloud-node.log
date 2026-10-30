@@ -1,0 +1,83 @@
+[WebServer] (node:85413) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+(node:85584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F(node:86039) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F
+
+  1) [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.editor-workspace .ink-object mask')
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" locator('.editor-workspace .ink-object mask') with timeout 5000ms
+      - waiting for locator('.editor-workspace .ink-object mask')
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      125 |     await expect(
+      126 |       other.locator(".editor-workspace .ink-object mask"),
+    > 127 |     ).toHaveCount(1);
+          |       ^
+      128 |     await expect(
+      129 |       other.locator(".editor-workspace .ink-object [data-ink-paint]"),
+      130 |     ).toHaveCount(2);
+        at /workspace/vhslide-dual-auth/tests/cloud/forced-filter.spec.ts:127:7
+
+    Error Context: test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.editor-workspace .ink-object mask')
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" locator('.editor-workspace .ink-object mask') with timeout 5000ms
+      - waiting for locator('.editor-workspace .ink-object mask')
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      125 |     await expect(
+      126 |       other.locator(".editor-workspace .ink-object mask"),
+    > 127 |     ).toHaveCount(1);
+          |       ^
+      128 |     await expect(
+      129 |       other.locator(".editor-workspace .ink-object [data-ink-paint]"),
+      130 |     ).toHaveCount(2);
+        at /workspace/vhslide-dual-auth/tests/cloud/forced-filter.spec.ts:127:7
+
+    Error Context: test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+    [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 

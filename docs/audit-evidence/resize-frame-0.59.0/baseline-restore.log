@@ -1,0 +1,108 @@
+[WebServer] (node:152644) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:152656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 ../../tmp/vhslide-baseline-test/tables-baseline.spec.ts:6:5 › v0.58.1 tablet backup restore confirmation in an isolated local room (11.8s)
+
+
+  1) ../../tmp/vhslide-baseline-test/tables-baseline.spec.ts:6:5 › v0.58.1 tablet backup restore confirmation in an isolated local room 
+
+    TimeoutError: locator.click: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '新しい作品に復元する', exact: true })
+        - locator resolved to <button class="button primary">新しい作品に復元する</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-label="復元内容の確認" class="backup-preview">…</div> intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <section class="backup-panel" aria-label="完全バックアップと復元">…</section> intercepts pointer events
+      2 × retrying click action
+          - waiting 100ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <header class="cloud-panel-heading">…</header> intercepts pointer events
+      4 × retrying click action
+          - waiting 500ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-label="復元内容の確認" class="backup-preview">…</div> intercepts pointer events
+        - retrying click action
+          - waiting 500ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <section class="backup-panel" aria-label="完全バックアップと復元">…</section> intercepts pointer events
+        - retrying click action
+          - waiting 500ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <header class="cloud-panel-heading">…</header> intercepts pointer events
+        - retrying click action
+          - waiting 500ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <header class="cloud-panel-heading">…</header> intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <div aria-label="復元内容の確認" class="backup-preview">…</div> intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <section class="backup-panel" aria-label="完全バックアップと復元">…</section> intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+
+
+      19 |  await expect(page.getByLabel('復元内容の確認',{exact:true})).toBeVisible();
+      20 |  await page.screenshot({path:'/tmp/resize-baseline-restore.png'});
+    > 21 |  await page.getByRole('button',{name:'新しい作品に復元する',exact:true}).click({timeout:10000});
+         |                                                                ^
+      22 |  await expect.poll(()=>new URL(page.url()).searchParams.get('room')).not.toBe(id);
+      23 | });
+      24 |
+        at /tmp/vhslide-baseline-test/tables-baseline.spec.ts:21:64
+
+    Error Context: ../../tmp/resize-baseline-results/tables-baseline-v0-58-1-ta-2c338-n-in-an-isolated-local-room/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/resize-baseline-results/tables-baseline-v0-58-1-ta-2c338-n-in-an-isolated-local-room/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/resize-baseline-results/tables-baseline-v0-58-1-ta-2c338-n-in-an-isolated-local-room/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    ../../tmp/vhslide-baseline-test/tables-baseline.spec.ts:6:5 › v0.58.1 tablet backup restore confirmation in an isolated local room 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

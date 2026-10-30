@@ -43,6 +43,10 @@ export type RichEditorProps = {
   onUndo?: () => void;
   onRedo?: () => void;
 };
+const focusRestorers = new WeakMap<HTMLElement, () => () => void>();
+export function captureRichEditingFocus(element: HTMLElement) {
+  return focusRestorers.get(element)?.();
+}
 export function CloudText({ element, ...props }: RichEditorProps) {
   const target = useRef<HTMLDivElement>(null),
     shared = useCloudText(element.id),
@@ -131,16 +135,41 @@ export function CloudText({ element, ...props }: RichEditorProps) {
     root.setAttribute("aria-label", "スライド内の文字");
     root.setAttribute("aria-multiline", "true");
     root.spellcheck = true;
+    focusRestorers.set(root, () => {
+      const r = quill.getSelection() ?? range;
+      const a = Y.createRelativePositionFromTypeIndex(value, r.index),
+        b = Y.createRelativePositionFromTypeIndex(value, r.index + r.length);
+      return () => {
+        if (!root.isConnected || composing || !value.doc) return;
+        const start = Y.createAbsolutePositionFromRelativePosition(
+            a,
+            value.doc,
+          ),
+          end = Y.createAbsolutePositionFromRelativePosition(b, value.doc);
+        quill.focus({ preventScroll: true });
+        quill.setSelection(
+          start?.index ?? r.index,
+          Math.max(
+            0,
+            (end?.index ?? r.index + r.length) - (start?.index ?? r.index),
+          ),
+          "api",
+        );
+      };
+    });
     const blur = (event: FocusEvent) => {
+      if (document.documentElement.dataset.hostFollow === "active") return;
       if ((event.relatedTarget as HTMLElement | null)?.closest(".inspector"))
         return;
       latest.current.onFinish();
     };
     const start = () => {
       composing = true;
+      root.dataset.composing = "true";
     };
     const end = () => {
       composing = false;
+      delete root.dataset.composing;
     };
     const keys = (e: KeyboardEvent) => {
       e.stopPropagation();
@@ -196,6 +225,7 @@ export function CloudText({ element, ...props }: RichEditorProps) {
     publish();
     return () => {
       instance.current = undefined;
+      focusRestorers.delete(root);
       latest.current.onController?.();
       binding.destroy();
       value.unobserve(changed);

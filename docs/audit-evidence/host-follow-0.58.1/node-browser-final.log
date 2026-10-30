@@ -1,0 +1,32 @@
+[WebServer] (node:131480) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 1 worker
+
+(node:131492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.1s)
+  ✓   2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.5s)
+  ✓   3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.8s)
+  ✓   4 [cloud-desktop] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.8s)
+  ✓   5 [cloud-desktop] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (3.0s)
+  ✓   6 [cloud-desktop] › tests/cloud/host-follow.spec.ts:514:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+FOLLOW_RENDER_40_METRICS {"backend":"node","project":"cloud-desktop","connections":40,"renderedGuests":1,"samples":20,"p95Ms":134.8280320000049,"maxMs":149.57108300000255,"allMs":[149.57108300000255,115.94288999999844,117.38178199999675,116.04006700000173,116.96949799999857,116.34754199999588,116.60797399999865,134.8280320000049,133.0176350000038,132.48954999999842,116.55800000000454,116.65805600000022,116.62246800000139,116.53569099999731,116.64252700000361,116.82461999999941,116.45701699999336,116.54390699999931,117.03040100000362,116.26108499999827]}
+  ✓   7 [cloud-desktop] › tests/cloud/host-follow.spec.ts:579:1 › 40 connections include rendered guest page latency under one second (7.8s)
+(node:132241) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.4s)
+  ✓   9 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.7s)
+  ✓  10 [cloud-touch] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓  11 [cloud-touch] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.9s)
+  ✓  12 [cloud-touch] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (3.0s)
+  ✓  13 [cloud-touch] › tests/cloud/host-follow.spec.ts:514:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.5s)
+FOLLOW_RENDER_40_METRICS {"backend":"node","project":"cloud-touch","connections":40,"renderedGuests":1,"samples":20,"p95Ms":136.68623099999968,"maxMs":146.5469000000012,"allMs":[146.5469000000012,134.41921000000002,133.86593100000027,136.68623099999968,132.91722399999708,127.93161400000099,134.1725559999977,116.39277399999992,133.3673870000057,115.93721699999878,116.60547999999835,134.3467460000029,135.64395299999887,130.91126800000347,115.67040599999746,116.9648789999992,134.18252300000313,132.57906699999876,116.38994200000161,116.82413000000088]}
+  ✓  14 [cloud-touch] › tests/cloud/host-follow.spec.ts:579:1 › 40 connections include rendered guest page latency under one second (7.9s)
+
+  14 passed (1.4m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

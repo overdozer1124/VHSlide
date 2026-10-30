@@ -1,0 +1,64 @@
+[WebServer] (node:264769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 46 tests using 1 worker
+
+(node:264791) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (2.7s)
+  ✓   2 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (16.0s)
+  ✓   3 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (7.9s)
+  ✓   4 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.3s)
+  ✓   5 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (8.3s)
+  ✓   6 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls (1.8s)
+  ✓   7 [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.0s)
+  ✓   8 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.6s)
+  ✓   9 [cloud-desktop] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.8s)
+  ✓  10 [cloud-desktop] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.8s)
+  ✓  11 [cloud-desktop] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.1s)
+  ✓  12 [cloud-desktop] › tests/cloud/host-follow.spec.ts:520:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+FOLLOW_RENDER_40_METRICS {"backend":"cloudflare","project":"cloud-desktop","connections":40,"renderedGuests":1,"samples":20,"p95Ms":133.46519100001024,"maxMs":134.3635510000022,"allMs":[132.11241899999732,116.10989900000277,116.37542399999802,116.91244500000903,116.59280399999989,117.84873700000753,115.40771899999527,116.8327350000036,133.46519100001024,116.34173299999384,116.60310399999435,116.78669899998931,116.6197339999926,116.52154899999732,116.66079999999783,116.83631400000013,116.32700200000545,134.3635510000022,115.82611100000213,116.66052999999374]}
+  ✓  13 [cloud-desktop] › tests/cloud/host-follow.spec.ts:585:1 › 40 connections include rendered guest page latency under one second (8.1s)
+  ✓  14 [cloud-desktop] › tests/cloud/library-tools.spec.ts:14:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (2.6s)
+  ✓  15 [cloud-desktop] › tests/cloud/library-tools.spec.ts:124:1 › unfinished restore and recovery failures remain visible without opening secondary tools (1.0s)
+  ✓  16 [cloud-desktop] › tests/cloud/library-tools.spec.ts:169:1 › failure to discover unfinished restores stays visible and can be retried (1.0s)
+  ✓  17 [cloud-desktop] › tests/cloud/library-tools.spec.ts:191:1 › a viewer can find their own recovery tools but cannot export the host backup (1.7s)
+  ✓  18 [cloud-desktop] › tests/cloud/page-scope.spec.ts:12:1 › bound row filters survive reordering; a presentation never adopts new matching pages and exits when its own pages disappear (988ms)
+  ✓  19 [cloud-desktop] › tests/cloud/page-scope.spec.ts:64:1 › PDF preparation is invalidated by source changes and selected deletions instead of exporting stale or hidden pages (1.1s)
+  ✓  20 [cloud-desktop] › tests/cloud/page-scope.spec.ts:117:1 › viewers retain ordinary comparison and presentation scopes but a revoked participant cannot keep projecting a cached work (4.2s)
+  ✓  21 [cloud-desktop] › tests/cloud/page-scope.spec.ts:195:1 › an authentication close stops projection without silently switching to another sheet (675ms)
+  ✓  22 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.7s)
+  ✓  23 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (8.9s)
+(node:266774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  24 [cloud-touch] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (2.6s)
+  ✓  25 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (16.1s)
+  ✓  26 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (8.3s)
+  ✓  27 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.8s)
+  ✓  28 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (9.0s)
+  ✓  29 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls (1.7s)
+  ✓  30 [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.2s)
+  ✓  31 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.7s)
+  ✓  32 [cloud-touch] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓  33 [cloud-touch] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.7s)
+  ✓  34 [cloud-touch] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.1s)
+  ✓  35 [cloud-touch] › tests/cloud/host-follow.spec.ts:520:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+FOLLOW_RENDER_40_METRICS {"backend":"cloudflare","project":"cloud-touch","connections":40,"renderedGuests":1,"samples":20,"p95Ms":130.386949000007,"maxMs":133.74742899999546,"allMs":[124.41476200000034,120.01397499999439,130.386949000007,116.05820700000913,116.6588439999905,116.75859299999138,116.77996899999562,116.55410599999595,133.74742899999546,116.11565500000142,116.41356299999461,116.90746099999524,116.5988639999996,116.74602600000799,116.71020099999441,116.44534299999941,116.58836799999699,117.09289899999567,116.20738300000085,116.53797199999099]}
+  ✓  36 [cloud-touch] › tests/cloud/host-follow.spec.ts:585:1 › 40 connections include rendered guest page latency under one second (8.0s)
+  ✓  37 [cloud-touch] › tests/cloud/library-tools.spec.ts:14:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (3.4s)
+  ✓  38 [cloud-touch] › tests/cloud/library-tools.spec.ts:124:1 › unfinished restore and recovery failures remain visible without opening secondary tools (963ms)
+  ✓  39 [cloud-touch] › tests/cloud/library-tools.spec.ts:169:1 › failure to discover unfinished restores stays visible and can be retried (943ms)
+  ✓  40 [cloud-touch] › tests/cloud/library-tools.spec.ts:191:1 › a viewer can find their own recovery tools but cannot export the host backup (1.6s)
+  ✓  41 [cloud-touch] › tests/cloud/page-scope.spec.ts:12:1 › bound row filters survive reordering; a presentation never adopts new matching pages and exits when its own pages disappear (1.0s)
+  ✓  42 [cloud-touch] › tests/cloud/page-scope.spec.ts:64:1 › PDF preparation is invalidated by source changes and selected deletions instead of exporting stale or hidden pages (1.1s)
+  ✓  43 [cloud-touch] › tests/cloud/page-scope.spec.ts:117:1 › viewers retain ordinary comparison and presentation scopes but a revoked participant cannot keep projecting a cached work (4.3s)
+  ✓  44 [cloud-touch] › tests/cloud/page-scope.spec.ts:195:1 › an authentication close stops projection without silently switching to another sheet (708ms)
+  ✓  45 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.8s)
+  ✓  46 [cloud-touch] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.2s)
+
+  46 passed (3.8m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

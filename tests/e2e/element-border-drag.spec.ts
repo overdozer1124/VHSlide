@@ -72,20 +72,24 @@ async function drag(
   y: number,
   dx: number,
   dy: number,
+  alt = false,
 ) {
   if (touch) {
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchStart",
+      modifiers: alt ? 1 : 0,
       touchPoints: [{ id: 1, x, y }],
     });
     for (let i = 1; i <= 6; i++)
       await cdp.send("Input.dispatchTouchEvent", {
         type: "touchMove",
+        modifiers: alt ? 1 : 0,
         touchPoints: [{ id: 1, x: x + (dx * i) / 6, y: y + (dy * i) / 6 }],
       });
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchEnd",
+      modifiers: alt ? 1 : 0,
       touchPoints: [],
     });
     await cdp.detach();
@@ -103,6 +107,22 @@ async function dragBorder(
   dx = 25,
   dy = 15,
 ) {
+  const direction = (
+    {
+      "border-top": "n",
+      "border-bottom": "s",
+      "border-left": "w",
+      "border-right": "e",
+    } as Record<string, string>
+  )[
+    (await target.getAttribute("class"))!
+      .split(" ")
+      .find((c) => c.startsWith("border-"))!
+  ];
+  const handle = target
+    .locator("..")
+    .locator(`[data-resize-direction="${direction}"]`);
+  if (await handle.count()) target = handle;
   await expect
     .poll(() =>
       target.evaluate((node) => {
@@ -116,9 +136,11 @@ async function dragBorder(
     )
     .toBe(true);
   const r = (await target.boundingBox())!;
-  await drag(page, touch, r.x + r.width / 2, r.y + r.height / 2, dx, dy);
+  await page.keyboard.down("Alt");
+  await drag(page, touch, r.x + r.width / 2, r.y + r.height / 2, dx, dy, true);
+  await page.keyboard.up("Alt");
 }
-test("borders move every element without icons; mouse grid margins move and cell input remains editable", async ({
+test("Alt-borders move selected elements without icons; mouse grid margins move and cell input remains editable", async ({
   page,
 }, info) => {
   const touch = info.project.name === "touch";

@@ -1,0 +1,26 @@
+[WebServer] (node:328424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:328455) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (19.1s)
+  ✓   2 [cloud-desktop] › tests/cloud/save-state.spec.ts:18:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved (3.8s)
+  ✓   3 [cloud-desktop] › tests/cloud/save-state.spec.ts:118:1 › read-only participants see a reason rather than a host backup action (2.2s)
+  ✓   4 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (4.7s)
+  ✓   5 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (10.7s)
+(node:330250) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (19.4s)
+  ✓   7 [cloud-touch] › tests/cloud/save-state.spec.ts:18:1 › failed notes remain retryable after leaving the editor; header and ZIP never claim they are fully saved (4.9s)
+  ✓   8 [cloud-touch] › tests/cloud/save-state.spec.ts:118:1 › read-only participants see a reason rather than a host backup action (2.5s)
+  ✓   9 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.8s)
+  ✓  10 [cloud-touch] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.9s)
+
+  10 passed (1.4m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

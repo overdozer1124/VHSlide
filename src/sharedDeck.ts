@@ -44,6 +44,17 @@ function patchFields(
 export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
   doc.transact(() => {
     changeText(doc.getText("title"), before.title, after.title);
+    if (before.restrictGuests !== after.restrictGuests) {
+      const settings = doc.getMap("settings");
+      if (after.restrictGuests === undefined) settings.delete("restrictGuests");
+      else settings.set("restrictGuests", after.restrictGuests);
+    }
+    if (before.guestPageCreation !== after.guestPageCreation) {
+      const settings = doc.getMap("settings");
+      if (after.guestPageCreation === undefined)
+        settings.delete("guestPageCreation");
+      else settings.set("guestPageCreation", after.guestPageCreation);
+    }
     const routes = doc.getMap("routes");
     for (const old of before.routes ?? [])
       if (!(after.routes ?? []).some((r) => r.id === old.id))
@@ -97,6 +108,21 @@ export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
         target.set("elements", new Y.Map());
       }
       changeText(target.get("title") as Y.Text, old?.title ?? "", slide.title);
+      if (old?.speakerNotes !== slide.speakerNotes) {
+        if (slide.speakerNotes === undefined) target.delete("speakerNotes");
+        else {
+          let notes = target.get("speakerNotes");
+          if (!(notes instanceof Y.Text)) {
+            notes = new Y.Text();
+            target.set("speakerNotes", notes);
+          }
+          changeText(
+            notes as Y.Text,
+            old?.speakerNotes ?? "",
+            slide.speakerNotes,
+          );
+        }
+      }
       if (old?.footerLabel !== slide.footerLabel) {
         if (slide.footerLabel === undefined) target.delete("footerLabel");
         else target.set("footerLabel", slide.footerLabel);
@@ -404,6 +430,9 @@ export function readSharedDeck(doc: Y.Doc): Deck {
       ...(s.has("footerLabel")
         ? { footerLabel: String(s.get("footerLabel")) }
         : {}),
+      ...(s.get("speakerNotes") instanceof Y.Text
+        ? { speakerNotes: (s.get("speakerNotes") as Y.Text).toString() }
+        : {}),
       background: s.get("background") as string,
       elements,
     });
@@ -437,6 +466,20 @@ export function readSharedDeck(doc: Y.Doc): Deck {
   }
   return {
     version: 1,
+    ...(doc.getMap("settings").has("restrictGuests")
+      ? {
+          restrictGuests: doc
+            .getMap("settings")
+            .get("restrictGuests") as boolean,
+        }
+      : {}),
+    ...(doc.getMap("settings").has("guestPageCreation")
+      ? {
+          guestPageCreation: doc
+            .getMap("settings")
+            .get("guestPageCreation") as Deck["guestPageCreation"],
+        }
+      : {}),
     title: doc.getText("title").toString(),
     ...(doc.getMap("routes").size
       ? { routes: [...doc.getMap("routes").values()] as Deck["routes"] }

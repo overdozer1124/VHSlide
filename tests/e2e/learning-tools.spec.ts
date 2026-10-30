@@ -1,11 +1,32 @@
 import { test, expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 async function openTools(page: any, action: string) {
-  if (action === "比較")
-    return page.getByRole("button", { name: "比較", exact: true }).click();
+  if (action === "比較") {
+    const select = page.getByRole("button", {
+      name: "スライドを複数選択",
+      exact: true,
+    });
+    if ((await select.getAttribute("aria-pressed")) !== "true")
+      await select.click();
+    await page.getByRole("button", { name: "選択を解除", exact: true }).click();
+    await page.locator(".slide-card .thumbnail").nth(0).click();
+    await page
+      .locator(".slide-card .thumbnail")
+      .nth(1)
+      .click({ modifiers: ["Control"] });
+    await page.getByRole("button", { name: "比較", exact: true }).click();
+    await page
+      .getByRole("button", { name: "スライドを選び直す", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "スライドを比較", exact: true })
+      .getByRole("button", { name: "選択を解除", exact: true })
+      .click();
+    return;
+  }
   await page
     .getByRole("button", {
-      name: action === "発表ルート" ? "発表方法を選ぶ" : "保存方法を選ぶ",
+      name: action === "発表ルート" ? "発表方法を選ぶ" : "ファイル",
       exact: true,
     })
     .click();
@@ -35,7 +56,10 @@ test("selects, compares, prints and follows a saved route without changing sourc
   ).toHaveCount(2);
   await page.getByRole("button", { name: "閉じる", exact: true }).click();
   await openTools(page, "PDFで保存");
-  await page.getByRole("button", { name: "選択を解除", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "PDFで保存", exact: true })
+    .getByRole("button", { name: "選択を解除", exact: true })
+    .click();
   await checkboxes.nth(0).check();
   await checkboxes.nth(2).check();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
@@ -209,7 +233,7 @@ test("local versions work offline without native randomUUID", async ({
   );
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "保存方法を選ぶ", exact: true }),
+    page.getByRole("button", { name: "ファイル", exact: true }),
   ).toBeVisible();
   await page.context().setOffline(true);
   await openTools(page, "保存した版");
@@ -288,7 +312,7 @@ test("purpose-specific entrances keep menus keyboard-accessible and restore focu
     page.getByRole("button", { name: "自分の担当", exact: true }),
   ).toHaveCount(0);
   const saveMenu = page.getByRole("button", {
-    name: "保存方法を選ぶ",
+    name: "ファイル",
     exact: true,
   });
   await saveMenu.focus();
@@ -316,7 +340,9 @@ test("purpose-specific entrances keep menus keyboard-accessible and restore focu
   await page.locator(".deck-title").click();
   await expect(page.getByRole("menu")).toHaveCount(0);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ファイルに保存", exact: true })
+    .click();
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await page
     .getByRole("button", { name: "マップをフィルタ", exact: true })
@@ -332,7 +358,7 @@ test("purpose-specific entrances keep menus keyboard-accessible and restore focu
     .click();
   await expect(page.locator(".map-scroll [data-page-id]")).toHaveCount(5);
   const compare = page.getByRole("button", { name: "比較", exact: true });
-  await compare.click();
+  await openTools(page, "比較");
   await expect(
     page.getByRole("dialog", { name: "スライドを比較", exact: true }),
   ).toBeVisible();

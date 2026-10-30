@@ -1,3 +1,10 @@
+import {
+  validSpeakerState,
+  readSpeakerState,
+  speakerPreview,
+} from "./speakerChannel";
+import { inkShapeKind, inkDash } from "./inkStyle";
+import { inkGeometry } from "./inkGeometry";
 import { axisId } from "./axes";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -497,4 +504,306 @@ describe("independent row choices and editor moves", () => {
     const normalized = rememberRowPage(d, d.slides[4].id);
     expect(parseDeck(JSON.stringify(normalized))).toEqual(normalized);
   });
+});
+
+it("round trips vertical text and safe URL links and rejects executable links", () => {
+  const d = sample();
+  const e = d.slides[0].elements.find((e) => e.type === "text")!;
+  e.writingMode = "vertical-rl";
+  e.link = { url: "https://example.com/path?q=1" };
+  expect(
+    parseDeck(JSON.stringify(d)).slides[0].elements.find((x) => x.id === e.id),
+  ).toMatchObject({ writingMode: "vertical-rl", link: e.link });
+  e.link = { url: "javascript:alert(1)" };
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  e.link = { url: "data:text/html,hello" };
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+});
+it("preserves editable ink and refuses invalid coordinates", () => {
+  const d = sample();
+  const e = {
+    id: "ink",
+    type: "image" as const,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    x: 0,
+    y: 0,
+    w: 200,
+    h: 100,
+    drawing: [
+      {
+        color: "#173d38",
+        width: 5,
+        points: [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ],
+      },
+    ],
+  };
+  d.slides[0].elements.push(e);
+  expect(
+    parseDeck(JSON.stringify(d)).slides[0].elements.at(-1)?.drawing,
+  ).toEqual(e.drawing);
+  e.drawing[0].points[0].x = 100000;
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+});
+it("preserves bucket contours and rejects invalid fill data", () => {
+  const d = sample();
+  const ink = {
+    id: "bucket",
+    type: "image" as const,
+    x: 0,
+    y: 0,
+    w: 200,
+    h: 100,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    drawingTool: "fill" as const,
+    drawing: [
+      {
+        points: [{ x: 20, y: 20 }],
+        color: "#ff0000",
+        width: 1,
+        fillContours: [
+          [
+            { x: 10, y: 10 },
+            { x: 100, y: 10 },
+            { x: 100, y: 100 },
+            { x: 10, y: 100 },
+          ],
+        ],
+      },
+    ],
+  };
+  d.slides[0].elements.push(ink);
+  const restored = parseDeck(JSON.stringify(d)).slides[0].elements.at(-1)!;
+  expect(restored.drawing).toEqual(ink.drawing);
+  expect(restored.drawingTool).toBe("fill");
+  ink.drawing[0].fillContours[0][0].x = 961;
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  ink.drawing[0].fillContours[0] = [];
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+});
+it("roundtrips eraser settings and rejects invalid eraser strokes", () => {
+  const d = sample();
+  const ink: any = {
+    id: "eraser",
+    type: "image",
+    x: 0,
+    y: 0,
+    w: 200,
+    h: 100,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    drawingTool: "eraser",
+    eraserWidth: 80,
+    drawing: [
+      { points: [{ x: 20, y: 20 }], color: "#000000", width: 80, erase: true },
+    ],
+  };
+  d.slides[0].elements.push(ink);
+  const restored = parseDeck(JSON.stringify(d)).slides[0].elements.at(-1)!;
+  expect(restored.drawing).toEqual(ink.drawing);
+  expect(restored.drawingTool).toBe("eraser");
+  expect(restored.eraserWidth).toBe(80);
+  ink.drawing[0].erase = "true";
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  ink.drawing[0].erase = true;
+  ink.drawing[0].width = 101;
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  ink.drawing[0].width = 80;
+  ink.drawing[0].fillContours = [
+    [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 50, y: 50 },
+    ],
+  ];
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+});
+it("hand-drawn geometry closes shapes and constrains without crossing bounds", () => {
+  const a = { x: 100, y: 100 },
+    b = { x: 300, y: 200 };
+  expect(inkGeometry("line", a, b)).toEqual([a, b]);
+  const rect = inkGeometry("rectangle", b, a);
+  expect(rect).toHaveLength(5);
+  expect(rect[0]).toEqual(rect[4]);
+  const circle = inkGeometry("ellipse", a, b, true);
+  expect(circle).toHaveLength(65);
+  expect(circle[0]).toEqual(circle[64]);
+  const xs = circle.map((p) => p.x),
+    ys = circle.map((p) => p.y);
+  expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(
+    Math.max(...ys) - Math.min(...ys),
+  );
+  for (const tool of ["line", "rectangle", "ellipse"] as const) {
+    for (const [start, end] of [
+      [
+        { x: 950, y: 530 },
+        { x: 300, y: 0 },
+      ],
+      [
+        { x: 0, y: 0 },
+        { x: 960, y: 540 },
+      ],
+      [
+        { x: 500, y: 500 },
+        { x: 960, y: 500 },
+      ],
+    ]) {
+      for (const p of inkGeometry(tool, start, end, true)) {
+        expect(p.x).toBeGreaterThanOrEqual(0);
+        expect(p.x).toBeLessThanOrEqual(960);
+        expect(p.y).toBeGreaterThanOrEqual(0);
+        expect(p.y).toBeLessThanOrEqual(540);
+      }
+    }
+  }
+});
+it("roundtrips ink shape tools as strokes without creating shape objects", () => {
+  for (const tool of ["line", "rectangle", "ellipse"] as const) {
+    const d = sample();
+    const e = {
+      id: "geometry",
+      type: "image" as const,
+      x: 0,
+      y: 0,
+      w: 480,
+      h: 270,
+      src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+      drawingTool: tool,
+      drawing: [
+        {
+          points: inkGeometry(tool, { x: 50, y: 50 }, { x: 200, y: 200 }),
+          color: "#173d38",
+          width: 5,
+        },
+      ],
+    };
+    d.slides[0].elements.push(e);
+    const restored = parseDeck(JSON.stringify(d)).slides[0].elements.at(-1)!;
+    expect(restored.drawingTool).toBe(tool);
+    expect(restored.drawing).toEqual(e.drawing);
+    expect(restored.type).toBe("image");
+  }
+});
+
+it("recognizes legacy ink geometry and keeps shape style validation strict", () => {
+  const d = sample();
+  const drawing = [
+    {
+      points: inkGeometry("rectangle", { x: 20, y: 20 }, { x: 200, y: 200 }),
+      color: "#112233",
+      width: 8,
+      shape: "rectangle" as const,
+      fill: "#ff0000",
+      dash: "dash" as const,
+    },
+  ];
+  const e: any = {
+    id: "styled-ink",
+    type: "image",
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 250,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    drawingTool: "select",
+    inkShapeFill: "none",
+    inkShapeDash: "dot",
+    drawing,
+  };
+  d.slides[0].elements.push(e);
+  const parsed = parseDeck(JSON.stringify(d)).slides[0].elements.at(-1)!;
+  expect(parsed.drawing).toEqual(drawing);
+  expect(parsed.inkShapeDash).toBe("dot");
+  expect(parsed.drawingTool).toBe("select");
+  for (const tool of ["line", "rectangle", "ellipse"] as const)
+    expect(
+      inkShapeKind({
+        points: inkGeometry(tool, { x: 200, y: 200 }, { x: 20, y: 20 }),
+        color: "#112233",
+        width: 5,
+      }),
+    ).toBe(tool);
+  expect(inkDash("dot", 8)).toEqual([0.01, 20]);
+  e.drawing[0].fill = "url(javascript:alert(1))";
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  e.drawing[0].fill = "none";
+  e.drawing[0].dash = "invalid";
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  e.drawing[0].dash = "solid";
+  e.drawing[0].erase = true;
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+});
+
+it("preserves plain speaker notes and rejects invalid or oversized notes", () => {
+  const d = sample();
+  d.slides[0].speakerNotes = "話す内容\n<これは文字として表示>";
+  expect(parseDeck(JSON.stringify(d)).slides[0].speakerNotes).toBe(
+    d.slides[0].speakerNotes,
+  );
+  d.slides[0].speakerNotes = "a".repeat(10001);
+  expect(() => parseDeck(JSON.stringify(d))).toThrow();
+  const state = {
+    title: "発表",
+    slideTitle: "はじめ",
+    position: "1.1",
+    notes: "メモ",
+    available: { left: false, right: true, up: false, down: false },
+  };
+  expect(validSpeakerState(state)).toBe(true);
+  expect(validSpeakerState({ ...state, notes: 123 })).toBe(false);
+  expect(validSpeakerState({ ...state, available: { left: "yes" } })).toBe(
+    false,
+  );
+});
+
+it("speaker previews preserve slide contents, omit notes and validate untrusted channel content", () => {
+  const slide = {
+    ...sample().slides[0],
+    x: 8,
+    y: 12,
+    sheetId: "second",
+    speakerNotes: "ノート本文",
+  };
+  const preview = speakerPreview(slide);
+  expect(preview).not.toHaveProperty("speakerNotes");
+  expect(slide.speakerNotes).toBe("ノート本文");
+  const state = {
+    title: "作品",
+    slideTitle: slide.title,
+    position: "13.9",
+    notes: "ノート本文",
+    preview,
+    available: { left: true, right: false, up: true, down: false },
+  };
+  const received = readSpeakerState(state)!;
+  expect(received.preview!.elements).toEqual(slide.elements);
+  expect(received.preview!.background).toBe(slide.background);
+  expect(received.preview).not.toHaveProperty("speakerNotes");
+  expect(received.notes).toBe("ノート本文");
+  expect(
+    readSpeakerState({
+      ...state,
+      preview: { ...preview, elements: "invalid" },
+    }),
+  ).toBeUndefined();
+  expect(
+    readSpeakerState({
+      ...state,
+      preview: {
+        ...preview,
+        elements: [
+          {
+            id: "bad",
+            type: "image",
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            src: "javascript:alert(1)",
+          },
+        ],
+      },
+    }),
+  ).toBeUndefined();
 });

@@ -33,11 +33,33 @@ async function filterIds(page: Page, positions: [number, number][]) {
     .click();
 }
 async function tool(page: Page, name: "比較" | "PDFで保存") {
-  if (name === "比較")
-    return page.getByRole("button", { name: "比較", exact: true }).click();
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  if (name === "比較") {
+    const select = page.getByRole("button", {
+      name: "スライドを複数選択",
+      exact: true,
+    });
+    if ((await select.getAttribute("aria-pressed")) !== "true")
+      await select.click();
+    await page
+      .getByRole("region", { name: "選択したスライドの操作", exact: true })
+      .getByRole("button", { name: "選択を解除", exact: true })
+      .click();
+    await page.locator(".slide-card .thumbnail").nth(0).click();
+    await page
+      .locator(".slide-card .thumbnail")
+      .nth(1)
+      .click({ modifiers: ["Control"] });
+    await page.getByRole("button", { name: "比較", exact: true }).click();
+    await page
+      .getByRole("button", { name: "スライドを選び直す", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "スライドを比較", exact: true })
+      .getByRole("button", { name: "選択を解除", exact: true })
+      .click();
+    return;
+  }
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /PDFで保存/ }).click();
 }
 const current = (page: Page) => page.locator(".present-slide .slide-canvas");
@@ -314,17 +336,19 @@ test("an outside link requires an explicit action and never expands the presenta
   await page
     .getByRole("button", { name: "この2ページを発表", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "リンク先のページへ", exact: true })
-    .click();
+  await page.locator('.present-mode .element[data-object-link="true"]').click();
   await expect(
     page.getByRole("dialog", { name: "発表対象外のリンク", exact: true }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(current(page)).toContainText("S1.1");
   await page
-    .getByRole("button", { name: "リンク先のページへ", exact: true })
-    .click();
+    .getByRole("button", { name: "リンク先を開く", exact: true })
+    .focus();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "発表対象外のリンク", exact: true }),
+  ).toHaveCount(0);
+  await expect(current(page)).toContainText("S1.1");
+  await page.locator('.present-mode .element[data-object-link="true"]').click();
   await page
     .getByRole("button", { name: "リンク先を開く", exact: true })
     .click();

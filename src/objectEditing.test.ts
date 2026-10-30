@@ -3,6 +3,9 @@ import * as Y from "yjs";
 import { blank, parseDeck, type Element, type Deck } from "./model";
 import { shapeIds } from "./shapeCatalog";
 import {
+  resizeElementFromHandle,
+  resizeBoxFromHandle,
+  objectsInSelection,
   arrangeElements,
   translateElements,
   resizeElement,
@@ -177,4 +180,86 @@ it("concurrent typing into a new empty shape label merges rather than replacing 
   Y.applyUpdate(b, Y.encodeStateAsUpdate(a), "server");
   expect(readSharedDeck(a)).toEqual(readSharedDeck(b));
   expect(readSharedDeck(a).slides[0].elements[0].text).toMatch(/^(AB|BA)$/);
+});
+
+it("marquee selects intersecting bounds independent of drag direction and ignores empty regions", () => {
+  const es = [
+    { id: "a", type: "shape", x: 10, y: 20, w: 100, h: 50 },
+    { id: "b", type: "text", x: 200, y: 30, w: 40, h: 40 },
+  ] as Element[];
+  expect(objectsInSelection(es, { x: 0, y: 0, w: 150, h: 100 })).toEqual(["a"]);
+  expect(objectsInSelection(es, { x: 90, y: 40, w: 150, h: 20 })).toEqual([
+    "a",
+    "b",
+  ]);
+  expect(objectsInSelection(es, { x: 90, y: 40, w: 0, h: 0 })).toEqual([]);
+  expect(objectsInSelection(es, { x: 300, y: 200, w: 20, h: 30 })).toEqual([]);
+});
+
+it("resizes each edge and corner around the opposite stationary anchor", () => {
+  const box = { x: 100, y: 100, w: 200, h: 120 };
+  for (const direction of [
+    "n",
+    "ne",
+    "e",
+    "se",
+    "s",
+    "sw",
+    "w",
+    "nw",
+  ] as const) {
+    const r = resizeBoxFromHandle(box, direction, 20, 10);
+    if (direction.includes("w")) expect(r.x + r.w).toBe(300);
+    else if (direction.includes("e")) expect(r.x).toBe(100);
+    else expect([r.x, r.w]).toEqual([100, 200]);
+    if (direction.includes("n")) expect(r.y + r.h).toBe(220);
+    else if (direction.includes("s")) expect(r.y).toBe(100);
+    else expect([r.y, r.h]).toEqual([100, 120]);
+    expect(r.w).toBe(
+      direction.includes("w") ? 180 : direction.includes("e") ? 220 : 200,
+    );
+    expect(r.h).toBe(
+      direction.includes("n") ? 110 : direction.includes("s") ? 130 : 120,
+    );
+  }
+});
+it("clamps west/north/east/south resizing without crossing or moving the opposite edge", () => {
+  const b = { x: 100, y: 100, w: 200, h: 120 };
+  expect(resizeBoxFromHandle(b, "nw", -1000, -1000)).toEqual({
+    x: 0,
+    y: 0,
+    w: 300,
+    h: 220,
+  });
+  expect(resizeBoxFromHandle(b, "nw", 1000, 1000)).toEqual({
+    x: 280,
+    y: 200,
+    w: 20,
+    h: 20,
+  });
+  expect(resizeBoxFromHandle(b, "se", 1000, 1000)).toEqual({
+    x: 100,
+    y: 100,
+    w: 860,
+    h: 440,
+  });
+});
+it("locked images keep ratio and opposite corner; side drags keep the perpendicular centre", () => {
+  const e = { ...shape(), x: 100, y: 100, w: 200, h: 100, aspectLocked: true };
+  expect(resizeElementFromHandle(e, "nw", -40, -20)).toMatchObject({
+    x: 60,
+    y: 80,
+    w: 240,
+    h: 120,
+  });
+  expect(resizeElementFromHandle(e, "e", 40, 0)).toMatchObject({
+    x: 100,
+    y: 90,
+    w: 240,
+    h: 120,
+  });
+  const limited = resizeElementFromHandle(e, "w", -1000, 0);
+  expect(limited.x).toBeGreaterThanOrEqual(0);
+  expect(limited.x + limited.w).toBe(300);
+  expect(limited.w / limited.h).toBe(2);
 });

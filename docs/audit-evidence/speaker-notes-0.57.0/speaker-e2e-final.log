@@ -1,0 +1,134 @@
+[WebServer] (node:100880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 2 workers
+(node:101010) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:101011) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:05:51 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:51 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:51 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:51 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:53 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:53 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:53 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:05:53 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+FF(node:101354) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:101360) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:06:02 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:06:02 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:06:03 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:06:03 AM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+··
+
+  1) [desktop] › tests/e2e/speaker-notes.spec.ts:36:1 › notes persist, stay off slides and follow presentation in a separate window 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: getByLabel('現在のスピーカーノート', { exact: true })
+    Timeout: 5000ms
+    - Expected  - 1
+    + Received  + 2
+
+    - 2枚目だけのメモ
+    + 最初に話す内容
+    + 投影しないメモ
+
+    Call log:
+      - Expect "toHaveText" getByLabel('現在のスピーカーノート', { exact: true }) with timeout 5000ms
+      - waiting for getByLabel('現在のスピーカーノート', { exact: true })
+        14 × locator resolved to <section aria-label="現在のスピーカーノート" class="speaker-notes-content">最初に話す内容↵投影しないメモ</section>
+           - unexpected value "最初に話す内容
+    投影しないメモ"
+
+
+      70 |   await expect(
+      71 |     speaker.getByLabel("現在のスピーカーノート", { exact: true }),
+    > 72 |   ).toHaveText("2枚目だけのメモ");
+         |     ^
+      73 |   await expect(
+      74 |     speaker.getByRole("button", { name: "右へ", exact: true }),
+      75 |   ).toBeDisabled();
+        at /workspace/vhslide-dual-auth/tests/e2e/speaker-notes.spec.ts:72:5
+
+    Error Context: test-results/speaker-notes-notes-persis-dd47c-tation-in-a-separate-window-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/speaker-notes-notes-persis-dd47c-tation-in-a-separate-window-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/speaker-notes-notes-persis-dd47c-tation-in-a-separate-window-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [touch] › tests/e2e/speaker-notes.spec.ts:36:1 › notes persist, stay off slides and follow presentation in a separate window 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: getByLabel('現在のスピーカーノート', { exact: true })
+    Timeout: 5000ms
+    - Expected  - 1
+    + Received  + 2
+
+    - 2枚目だけのメモ
+    + 最初に話す内容
+    + 投影しないメモ
+
+    Call log:
+      - Expect "toHaveText" getByLabel('現在のスピーカーノート', { exact: true }) with timeout 5000ms
+      - waiting for getByLabel('現在のスピーカーノート', { exact: true })
+        14 × locator resolved to <section aria-label="現在のスピーカーノート" class="speaker-notes-content">最初に話す内容↵投影しないメモ</section>
+           - unexpected value "最初に話す内容
+    投影しないメモ"
+
+
+      70 |   await expect(
+      71 |     speaker.getByLabel("現在のスピーカーノート", { exact: true }),
+    > 72 |   ).toHaveText("2枚目だけのメモ");
+         |     ^
+      73 |   await expect(
+      74 |     speaker.getByRole("button", { name: "右へ", exact: true }),
+      75 |   ).toBeDisabled();
+        at /workspace/vhslide-dual-auth/tests/e2e/speaker-notes.spec.ts:72:5
+
+    Error Context: test-results/speaker-notes-notes-persis-dd47c-tation-in-a-separate-window-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/speaker-notes-notes-persis-dd47c-tation-in-a-separate-window-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/speaker-notes-notes-persis-dd47c-tation-in-a-separate-window-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop] › tests/e2e/speaker-notes.spec.ts:36:1 › notes persist, stay off slides and follow presentation in a separate window 
+    [touch] › tests/e2e/speaker-notes.spec.ts:36:1 › notes persist, stay off slides and follow presentation in a separate window 
+  2 passed (16.7s)

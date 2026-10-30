@@ -85,7 +85,9 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   await page.reload();
   await expect(page.locator(".slide-card")).toHaveCount(7);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ファイルに保存", exact: true })
+    .click();
   const file = await download;
   const exported = JSON.parse(await fs.readFile((await file.path())!, "utf8"));
   expect(exported.slides).toHaveLength(7);
@@ -243,7 +245,8 @@ test("row and column moves preserve all pages; delete and new project are undoab
   await expect(page.locator(".slide-card")).toHaveCount(4);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  await page.getByRole("button", { name: "新しく", exact: true }).click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
+  await page.getByRole("menuitem", { name: "新しく", exact: true }).click();
   await expect(page.locator(".slide-card")).toHaveCount(1);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   await expect(page.locator(".slide-card")).toHaveCount(5);

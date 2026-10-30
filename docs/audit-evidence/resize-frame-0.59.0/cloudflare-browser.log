@@ -1,0 +1,155 @@
+[WebServer] (node:149531) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:149552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert (9.2s)
+  ✓  2 [cloud-desktop] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (10.4s)
+(node:149943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [cloud-touch] › tests/cloud/objects.spec.ts:3:1 › shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert (9.1s)
+  ✘  4 [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work (1.5m)
+
+
+  1) [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test timeout of 90000ms exceeded.
+    Browser logs:
+
+    <launching> /usr/bin/chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-gjdObc --remote-debugging-pipe --no-startup-window
+    <launched> pid=149969
+    [pid=149969][err] [149969:149997:1029/033608.268903:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=149969][err] [149969:149997:1029/033608.268984:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149997:1029/033608.272282:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=149969][err] [149969:149997:1029/033608.272427:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=149969][err] [149969:149997:1029/033608.272442:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:150009:1029/033608.276059:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150013: Read-only file system (30)
+    [pid=149969][err] Fontconfig error: No writable cache directories
+    [pid=149969][err] [149969:149997:1029/033608.324008:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:150009:1029/033608.324916:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150049: Read-only file system (30)
+    [pid=149969][err] [149969:149969:1029/033608.337953:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.338028:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149969:1029/033608.338059:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.338089:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149969:1029/033608.341866:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.341935:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149969:1029/033608.343166:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.343173:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=149969][err] [149969:149997:1029/033608.343190:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+    [pid=149969][err] [149969:149969:1029/033608.343204:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.343224:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149969:1029/033608.343682:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149969:1029/033608.344032:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
+    [pid=149969][err] [149969:149969:1029/033608.344043:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.344160:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149969:1029/033608.345690:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] [149969:149997:1029/033608.346085:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+    [pid=149969][err] [149969:149969:1029/033608.346155:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+    [pid=149969][err] 
+    [pid=149969][err] (process:149969): dconf-CRITICAL **: 03:36:08.367: unable to create directory '/home/agent/.cache/dconf': Read-only file system.  dconf will not work properly.
+    [pid=149969][err] 
+    [pid=149969][err] (process:149969): dconf-CRITICAL **: 03:36:08.367: unable to create directory '/home/agent/.cache/dconf': Read-only file system.  dconf will not work properly.
+    [pid=149969][err] 
+    [pid=149969][err] (process:149969): dconf-CRITICAL **: 03:36:08.368: unable to create directory '/home/agent/.cache/dconf': Read-only file system.  dconf will not work properly.
+    [pid=149969][err] [149969:150009:1029/033608.392082:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150067: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.410473:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150076: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.411429:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150077: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.480780:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150098: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.908353:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150123: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.923685:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150130: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.925338:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150132: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033608.993470:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150152: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033609.327360:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150166: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033610.428502:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150175: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033617.521043:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150216: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033617.538148:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150225: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033617.540423:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150227: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033617.605494:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150245: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033620.319720:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150263: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033620.335824:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150272: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033620.336828:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150273: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033620.388871:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150292: Read-only file system (30)
+    [pid=149969][err] [149969:150009:1029/033626.056776:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:300] Failed to adjust OOM score of renderer with pid 150310: Read-only file system (30)
+    [pid=149969] <gracefully close start>
+    Call log:
+      - waiting for getByRole('button', { name: '新しい作品に復元する', exact: true })
+        - locator resolved to <button class="button primary">新しい作品に復元する</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div aria-label="復元内容の確認" class="backup-preview">…</div> intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <section class="backup-panel" aria-label="完全バックアップと復元">…</section> intercepts pointer events
+      2 × retrying click action
+          - waiting 100ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <header class="cloud-panel-heading">…</header> intercepts pointer events
+      39 × retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div aria-label="復元内容の確認" class="backup-preview">…</div> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <section class="backup-panel" aria-label="完全バックアップと復元">…</section> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <header class="cloud-panel-heading">…</header> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <header class="cloud-panel-heading">…</header> intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+
+
+      134 |     await page
+      135 |       .getByRole("button", { name: "新しい作品に復元する", exact: true })
+    > 136 |       .click();
+          |        ^
+      137 |     await expect
+      138 |       .poll(() => {
+      139 |         const id = new URL(page.url()).searchParams.get("room");
+        at /workspace/vhslide-dual-auth/tests/cloud/tables.spec.ts:136:8
+
+    Error Context: test-results-cloudflare/tables-tables-sync-indepen-59de0-ugh-ZIP-into-a-private-work-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/tables-tables-sync-indepen-59de0-ugh-ZIP-into-a-private-work-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/tables-tables-sync-indepen-59de0-ugh-ZIP-into-a-private-work-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-touch] › tests/cloud/tables.spec.ts:5:1 › tables sync independent cells, honor access, undo only local edits and restore through ZIP into a private work 
+  3 passed (2.1m)

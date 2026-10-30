@@ -1,3 +1,4 @@
+import { InkObject } from "./InkObject";
 import { ChartGraphic } from "./ChartGraphic";
 import {
   resolveConnections,
@@ -6,8 +7,7 @@ import {
   nearestAnchor,
   anchorPoint,
 } from "./structureData";
-import { resizeSelection } from "./structuredEditing";
-import { Link2 } from "lucide-react";
+import { resizeSelectionFromHandle } from "./structuredEditing";
 import { RichTextView } from "./RichTextView";
 import { ImageGraphic } from "./ImageTools";
 import type { TextController } from "./TextSelectionControls";
@@ -17,8 +17,10 @@ import {
   elementBounds,
   linePoint,
   moveLinePoint,
-  resizeElement,
+  resizeElementFromHandle,
+  type ResizeDirection,
   translateElements,
+  objectsInSelection,
 } from "./objectEditing";
 import { SlideTable } from "./SlideTable";
 import { useEffect, useRef, useState } from "react";
@@ -29,7 +31,8 @@ export function ElementView({ element: e }: { element: Element }) {
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
   if (e.type === "text") return <RichTextView element={e} />;
-  if (e.type === "image") return <ImageGraphic element={e} />;
+  if (e.type === "image")
+    return e.drawing ? <InkObject element={e} /> : <ImageGraphic element={e} />;
   if (e.type === "line") return <LineGraphic element={e} />;
   return <ShapeGraphic element={e} />;
 }
@@ -39,6 +42,9 @@ export function Canvas({
   selectedIds,
   selectMultiple = false,
   onSelect,
+  onSelectMany,
+  selectedInkIndex,
+  onSelectInk,
   onChange,
   onChangeMany,
   editable = false,
@@ -58,6 +64,9 @@ export function Canvas({
   selectedIds?: string[];
   selectMultiple?: boolean;
   onSelect?: (id?: string, additive?: boolean, inside?: boolean) => void;
+  onSelectMany?: (ids: string[]) => void;
+  selectedInkIndex?: number;
+  onSelectInk?: (index?: number) => void;
   onChange?: (e: Element) => void;
   onChangeMany?: (elements: Element[]) => void;
   editable?: boolean;
@@ -84,7 +93,10 @@ export function Canvas({
       setEditingId((current) =>
         current === selected
           ? current
-          : element?.type === "text" && element.text === "ここにことばを入力"
+          : !marquee.current &&
+              activeIds.length <= 1 &&
+              element?.type === "text" &&
+              element.text === "ここにことばを入力"
             ? element.id
             : undefined,
       );
@@ -93,6 +105,69 @@ export function Canvas({
     if (editingId && !slide.elements.some((e) => e.id === editingId))
       setEditingId(undefined);
   }, [selected, slide.id, slide.elements, editable, editingId]);
+  const [selectionBox, setSelectionBox] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }>();
+  const marquee = useRef<{
+    pointerId: number;
+    start: { x: number; y: number };
+    base: string[];
+    previous: string[];
+    slideId: string;
+  } | null>(null);
+  function selectionPoint(event: React.PointerEvent) {
+    const r = ref.current!.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(W, ((event.clientX - r.left) * W) / r.width)),
+      y: Math.max(0, Math.min(H, ((event.clientY - r.top) * H) / r.height)),
+    };
+  }
+  function updateSelection(event: React.PointerEvent) {
+    const m = marquee.current;
+    if (!m || m.pointerId !== event.pointerId) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const p = selectionPoint(event),
+      box = {
+        x: Math.min(m.start.x, p.x),
+        y: Math.min(m.start.y, p.y),
+        w: Math.abs(m.start.x - p.x),
+        h: Math.abs(m.start.y - p.y),
+      };
+    setSelectionBox(box);
+    const ids =
+      box.w > 3 || box.h > 3 ? objectsInSelection(slide.elements, box) : [];
+    onSelectMany?.([...new Set([...m.base, ...ids])]);
+    return true;
+  }
+  function cancelSelection() {
+    const m = marquee.current;
+    if (!m) return;
+    marquee.current = null;
+    setSelectionBox(undefined);
+    if (m.slideId === slide.id) onSelectMany?.(m.previous);
+    if (ref.current?.hasPointerCapture(m.pointerId))
+      ref.current.releasePointerCapture(m.pointerId);
+  }
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (document.documentElement.dataset.hostFollow === "active") return;
+      if (event.key !== "Escape" || !marquee.current) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cancelSelection();
+    };
+    const blur = () => cancelSelection();
+    window.addEventListener("keydown", escape, true);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", escape, true);
+      window.removeEventListener("blur", blur);
+    };
+  });
   const [guides, setGuides] = useState({ x: false, y: false });
   const touchTap = useRef<{
     element: Element;
@@ -110,8 +185,11 @@ export function Canvas({
     group: Element[];
     endpoint?: "start" | "end";
     groupResize?: boolean;
+    direction: ResizeDirection;
+    aspectLocked: boolean;
   } | null>(null);
   function cancelDrag() {
+    cancelSelection();
     drag.current = null;
     touchTap.current = null;
     setDrafts([]);
@@ -121,7 +199,7 @@ export function Canvas({
     // A second finger claims navigation, cancelling pending taps and handle drags
     // without unmounting a text editor or interrupting an IME composition.
     cancelDrag();
-  }, [gestureEpoch]);
+  }, [gestureEpoch, slide.id, editable]);
   function selectElement(id: string, additive = false, inside = false) {
     const active = document.activeElement;
     if (
@@ -139,6 +217,7 @@ export function Canvas({
     allowTyping = true,
     endpoint?: "start" | "end",
     groupResize = false,
+    direction: ResizeDirection = "se",
   ) {
     if (!editable || event.button !== 0) return;
     event.stopPropagation();
@@ -170,6 +249,8 @@ export function Canvas({
       allowTyping,
       endpoint,
       groupResize,
+      direction,
+      aspectLocked: event.shiftKey || !!element.aspectLocked,
       group: endpoint
         ? [element]
         : movableElements(
@@ -185,6 +266,7 @@ export function Canvas({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function move(event: React.PointerEvent) {
+    if (updateSelection(event)) return;
     const d = drag.current;
     if (!d) return;
     const dx = (event.clientX - d.px) / d.scale,
@@ -213,12 +295,13 @@ export function Canvas({
       return;
     }
     if (d.groupResize) {
-      const b = elementBounds(d.group);
-      setDrafts(resizeSelection(d.group, b.w + dx, b.h + dy));
+      setDrafts(resizeSelectionFromHandle(d.group, d.direction, dx, dy));
       return;
     }
     if (d.resize) {
-      setDrafts([resizeElement(d.element, d.element.w + dx, d.element.h + dy)]);
+      setDrafts([
+        resizeElementFromHandle(d.element, d.direction, dx, dy, d.aspectLocked),
+      ]);
       return;
     }
     const b = elementBounds(d.group);
@@ -234,6 +317,14 @@ export function Canvas({
     );
   }
   function end(event: React.PointerEvent) {
+    if (marquee.current?.pointerId === event.pointerId) {
+      updateSelection(event);
+      marquee.current = null;
+      setSelectionBox(undefined);
+      if (ref.current?.hasPointerCapture(event.pointerId))
+        ref.current.releasePointerCapture(event.pointerId);
+      return;
+    }
     const tap = touchTap.current;
     touchTap.current = null;
     if (
@@ -334,6 +425,52 @@ export function Canvas({
           // Use the physical hit point before that input handles the event.
           const hit = document.elementFromPoint(event.clientX, event.clientY);
           const owner = hit?.closest<HTMLElement>(".element");
+          // Chromium may adjust a touch inside an empty table cell onto a
+          // nearby native resize button. Route that down through the actual
+          // cell so the table keeps its focus/range-selection behavior.
+          const nativeHandle = (event.target as HTMLElement).closest(
+            ".resize-handle",
+          );
+          const cell = hit?.closest<HTMLElement>("td,th");
+          if (
+            event.pointerType === "touch" &&
+            nativeHandle &&
+            !hit?.closest(".resize-handle") &&
+            cell &&
+            cell.closest(".slide-table") &&
+            ref.current?.contains(cell)
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            cell.dispatchEvent(
+              new PointerEvent("pointerdown", {
+                bubbles: true,
+                cancelable: true,
+                pointerId: event.pointerId,
+                pointerType: event.pointerType,
+                isPrimary: event.isPrimary,
+                button: event.button,
+                buttons: event.buttons,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                shiftKey: event.shiftKey,
+                ctrlKey: event.ctrlKey,
+                metaKey: event.metaKey,
+                altKey: event.altKey,
+              }),
+            );
+            return;
+          }
+          if (hit?.closest(".resize-handle")) return;
+          if (
+            (event.ctrlKey || event.metaKey) &&
+            owner &&
+            rendered.find((e) => e.id === owner.dataset.elementId)?.link
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           if (
             (selectMultiple ||
               event.shiftKey ||
@@ -348,6 +485,38 @@ export function Canvas({
             selectElement(owner.dataset.elementId!, true);
             return;
           }
+          if (
+            event.button === 0 &&
+            event.pointerType === "mouse" &&
+            !owner &&
+            onSelectMany &&
+            ref.current?.contains(hit) &&
+            !hit?.closest(
+              "button,input,textarea,[contenteditable],.resize-handle",
+            )
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            setEditingId(undefined);
+            const active = document.activeElement;
+            if (active instanceof HTMLElement && ref.current.contains(active))
+              active.blur();
+            const base =
+              event.shiftKey || event.ctrlKey || event.metaKey
+                ? [...activeIds]
+                : [];
+            marquee.current = {
+              pointerId: event.pointerId,
+              start: selectionPoint(event),
+              base,
+              previous: [...activeIds],
+              slideId: slide.id,
+            };
+            setSelectionBox(undefined);
+            onSelectMany(base);
+            ref.current.setPointerCapture(event.pointerId);
+            return;
+          }
           const border = hit?.closest<HTMLElement>(".element-drag-border");
           if (!border || !ref.current?.contains(border)) return;
           const element = resolveConnections(slide.elements).find(
@@ -359,6 +528,9 @@ export function Canvas({
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={cancelDrag}
+        onLostPointerCapture={() => {
+          if (marquee.current) cancelSelection();
+        }}
       >
         {rendered.map((e, layer) => {
           const quarter = (e.rotation ?? 0) % 180 !== 0,
@@ -369,6 +541,7 @@ export function Canvas({
             <div
               key={e.id}
               data-element-id={e.id}
+              data-object-link={!!e.link}
               className={`element ${editable && activeIds.includes(e.id) ? "selected-element" : ""} ${editingId === e.id ? "editing-element" : ""}`}
               tabIndex={editable ? 0 : undefined}
               aria-label={
@@ -377,6 +550,7 @@ export function Canvas({
                   : undefined
               }
               onDoubleClick={(event) => {
+                if (event.shiftKey || event.ctrlKey || event.metaKey) return;
                 if (
                   editable &&
                   (e.groupId || e.type === "text" || e.type === "shape")
@@ -402,14 +576,38 @@ export function Canvas({
                   );
                 }
               }}
-              style={{
-                left: e.x,
-                top: e.y,
-                width: e.w,
-                height: e.h,
-                zIndex: layer,
+              style={
+                {
+                  "--resize-limit-x": `${e.w / 2}px`,
+                  "--resize-limit-y": `${e.h / 2}px`,
+                  left: e.x,
+                  top: e.y,
+                  width: e.w,
+                  height: e.h,
+                  zIndex: layer,
+                } as React.CSSProperties
+              }
+              onPointerDown={(event) => {
+                if (e.link && (!editable || event.ctrlKey || event.metaKey)) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return;
+                }
+                start(event, e);
               }}
-              onPointerDown={(event) => start(event, e)}
+              onClickCapture={(event) => {
+                if (
+                  !e.link ||
+                  !onOpenLink ||
+                  (editable && !event.ctrlKey && !event.metaKey)
+                )
+                  return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (e.link.url)
+                  window.open(e.link.url, "_blank", "noopener,noreferrer");
+                else if (e.link.slideId) onOpenLink(e.link.slideId);
+              }}
             >
               <div
                 className="element-visual"
@@ -422,7 +620,17 @@ export function Canvas({
                   opacity: e.opacity ?? 1,
                 }}
               >
-                {e.type === "table" ? (
+                {e.drawing ? (
+                  <InkObject
+                    element={e}
+                    selectedIndex={
+                      activeIds.includes(e.id) ? selectedInkIndex : undefined
+                    }
+                    onSelect={onSelectInk}
+                    editable={editable && selected === e.id}
+                    onChange={onChange}
+                  />
+                ) : e.type === "table" ? (
                   <SlideTable
                     element={e}
                     editable={editable}
@@ -444,12 +652,14 @@ export function Canvas({
                     <div
                       className={`text-layout ${e.type === "shape" ? "shape-label" : ""}`}
                       data-vertical-align={e.verticalAlign ?? "top"}
+                      data-writing-mode={e.writingMode ?? "horizontal-tb"}
                       style={{
                         fontSize: e.fontSize,
                         fontWeight: e.bold ? 700 : 400,
                         color: e.color,
                         background: e.highlight,
                         textAlign: e.textAlign ?? "left",
+                        writingMode: e.writingMode ?? "horizontal-tb",
                       }}
                     >
                       {editable && editingId === e.id ? (
@@ -471,26 +681,6 @@ export function Canvas({
                   <ElementView element={e} />
                 )}
               </div>
-              {e.link &&
-                (onOpenLink ? (
-                  <button
-                    className="canvas-object-link"
-                    aria-label="リンク先のページへ"
-                    title="リンク先のページへ"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenLink(e.link!.slideId);
-                    }}
-                  >
-                    <Link2 size={16} />
-                    <span>リンク先へ</span>
-                  </button>
-                ) : (
-                  <span className="canvas-link-mark" aria-hidden="true">
-                    <Link2 size={16} />
-                  </span>
-                ))}
               {editable &&
                 selected === e.id &&
                 activeIds.length <= 1 &&
@@ -528,10 +718,18 @@ export function Canvas({
                 selected === e.id &&
                 activeIds.length <= 1 &&
                 e.type !== "line" && (
-                  <button
-                    aria-label="要素のサイズを変更"
-                    className="resize-handle"
-                    onPointerDown={(event) => start(event, e, true)}
+                  <ResizeFrame
+                    onStart={(event, direction) =>
+                      start(
+                        event,
+                        e,
+                        !event.altKey,
+                        false,
+                        undefined,
+                        false,
+                        direction,
+                      )
+                    }
                   />
                 )}
             </div>
@@ -540,25 +738,90 @@ export function Canvas({
         {groupBox && (
           <div
             className="group-selection-box"
-            style={{
-              left: groupBox.x,
-              top: groupBox.y,
-              width: groupBox.w,
-              height: groupBox.h,
-            }}
+            style={
+              {
+                "--resize-limit-x": `${groupBox.w / 2}px`,
+                "--resize-limit-y": `${groupBox.h / 2}px`,
+                left: groupBox.x,
+                top: groupBox.y,
+                width: groupBox.w,
+                height: groupBox.h,
+              } as React.CSSProperties
+            }
           >
-            <button
-              className="resize-handle group-resize"
-              aria-label="選択全体のサイズを変更"
-              onPointerDown={(event) =>
-                start(event, grouped[0], true, false, undefined, true)
+            <ResizeFrame
+              group
+              onStart={(event, direction) =>
+                start(
+                  event,
+                  grouped[0],
+                  !event.altKey,
+                  false,
+                  undefined,
+                  !event.altKey,
+                  direction,
+                )
               }
             />
           </div>
+        )}
+        {selectionBox && (
+          <div
+            className="object-marquee"
+            aria-hidden="true"
+            style={{
+              left: selectionBox.x,
+              top: selectionBox.y,
+              width: selectionBox.w,
+              height: selectionBox.h,
+            }}
+          />
         )}
         {guides.x && <div className="guide vertical" />}
         {guides.y && <div className="guide horizontal" />}
       </div>
     </div>
+  );
+}
+
+const resizeDirections: { direction: ResizeDirection; label: string }[] = [
+  { direction: "n", label: "上" },
+  { direction: "ne", label: "右上" },
+  { direction: "e", label: "右" },
+  { direction: "se", label: "右下" },
+  { direction: "s", label: "下" },
+  { direction: "sw", label: "左下" },
+  { direction: "w", label: "左" },
+  { direction: "nw", label: "左上" },
+];
+function ResizeFrame({
+  group = false,
+  onStart,
+}: {
+  group?: boolean;
+  onStart: (event: React.PointerEvent, direction: ResizeDirection) => void;
+}) {
+  return (
+    <>
+      {resizeDirections.map(({ direction, label }) => (
+        <button
+          key={direction}
+          type="button"
+          className={`resize-handle resize-${direction.length === 1 ? "edge" : "corner"} resize-${direction}${group ? " group-resize" : ""}`}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          data-resize-direction={direction}
+          aria-label={
+            direction === "se"
+              ? group
+                ? "選択全体のサイズを変更"
+                : "要素のサイズを変更"
+              : `${group ? "選択全体" : "要素"}の${label}の枠でサイズを変更`
+          }
+          title={`${label}の枠をドラッグしてサイズ変更（Altキーで移動）`}
+          onPointerDown={(event) => onStart(event, direction)}
+        />
+      ))}
+    </>
   );
 }

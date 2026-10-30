@@ -5,13 +5,15 @@ import { Shapes, MoveUpRight } from "lucide-react";
 import { shapeCatalog } from "./shapeCatalog";
 import type { Element, Shape } from "./model";
 import { ShapeGraphic, LineGraphic } from "./ObjectGraphics";
-function Palette({
+export function Palette({
   label,
   text,
   icon,
   disabled,
   children,
+  heading,
 }: {
+  heading?: string;
   label: string;
   text: string;
   icon: ReactNode;
@@ -37,8 +39,14 @@ function Palette({
     const place = () => {
       const r = trigger.current!.getBoundingClientRect(),
         vp = window.visualViewport,
-        w = vp?.width ?? innerWidth,
-        h = vp?.height ?? innerHeight,
+        w = Math.min(
+          vp?.width ?? innerWidth,
+          document.documentElement.clientWidth,
+        ),
+        h = Math.min(
+          vp?.height ?? innerHeight,
+          document.documentElement.clientHeight,
+        ),
         x = vp?.offsetLeft ?? 0,
         y = vp?.offsetTop ?? 0;
       const width = Math.min(340, w - 16),
@@ -55,6 +63,11 @@ function Palette({
       });
     };
     place();
+    const resize =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(place);
+    if (panel.current) resize?.observe(panel.current);
     panel.current
       ?.querySelector<HTMLButtonElement>("button")
       ?.focus({ preventScroll: true });
@@ -65,6 +78,7 @@ function Palette({
     window.addEventListener("scroll", scroll, true);
     window.visualViewport?.addEventListener("resize", place);
     return () => {
+      resize?.disconnect();
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", scroll, true);
       window.visualViewport?.removeEventListener("resize", place);
@@ -120,7 +134,7 @@ function Palette({
             style={position}
           >
             <div className="object-palette-heading">
-              <strong>{text}を選ぶ</strong>
+              <strong>{heading ?? `${text}を選ぶ`}</strong>
               <button className="quiet" onClick={close}>
                 閉じる
               </button>
@@ -202,7 +216,9 @@ export function ObjectPalette({
                   </button>
                 ))}
             </div>
-            <p className="palette-hint">クリックで文字入力 · 枠で移動</p>
+            <p className="palette-hint">
+              クリックで文字入力 · 選択枠でサイズ変更
+            </p>
           </>
         )}
       </Palette>

@@ -1,0 +1,24 @@
+[WebServer] (node:308917) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:308938) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (2.7s)
+  ✓  2 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (16.1s)
+  ✓  3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.8s)
+  ✓  4 [cloud-desktop] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.3s)
+(node:309714) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (2.9s)
+  ✓  6 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (16.4s)
+  ✓  7 [cloud-touch] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (3.1s)
+  ✓  8 [cloud-touch] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.3s)
+
+  8 passed (55.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

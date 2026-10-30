@@ -1,0 +1,22 @@
+[WebServer] (node:190556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:190647) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (8.3s)
+  ✓  2 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.9s)
+  ✓  3 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.8s)
+(node:191336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (5.8s)
+  ✓  5 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.0s)
+  ✓  6 [cloud-touch] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.2s)
+
+  6 passed (42.6s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

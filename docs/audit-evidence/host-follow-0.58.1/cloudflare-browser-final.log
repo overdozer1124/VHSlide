@@ -1,0 +1,27 @@
+[WebServer] (node:133145) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 1 worker
+
+(node:133166) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.2s)
+  ✓   2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.8s)
+  ✓   3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓   4 [cloud-desktop] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.8s)
+  ✓   5 [cloud-desktop] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.1s)
+  ✓   6 [cloud-desktop] › tests/cloud/host-follow.spec.ts:514:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+FOLLOW_RENDER_40_METRICS {"backend":"cloudflare","project":"cloud-desktop","connections":40,"renderedGuests":1,"samples":20,"p95Ms":134.1162320000003,"maxMs":150.3686119999984,"allMs":[119.62833099999989,133.65688699999737,115.92500399999699,150.3686119999984,116.26114100000268,117.2967140000037,115.87984599999618,133.98734500000137,116.10781000000134,116.80705299999681,116.44908600000053,116.5889859999952,116.82823700000154,116.51573400000052,134.1162320000003,116.03504599999724,116.82838899999479,116.27672200000234,117.20615999999427,116.20679899999959]}
+  ✓   7 [cloud-desktop] › tests/cloud/host-follow.spec.ts:579:1 › 40 connections include rendered guest page latency under one second (8.1s)
+(node:133888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.3s)
+  ✓   9 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.8s)
+  ✓  10 [cloud-touch] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓  11 [cloud-touch] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.8s)
+  ✓  12 [cloud-touch] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.1s)
+  ✓  13 [cloud-touch] › tests/cloud/host-follow.spec.ts:514:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+FOLLOW_RENDER_40_METRICS {"backend":"cloudflare","project":"cloud-touch","connections":40,"renderedGuests":1,"samples":20,"p95Ms":133.90283600000112,"maxMs":134.10789400000067,"allMs":[122.28213700000197,116.68922799999564,117.02911599999788,116.4849749999994,133.28016500000376,116.07615299999452,116.73316000000341,117.1079499999978,116.22992599999998,116.93509300000005,116.7273320000022,134.10789400000067,133.46823399999994,115.61889900000097,116.39207400000305,116.84650099999999,116.36531800000375,116.7156130000003,117.32405600000493,133.90283600000112]}
+  ✓  14 [cloud-touch] › tests/cloud/host-follow.spec.ts:579:1 › 40 connections include rendered guest page latency under one second (8.0s)
+
+  14 passed (1.4m)

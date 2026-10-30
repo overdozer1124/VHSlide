@@ -1,0 +1,401 @@
+[WebServer] (node:205679) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:205692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 2 workers
+
+(node:205723) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:205716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:14:43 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:43 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:43 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:43 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   1 [desktop] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides (5.0s)
+  ✓   2 [desktop] › tests/e2e/map-action-layout.spec.ts:14:1 › comparison is contextual, inherits exact selected IDs and never silently truncates five pages (5.5s)
+(node:206624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:14:47 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:47 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:48 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   4 [desktop] › tests/e2e/learning-tools.spec.ts:301:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (3.0s)
+(node:206843) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:14:51 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:14:51 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   5 [desktop] › tests/e2e/learning-tools.spec.ts:410:1 › a thousand-page picker only renders previews near the scroll viewport (5.4s)
+  ✘   3 [desktop] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope (30.1s)
+(node:207090) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:15:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:15:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   7 [touch] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides (2.1s)
+(node:207240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:15:20 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:15:20 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   8 [touch] › tests/e2e/learning-tools.spec.ts:301:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus (2.9s)
+(node:207380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 1:15:24 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:15:24 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   6 [desktop] › tests/e2e/map-batch.spec.ts:58:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (30.1s)
+(node:207580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [touch] › tests/e2e/learning-tools.spec.ts:410:1 › a thousand-page picker only renders previews near the scroll viewport (5.9s)
+[WebServer] 1:15:30 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:15:30 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  11 [touch] › tests/e2e/map-action-layout.spec.ts:14:1 › comparison is contextual, inherits exact selected IDs and never silently truncates five pages (2.2s)
+[WebServer] 1:15:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 1:15:32 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  10 [desktop] › tests/e2e/map-batch.spec.ts:97:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents (30.1s)
+(node:207852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 [desktop] › tests/e2e/map-batch.spec.ts:118:1 › Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering (2.5s)
+  ✘  12 [touch] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope (30.1s)
+  ✓  14 [desktop] › tests/e2e/map-batch.spec.ts:151:1 › marquee selects pages without moving them; delete requires confirmation and Undo restores the selection contents (2.1s)
+(node:208024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  15 [desktop] › tests/e2e/map-batch.spec.ts:215:1 › selection supports keyboard toggling and touch taps without entering the editor (1.8s)
+  ✘  16 [touch] › tests/e2e/map-batch.spec.ts:58:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo (19.5s)
+  ✘  17 [desktop] › tests/e2e/map-batch.spec.ts:246:1 › bulk add accounts for pages in other sheets before enabling the operation (18.0s)
+
+
+  1) [desktop] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides 
+
+    Error: locator.click: Error: strict mode violation: getByRole('button', { name: '選択を解除', exact: true }) resolved to 2 elements:
+        1) <button class="quiet">選択を解除</button> aka getByRole('region', { name: '選択したスライドの操作' }).getByRole('button', { name: '選択を解除' })
+        2) <button class="quiet">選択を解除</button> aka getByRole('dialog', { name: 'PDFで保存' }).getByRole('button', { name: '選択を解除' })
+
+    Call log:
+      - waiting for getByRole('button', { name: '選択を解除', exact: true })
+
+
+      57 |   await page.getByRole("button", { name: "閉じる", exact: true }).click();
+      58 |   await openTools(page, "PDFで保存");
+    > 59 |   await page.getByRole("button", { name: "選択を解除", exact: true }).click();
+         |                                                                  ^
+      60 |   await checkboxes.nth(0).check();
+      61 |   await checkboxes.nth(2).check();
+      62 |   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
+        at /workspace/vhslide-dual-auth/tests/e2e/learning-tools.spec.ts:59:66
+
+    Error Context: test-results/learning-tools-selects-com-9ebe3-hout-changing-source-slides-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/learning-tools-selects-com-9ebe3-hout-changing-source-slides-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/learning-tools-selects-com-9ebe3-hout-changing-source-slides-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop] › tests/e2e/learning-tools.spec.ts:301:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus 
+
+    ReferenceError: compare is not defined
+
+      396 |
+      397 |   await page.getByRole("button", { name: "閉じる", exact: true }).click();
+    > 398 |   await expect(compare).toBeFocused();
+          |                ^
+      399 |   expect(
+      400 |     await page.evaluate(
+      401 |       () => document.documentElement.scrollWidth <= innerWidth,
+        at /workspace/vhslide-dual-auth/tests/e2e/learning-tools.spec.ts:398:16
+
+    Error Context: test-results/learning-tools-purpose-spe-379b0-ccessible-and-restore-focus-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/learning-tools-purpose-spe-379b0-ccessible-and-restore-focus-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/learning-tools-purpose-spe-379b0-ccessible-and-restore-focus-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [desktop] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('menuitem', { name: '行・列を一括操作', exact: true })
+
+
+      74 |   await page
+      75 |     .getByRole("menuitem", { name: "行・列を一括操作", exact: true })
+    > 76 |     .click();
+         |      ^
+      77 |   const batch = page.getByRole("region", {
+      78 |     name: "行・列の一括操作",
+      79 |     exact: true,
+        at /workspace/vhslide-dual-auth/tests/e2e/map-action-layout.spec.ts:76:6
+
+    Error Context: test-results/map-action-layout-sheet-wi-98b28-survives-filtered-map-scope-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-action-layout-sheet-wi-98b28-survives-filtered-map-scope-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-action-layout-sheet-wi-98b28-survives-filtered-map-scope-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [desktop] › tests/e2e/map-batch.spec.ts:58:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('menuitem', { name: '行・列を一括操作', exact: true })
+
+
+      43 |   await page
+      44 |     .getByRole("menuitem", { name: "行・列を一括操作", exact: true })
+    > 45 |     .click();
+         |      ^
+      46 |   const panel = page.getByRole("region", {
+      47 |     name: "行・列の一括操作",
+      48 |     exact: true,
+        at batch (/workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:45:6)
+        at /workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:62:11
+
+    Error Context: test-results/map-batch-bulk-insert-dele-aff7a-er-sheets-and-one-step-Undo-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-batch-bulk-insert-dele-aff7a-er-sheets-and-one-step-Undo-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-batch-bulk-insert-dele-aff7a-er-sheets-and-one-step-Undo-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [desktop] › tests/e2e/map-batch.spec.ts:97:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('menuitem', { name: '行・列を一括操作', exact: true })
+
+
+      43 |   await page
+      44 |     .getByRole("menuitem", { name: /^行・列を一括操作/ })
+    > 45 |     .click();
+         |      ^
+      46 |   const panel = page.getByRole("region", {
+      47 |     name: "行・列の一括操作",
+      48 |     exact: true,
+        at batch (/workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:45:6)
+        at /workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:100:13
+
+    Error Context: test-results/map-batch-invalid-ranges-a-08500--Undo-restores-all-contents-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-batch-invalid-ranges-a-08500--Undo-restores-all-contents-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-batch-invalid-ranges-a-08500--Undo-restores-all-contents-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [touch] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides 
+
+    Error: locator.click: Error: strict mode violation: getByRole('button', { name: '選択を解除', exact: true }) resolved to 2 elements:
+        1) <button class="quiet">選択を解除</button> aka getByRole('region', { name: '選択したスライドの操作' }).getByRole('button', { name: '選択を解除' })
+        2) <button class="quiet">選択を解除</button> aka getByRole('dialog', { name: 'PDFで保存' }).getByRole('button', { name: '選択を解除' })
+
+    Call log:
+      - waiting for getByRole('button', { name: '選択を解除', exact: true })
+
+
+      57 |   await page.getByRole("button", { name: "閉じる", exact: true }).click();
+      58 |   await openTools(page, "PDFで保存");
+    > 59 |   await page.getByRole("button", { name: "選択を解除", exact: true }).click();
+         |                                                                  ^
+      60 |   await checkboxes.nth(0).check();
+      61 |   await checkboxes.nth(2).check();
+      62 |   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
+        at /workspace/vhslide-dual-auth/tests/e2e/learning-tools.spec.ts:59:66
+
+    Error Context: test-results/learning-tools-selects-com-9ebe3-hout-changing-source-slides-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/learning-tools-selects-com-9ebe3-hout-changing-source-slides-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/learning-tools-selects-com-9ebe3-hout-changing-source-slides-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [touch] › tests/e2e/learning-tools.spec.ts:301:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus 
+
+    ReferenceError: compare is not defined
+
+      396 |
+      397 |   await page.getByRole("button", { name: "閉じる", exact: true }).click();
+    > 398 |   await expect(compare).toBeFocused();
+          |                ^
+      399 |   expect(
+      400 |     await page.evaluate(
+      401 |       () => document.documentElement.scrollWidth <= innerWidth,
+        at /workspace/vhslide-dual-auth/tests/e2e/learning-tools.spec.ts:398:16
+
+    Error Context: test-results/learning-tools-purpose-spe-379b0-ccessible-and-restore-focus-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/learning-tools-purpose-spe-379b0-ccessible-and-restore-focus-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/learning-tools-purpose-spe-379b0-ccessible-and-restore-focus-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [touch] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('menuitem', { name: '行・列を一括操作', exact: true })
+
+
+      74 |   await page
+      75 |     .getByRole("menuitem", { name: /^行・列を一括操作/ })
+    > 76 |     .click();
+         |      ^
+      77 |   const batch = page.getByRole("region", {
+      78 |     name: "行・列の一括操作",
+      79 |     exact: true,
+        at /workspace/vhslide-dual-auth/tests/e2e/map-action-layout.spec.ts:76:6
+
+    Error Context: test-results/map-action-layout-sheet-wi-98b28-survives-filtered-map-scope-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-action-layout-sheet-wi-98b28-survives-filtered-map-scope-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-action-layout-sheet-wi-98b28-survives-filtered-map-scope-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [desktop] › tests/e2e/map-batch.spec.ts:246:1 › bulk add accounts for pages in other sheets before enabling the operation 
+
+    Test was interrupted.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByRole('menuitem', { name: '行・列を一括操作', exact: true })
+
+
+      43 |   await page
+      44 |     .getByRole("menuitem", { name: /^行・列を一括操作/ })
+    > 45 |     .click();
+         |      ^
+      46 |   const panel = page.getByRole("region", {
+      47 |     name: "行・列の一括操作",
+      48 |     exact: true,
+        at batch (/workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:45:6)
+        at /workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:265:13
+
+    Error Context: test-results/map-batch-bulk-add-account-0db81-fore-enabling-the-operation-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-batch-bulk-add-account-0db81-fore-enabling-the-operation-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-batch-bulk-add-account-0db81-fore-enabling-the-operation-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [touch] › tests/e2e/map-batch.spec.ts:58:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo 
+
+    Test was interrupted.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByRole('menuitem', { name: '行・列を一括操作', exact: true })
+
+
+      43 |   await page
+      44 |     .getByRole("menuitem", { name: /^行・列を一括操作/ })
+    > 45 |     .click();
+         |      ^
+      46 |   const panel = page.getByRole("region", {
+      47 |     name: "行・列の一括操作",
+      48 |     exact: true,
+        at batch (/workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:45:6)
+        at /workspace/vhslide-dual-auth/tests/e2e/map-batch.spec.ts:62:11
+
+    Error Context: test-results/map-batch-bulk-insert-dele-aff7a-er-sheets-and-one-step-Undo-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-batch-bulk-insert-dele-aff7a-er-sheets-and-one-step-Undo-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-batch-bulk-insert-dele-aff7a-er-sheets-and-one-step-Undo-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8 failed
+    [desktop] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides 
+    [desktop] › tests/e2e/learning-tools.spec.ts:301:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus 
+    [desktop] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope 
+    [desktop] › tests/e2e/map-batch.spec.ts:58:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo 
+    [desktop] › tests/e2e/map-batch.spec.ts:97:1 › invalid ranges are disabled, deleting every row leaves an empty page and Undo restores all contents 
+    [touch] › tests/e2e/learning-tools.spec.ts:40:1 › selects, compares, prints and follows a saved route without changing source slides 
+    [touch] › tests/e2e/learning-tools.spec.ts:301:1 › purpose-specific entrances keep menus keyboard-accessible and restore focus 
+    [touch] › tests/e2e/map-action-layout.spec.ts:63:1 › sheet-wide batch is available without a selection and survives filtered-map scope 
+  2 interrupted
+    [desktop] › tests/e2e/map-batch.spec.ts:246:1 › bulk add accounts for pages in other sheets before enabling the operation 
+    [touch] › tests/e2e/map-batch.spec.ts:58:1 › bulk insert/delete rows and columns preserves axes, pages, other sheets and one-step Undo 
+  5 did not run
+  7 passed (1.7m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

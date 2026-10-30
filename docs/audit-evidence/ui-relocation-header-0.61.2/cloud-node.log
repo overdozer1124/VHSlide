@@ -1,0 +1,64 @@
+[WebServer] (node:184204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:184216) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (5.9s)
+  ✓   2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.6s)
+  ✓   3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (2.9s)
+  ✓   4 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (2.6s)
+  ✓   5 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:90:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (2.9s)
+(node:184859) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (8.7s)
+  ✘   7 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (6.0s)
+(node:185807) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [cloud-touch] › tests/cloud/host-follow.spec.ts:423:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.3s)
+  ✓   9 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (4.4s)
+  ✓  10 [cloud-touch] › tests/cloud/workspace-more.spec.ts:90:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (5.6s)
+
+
+  1) [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cloud-presence')
+    Expected substring: "クラウドに保存済み"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" locator('.cloud-presence') with timeout 5000ms
+      - waiting for locator('.cloud-presence')
+
+
+      187 |     await scopeLogin(guest, name);
+      188 |     await guest.goto(`/?room=${id}`);
+    > 189 |     await expect(guest.locator(".cloud-presence")).toContainText(
+          |                                                    ^
+      190 |       "クラウドに保存済み",
+      191 |     );
+      192 |     await guest.locator(".thumbnail").first().click();
+        at /workspace/vhslide-dual-auth/tests/cloud/host-follow.spec.ts:189:52
+
+    Error Context: test-results-cloud/host-follow-step-3-host-to-607ff-ate-edit-or-leave-following-cloud-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloud/host-follow-step-3-host-to-607ff-ate-edit-or-leave-following-cloud-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloud/host-follow-step-3-host-to-607ff-ate-edit-or-leave-following-cloud-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following 
+  9 passed (1.1m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

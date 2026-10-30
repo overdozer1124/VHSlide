@@ -1,5 +1,7 @@
 import type { Element } from "./model.ts";
 import {
+  resizeBoxFromHandle,
+  type ResizeDirection,
   arrangeElements,
   elementBounds,
   translateElements,
@@ -173,4 +175,37 @@ export function arrangeStructured(
         changes.set(e.id, e);
   });
   return resolveConnections(all.map((e) => changes.get(e.id) ?? e));
+}
+
+export function resizeSelectionFromHandle(
+  es: Element[],
+  direction: ResizeDirection,
+  dx: number,
+  dy: number,
+) {
+  if (!es.length) return es;
+  const b = elementBounds(es);
+  const min = Math.max(
+    20 / b.w,
+    20 / b.h,
+    ...es.filter((e) => e.type !== "line").flatMap((e) => [20 / e.w, 20 / e.h]),
+  );
+  const target = resizeBoxFromHandle(b, direction, dx, dy, true, {
+    w: b.w * min,
+    h: b.h * min,
+  });
+  const scale = target.w / b.w;
+  const point = (p: { x: number; y: number }) => ({
+    x: target.x + (p.x - b.x) * scale,
+    y: target.y + (p.y - b.y) * scale,
+  });
+  return es.map((e) =>
+    e.type === "line"
+      ? withLinePoints(
+          e,
+          point(endpoint(e, "start")),
+          point(endpoint(e, "end")),
+        )
+      : { ...e, ...point(e), w: e.w * scale, h: e.h * scale },
+  );
 }

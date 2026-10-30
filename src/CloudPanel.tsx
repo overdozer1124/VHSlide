@@ -1,3 +1,4 @@
+import { ActionMenu } from "./ActionMenu";
 import { JoinRequests } from "./JoinRequests";
 import { CacheRecoveryNotice } from "./CacheRecoveryNotice";
 import { CloudTrash } from "./CloudTrash";
@@ -61,11 +62,35 @@ export function CloudPanel({
     initialTab ??
       (cloud.active && !cloud.needsAttention ? "sharing" : "library"),
   );
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const backupArea = useRef<HTMLDivElement>(null);
+  const trashArea = useRef<HTMLDivElement>(null);
+  function returnToLibraryMore() {
+    requestAnimationFrame(() =>
+      dialog.current
+        ?.querySelector<HTMLButtonElement>('[aria-label="作品一覧のその他"]')
+        ?.focus({ preventScroll: true }),
+    );
+  }
+  useEffect(() => {
+    if (backupOpen)
+      backupArea.current
+        ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+        ?.focus({ preventScroll: true });
+  }, [backupOpen]);
+  useEffect(() => {
+    if (trashOpen)
+      trashArea.current
+        ?.querySelector<HTMLHeadingElement>("h3")
+        ?.focus({ preventScroll: true });
+  }, [trashOpen]);
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState("");
   const [members, setMembers] = useState<SharingMember[]>([]);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loginError, setLoginError] = useState("");
+  const [loginType, setLoginType] = useState<"general" | "school">("general");
   const [query, setQuery] = useState(""),
     [listFilter, setListFilter] = useState("all");
   const [loadingSharing, setLoadingSharing] = useState(false);
@@ -128,13 +153,18 @@ export function CloudPanel({
   }, [cloud.active?.id, cloud.user?.id]);
   useEffect(() => {
     if (cloud.user || !cloud.clientId) return;
+    const selectedClientId =
+      loginType === "school" && cloud.schoolClientId
+        ? cloud.schoolClientId
+        : cloud.clientId;
     let alive = true;
     function render() {
       if (!alive || !button.current || !window.google) return;
       window.google.accounts.id.initialize({
-        client_id: cloud.clientId,
+        client_id: selectedClientId,
         callback: (result) => void cloud.signIn(result.credential),
       });
+      button.current.replaceChildren();
       window.google.accounts.id.renderButton(button.current, {
         theme: "outline",
         size: "large",
@@ -163,7 +193,14 @@ export function CloudPanel({
     return () => {
       alive = false;
     };
-  }, [cloud, cloud.user, cloud.clientId]);
+  }, [
+    cloud,
+    cloud.user,
+    cloud.clientId,
+    cloud.schoolClientId,
+    cloud.schoolDomain,
+    loginType,
+  ]);
   async function copy(value: string, kind: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -377,7 +414,34 @@ export function CloudPanel({
                 Googleアカウントでサインインすると、作品の保存や共同編集ができます。
               </p>
               {cloud.clientId ? (
-                <div ref={button} className="google-signin" />
+                <>
+                  {cloud.schoolClientId && (
+                    <fieldset className="google-account-choice">
+                      <legend>使用するアカウント</legend>
+                      <label>
+                        <input
+                          type="radio"
+                          name="google-account-type"
+                          value="general"
+                          checked={loginType === "general"}
+                          onChange={() => setLoginType("general")}
+                        />
+                        一般のGoogleアカウント
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name="google-account-type"
+                          value="school"
+                          checked={loginType === "school"}
+                          onChange={() => setLoginType("school")}
+                        />
+                        加賀市の学校アカウント
+                      </label>
+                    </fieldset>
+                  )}
+                  <div ref={button} className="google-signin" />
+                </>
               ) : (
                 <p role="status">
                   クラウド機能は準備中です。端末での編集とJSON保存はそのまま使えます。
@@ -397,23 +461,73 @@ export function CloudPanel({
                     <h3>保存した作品・参加した作品</h3>
                     <p>作品カードの「開く」から編集を始められます。</p>
                   </div>
-                  <button
-                    className="button primary"
-                    disabled={cloud.busy}
-                    onClick={() => void cloud.create(deck)}
-                  >
-                    <Cloud size={17} />
-                    {cloud.active
-                      ? "この作品のコピーを作る"
-                      : "この作品をクラウドに保存"}
-                  </button>
+                  <div className="cloud-library-actions">
+                    <ActionMenu
+                      label="作品一覧のその他"
+                      text="その他"
+                      showLabel
+                      portal
+                      portalContainer={() => dialog.current}
+                      items={[
+                        {
+                          label: "ごみ箱を開く",
+                          action: () => setTrashOpen(true),
+                        },
+                        {
+                          label: "バックアップと復元",
+                          action: () => setBackupOpen(true),
+                        },
+                      ]}
+                    />
+                    <button
+                      className="button primary"
+                      disabled={
+                        cloud.busy ||
+                        (!!cloud.active &&
+                          !cloud.isHost &&
+                          !!deck.restrictGuests)
+                      }
+                      title={
+                        cloud.active && !cloud.isHost && deck.restrictGuests
+                          ? "ホストが担当ページのみの表示に設定しています。"
+                          : undefined
+                      }
+                      onClick={() => void cloud.create(deck)}
+                    >
+                      <Cloud size={17} />
+                      {cloud.active
+                        ? "この作品のコピーを作る"
+                        : "この作品をクラウドに保存"}
+                    </button>
+                  </div>
                 </div>
-                <details>
-                  <summary>ごみ箱を開く</summary>
+                <div
+                  hidden={!trashOpen}
+                  className="cloud-trash-tools"
+                  ref={trashArea}
+                >
+                  <button
+                    className="quiet"
+                    onClick={() => {
+                      setTrashOpen(false);
+                      returnToLibraryMore();
+                    }}
+                  >
+                    ごみ箱を閉じる
+                  </button>
                   <CloudTrash cloud={cloud} />
-                </details>
+                </div>
                 <CacheRecoveryNotice cloud={cloud} compact />
-                <BackupPanel cloud={cloud} />
+                <div ref={backupArea}>
+                  <BackupPanel
+                    cloud={cloud}
+                    collapsed={!backupOpen}
+                    onCollapse={() => {
+                      setBackupOpen(false);
+                      returnToLibraryMore();
+                    }}
+                  />
+                </div>
                 <div className="cloud-library-tools">
                   <label className="cloud-search">
                     <Search size={17} />

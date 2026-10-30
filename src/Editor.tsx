@@ -1,3 +1,5 @@
+import { InkControls } from "./InkControls";
+import { emptyInkImage } from "./InkObject";
 import { EditorInspector, TableInspector } from "./EditorInspector";
 import type { ResolvedPageScope } from "./pageScope";
 import { PageScopeSummary } from "./PageScopeSummary";
@@ -16,13 +18,15 @@ import type { TextController } from "./TextSelectionControls";
 import { TableCellControls } from "./TableCellControls";
 import type { CellSelection } from "./TableCellControls";
 import { ImageControls } from "./ImageTools";
-import { ObjectPalette } from "./ObjectPalette";
+import { ObjectPalette, Palette } from "./ObjectPalette";
 import { ObjectLayout, StrokeControls } from "./ObjectLayout";
 import type { Arrange } from "./objectEditing";
 import { TableInsert, TableControls } from "./TableTools";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  NotebookPen,
+  Pencil,
   ArrowLeft,
   Filter,
   AlignLeft,
@@ -48,6 +52,7 @@ import type { CloudWorkspace } from "./cloud";
 import { thumbnailAccountNames, thumbnailLabel } from "./ThumbnailFooter";
 import { SlideComments } from "./SlideComments";
 import { StickyNote } from "lucide-react";
+import type { RailPageAddition } from "./SlideRail";
 import { SlideRail } from "./SlideRail";
 import type { RailDragSource } from "./RailDrag";
 import type { OpenThumbnailMenu } from "./ThumbnailMenu";
@@ -62,6 +67,7 @@ const colors = [
   "#d6bc94",
 ];
 interface EditorProps {
+  pageAddition?: RailPageAddition;
   scope: ResolvedPageScope;
   editable: boolean;
   linkDeck: Deck;
@@ -84,6 +90,7 @@ interface EditorProps {
   selected?: string;
   selectedIds: string[];
   setSelected: (id?: string, additive?: boolean, inside?: boolean) => void;
+  setSelectedMany: (ids: string[]) => void;
   onArrange: (action: Arrange) => void;
   onDuplicate: () => void;
   onDeleteSelection: () => void;
@@ -146,6 +153,7 @@ export function Editor({
   selected,
   selectedIds,
   setSelected,
+  setSelectedMany,
   onArrange,
   onDuplicate,
   onDeleteSelection,
@@ -158,6 +166,7 @@ export function Editor({
   onFileDrop,
   onSelectSlide,
   onInsert,
+  pageAddition,
   onCreate,
   onMove,
   onNavigate,
@@ -185,12 +194,17 @@ export function Editor({
     setCellRangeMode(false);
   }, [slide.id, selected]);
   const [noteRequest, setNoteRequest] = useState(0);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [multiMode, setMultiMode] = useState(false);
   useEffect(() => setMultiMode(false), [slide.id]);
   const [gestureEpoch, setGestureEpoch] = useState(0);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const focused = railCollapsed && inspectorCollapsed;
-  const zoom = useFitCanvas(workspaceRef, focused ? 48 : 85, focused ? 16 : 48);
+  const zoom = useFitCanvas(
+    workspaceRef,
+    (focused ? 48 : 85) + (notesOpen ? 190 : 0),
+    focused ? 16 : 48,
+  );
   const assignees = thumbnailAccountNames(
     slide,
     cloud?.accountLabels,
@@ -198,6 +212,20 @@ export function Editor({
   ).join("・");
   const resolvedElements = resolveConnections(slide.elements);
   const element = resolvedElements.find((e) => e.id === selected);
+  const [inkSelection, setInkSelection] = useState<{
+    id: string;
+    index: number;
+  }>();
+  const inkIndex =
+    inkSelection?.id === element?.id ? inkSelection?.index : undefined;
+  useEffect(
+    () => setInkSelection(undefined),
+    [selected, element?.drawing?.length],
+  );
+  const selectInk = (index?: number) =>
+    setInkSelection(
+      index === undefined || !element ? undefined : { id: element.id, index },
+    );
   const chosen = resolvedElements.filter((e) => selectedIds.includes(e.id));
   useEffect(() => {
     if (
@@ -216,10 +244,11 @@ export function Editor({
       !!document.querySelector('[aria-modal="true"], [role="menu"]') ||
       (target instanceof HTMLElement &&
         !!target.closest(
-          "input,textarea,select,[contenteditable],[role=dialog],.inspector",
+          "input,textarea,select,[contenteditable],[role=dialog],.inspector,.help-panel",
         ) &&
         !target.closest(".slide-table"));
     const clear = (event: KeyboardEvent) => {
+      if (document.documentElement.dataset.hostFollow === "active") return;
       if (
         !["Delete", "Backspace"].includes(event.key) ||
         event.isComposing ||
@@ -242,6 +271,7 @@ export function Editor({
       setTableMessage("");
     };
     const paste = (event: ClipboardEvent) => {
+      if (document.documentElement.dataset.hostFollow === "active") return;
       if (inSetting(event.target)) return;
       const text = event.clipboardData?.getData("text/plain");
       if (
@@ -339,6 +369,43 @@ export function Editor({
     updateElement({ ...patch, richText });
   }
 
+  function panelToggle(side: "rail" | "inspector") {
+    const collapsed = side === "rail" ? railCollapsed : inspectorCollapsed;
+    const name = side === "rail" ? "サムネイルバー" : "右のサイドバー";
+    const Icon =
+      side === "rail"
+        ? collapsed
+          ? PanelLeftOpen
+          : PanelLeftClose
+        : collapsed
+          ? PanelRightOpen
+          : PanelRightClose;
+    return (
+      <button
+        className="sidebar-toggle"
+        aria-label={`${name}を${collapsed ? "表示" : "たたむ"}`}
+        title={`${name}を${collapsed ? "表示" : "たたむ"}`}
+        aria-expanded={!collapsed}
+        aria-controls={
+          side === "rail" ? "editor-thumbnails" : "editor-inspector"
+        }
+        onClick={() => {
+          (side === "rail" ? onToggleRail : onToggleInspector)();
+          requestAnimationFrame(() =>
+            document
+              .querySelector<HTMLButtonElement>(
+                `.editor-main button[aria-label="${name}を${collapsed ? "たたむ" : "表示"}"]`,
+              )
+              ?.focus({ preventScroll: true }),
+          );
+        }}
+      >
+        <Icon size={18} />
+        {collapsed && <span>{side === "rail" ? "ページ一覧" : "設定"}</span>}
+      </button>
+    );
+  }
+
   return (
     <main
       className="editor-main"
@@ -367,6 +434,30 @@ export function Editor({
           <ImagePlus size={20} />
           画像
         </button>
+        <button
+          className="tool-button"
+          disabled={!editable}
+          onClick={() =>
+            onInsertStructure([
+              {
+                id: crypto.randomUUID(),
+                type: "image",
+                src: emptyInkImage,
+                drawing: [],
+                x: 100,
+                y: 100,
+                w: 480,
+                h: 270,
+                stroke: "#173d38",
+                strokeWidth: 5,
+              },
+            ])
+          }
+        >
+          <Pencil size={20} aria-hidden="true" />
+          手描き
+        </button>
+
         {cloud && (
           <button
             className="tool-button"
@@ -387,7 +478,7 @@ export function Editor({
         <ObjectPalette disabled={!editable} onAdd={addElement} />
         <StructureInsert disabled={!editable} onInsert={onInsertStructure} />
         <button
-          className="tool-button"
+          className="tool-button touch-multiselect"
           aria-label="まとめて選択"
           aria-pressed={multiMode}
           disabled={!editable}
@@ -397,65 +488,59 @@ export function Editor({
           {multiMode ? "選択を完了" : "まとめて選択"}
         </button>
         <button
-          className="tool-button row-link-toggle"
-          role="switch"
-          aria-label="縦の連動"
-          aria-checked={!!deck.linkedRows}
-          title={
-            deck.linkedRows
-              ? "同じ話題で縦のページをそろえています"
-              : "段ごとに表示するページを選べます"
-          }
-          onClick={onToggleLinkedRows}
+          className="tool-button"
+          aria-label="スピーカーノート"
+          aria-expanded={notesOpen}
+          aria-controls="speaker-notes-editor"
+          onClick={() => setNotesOpen((v) => !v)}
         >
-          <Link2 size={17} />
-          縦の連動 <span>{deck.linkedRows ? "オン" : "オフ"}</span>
+          <NotebookPen size={18} />
+          ノート
         </button>
         <div
           className="editor-panel-toggles"
           role="group"
           aria-label="編集画面の表示"
         >
-          <button
-            className="tool-button"
-            aria-label={
-              railCollapsed ? "サムネイルバーを表示" : "サムネイルバーをたたむ"
-            }
-            title={
-              railCollapsed ? "サムネイルバーを表示" : "サムネイルバーをたたむ"
-            }
-            aria-expanded={!railCollapsed}
-            aria-controls="editor-thumbnails"
-            onClick={onToggleRail}
+          <Palette
+            label="表示の設定"
+            text="表示"
+            icon={<PanelRightOpen size={18} />}
+            disabled={false}
+            heading="作品の表示設定"
           >
-            {railCollapsed ? (
-              <PanelLeftOpen size={19} />
-            ) : (
-              <PanelLeftClose size={19} />
+            {() => (
+              <div className="editor-view-settings">
+                <p>ページの内容ではなく、行ごとの移動方法の設定です。</p>
+                <button
+                  className="tool-button row-link-toggle"
+                  role="switch"
+                  aria-label="縦の連動"
+                  aria-checked={!!deck.linkedRows}
+                  title={
+                    deck.linkedRows
+                      ? "同じ話題で縦のページをそろえています"
+                      : "段ごとに表示するページを選べます"
+                  }
+                  onClick={onToggleLinkedRows}
+                >
+                  <Link2 size={17} />
+                  縦の連動 <span>{deck.linkedRows ? "オン" : "オフ"}</span>
+                </button>
+
+                <p>
+                  {cloud?.active
+                    ? "この端末の表示設定として保存されます。ほかの参加者の表示は変わりません。"
+                    : "この作品の表示設定として保存されます。"}
+                </p>
+                <p>
+                  オン：同じ話題で縦のページをそろえます。
+                  <br />
+                  オフ：段ごとに表示するページを選べます。
+                </p>
+              </div>
             )}
-          </button>
-          <button
-            className="tool-button"
-            aria-label={
-              inspectorCollapsed
-                ? "右のサイドバーを表示"
-                : "右のサイドバーをたたむ"
-            }
-            title={
-              inspectorCollapsed
-                ? "右のサイドバーを表示"
-                : "右のサイドバーをたたむ"
-            }
-            aria-expanded={!inspectorCollapsed}
-            aria-controls="editor-inspector"
-            onClick={onToggleInspector}
-          >
-            {inspectorCollapsed ? (
-              <PanelRightOpen size={19} />
-            ) : (
-              <PanelRightClose size={19} />
-            )}
-          </button>
+          </Palette>
         </div>
         {filterAvailable && (
           <button
@@ -480,8 +565,17 @@ export function Editor({
         data-rail-collapsed={railCollapsed}
         data-inspector-collapsed={inspectorCollapsed}
       >
-        {!railCollapsed && (
+        {railCollapsed ? (
+          <aside
+            className="collapsed-sidebar collapsed-rail"
+            id="editor-thumbnails"
+          >
+            {panelToggle("rail")}
+          </aside>
+        ) : (
           <SlideRail
+            headerAction={panelToggle("rail")}
+            pageAddition={pageAddition}
             numbers={railNumbers}
             footerLabel={(page) =>
               thumbnailLabel(page, cloud?.accountLabels, deck)
@@ -571,6 +665,9 @@ export function Editor({
               selectedIds={selectedIds}
               selectMultiple={multiMode}
               onSelect={setSelected}
+              onSelectMany={setSelectedMany}
+              selectedInkIndex={inkIndex}
+              onSelectInk={selectInk}
               onOpenLink={onOpenLink}
               touchNavigation
               gestureEpoch={gestureEpoch}
@@ -604,17 +701,58 @@ export function Editor({
               />
             )}
           </EditorPager>
+          {notesOpen && (
+            <section className="speaker-notes-editor" id="speaker-notes-editor">
+              <div>
+                <label htmlFor="speaker-notes-input">スピーカーノート</label>
+                <button
+                  className="quiet"
+                  aria-label="スピーカーノートを閉じる"
+                  onClick={() => setNotesOpen(false)}
+                >
+                  閉じる
+                </button>
+              </div>
+              <textarea
+                key={slide.id}
+                id="speaker-notes-input"
+                aria-label="このスライドのスピーカーノート"
+                placeholder="発表で話すことや補足を書きます"
+                readOnly={!editable}
+                maxLength={10000}
+                value={slide.speakerNotes ?? ""}
+                onChange={(event) =>
+                  updateSlide({ speakerNotes: event.target.value })
+                }
+              />
+              <small>
+                ノートは作品と一緒に保存・共有されます。発表スライド本体には表示しません。{" "}
+                {(slide.speakerNotes ?? "").length}/10000
+              </small>
+            </section>
+          )}
           <div className="canvas-hint">
-            <span>
+            <span className="object-selection-hint">
+              空白からドラッグで範囲選択 · Shift/Ctrl＋クリックで追加
+            </span>
+            <span className="touch-canvas-hint">
               {element
-                ? "文字はタップで入力 · 枠をドラッグして移動 · 右下でサイズ変更"
+                ? "文字はタップで入力 · 選択枠の辺・四隅でサイズ変更 · Alt＋枠で移動"
                 : "ページ移動：どこでも1本指でスワイプ · タッチパッドは2本指"}
             </span>
           </div>
         </div>
-        {!inspectorCollapsed && (
+        {inspectorCollapsed ? (
+          <aside
+            className="collapsed-sidebar collapsed-inspector"
+            id="editor-inspector"
+          >
+            {panelToggle("inspector")}
+          </aside>
+        ) : (
           <aside className="inspector" id="editor-inspector">
             <EditorInspector
+              headerAction={panelToggle("inspector")}
               pageKey={`${cloud?.active?.id ?? "local"}:${slide.id}`}
               pageElements={slide.elements}
               cellSelection={cellSelection}
@@ -682,6 +820,14 @@ export function Editor({
                         図形に文字を入れる
                       </button>
                     )}
+                    {element.drawing && (
+                      <InkControls
+                        element={element}
+                        selectedIndex={inkIndex}
+                        onSelect={selectInk}
+                        onChange={updateElement}
+                      />
+                    )}
                     {(element.type === "text" ||
                       (element.type === "shape" &&
                         element.text !== undefined)) && (
@@ -715,6 +861,24 @@ export function Editor({
                               }
                             />
                           </label>
+                          {element.type === "text" && (
+                            <label>
+                              文字の方向
+                              <select
+                                aria-label="文字の方向"
+                                value={element.writingMode ?? "horizontal-tb"}
+                                onChange={(event) =>
+                                  updateTextBase({
+                                    writingMode: event.target.value as
+                                      "horizontal-tb" | "vertical-rl",
+                                  })
+                                }
+                              >
+                                <option value="horizontal-tb">横書き</option>
+                                <option value="vertical-rl">縦書き</option>
+                              </select>
+                            </label>
+                          )}
                           <div className="format-buttons">
                             <button
                               aria-pressed={!!element.bold}
@@ -882,7 +1046,7 @@ export function Editor({
                         onChange={updateElement}
                       />
                     )}
-                    {element.type === "image" && (
+                    {element.type === "image" && !element.drawing && (
                       <ImageControls
                         key={`image-${element.id}`}
                         element={element}

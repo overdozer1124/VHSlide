@@ -1,0 +1,61 @@
+
+> vhslide@0.51.0 test:cloudflare
+> npm run cf:check && node --test tests/cloudflare/*.test.ts
+
+
+> vhslide@0.51.0 cf:check
+> tsc -p tsconfig.cloudflare.json && wrangler deploy --dry-run --outdir .wrangler-build
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mFailed to write to log file Error: ENOENT: no such file or directory, mkdir '/home/agent/.config/.wrangler'[0m
+
+      at async Object.mkdir (node:internal/fs/promises:916:10)
+      at async ensureDirectoryExists (/workspace/vhslide-dual-auth/node_modules/wrangler/wrangler-dist/cli.js:69576:3)
+      at async /workspace/vhslide-dual-auth/node_modules/wrangler/wrangler-dist/cli.js:69657:7
+      at async Mutex.runWith (/workspace/vhslide-dual-auth/node_modules/wrangler/node_modules/miniflare/dist/src/index.js:80704:16)
+      at async appendToDebugLogFile (/workspace/vhslide-dual-auth/node_modules/wrangler/wrangler-dist/cli.js:69655:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: '/home/agent/.config/.wrangler'
+  }
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mWould have written: [0m
+
+  --- 2026-10-28T11:09:02.432Z debug
+  🪵  Writing logs to "/home/agent/.config/.wrangler/logs/wrangler-2026-10-28_11-09-02_233.log"
+  ---
+  
+
+
+
+ ⛅️ wrangler 4.151.3
+────────────────────
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mA file or directory could not be found.[0m
+
+  
+  Missing file or directory: /home/agent/.config/.wrangler
+  
+  This is typically caused by:
+    - The file or directory does not exist
+    - A typo in the file path
+    - The file was moved or deleted
+  
+  Please check the file path and try again.
+
+
+🪵  Logs were written to "/home/agent/.config/.wrangler/logs/wrangler-2026-10-28_11-09-02_233.log"
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

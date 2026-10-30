@@ -202,6 +202,7 @@ test("four directions obey row choices and linked rows; edges and cancelled gest
   await expect(title(page)).toHaveValue("2.3");
   await swipe(page, cdp, 0, 95);
   await expect(title(page)).toHaveValue("1.2");
+  await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await page.getByRole("switch", { name: "縦の連動" }).click();
   await swipe(page, cdp, 0, -95);
   await expect(title(page)).toHaveValue("2.2");
@@ -241,7 +242,7 @@ test("four directions obey row choices and linked rows; edges and cancelled gest
   expect((await saved(page)).slides).toEqual(fixture.slides);
 });
 
-test("touch taps edit text, borders move and handles resize, and swiping an active textbox preserves its text", async ({
+test("touch taps edit text, selected frames resize, and swiping an active textbox preserves its text", async ({
   page,
 }, info) => {
   test.skip(info.project.name !== "touch", "実タッチの操作");
@@ -268,7 +269,7 @@ test("touch taps edit text, borders move and handles resize, and swiping an acti
   const handle = (await page
     .locator(".editor-page-current .element")
     .first()
-    .locator(".border-top")
+    .locator('[data-resize-direction="e"]')
     .boundingBox())!;
   await gesture(
     page,
@@ -279,8 +280,8 @@ test("touch taps edit text, borders move and handles resize, and swiping an acti
   );
   await expect(title(page)).toHaveValue("1.1");
   await expect
-    .poll(async () => (await saved(page)).slides[0].elements[0].x)
-    .toBeGreaterThan(340);
+    .poll(async () => (await saved(page)).slides[0].elements[0].w)
+    .toBeGreaterThan(280);
   const resize = (await page
     .getByRole("button", { name: "要素のサイズを変更" })
     .boundingBox())!;

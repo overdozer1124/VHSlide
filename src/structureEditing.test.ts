@@ -16,7 +16,11 @@ import {
   movableElements,
   nearestAnchor,
 } from "./structureData";
-import { arrangeStructured, resizeSelection } from "./structuredEditing";
+import {
+  arrangeStructured,
+  resizeSelection,
+  resizeSelectionFromHandle,
+} from "./structuredEditing";
 import {
   createSharedDeck,
   readSharedDeck,
@@ -319,4 +323,20 @@ it("ZIP version 1 roundtrip keeps chart data, groups, anchors and internal links
   });
   const loaded = await readBackupArchive(bytes);
   expect(loaded.snapshot.deck).toEqual(d);
+});
+
+it("group west/north resizing preserves opposite bounds and minimum member sizes", () => {
+  const es = [
+    { ...shape("a", 100), y: 100, w: 100, h: 80 },
+    { ...shape("b", 300), y: 100, w: 100, h: 80 },
+  ];
+  const result = resizeSelectionFromHandle(es, "nw", -75, -20);
+  expect(Math.max(...result.map((e) => e.x + e.w))).toBe(400);
+  expect(Math.max(...result.map((e) => e.y + e.h))).toBe(180);
+  expect(result[0].w / result[0].h).toBe(100 / 80);
+  expect(
+    Math.min(
+      ...resizeSelectionFromHandle(es, "nw", 10000, 10000).map((e) => e.w),
+    ),
+  ).toBeGreaterThanOrEqual(20);
 });

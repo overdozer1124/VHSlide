@@ -1,3 +1,7 @@
+import {
+  exerciseHostFollow,
+  measureHostFollow40,
+} from "../support/host-follow.ts";
 import { COLLABORATION_PROTOCOL } from "../../src/collaborationProtocol.ts";
 import { exerciseDeletedMedia } from "../support/deleted-media.ts";
 import { exerciseJoinApprovals } from "../support/join-approval-features.ts";
@@ -1545,5 +1549,22 @@ test("deleted media is private; live references and uploads work, forged resurre
         peer.doc.destroy();
       }
     },
+  );
+});
+
+test("host follow state validates host, initiator, target and session without editing the work", async () => {
+  await exerciseHostFollow({
+    create,
+    join: invite,
+    connect,
+    owner: alice,
+    guest: bob,
+  });
+});
+
+test("host follow 40 live connections P95 target", async () => {
+  await measureHostFollow40(
+    { create, join: invite, connect, owner: alice, guest: bob },
+    "Node",
   );
 });

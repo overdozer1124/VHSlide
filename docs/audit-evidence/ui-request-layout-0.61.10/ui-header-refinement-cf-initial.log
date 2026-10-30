@@ -1,0 +1,75 @@
+[WebServer] (node:322977) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 26 tests using 1 worker
+
+(node:323000) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (3.9s)
+  ✘   2 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (1.5m)
+(node:325776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (8.1s)
+  ✓   4 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.4s)
+  ✓   5 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (8.2s)
+  ✓   6 [cloud-desktop] › tests/cloud/guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls (1.8s)
+  ✓   7 [cloud-desktop] › tests/cloud/library-tools.spec.ts:13:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (2.4s)
+  ✓   8 [cloud-desktop] › tests/cloud/library-tools.spec.ts:123:1 › unfinished restore and recovery failures remain visible without opening secondary tools (1.0s)
+  ✓   9 [cloud-desktop] › tests/cloud/library-tools.spec.ts:168:1 › failure to discover unfinished restores stays visible and can be retried (995ms)
+  ✓  10 [cloud-desktop] › tests/cloud/library-tools.spec.ts:190:1 › a viewer can find their own recovery tools but cannot export the host backup (1.7s)
+  ✓  11 [cloud-desktop] › tests/cloud/map-batch.spec.ts:5:1 › host bulk axes synchronize and scoped participants keep their original row, cannot bulk edit axes or delete others (6.2s)
+  ✓  12 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.7s)
+  ✓  13 [cloud-desktop] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.1s)
+(node:326683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  14 [cloud-touch] › tests/cloud/editor-tools.spec.ts:4:1 › read-only guests retain notes, display access and commenting without gaining object editing (2.5s)
+  ✓  15 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (16.1s)
+  ✓  16 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: assigned keeps primary actions reachable at school screen widths (8.3s)
+  ✓  17 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: commenter keeps primary actions reachable at school screen widths (7.8s)
+  ✓  18 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:7:3 › guest inventory: viewer keeps primary actions reachable at school screen widths (9.3s)
+  ✓  19 [cloud-touch] › tests/cloud/guest-inventory.spec.ts:251:1 › live permission changes cancel a pending map move and restore authorized controls (1.8s)
+  ✓  20 [cloud-touch] › tests/cloud/library-tools.spec.ts:13:1 › library secondary tools preserve modal keyboard focus, exports and restore preview (3.1s)
+  ✓  21 [cloud-touch] › tests/cloud/library-tools.spec.ts:123:1 › unfinished restore and recovery failures remain visible without opening secondary tools (919ms)
+  ✓  22 [cloud-touch] › tests/cloud/library-tools.spec.ts:168:1 › failure to discover unfinished restores stays visible and can be retried (880ms)
+  ✓  23 [cloud-touch] › tests/cloud/library-tools.spec.ts:190:1 › a viewer can find their own recovery tools but cannot export the host backup (1.6s)
+  ✓  24 [cloud-touch] › tests/cloud/map-batch.spec.ts:5:1 › host bulk axes synchronize and scoped participants keep their original row, cannot bulk edit axes or delete others (6.2s)
+  ✓  25 [cloud-touch] › tests/cloud/workspace-more.spec.ts:3:1 › guest secondary menu preserves restricted slides and exposes no host controls (3.8s)
+  ✓  26 [cloud-touch] › tests/cloud/workspace-more.spec.ts:98:1 › host header keeps gather beside presenting and settings usable on Chromebook widths (9.3s)
+
+
+  1) [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByRole('button', { name: 'スピーカーノート', exact: true })
+
+
+      166 |     await other
+      167 |       .getByRole("button", { name: "スピーカーノート", exact: true })
+    > 168 |       .click();
+          |        ^
+      169 |     await expect(
+      170 |       other.getByLabel("このスライドのスピーカーノート", { exact: true }),
+      171 |     ).toHaveValue("担当ページの発表メモ");
+        at /workspace/vhslide-dual-auth/tests/cloud/forced-filter.spec.ts:168:8
+
+    Error Context: test-results-cloudflare/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results-cloudflare/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results-cloudflare/forced-filter-host-enforce-bbeca-d-later-restores-all-slides-cloud-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides 
+  25 passed (3.7m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

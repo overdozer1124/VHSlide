@@ -27,8 +27,9 @@ async function signIn(
 ) {
   await google(page, identity);
   await page.goto(invite || "/");
-  if (!invite)
+  if (!invite) {
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  }
   await page
     .getByRole("button", { name: "Googleでサインイン（テスト）", exact: true })
     .click();
@@ -310,7 +311,9 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     ).toHaveCount(1);
     await saved(page);
     const download = page.waitForEvent("download");
-    await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
+    await page
+      .getByRole("button", { name: "ファイルに保存", exact: true })
+      .click();
     const file = await download,
       exported = JSON.parse(await readFile((await file.path())!, "utf8"));
     expect(exported.slides[0].elements[0]).toMatchObject({
@@ -411,7 +414,9 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
       "フィルタ内の共同編集",
     );
     const fullDownload = page.waitForEvent("download");
-    await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
+    await page
+      .getByRole("button", { name: "ファイルに保存", exact: true })
+      .click();
     const fullFile = await fullDownload,
       fullExport = JSON.parse(await readFile((await fullFile.path())!, "utf8"));
     expect(fullExport.slides).toHaveLength(6);
@@ -448,7 +453,7 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
   await signIn(page, owner);
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
-  await button(page, "クラウド").click();
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
   await button(page, "共同編集の招待リンクを作る").click();
   const invite = await page
     .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
@@ -526,7 +531,7 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
       other.getByRole("textbox", { name: "ページの名前", exact: true }),
     ).toHaveAttribute("readonly", "");
     await button(other, "横のページ一覧を閉じる").click();
-    await button(page, "クラウド").click();
+    await page.getByRole("button", { name: "クラウド", exact: true }).click();
     await button(page, `${guest}の編集権限を設定`).click();
     await page
       .getByRole("combobox", { name: "編集の権限", exact: true })
@@ -561,7 +566,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
   await signIn(page, owner);
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
-  await button(page, "クラウド").click();
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
   await button(page, "共同編集の招待リンクを作る").click();
   const invite = await page
     .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
@@ -618,7 +623,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
   await expect(paste).toHaveValue("");
   await page.reload();
   await saved(page);
-  await button(page, "クラウド").click();
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
   await button(page, "共有するアカウントを追加").click();
   await expect(page.locator(".pre-share-account")).toHaveCount(2);
   await expect(
@@ -819,7 +824,7 @@ test("host edits shared map headings and row account names update vertically for
   await signIn(page, owner);
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
-  await button(page, "クラウド").click();
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
   await button(page, "共有するアカウントを追加").click();
   await page
     .getByRole("textbox", { name: "事前共有するメールアドレス", exact: true })
@@ -831,8 +836,10 @@ test("host edits shared map headings and row account names update vertically for
     name: "行に共有相手の名前を表示",
     exact: true,
   });
+  await button(page, "マップの表示設定").click();
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
   const heading = (p: Page, name: string) =>
     p.getByRole("textbox", { name, exact: true });
   await expect(heading(page, "行1の見出し")).toHaveValue(guest);
@@ -854,12 +861,14 @@ test("host edits shared map headings and row account names update vertically for
       "writing-mode",
       "vertical-rl",
     );
+    await button(other, "マップの表示設定").click();
     await expect(
       other.getByRole("switch", {
         name: "行に共有相手の名前を表示",
         exact: true,
       }),
     ).toBeDisabled();
+    await other.keyboard.press("Escape");
     await heading(page, "行1の見出し").fill("1班");
     await heading(page, "行1の見出し").press("Enter");
     await expect(heading(other, "行1の見出し")).toHaveValue("1班");
@@ -1027,7 +1036,7 @@ test("cloud workspace cards and bulk sharing support mixed accounts, row assignm
   await signIn(page, owner);
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
-  await button(page, "クラウド").click();
+  await page.getByRole("button", { name: "クラウド", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: "クラウドの作品",
     exact: true,
@@ -1278,7 +1287,9 @@ test("legacy offline row moves are kept for JSON recovery and never automaticall
     page.getByRole("button", { name: "ファイルに保存", exact: true }),
   ).toBeEnabled();
   const downloading = page.waitForEvent("download");
-  await page.getByRole("button", { name: "ファイルに保存", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ファイルに保存", exact: true })
+    .click();
   const file = await (await downloading).path();
   const recovered = JSON.parse(await readFile(file!, "utf8"));
   expect(
@@ -1349,6 +1360,18 @@ test("full ZIP backups preserve failed jobs and resume after reload with lost up
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
   await page.getByRole("tab", { name: /作品一覧/ }).click();
   const saving = page.waitForEvent("download");
+  if (
+    !(await page
+      .getByRole("button", { name: "完全バックアップを保存", exact: true })
+      .isVisible())
+  ) {
+    await page
+      .getByRole("button", { name: "作品一覧のその他", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "バックアップと復元", exact: true })
+      .click();
+  }
   await page
     .getByRole("button", { name: "完全バックアップを保存", exact: true })
     .click();
@@ -1374,6 +1397,18 @@ test("full ZIP backups preserve failed jobs and resume after reload with lost up
     expect(r.ok()).toBe(true);
     await route.continue();
   });
+  if (
+    !(await page
+      .getByRole("button", { name: "完全バックアップを保存", exact: true })
+      .isVisible())
+  ) {
+    await page
+      .getByRole("button", { name: "作品一覧のその他", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "バックアップと復元", exact: true })
+      .click();
+  }
   await page
     .getByRole("button", { name: "完全バックアップを保存", exact: true })
     .click();
@@ -1636,9 +1671,7 @@ test("cloud versions restore photos and notes into a new work and trash can undo
     },
   });
   expect(note.ok()).toBe(true);
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^保存した版/ }).click();
   await page
     .getByRole("textbox", { name: "保存する版の名前", exact: true })
@@ -1655,9 +1688,7 @@ test("cloud versions restore photos and notes into a new work and trash can undo
           .deck.title,
     )
     .toBe("変更後の作品");
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^保存した版/ }).click();
   await page
     .getByRole("button", { name: "この版を確認", exact: true })
@@ -1687,9 +1718,7 @@ test("cloud versions restore photos and notes into a new work and trash can undo
   await page.unroute("**/api/decks/*/assets");
   await page.reload();
   await saved(page);
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^保存した版/ }).click();
   await page
     .getByRole("button", { name: "この版を確認", exact: true })
@@ -1752,9 +1781,7 @@ test("cloud versions restore photos and notes into a new work and trash can undo
     .toBe("編集した復元作品");
   await page.goto(`/?room=${source}`);
   await saved(page);
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^保存した版/ }).click();
   await page
     .getByRole("button", { name: "この版を確認", exact: true })
@@ -1799,7 +1826,12 @@ test("cloud versions restore photos and notes into a new work and trash can undo
       ),
     )
     .toBe(true);
-  await page.getByText("ごみ箱を開く", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "作品一覧のその他", exact: true })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "ごみ箱を開く", exact: true })
+    .click();
   const trash = page.getByRole("region", {
     name: "クラウド作品のごみ箱",
     exact: true,
@@ -1850,9 +1882,7 @@ test("assigned slide jump respects row grants and clients cannot edit presentati
       .getByRole("button", { name: "フィルタを適用", exact: true })
       .click();
     await expect(other.locator(".map-scroll [data-page-id]")).toHaveCount(2);
-    await other
-      .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-      .click();
+    await other.getByRole("button", { name: "ファイル", exact: true }).click();
     await other.getByRole("menuitem", { name: /^保存した版/ }).click();
     await expect(
       other.getByText("保存した版の確認・復元はホストだけが行えます。", {

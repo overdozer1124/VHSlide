@@ -185,9 +185,7 @@ test("selected text has persistent range styles and paragraphs; local undo and p
   await again.press("ControlOrMeta+z");
   await page.screenshot({ path: info.outputPath("text-formatting.png") });
   await again.press("Escape");
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(

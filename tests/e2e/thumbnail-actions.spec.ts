@@ -16,6 +16,7 @@ test("linked rows can be toggled, navigate within a topic, restore independent c
   page,
 }) => {
   await editor(page);
+  await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   const link = page.getByRole("switch", { name: "縦の連動" });
   await expect(link).not.toBeChecked();
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
@@ -24,7 +25,11 @@ test("linked rows can be toggled, navigate within a topic, restore independent c
     .click();
   const choices = (await data(page)).rowSelections;
   const width = (await page.locator(".two-d-rail").boundingBox())!.width;
+  if (!(await link.isVisible()))
+    await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await link.click();
+  if (!(await link.isVisible()))
+    await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await expect(link).toBeChecked();
   await expect(page.locator(".rail-trigger").nth(1)).toContainText("空のマス");
   await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
@@ -39,18 +44,24 @@ test("linked rows can be toggled, navigate within a topic, restore independent c
   expect((await data(page)).rowSelections).toEqual(choices);
   await page.keyboard.press("ArrowUp");
   await expect(title(page)).toHaveValue("自然がいっぱい");
+  if (!(await link.isVisible()))
+    await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await link.click();
   await expect(title(page)).toHaveValue("人とつながる");
   await expect(page.locator(".rail-trigger").nth(1)).toContainText(
     "まちを歩いてみたら",
   );
   expect((await page.locator(".two-d-rail").boundingBox())!.width).toBe(width);
+  if (!(await link.isVisible()))
+    await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await link.click();
   const saved = await data(page);
   await page.reload();
   await page
     .getByRole("button", { name: "わたしたちのまちを編集", exact: true })
     .click();
+  if (!(await link.isVisible()))
+    await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await expect(link).toBeChecked();
   await page
     .locator('input[type="file"]')
@@ -63,6 +74,8 @@ test("linked rows can be toggled, navigate within a topic, restore independent c
   await page
     .getByRole("button", { name: "わたしたちのまちを編集", exact: true })
     .click();
+  if (!(await link.isVisible()))
+    await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await expect(link).toBeChecked();
 });
 
@@ -215,6 +228,7 @@ test("touch menu buttons work within a narrow viewport without widening the rail
     .tap();
   await expect(page.locator(".rail-trigger")).toHaveCount(3);
   expect((await page.locator(".two-d-rail").boundingBox())!.width).toBe(96);
+  await page.getByRole("button", { name: "表示の設定", exact: true }).click();
   await page.getByRole("switch", { name: "縦の連動" }).tap();
   await expect(page.getByRole("switch", { name: "縦の連動" })).toBeChecked();
 });

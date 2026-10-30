@@ -1,3 +1,7 @@
+import { useFollowLock } from "./useFollowLock";
+import type { FollowTarget } from "./hostFollow";
+import { HostFollowView } from "./HostFollowView";
+import { addGuestPage } from "./guestPages";
 import { FitReview } from "./FitReview";
 import { fitKey, needsFitCheck } from "./checkContentFit";
 import type { FitIssue } from "./contentFit";
@@ -34,8 +38,9 @@ import { createTable } from "./tableData";
 import { SlideActionDialog } from "./SlideActionDialog";
 import type { SlideAction } from "./SlideActionDialog";
 import { ActionMenu } from "./ActionMenu";
+import { GuestSettings } from "./GuestSettings";
 import { assignedSlides, routeSlides } from "./learningTools";
-import { hostAccess } from "./permissions";
+import { hostAccess, canEdit } from "./permissions";
 import { saveLocalVersion } from "./localHistory";
 import { CloudRecoveryNotice } from "./CloudRecoveryNotice";
 import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
@@ -44,16 +49,13 @@ import { WorkspaceTransition } from "./WorkspaceTransition";
 import type { WorkspaceFlight } from "./WorkspaceTransition";
 import {
   Cloud,
-  CircleHelp,
-  History,
   Download,
   LayoutGrid,
-  Plus,
+  FolderOpen,
   Presentation,
   Redo2,
   Type,
   Undo2,
-  Upload,
   X,
 } from "lucide-react";
 import type { Deck, Element, Shape, Slide, GridMove } from "./model";
@@ -86,6 +88,7 @@ import {
 import { MapView } from "./MapView";
 import { closestZoom, useWorkspacePreferences } from "./workspacePreferences";
 import { Editor } from "./Editor";
+import { prepareSpeakerWindow, type SpeakerLaunch } from "./useSpeakerWindow";
 import { PresentationView } from "./PresentationView";
 import { ThumbnailMenu } from "./ThumbnailMenu";
 import type {
@@ -139,7 +142,20 @@ export default function App() {
     Record<string, { filter?: MapFilter; editor: boolean }>
   >({});
   const currentSheetId = activeSheet(workbook).id;
-  const rawSheetFilter = viewFilters[currentSheetId];
+  const forceAssigned =
+    !!cloud.active && !cloud.isHost && !!workbook.restrictGuests;
+  const followLocked = !!cloud.active && !cloud.isHost && cloud.follow.active;
+  useFollowLock(followLocked);
+  const rawSheetFilter = useMemo(
+    () =>
+      forceAssigned
+        ? {
+            editor: true,
+            filter: { ids: [], rows: [], columns: [], assigned: true },
+          }
+        : viewFilters[currentSheetId],
+    [forceAssigned, viewFilters, currentSheetId],
+  );
   const sheetFilter = useMemo(
     () =>
       rawSheetFilter?.filter
@@ -216,11 +232,13 @@ export default function App() {
   const [view, setView] = useState<"map" | "editor" | "present">("map");
   const [backupOpen, setBackupOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState<SlideAction>();
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   type FitRequest = {
     ids: string[];
     label: string;
     mode: PresentationSession["mode"];
     startId?: string;
+    withNotes?: boolean;
   };
   const [fitRequest, setFitRequest] = useState<FitRequest>();
   const [deferredFit, setDeferredFit] = useState<FitRequest>();
@@ -229,6 +247,7 @@ export default function App() {
     ids: string[];
   }>();
   const [presentation, setPresentation] = useState<PresentationSession>();
+  const [speakerLaunch, setSpeakerLaunch] = useState<SpeakerLaunch>();
   const [pendingPresentationLink, setPendingPresentationLink] =
     useState<string>();
   const [mapReturnScroll, setMapReturnScroll] = useState<{
@@ -237,6 +256,43 @@ export default function App() {
     top: number;
   }>();
   const presentationMissing = useRef(new Set<string>());
+  const followPolicy = useRef({
+    restricted: forceAssigned,
+    access: cloud.access,
+    wasFollowing: false,
+    pending: false,
+  });
+  useEffect(() => {
+    const p = followPolicy.current,
+      changed = p.restricted !== forceAssigned || p.access !== cloud.access;
+    p.restricted = forceAssigned;
+    p.access = cloud.access;
+    if (followLocked) {
+      p.wasFollowing = true;
+      p.pending ||= changed;
+      return;
+    }
+    if (p.wasFollowing) {
+      p.wasFollowing = false;
+      const pending = p.pending;
+      p.pending = false;
+      if (!pending) return;
+      const original = latestWorkbook.current.slides.find(
+        (s) => s.id === activeId,
+      );
+      if (
+        forceAssigned &&
+        original &&
+        canEdit(cloud.access, original, latestWorkbook.current)
+      )
+        return;
+    }
+    if (forceAssigned) {
+      setView("map");
+      setPresentation(undefined);
+      setToolsOpen(undefined);
+    }
+  }, [forceAssigned, cloud.access, followLocked]);
   const editorScope = useMemo<PageScope>(
     () =>
       editorFiltered || mapScope.kind === "sheet"
@@ -293,6 +349,37 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState("この端末に自動保存");
   const [protectSaved, setProtectSaved] = useState(!!boot.error);
   const [help, setHelp] = useState(false);
+  const helpClose = useRef<HTMLButtonElement>(null);
+  const helpOpener = useRef<HTMLElement | null>(null);
+  const updatesOpener = useRef<HTMLElement | null>(null);
+  function restoreSecondaryFocus(source: HTMLElement | null) {
+    requestAnimationFrame(() => {
+      const target = source?.isConnected
+        ? source
+        : document.querySelector<HTMLElement>(
+            '.action-menu-trigger[aria-label="その他"]',
+          );
+      target?.focus({ preventScroll: true });
+    });
+  }
+  function closeHelp() {
+    setHelp(false);
+    restoreSecondaryFocus(helpOpener.current);
+  }
+  function toggleHelp() {
+    if (help) {
+      closeHelp();
+      return;
+    }
+    helpOpener.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setHelp(true);
+  }
+  useEffect(() => {
+    if (help) helpClose.current?.focus({ preventScroll: true });
+  }, [help]);
   const [updatesOpen, setUpdatesOpen] = useState(
     () => location.hash === "#updates",
   );
@@ -305,7 +392,17 @@ export default function App() {
       window.removeEventListener("hashchange", sync);
     };
   }, []);
+  const previousUpdatesOpen = useRef(updatesOpen);
+  useEffect(() => {
+    if (previousUpdatesOpen.current && !updatesOpen)
+      restoreSecondaryFocus(updatesOpener.current);
+    previousUpdatesOpen.current = updatesOpen;
+  }, [updatesOpen]);
   function openUpdates() {
+    updatesOpener.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     history.pushState(
       null,
       "",
@@ -332,21 +429,38 @@ export default function App() {
     () =>
       presentation
         ? presentationState(
-            workbook,
+            forceAssigned
+              ? {
+                  ...workbook,
+                  slides: workbook.slides.filter((s) =>
+                    canEdit(cloud.access, s, workbook),
+                  ),
+                }
+              : workbook,
             presentation,
             activeId,
             objectTrail.length > 0,
           )
         : undefined,
-    [workbook, presentation, activeId, objectTrail.length],
+    [
+      workbook,
+      presentation,
+      activeId,
+      objectTrail.length,
+      forceAssigned,
+      cloud.access,
+    ],
   );
+  const emptyRestrictedSlide = useMemo(() => blank(0, 0), []);
   const slide =
-    (view === "present" ? presenting?.slide : undefined) ??
-    (view === "editor"
-      ? (navigationDeck.slides.find((s) => s.id === activeId) ??
-        navigationDeck.slides[0])
-      : deck.slides.find((s) => s.id === activeId)) ??
-    deck.slides[0];
+    forceAssigned && !navigationDeck.slides.length
+      ? emptyRestrictedSlide
+      : ((view === "present" ? presenting?.slide : undefined) ??
+        (view === "editor"
+          ? (navigationDeck.slides.find((s) => s.id === activeId) ??
+            navigationDeck.slides[0])
+          : deck.slides.find((s) => s.id === activeId)) ??
+        deck.slides[0]);
   useEffect(() => {
     const valid = new Set(slide.elements.map((e) => e.id));
     if (selectionIds.some((id) => !valid.has(id))) {
@@ -520,6 +634,7 @@ export default function App() {
     });
   }
   function selectSheet(id: string) {
+    if (followLocked) return;
     setMapReturnScroll(undefined);
     const next = { ...latestWorkbook.current, activeSheetId: id };
     setWorkbook(next);
@@ -558,6 +673,7 @@ export default function App() {
   }
   const editorNavigationActive = useRef(false);
   function selectEditorPage(id: string) {
+    if (followLocked) return;
     editorNavigationActive.current = true;
     const next = latestDeck.current.linkedRows
       ? latestDeck.current
@@ -615,6 +731,7 @@ export default function App() {
     });
   }
   function navigateEditor(dx: number, dy: number) {
+    if (followLocked) return;
     const current =
       latestNavigationDeck.current.slides.find((s) => s.id === activeId) ??
       latestNavigationDeck.current.slides[0];
@@ -789,6 +906,55 @@ export default function App() {
     setSelected(undefined);
   }
   function insertStructure(elements: Element[]) {
+    if (cloud.active && elements.some((e) => e.drawing)) {
+      const room = cloud.active.id,
+        targetId = slide.id;
+      void Promise.all(
+        elements.map(async (e) => {
+          if (!e.drawing) return e;
+          const bytes = Uint8Array.from(atob(e.src!.split(",")[1]), (c) =>
+            c.charCodeAt(0),
+          );
+          const blob = new Blob([bytes], { type: "image/png" });
+          return {
+            ...e,
+            src: await cloud.upload(
+              new File([blob], "drawing.png", { type: "image/png" }),
+              room,
+            ),
+          };
+        }),
+      )
+        .then((added) => {
+          if (cloud.active?.id !== room) return;
+          const current = latestWorkbook.current,
+            target = current.slides.find((s) => s.id === targetId);
+          if (
+            !target ||
+            !cloud.canEdit(target) ||
+            target.elements.length + added.length > 200
+          )
+            return;
+          if (
+            commitWorkbook(
+              {
+                ...current,
+                slides: current.slides.map((s) =>
+                  s.id === targetId
+                    ? { ...s, elements: [...s.elements, ...added] }
+                    : s,
+                ),
+              },
+              current,
+            )
+          ) {
+            setSelectionIds(added.map((e) => e.id));
+            setPrimarySelected(added[0]?.id);
+          }
+        })
+        .catch((error) => notify((error as Error).message));
+      return;
+    }
     if (slide.elements.length + elements.length > 200)
       return notify("1ページの要素は200個までです。");
     updateSlide({ elements: [...slide.elements, ...elements] });
@@ -804,6 +970,13 @@ export default function App() {
     updateSlide({ elements: ungroupElements(slide.elements, selectionIds) });
   }
   function followPresentationLink(id: string) {
+    if (
+      forceAssigned &&
+      !latestWorkbook.current.slides.some(
+        (s) => s.id === id && canEdit(cloud.access, s, latestWorkbook.current),
+      )
+    )
+      return;
     const target = latestWorkbook.current.slides.find((s) => s.id === id);
     if (!target || !presentation)
       return notify("リンク先のページが見つかりません。");
@@ -815,6 +988,13 @@ export default function App() {
     setSelected();
   }
   function openObjectLink(id: string) {
+    if (
+      forceAssigned &&
+      !latestWorkbook.current.slides.some(
+        (s) => s.id === id && canEdit(cloud.access, s, latestWorkbook.current),
+      )
+    )
+      return notify("現在は自分の担当ページだけ表示できます。");
     const current = latestWorkbook.current,
       target = current.slides.find((s) => s.id === id);
     if (!target) return notify("リンク先のページが見つかりません。");
@@ -903,6 +1083,7 @@ export default function App() {
     return () => clearTimeout(id);
   }, [notice, protectSaved]);
   function go(dx: number, dy: number) {
+    if (followLocked) return;
     if (!presentation || !presenting) return;
     const next = presentationNeighbor(presenting, presentation.mode, dx, dy);
     if (next) {
@@ -911,6 +1092,7 @@ export default function App() {
     }
   }
   function exitPresent(reason?: string) {
+    setSpeakerLaunch(undefined);
     const origin = presentation?.returnTo,
       current = latestWorkbook.current;
     setObjectTrail([]);
@@ -969,6 +1151,7 @@ export default function App() {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (
+        (cloud.follow.active && !cloud.isHost) ||
         cloud.viewingRevoked ||
         updatesOpen ||
         cloud.panel ||
@@ -980,7 +1163,7 @@ export default function App() {
         return;
       if (
         (event.target as HTMLElement).closest(
-          "input,textarea,select,[contenteditable],[role=menu]",
+          "input,textarea,select,[contenteditable],[role=menu],[role=dialog],.help-panel",
         )
       )
         return;
@@ -1052,6 +1235,7 @@ export default function App() {
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
       if (
+        (cloud.follow.active && !cloud.isHost) ||
         cloud.viewingRevoked ||
         updatesOpen ||
         cloud.panel ||
@@ -1063,7 +1247,9 @@ export default function App() {
         return;
       if (
         view !== "editor" ||
-        (e.target as HTMLElement).closest("input,textarea")
+        (e.target as HTMLElement).closest(
+          "input,textarea,[role=menu],[role=dialog],.help-panel",
+        )
       )
         return;
       const file = Array.from(e.clipboardData?.items ?? [])
@@ -1309,7 +1495,16 @@ export default function App() {
   }
   async function download() {
     try {
-      const portable = cloud.active ? await portableDeck(workbook) : workbook;
+      const source = forceAssigned
+        ? {
+            ...workbook,
+            routes: [],
+            slides: workbook.slides.filter((s) =>
+              canEdit(cloud.access, s, workbook),
+            ),
+          }
+        : workbook;
+      const portable = cloud.active ? await portableDeck(source) : source;
       const url = URL.createObjectURL(
         new Blob([serializeDeck(portable)], { type: "application/json" }),
       );
@@ -1352,6 +1547,30 @@ export default function App() {
       return true;
     } catch (error) {
       notify((error as Error).message);
+      return false;
+    }
+  }
+  function assignedPageAt(x: number, y: number, preview = false): boolean {
+    try {
+      const current = latestWorkbook.current,
+        sheet = activeSheet(current).id;
+      let next = addGuestPage(
+        current,
+        cloud.access,
+        sheet,
+        x,
+        y,
+        preview ? "__guest_page_preview__" : undefined,
+      );
+      if (preview) return true;
+      const page = next.slides.at(-1)!;
+      next = mergeSheet(next, rememberRowPage(sheetDeck(next), page.id));
+      if (!commitWorkbook(next, current)) return false;
+      setActiveId(page.id);
+      setSelected(undefined);
+      return true;
+    } catch (error) {
+      if (!preview) notify((error as Error).message);
       return false;
     }
   }
@@ -1404,6 +1623,7 @@ export default function App() {
     label: string,
     mode: PresentationSession["mode"],
     startId?: string,
+    withNotes = false,
   ) {
     if (!ids.length) {
       notify(
@@ -1411,6 +1631,7 @@ export default function App() {
       );
       return;
     }
+    setSpeakerLaunch(withNotes ? prepareSpeakerWindow() : undefined);
     const scroll = document.querySelector<HTMLElement>(".map-scroll");
     setPresentation({
       mode,
@@ -1435,7 +1656,8 @@ export default function App() {
     setDirection("right");
     setView("present");
     try {
-      void document.documentElement.requestFullscreen?.().catch(() => {});
+      if (!withNotes)
+        void document.documentElement.requestFullscreen?.().catch(() => {});
     } catch {
       /* Windowed presentation remains available. */
     }
@@ -1445,6 +1667,7 @@ export default function App() {
     label: string,
     mode: PresentationSession["mode"],
     startId?: string,
+    withNotes = false,
   ) {
     setDeferredFit(undefined);
     const pages = latestWorkbook.current.slides.filter((p) =>
@@ -1452,8 +1675,8 @@ export default function App() {
     );
     if (needsFitCheck(pages)) {
       setToolsOpen(undefined);
-      setFitRequest({ ids, label, mode, startId });
-    } else launchPresentation(ids, label, mode, startId);
+      setFitRequest({ ids, label, mode, startId, withNotes });
+    } else launchPresentation(ids, label, mode, startId, withNotes);
   }
   function fixFitIssue(issue: FitIssue) {
     if (!issue.pageId) return;
@@ -1480,7 +1703,11 @@ export default function App() {
       "route",
     );
   }
-  function startPresent(scope: PageScope = actionScope, fromCurrent = false) {
+  function startPresent(
+    scope: PageScope = actionScope,
+    fromCurrent = false,
+    withNotes = false,
+  ) {
     const resolved = resolvePageScope(
       latestWorkbook.current,
       scope,
@@ -1491,6 +1718,7 @@ export default function App() {
       resolved.label,
       "spatial",
       fromCurrent ? slide.id : undefined,
+      withNotes,
     );
   }
   const cloudPresence =
@@ -1518,18 +1746,74 @@ export default function App() {
         )}
       </div>
     ) : null;
+  const followPage = view === "present" ? presenting?.slide : slide;
+  const followTarget: FollowTarget =
+    view === "map"
+      ? {
+          mode: "map",
+          sheetId: currentSheetId,
+          ...(followPage && (followPage.sheetId ?? "main") === currentSheetId
+            ? { pageId: followPage.id }
+            : {}),
+        }
+      : {
+          mode: "page",
+          sheetId: followPage?.sheetId ?? currentSheetId,
+          pageId: followPage?.id,
+        };
+  const followTargetKey = JSON.stringify(followTarget),
+    lastFollowTarget = useRef("");
+  useEffect(() => {
+    if (!cloud.drivesFollow || !cloud.follow.active) {
+      lastFollowTarget.current = "";
+      return;
+    }
+    if (JSON.stringify(cloud.follow.target) === followTargetKey) {
+      lastFollowTarget.current = followTargetKey;
+      return;
+    }
+    if (lastFollowTarget.current === followTargetKey) return;
+    lastFollowTarget.current = followTargetKey;
+    void cloud.moveFollow(followTarget).catch((error) => notify(error.message));
+  }, [followTargetKey, cloud.follow.active, cloud.drivesFollow]);
   const iconSize = 17;
+  const followControls = (
+    <>
+      {cloud.active && cloud.isHost && (
+        <div className="host-follow-controls">
+          <button
+            className={`button ${cloud.follow.active ? "follow-running" : "outline"}`}
+            aria-label="全員の画面を同期"
+            aria-pressed={cloud.follow.active}
+            disabled={
+              !cloud.followConnected ||
+              cloud.followPending ||
+              (!cloud.follow.active &&
+                followTarget.mode === "page" &&
+                !workbook.slides.some((s) => s.id === followTarget.pageId))
+            }
+            onClick={() =>
+              void (
+                cloud.follow.active
+                  ? cloud.stopFollow()
+                  : cloud.startFollow(followTarget)
+              ).catch((error) => notify(error.message))
+            }
+          >
+            {cloud.follow.active ? "集合を終了" : "全員を集合"}
+          </button>
+          {cloud.follow.active && (
+            <span role="status">
+              全員に表示中・ゲスト
+              {cloud.members.filter((m) => m.id !== cloud.user?.id).length}人
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
   const historyActions = (
     <div className="history">
-      <button
-        className="icon-button updates-button"
-        aria-label="更新履歴"
-        title="更新履歴"
-        onClick={openUpdates}
-      >
-        <History size={18} />
-        <span>更新履歴</span>
-      </button>
       <button
         className="icon-button"
         aria-label="もとに戻す"
@@ -1561,14 +1845,15 @@ export default function App() {
         <Redo2 size={18} />
       </button>
       <span className="small-divider" />
-      <button
-        className="quiet"
-        aria-label="使い方"
-        onClick={() => setHelp((h) => !h)}
-      >
-        <CircleHelp size={17} />
-        <span>使い方</span>
-      </button>
+      <ActionMenu
+        label="その他"
+        showLabel
+        portal
+        items={[
+          { label: "更新履歴", action: openUpdates },
+          { label: "使い方", action: toggleHelp },
+        ]}
+      />
     </div>
   );
   if (cloud.viewingRevoked)
@@ -1611,6 +1896,7 @@ export default function App() {
   return (
     <CloudDocument.Provider value={cloud.doc}>
       <div
+        aria-hidden={followLocked ? true : undefined}
         inert={updatesOpen || cloud.panel || historyPending}
         onPointerDownCapture={(event) => {
           if (flight && event.pointerType !== "touch")
@@ -1660,87 +1946,58 @@ export default function App() {
                 <span className="beta">BETA</span>
               </a>
               <span className="header-divider" />
-              <input
-                className="deck-title"
-                aria-label="作品のタイトル"
-                readOnly={!cloud.isHost}
-                maxLength={200}
-                value={deck.title}
-                onChange={(e) => commit({ ...deck, title: e.target.value })}
-              />
-              {cloudPresence}
-              <SaveState cloud={cloud} local={saveStatus} />
-              <div className="header-actions">
-                {cloud.available && (
-                  <button
-                    className="quiet cloud-open"
-                    aria-label="クラウド"
-                    title="クラウド"
-                    onClick={() => {
-                      setCloudInitialTab(undefined);
-                      cloud.panel = true;
-                      cloud.error = "";
-                      cloud.onState();
-                      void cloud.refresh().catch((error: Error) => {
-                        cloud.error = error.message;
-                        cloud.onState();
-                      });
-                    }}
-                  >
-                    <Cloud size={iconSize} />
-                    <span>クラウド</span>
-                  </button>
+              <div className="header-document">
+                <input
+                  className="deck-title"
+                  aria-label="作品のタイトル"
+                  readOnly={!cloud.isHost}
+                  maxLength={200}
+                  value={deck.title}
+                  onChange={(e) => commit({ ...deck, title: e.target.value })}
+                />
+                {cloudPresence}
+                {!cloud.active && (
+                  <SaveState cloud={cloud} local={saveStatus} />
                 )}
-                <button
-                  className="quiet new-deck"
-                  aria-label="新しく"
-                  title="新しく"
-                  onClick={() => {
-                    if (cloud.active && !returnToLocal()) return;
-                    const next: Deck = {
-                      version: 1,
-                      title: "あたらしい作品",
-                      slides: [blank(0, 0)],
-                    };
-                    setViewFilters({});
-                    setFitRequest(undefined);
-                    setDeferredFit(undefined);
-                    setPdfResume(undefined);
-                    setMapReturnScroll(undefined);
-                    commitWorkbook(next);
-                    setActiveId(next.slides[0].id);
-                    setSelected(undefined);
-                    setView("map");
-                    notify(
-                      "白紙の作品を作りました。前の作品は「もとに戻す」で戻せます。",
-                    );
-                  }}
-                >
-                  <Plus size={iconSize} />
-                  <span>新しく</span>
-                </button>
-                <button
-                  className="quiet"
-                  aria-label="開く"
-                  title="開く"
-                  onClick={() => jsonRef.current?.click()}
-                >
-                  <Upload size={iconSize} />
-                  <span>開く</span>
-                </button>
-                <div className="split-action">
-                  <button
-                    className="button outline"
-                    aria-label="ファイルに保存"
-                    title="編集用ファイル（JSON）を作成。付箋・共有設定は含みません"
-                    onClick={() => void download()}
-                  >
-                    <Download size={iconSize} />
-                    <span>ファイルに保存</span>
-                  </button>
+                {forceAssigned && (
+                  <span className="assigned-status" role="status">
+                    ホストの設定：自分の担当のみ表示
+                  </span>
+                )}
+              </div>
+              <div className="header-actions">
+                <div className="split-action file-actions">
                   <ActionMenu
-                    label="保存方法を選ぶ"
+                    label="ファイル"
+                    showLabel
+                    portal
+                    icon={<FolderOpen size={17} aria-hidden="true" />}
                     items={[
+                      {
+                        label: "新しく",
+                        action: () => {
+                          if (cloud.active && !returnToLocal()) return;
+                          const next: Deck = {
+                            version: 1,
+                            title: "あたらしい作品",
+                            slides: [blank(0, 0)],
+                          };
+                          setViewFilters({});
+                          setFitRequest(undefined);
+                          setDeferredFit(undefined);
+                          setPdfResume(undefined);
+                          setMapReturnScroll(undefined);
+                          commitWorkbook(next);
+                          setActiveId(next.slides[0].id);
+                          setSelected(undefined);
+                          setView("map");
+                          notify(
+                            "白紙の作品を作りました。前の作品は「もとに戻す」で戻せます。",
+                          );
+                        },
+                      },
+                      { label: "開く", action: () => jsonRef.current?.click() },
+
                       {
                         label: "JSONで保存",
                         detail:
@@ -1767,8 +2024,83 @@ export default function App() {
                       },
                     ]}
                   />
+                  <button
+                    className="button outline"
+                    aria-label="ファイルに保存"
+                    title="編集用ファイル（JSON）を作成。付箋・共有設定は含みません"
+                    onClick={() => void download()}
+                  >
+                    <Download size={iconSize} />
+                    <span>保存</span>
+                  </button>
                 </div>
-                <div className="split-action">
+                {cloud.available && (
+                  <button
+                    className="button outline"
+                    onClick={() => {
+                      setCloudInitialTab(undefined);
+                      cloud.panel = true;
+                      cloud.error = "";
+                      cloud.onState();
+                      void cloud.refresh().catch((error: Error) => {
+                        cloud.error = error.message;
+                        cloud.onState();
+                      });
+                    }}
+                  >
+                    <Cloud size={17} />
+                    <span>クラウド</span>
+                  </button>
+                )}
+                {followControls}
+                {cloud.active && cloud.isHost && (
+                  <GuestSettings>
+                    {cloud.active && cloud.isHost && (
+                      <label className="guest-display-policy">
+                        ゲストの表示
+                        <select
+                          aria-label="ゲストの表示範囲"
+                          value={workbook.restrictGuests ? "assigned" : "all"}
+                          onChange={(event) =>
+                            commitWorkbook({
+                              ...latestWorkbook.current,
+                              restrictGuests: event.target.value === "assigned",
+                            })
+                          }
+                        >
+                          <option value="all">全員のスライド</option>
+                          <option value="assigned">自分の担当のみ</option>
+                        </select>
+                      </label>
+                    )}
+                    {cloud.active &&
+                      cloud.isHost &&
+                      workbook.restrictGuests && (
+                        <label
+                          className="guest-display-policy guest-add-policy"
+                          title="担当のみ表示中の追加方法。途中挿入はその担当行だけを右へずらします。"
+                        >
+                          追加方法
+                          <select
+                            aria-label="ゲストのページ追加"
+                            value={workbook.guestPageCreation ?? "append"}
+                            onChange={(event) =>
+                              commitWorkbook({
+                                ...latestWorkbook.current,
+                                guestPageCreation: event.target.value as
+                                  "none" | "append" | "insert",
+                              })
+                            }
+                          >
+                            <option value="append">末尾のみ</option>
+                            <option value="insert">途中挿入可</option>
+                            <option value="none">追加不可</option>
+                          </select>
+                        </label>
+                      )}
+                  </GuestSettings>
+                )}
+                <div className="split-action present-action">
                   <button
                     className="button primary"
                     aria-label={
@@ -1799,6 +2131,12 @@ export default function App() {
                         detail: actionResolvedScope.summary,
                         disabled: !actionResolvedScope.ids.length,
                         action: () => startPresent(),
+                      },
+                      {
+                        label: "ノートを見ながら発表する",
+                        detail: `${actionResolvedScope.summary}・発表者用ノートを別ウィンドウで開く`,
+                        disabled: !actionResolvedScope.ids.length,
+                        action: () => startPresent(actionScope, false, true),
                       },
                       {
                         label: "現在のページから縦横に発表",
@@ -1962,7 +2300,17 @@ export default function App() {
           </>
         )}
         {help && view !== "present" && (
-          <aside className="help-panel">
+          <aside
+            className="help-panel"
+            aria-label="使い方"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                closeHelp();
+              }
+            }}
+          >
             <div>
               <strong>よこに話題を、たてに発見を。</strong>
               <p>
@@ -1972,7 +2320,7 @@ export default function App() {
                 <br />
                 マップはピンチで拡大すると編集画面へ、編集中はピンチインでマップへ戻ります。番号一覧や番号検索でも探せます。
                 <br />
-                編集中は文字・画像の上でも1本指でスワイプしてページを移動できます。タッチパッドは2本指で操作します。要素はタップして選び、枠をドラッグして動かします。
+                編集中は文字・画像の上でも1本指でスワイプしてページを移動できます。タッチパッドは2本指で操作します。要素はタップして選び、選択枠の辺・四隅をドラッグしてサイズを変更します。Altキーを押しながら枠をドラッグすると移動できます。
               </p>
               <small>
                 データはこのブラウザに保存されます。授業の終わりにはJSONファイルも保存しましょう。
@@ -1980,8 +2328,9 @@ export default function App() {
             </div>
             <button
               className="icon-button"
+              ref={helpClose}
               aria-label="使い方を閉じる"
-              onClick={() => setHelp(false)}
+              onClick={closeHelp}
             >
               <X size={18} />
             </button>
@@ -2009,6 +2358,7 @@ export default function App() {
         )}
         {view !== "present" && (
           <MapView
+            readOnly={!!cloud.active && cloud.access.mode === "none"}
             remainingPages={Math.max(0, MAX_SLIDES - workbook.slides.length)}
             onBatchAxes={(axis, action, start, count) => {
               if (!cloud.isHost) return false;
@@ -2040,6 +2390,7 @@ export default function App() {
               }
               return commit(removeSelectedPages(current, ids), current);
             }}
+            lockedFilter={forceAssigned}
             scope={mapResolvedScope}
             presentationStartId={mapResolvedScope.ids[0]}
             restoreScroll={mapReturnScroll}
@@ -2060,7 +2411,11 @@ export default function App() {
               deck,
               cloud.active ? cloud.access : hostAccess(),
             ).map((s) => s.id)}
-            onCompare={() => setToolsOpen("compare")}
+            onCompare={(ids) => {
+              if (ids.length < 2 || ids.length > 4) return;
+              setCompareIds(ids);
+              setToolsOpen("compare");
+            }}
             key={activeSheet(workbook).id}
             visible={view === "map"}
             headingEditable={cloud.isHost}
@@ -2099,8 +2454,8 @@ export default function App() {
             onEdit={(id, rect) => switchWorkspace("editor", id, rect)}
             onSelect={selectEditorPage}
             onDelete={(id) => {
-              commit(removeSlide(deck, id));
-              notify("ページを削除しました。「もとに戻す」で戻せます。");
+              if (commit(removeSlide(deck, id)))
+                notify("ページを削除しました。「もとに戻す」で戻せます。");
             }}
             onAddCell={(x, y) => {
               if (deck.slides.length < MAX_SLIDES)
@@ -2158,8 +2513,26 @@ export default function App() {
               editorNavigationActive.current = false;
               selectObjects(id, additive, inside);
             }}
+            setSelectedMany={(ids) => {
+              editorNavigationActive.current = false;
+              const next = expandGroups(
+                slide.elements,
+                ids.filter((id) => slide.elements.some((e) => e.id === id)),
+              );
+              setSelectionIds(next);
+              setPrimarySelected(next.at(-1));
+            }}
             onArrange={arrangeObjects}
-            linkDeck={workbook}
+            linkDeck={
+              forceAssigned
+                ? {
+                    ...workbook,
+                    slides: workbook.slides.filter((s) =>
+                      canEdit(cloud.access, s, workbook),
+                    ),
+                  }
+                : workbook
+            }
             onOpenLink={openObjectLink}
             onInsertStructure={insertStructure}
             onGroup={groupSelection}
@@ -2171,6 +2544,15 @@ export default function App() {
             updateElement={updateElement}
             addElement={addElement}
             addTable={addTable}
+            pageAddition={
+              forceAssigned
+                ? {
+                    mode: workbook.guestPageCreation ?? "append",
+                    canAdd: (x, y) => assignedPageAt(x, y, true),
+                    add: (x, y) => assignedPageAt(x, y),
+                  }
+                : undefined
+            }
             onInsert={insertEditorLine}
             onCreate={createEditorPage}
             onBack={(rect) => switchWorkspace("map", slide.id, rect)}
@@ -2217,6 +2599,7 @@ export default function App() {
           presenting.pages.length > 0 &&
           presentation && (
             <PresentationView
+              speakerLaunch={speakerLaunch}
               onOpenLink={openObjectLink}
               onLinkBack={objectTrail.length ? backFromObjectLink : undefined}
               deck={presenting.deck}
@@ -2305,6 +2688,7 @@ export default function App() {
                 request.label,
                 request.mode,
                 request.startId,
+                request.withNotes,
               );
             }}
             onEdit={(issue) => {
@@ -2324,7 +2708,13 @@ export default function App() {
               defaultScope={
                 toolsOpen === "pdf" && pdfResume ? pdfResume.scope : actionScope
               }
-              initialIds={toolsOpen === "pdf" ? pdfResume?.ids : undefined}
+              initialIds={
+                toolsOpen === "pdf"
+                  ? pdfResume?.ids
+                  : toolsOpen === "compare"
+                    ? compareIds
+                    : undefined
+              }
               onFixIssue={(issue, scope, ids) => {
                 setPdfResume({ scope, ids });
                 setToolsOpen(undefined);
@@ -2365,6 +2755,7 @@ export default function App() {
         {thumbnailMenu && view !== "present" && (
           <ThumbnailMenu
             deck={deck}
+            readOnly={!!cloud.active && cloud.access.mode === "none"}
             menu={thumbnailMenu}
             onClose={() => setThumbnailMenu(undefined)}
             onAction={thumbnailAction}
@@ -2384,6 +2775,13 @@ export default function App() {
           </div>
         )}
       </div>
+      {cloud.active && !cloud.isHost && cloud.follow.active && (
+        <HostFollowView
+          key={cloud.follow.sessionId}
+          book={workbook}
+          state={cloud.follow}
+        />
+      )}
       {historyPending && (
         <div className="toast" role="status">
           削除前の版を保存しています…

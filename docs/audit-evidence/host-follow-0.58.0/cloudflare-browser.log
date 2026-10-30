@@ -1,0 +1,29 @@
+[WebServer] (node:122229) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 16 tests using 1 worker
+
+(node:122250) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (16.3s)
+  ✓   2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (2.6s)
+  ✓   3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:115:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (18.2s)
+  ✓   4 [cloud-desktop] › tests/cloud/host-follow.spec.ts:208:1 › step 4 preserves the live text editor, selected text and caret across interruption (5.0s)
+  ✓   5 [cloud-desktop] › tests/cloud/host-follow.spec.ts:311:1 › step 4 Chromium IME composition begun before following can commit without losing text (3.9s)
+  ✓   6 [cloud-desktop] › tests/cloud/host-follow.spec.ts:381:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (5.5s)
+  ✓   7 [cloud-desktop] › tests/cloud/host-follow.spec.ts:472:1 › step 6 reload and network reconnection restore follow, controller close releases guest (5.1s)
+FOLLOW_RENDER_40_METRICS {"backend":"cloudflare","project":"cloud-desktop","connections":40,"renderedGuests":1,"samples":20,"p95Ms":168.9283609999984,"maxMs":169.03851700000087,"allMs":[129.558477999999,132.51325999999972,133.10378499999933,134.42027200000302,134.00692800000252,138.0054420000015,169.03851700000087,144.89683800000057,131.55452199999854,135.5195160000003,133.77596500000072,159.8686880000023,168.9283609999984,152.15591400000267,149.82201599999098,133.9893929999962,133.05678500000795,132.9197780000104,132.85294599999906,133.41650699998718]}
+  ✓   8 [cloud-desktop] › tests/cloud/host-follow.spec.ts:537:1 › 40 connections include rendered guest page latency under one second (9.4s)
+(node:124828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [cloud-touch] › tests/cloud/forced-filter.spec.ts:4:1 › host enforces assigned slides and later restores all slides (19.3s)
+  ✓  10 [cloud-touch] › tests/cloud/host-follow.spec.ts:48:1 › step 2 receives page and map targets without replacing the guest editor (3.0s)
+  ✓  11 [cloud-touch] › tests/cloud/host-follow.spec.ts:115:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.9s)
+  ✓  12 [cloud-touch] › tests/cloud/host-follow.spec.ts:208:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓  13 [cloud-touch] › tests/cloud/host-follow.spec.ts:311:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.8s)
+  ✓  14 [cloud-touch] › tests/cloud/host-follow.spec.ts:381:1 › step 5 temporarily shows unassigned pages and maps without changing saved restrictions or the editing session (4.1s)
+  ✓  15 [cloud-touch] › tests/cloud/host-follow.spec.ts:472:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+FOLLOW_RENDER_40_METRICS {"backend":"cloudflare","project":"cloud-touch","connections":40,"renderedGuests":1,"samples":20,"p95Ms":134.0807580000037,"maxMs":134.90524600000208,"allMs":[123.46189199999935,132.73404599999776,116.2008050000004,116.79476099999738,133.75780999999552,116.24533700000029,116.5314950000029,134.90524600000208,133.134321000005,133.31680400000187,132.941313000003,132.79356600000028,133.19756100000086,116.2105589999992,133.95748199999798,116.29634800000349,134.0807580000037,132.83410600000207,115.97469300000375,116.95240899999772]}
+  ✓  16 [cloud-touch] › tests/cloud/host-follow.spec.ts:537:1 › 40 connections include rendered guest page latency under one second (8.1s)
+
+  16 passed (2.2m)

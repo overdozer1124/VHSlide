@@ -34,6 +34,7 @@ async function drag(
   y: number,
   dx: number,
   dy: number,
+  alt = false,
 ) {
   if (!touch) {
     await p.mouse.move(x, y);
@@ -45,15 +46,18 @@ async function drag(
   const c = await p.context().newCDPSession(p);
   await c.send("Input.dispatchTouchEvent", {
     type: "touchStart",
+    modifiers: alt ? 1 : 0,
     touchPoints: [{ id: 1, x, y }],
   });
   for (let i = 1; i <= 8; i++)
     await c.send("Input.dispatchTouchEvent", {
       type: "touchMove",
+      modifiers: alt ? 1 : 0,
       touchPoints: [{ id: 1, x: x + (dx * i) / 8, y: y + (dy * i) / 8 }],
     });
   await c.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
+    modifiers: alt ? 1 : 0,
     touchPoints: [],
   });
   await c.detach();
@@ -80,15 +84,20 @@ test("group selection moves together, members edit directly, resize and undo wor
   const before = (await saved(page)).slides.find(
     (s: any) => s.id === "start",
   ).elements;
-  const r = await object(page, node.id).boundingBox();
+  const r = await canvas(page)
+    .locator('.group-selection-box [data-resize-direction="w"]')
+    .boundingBox();
+  await page.keyboard.down("Alt");
   await drag(
     page,
     info.project.name === "touch",
-    r!.x + 3,
+    r!.x + r!.width / 2,
     r!.y + r!.height / 2,
     15,
     20,
+    true,
   );
+  await page.keyboard.up("Alt");
   await expect
     .poll(
       async () =>
@@ -165,15 +174,20 @@ test("connector settings follow a separately moved target and detach safely", as
     node.id,
   );
   await object(page, node.id).click();
-  const r = await object(page, node.id).boundingBox();
+  const r = await object(page, node.id)
+    .locator('[data-resize-direction="w"]')
+    .boundingBox();
+  await page.keyboard.down("Alt");
   await drag(
     page,
     info.project.name === "touch",
-    r!.x + 3,
+    r!.x + r!.width / 2,
     r!.y + r!.height / 2,
     -20,
     20,
+    true,
   );
+  await page.keyboard.up("Alt");
   await expect
     .poll(
       async () =>
@@ -206,7 +220,7 @@ test("chart data and type persist, render in presentation and print", async ({
   page,
 }) => {
   await page
-    .getByRole("button", { name: "図解・グラフを追加", exact: true })
+    .getByRole("button", { name: "もっと見る（図解・グラフ）", exact: true })
     .click();
   await page.getByRole("button", { name: "グラフ", exact: true }).click();
   await page
@@ -248,9 +262,7 @@ test("chart data and type persist, render in presentation and print", async ({
       .getByRole("img", { name: "みんなの意見", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
   await page.getByRole("button", { name: "選択を解除", exact: true }).click();
   await page
@@ -301,9 +313,20 @@ test("internal links select another sheet, present jump/back work", async ({
   await page.getByRole("button", { name: "発表する", exact: true }).click();
   await page
     .locator(".present-mode")
-    .getByRole("button", { name: "リンク先のページへ", exact: true })
+    .locator(`.element[data-element-id="${node.id}"]`)
+    .click({ position: { x: 12, y: 12 } });
+  const confirmation = page.getByRole("dialog", {
+    name: "発表対象外のリンク",
+    exact: true,
+  });
+  await expect(confirmation).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: "リンク先を開く", exact: true })
     .click();
-  await expect(page.locator(".present-mode")).toContainText("別シートの目的地");
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.locator(".present-caption")).toContainText(
+    "別シートの目的地",
+  );
   await page.locator(".present-mode").hover();
   await page
     .getByRole("button", { name: "リンク元へ戻る", exact: true })
@@ -311,16 +334,16 @@ test("internal links select another sheet, present jump/back work", async ({
   await expect(
     page
       .locator(".present-mode")
-      .getByRole("button", { name: "リンク先のページへ", exact: true }),
+      .locator(`.element[data-element-id="${node.id}"]`),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await page
-    .getByRole("button", { name: "構造テストを編集", exact: true })
-    .click();
+  await expect(
+    page.getByRole("textbox", { name: "ページの名前", exact: true }),
+  ).toHaveValue("構造テスト");
   await expect(page.locator(".workspace-flight")).toHaveCount(0);
   await canvas(page)
-    .getByRole("button", { name: "リンク先のページへ", exact: true })
-    .click();
+    .locator(`.element[data-element-id="${node.id}"]`)
+    .click({ modifiers: ["Control"], position: { x: 12, y: 12 } });
   await expect(
     page.getByRole("textbox", { name: "ページの名前", exact: true }),
   ).toHaveValue("別シートの目的地");
@@ -335,7 +358,7 @@ test("structure palette remains usable in Chromebook and narrow layouts", async 
   ]) {
     await page.setViewportSize(viewport);
     const b = page.getByRole("button", {
-      name: "図解・グラフを追加",
+      name: "もっと見る（図解・グラフ）",
       exact: true,
     });
     await b.scrollIntoViewIfNeeded();
@@ -380,8 +403,9 @@ test("a deleted destination never opens another room or loses the current page",
     .click();
   await expect(page.locator(".workspace-flight")).toHaveCount(0);
   await canvas(page)
-    .getByRole("button", { name: "リンク先のページへ", exact: true })
-    .click();
+    .locator('.element[data-object-link="true"]')
+    .first()
+    .click({ modifiers: ["Control"], position: { x: 12, y: 12 } });
   await expect(
     page.getByText("リンク先のページが見つかりません。", { exact: true }),
   ).toBeVisible();

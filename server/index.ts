@@ -13,6 +13,8 @@ const app = createApplication({
   directory: process.env.DATA_DIR || "./data",
   origin,
   clientId,
+  schoolClientId: process.env.GOOGLE_SCHOOL_CLIENT_ID || "",
+  schoolDomain: process.env.GOOGLE_SCHOOL_DOMAIN || "",
 });
 app.server.listen(port, "0.0.0.0", () =>
   console.log(

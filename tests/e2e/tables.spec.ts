@@ -106,6 +106,14 @@ test("creates and directly edits a table, preserves layout, undo, resize, JSON a
     });
   await expect(page.locator(".deck-title")).toHaveValue("表を読み込み");
   await page.getByRole("button", { name: "発表する", exact: true }).click();
+  const review = page.getByRole("dialog", {
+    name: "表示チェック",
+    exact: true,
+  });
+  await expect(review).toContainText("全文が表示されません");
+  await review
+    .getByRole("button", { name: "このまま進む", exact: true })
+    .click();
   await expect(page.locator(".present-mode .slide-table")).toContainText(
     "比較する観点",
   );
@@ -119,14 +127,13 @@ test("creates and directly edits a table, preserves layout, undo, resize, JSON a
   expect(shown!.height).toBeLessThanOrEqual(frame!.height + 2);
   await page.mouse.move(100, 10);
   await page.getByRole("button", { name: "発表をおわる", exact: true }).click();
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
   await page
     .getByRole("button", { name: "対象をすべて選ぶ", exact: true })
     .click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
+  // The same unchanged overflow was acknowledged before presenting.
   await expect(
     page.getByRole("button", { name: "印刷・PDFに保存", exact: true }),
   ).toBeEnabled();

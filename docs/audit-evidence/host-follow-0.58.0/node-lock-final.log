@@ -1,0 +1,24 @@
+[WebServer] (node:126154) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:126166) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/host-follow.spec.ts:115:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.8s)
+  ✓  2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:208:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓  3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:311:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.7s)
+  ✓  4 [cloud-desktop] › tests/cloud/host-follow.spec.ts:472:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.3s)
+(node:126615) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/host-follow.spec.ts:115:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (17.9s)
+  ✓  6 [cloud-touch] › tests/cloud/host-follow.spec.ts:208:1 › step 4 preserves the live text editor, selected text and caret across interruption (2.9s)
+  ✓  7 [cloud-touch] › tests/cloud/host-follow.spec.ts:311:1 › step 4 Chromium IME composition begun before following can commit without losing text (2.8s)
+  ✓  8 [cloud-touch] › tests/cloud/host-follow.spec.ts:472:1 › step 6 reload and network reconnection restore follow, controller close releases guest (3.2s)
+
+  8 passed (55.2s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

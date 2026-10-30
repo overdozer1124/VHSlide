@@ -1,3 +1,7 @@
+import {
+  exerciseHostFollow,
+  measureHostFollow40,
+} from "../support/host-follow.ts";
 import { COLLABORATION_PROTOCOL } from "../../src/collaborationProtocol.ts";
 import { exerciseDeletedMedia } from "../support/deleted-media.ts";
 import { exerciseJoinApprovals } from "../support/join-approval-features.ts";
@@ -119,6 +123,61 @@ before(async () => {
 after(async () => {
   await mf.dispose();
   await rm(storage, { recursive: true, force: true });
+});
+
+test("both configured Google clients identify the same account and reject other audiences", async () => {
+  const config = (await (await request("/api/config")).json()) as {
+    clientId: string;
+    schoolClientId: string;
+    schoolDomain: string;
+  };
+  assert.equal(config.clientId, "test.apps.googleusercontent.com");
+  assert.equal(config.schoolClientId, "school.apps.googleusercontent.com");
+  assert.equal(config.schoolDomain, "kaga.ed.jp");
+  const general = await request(
+    "/api/auth/google",
+    "POST",
+    { credential: await fixture.sign("same-user") },
+    "",
+  );
+  const school = await request(
+    "/api/auth/google",
+    "POST",
+    {
+      credential: await fixture.sign(
+        "same-user",
+        "school.apps.googleusercontent.com",
+      ),
+    },
+    "",
+  );
+  assert.equal(general.status, 200);
+  assert.equal(school.status, 200);
+  const session = async (r: Response) =>
+    (await (
+      await request(
+        "/api/session",
+        "GET",
+        undefined,
+        r.headers.get("set-cookie")!.split(";")[0],
+      )
+    ).json()) as { user: { id: string } };
+  assert.equal(
+    (await session(general)).user.id,
+    (await session(school)).user.id,
+  );
+  const wrong = await request(
+    "/api/auth/google",
+    "POST",
+    {
+      credential: await fixture.sign(
+        "same-user",
+        "other.apps.googleusercontent.com",
+      ),
+    },
+    "",
+  );
+  assert.equal(wrong.status, 401);
 });
 
 test("checks real JWT signatures/audience, session cookies, origin and membership", async () => {
@@ -1462,5 +1521,22 @@ test("deleted media is private; live references and uploads work, forged resurre
         peer.doc.destroy();
       }
     },
+  );
+});
+
+test("host follow state validates host, initiator, target and session without editing the work", async () => {
+  await exerciseHostFollow({
+    create,
+    join: joinRoom,
+    connect,
+    owner,
+    guest: friend,
+  });
+});
+
+test("host follow 40 live connections P95 target", async () => {
+  await measureHostFollow40(
+    { create, join: joinRoom, connect, owner: owner, guest: friend },
+    "Cloudflare/workerd",
   );
 });

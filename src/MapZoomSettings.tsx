@@ -4,7 +4,11 @@ import { DEFAULT_ZOOM_STEPS, parseZoomSteps } from "./workspacePreferences";
 export function MapZoomSettings({
   steps,
   onApply,
+  embedded = false,
+  onDone,
 }: {
+  embedded?: boolean;
+  onDone?: () => void;
   steps: number[];
   onApply: (steps: number[]) => void;
 }) {
@@ -14,7 +18,7 @@ export function MapZoomSettings({
   const root = useRef<HTMLDivElement>(null),
     trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open || embedded) return;
     const outside = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -31,9 +35,18 @@ export function MapZoomSettings({
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("keydown", escape, true);
     };
-  }, [open]);
+  }, [open, embedded]);
+  function apply(steps: number[]) {
+    onApply(steps);
+    setOpen(false);
+    if (onDone) onDone();
+    else trigger.current?.focus({ preventScroll: true });
+  }
   return (
-    <div className="map-zoom-settings" ref={root}>
+    <div
+      className={`map-zoom-settings${embedded ? " map-zoom-settings-embedded" : ""}`}
+      ref={root}
+    >
       <button
         ref={trigger}
         className="icon-button"
@@ -48,6 +61,7 @@ export function MapZoomSettings({
         }}
       >
         <SlidersHorizontal size={17} />
+        {embedded && <span>マップの倍率を設定</span>}
       </button>
       {open && (
         <form
@@ -57,9 +71,7 @@ export function MapZoomSettings({
           onSubmit={(event) => {
             event.preventDefault();
             try {
-              onApply(parseZoomSteps(text));
-              setOpen(false);
-              trigger.current?.focus();
+              apply(parseZoomSteps(text));
             } catch (reason) {
               setError((reason as Error).message);
             }
@@ -71,7 +83,10 @@ export function MapZoomSettings({
               type="button"
               className="icon-button"
               aria-label="倍率設定を閉じる"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                trigger.current?.focus({ preventScroll: true });
+              }}
             >
               <X size={16} />
             </button>
@@ -120,8 +135,7 @@ export function MapZoomSettings({
               type="button"
               className="quiet"
               onClick={() => {
-                onApply([...DEFAULT_ZOOM_STEPS]);
-                setOpen(false);
+                apply([...DEFAULT_ZOOM_STEPS]);
               }}
             >
               初期設定に戻す

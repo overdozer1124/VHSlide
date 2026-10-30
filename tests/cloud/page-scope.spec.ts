@@ -74,9 +74,7 @@ test("PDF preparation is invalidated by source changes and selected deletions in
   await page
     .getByRole("button", { name: "フィルタを適用", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /PDFで保存/ }).click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
@@ -149,7 +147,18 @@ test("viewers retain ordinary comparison and presentation scopes but a revoked p
       .click();
     expect((await share("none")).status()).toBe(200);
     await expect(other.locator(".cloud-presence")).toContainText("閲覧のみ");
+    await other
+      .getByRole("button", { name: "スライドを複数選択", exact: true })
+      .click();
+    await other.locator(".slide-card .thumbnail").nth(0).click();
+    await other
+      .locator(".slide-card .thumbnail")
+      .nth(1)
+      .click({ modifiers: ["Control"] });
     await other.getByRole("button", { name: "比較", exact: true }).click();
+    await other
+      .getByRole("button", { name: "スライドを選び直す", exact: true })
+      .click();
     await expect(
       other.getByLabel("対象スライド").getByRole("checkbox"),
     ).toHaveCount(3);

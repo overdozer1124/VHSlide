@@ -68,7 +68,7 @@ const data = (p: Page) =>
 const button = (p: Page, name: string) =>
   p.getByRole("button", { name, exact: true });
 async function pdf(p: Page) {
-  await button(p, "保存方法を選ぶ").click();
+  await button(p, "ファイル").click();
   await p.getByRole("menuitem", { name: /PDFで保存/ }).click();
 }
 test.beforeEach(async ({ page }) => {
@@ -134,7 +134,10 @@ test("chart labels use numbered names with legend off, stay inside the chart, an
       .map((t) => t.textContent);
   });
   expect(outside).toEqual([]);
-  expect((await data(page)).slides[1].elements[0].chart).toEqual(chart.chart);
+  // The fixture enters the app through JSON, which canonicalizes -0 to 0.
+  expect((await data(page)).slides[1].elements[0].chart).toEqual(
+    JSON.parse(JSON.stringify(chart.chart)),
+  );
 });
 test("presentation checks only filtered targets, supports cancel, and excludes editor warning marks", async ({
   page,
@@ -199,6 +202,7 @@ test("PDF fix and resume keeps the exact chosen IDs and rechecks edited cells be
 test("acknowledged warnings stay out of print and do not bypass failed image decoding", async ({
   page,
 }) => {
+  const before = (await data(page)).slides;
   await pdf(page);
   await button(page, "PDFの準備").click();
   await button(page, "このまま進む").click();
@@ -207,5 +211,5 @@ test("acknowledged warnings stay out of print and do not bypass failed image dec
   await expect(page.locator(".print-export .cell-overflow-flag")).toHaveCount(
     0,
   );
-  expect((await data(page)).slides).toEqual(source.slides);
+  expect((await data(page)).slides).toEqual(before);
 });

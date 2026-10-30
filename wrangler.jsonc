@@ -11,6 +11,8 @@
   },
   "vars": {
     "GOOGLE_CLIENT_ID": "187339871113-2j074eot6i41e2ts1g3129ch87vhjru1.apps.googleusercontent.com",
+    "GOOGLE_SCHOOL_CLIENT_ID": "142634110367-rongbdrtm1u416ch26orar134m50ttbi.apps.googleusercontent.com",
+    "GOOGLE_SCHOOL_DOMAIN": "kaga.ed.jp",
     "PUBLIC_ORIGIN": "https://vhslide.overdozer1124.workers.dev",
   },
   "durable_objects": {

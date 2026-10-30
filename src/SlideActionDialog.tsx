@@ -68,7 +68,10 @@ export function SlideActionDialog({
   }[mode];
   const [name, setName] = useState("発表ルート"),
     [message, setMessage] = useState("");
-  const [comparing, setComparing] = useState(false);
+  const [comparing, setComparing] = useState(
+    () =>
+      mode === "compare" && !!initialIds && ids.length >= 2 && ids.length <= 4,
+  );
   const [checkingPDF, setCheckingPDF] = useState(false);
   const [printJob, setPrintJob] = useState<{
     pages: Slide[];

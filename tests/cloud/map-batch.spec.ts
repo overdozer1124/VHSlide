@@ -39,6 +39,9 @@ test("host bulk axes synchronize and scoped participants keep their original row
       "クラウドに保存済み",
     );
     await expect(
+      other.getByRole("button", { name: "マップのその他", exact: true }),
+    ).toHaveCount(0);
+    await expect(
       other.getByRole("button", { name: "行・列を一括操作", exact: true }),
     ).toHaveCount(0);
     await page

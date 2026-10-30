@@ -2,9 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { scopeFixture, scopeLogin, scopeOrigin } from "../support/scopeCloud";
 import { defaultAccess } from "../../src/permissions";
 async function backup(page: Page) {
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page.getByRole("menuitem", { name: /完全バックアップ（ZIP）/ }).click();
   return page.getByRole("dialog", {
     name: "完全バックアップと復元",
@@ -47,7 +45,8 @@ test("failed notes remain retryable after leaving the editor; header and ZIP nev
   await expect(dialog).toContainText("本文・付箋の保存完了");
   await dialog.getByRole("button", { name: "閉じる", exact: true }).click();
   // A local/new work must not silently discard the failed note.
-  await button(page, "新しく").click();
+  await button(page, "ファイル").click();
+  await page.getByRole("menuitem", { name: "新しく", exact: true }).click();
   await expect(page.locator(".toast")).toContainText(
     "付箋の保存が完了していません",
   );

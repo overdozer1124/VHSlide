@@ -1,0 +1,249 @@
+[WebServer] (node:194173) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:194186) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 2 workers
+
+(node:194207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:194206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   2 [desktop] › tests/e2e/editor-swipe.spec.ts:194:1 › four directions obey row choices and linked rows; edges and cancelled gestures bounce back
+[WebServer] 12:20:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:20:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:20:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:20:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   3 [desktop] › tests/e2e/editor-swipe.spec.ts:551:1 › Chromebook layouts devote at most 104 pixels to the header and tools (1.9s)
+(node:194517) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [desktop] › tests/e2e/editor-tool-layout.spec.ts:9:1 › display settings remain usable with selected objects and both sidebars closed (3.6s)
+[WebServer] 12:21:01 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:01 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:02 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:02 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:03 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:03 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘   5 [desktop] › tests/e2e/editor-tool-layout.spec.ts:33:1 › insertion palettes open directly and retain visible labels in compact layouts (2.2s)
+(node:194697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:21:05 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:05 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   4 [desktop] › tests/e2e/structure-editing.spec.ts:219:1 › chart data and type persist, render in presentation and print (5.2s)
+[WebServer] 12:21:06 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:06 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:07 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:07 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   6 [desktop] › tests/e2e/thumbnail-actions.spec.ts:15:1 › linked rows can be toggled, navigate within a topic, restore independent choices and persist (4.0s)
+(node:194901) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [desktop] › tests/e2e/structure-editing.spec.ts:342:1 › structure palette remains usable in Chromebook and narrow layouts (3.2s)
+(node:195030) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:21:10 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:10 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:10 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:10 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓   9 [touch] › tests/e2e/editor-tool-layout.spec.ts:9:1 › display settings remain usable with selected objects and both sidebars closed (2.7s)
+[WebServer] 12:21:13 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:13 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  10 [touch] › tests/e2e/editor-tool-layout.spec.ts:33:1 › insertion palettes open directly and retain visible labels in compact layouts (2.2s)
+(node:195214) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [touch] › tests/e2e/editor-swipe.spec.ts:194:1 › four directions obey row choices and linked rows; edges and cancelled gestures bounce back (6.7s)
+  -  12 [touch] › tests/e2e/editor-swipe.spec.ts:551:1 › Chromebook layouts devote at most 104 pixels to the header and tools
+[WebServer] 12:21:16 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:16 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:18 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:18 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  13 [touch] › tests/e2e/thumbnail-actions.spec.ts:15:1 › linked rows can be toggled, navigate within a topic, restore independent choices and persist (4.1s)
+  ✓  11 [touch] › tests/e2e/structure-editing.spec.ts:219:1 › chart data and type persist, render in presentation and print (5.2s)
+[WebServer] 12:21:21 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 12:21:21 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✘  14 [touch] › tests/e2e/structure-editing.spec.ts:342:1 › structure palette remains usable in Chromebook and narrow layouts (2.8s)
+
+
+  1) [desktop] › tests/e2e/editor-swipe.spec.ts:551:1 › Chromebook layouts devote at most 104 pixels to the header and tools 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 104
+    Received:    117
+
+      561 |     await page.setViewportSize(size);
+      562 |     const layout = (await page.locator(".editor-layout").boundingBox())!;
+    > 563 |     expect(layout.y).toBeLessThanOrEqual(104);
+          |                      ^
+      564 |     const sheetBar = (await page.locator(".sheet-bar").boundingBox())!;
+      565 |     // The editor shares the viewport with the existing sheet tabs below it.
+      566 |     expect(layout.height).toBeGreaterThanOrEqual(
+        at /workspace/vhslide-dual-auth/tests/e2e/editor-swipe.spec.ts:563:22
+
+    Error Context: test-results/editor-swipe-Chromebook-la-98026-els-to-the-header-and-tools-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/editor-swipe-Chromebook-la-98026-els-to-the-header-and-tools-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/editor-swipe-Chromebook-la-98026-els-to-the-header-and-tools-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop] › tests/e2e/editor-tool-layout.spec.ts:33:1 › insertion palettes open directly and retain visible labels in compact layouts 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 104
+    Received:    117
+
+      37 |       await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+      38 |     }
+    > 39 |     expect((await page.locator(".editor-layout").boundingBox())!.y).toBeLessThanOrEqual(104);
+         |                                                                     ^
+      40 |     await page.getByRole("button", { name: "もっと見る（図解・グラフ）", exact: true }).click();
+      41 |     const palette = page.getByRole("dialog", { name: "図解・グラフを追加", exact: true });
+      42 |     await expect(palette).toBeVisible();
+        at /workspace/vhslide-dual-auth/tests/e2e/editor-tool-layout.spec.ts:39:69
+
+    Error Context: test-results/editor-tool-layout-inserti-e06e6-e-labels-in-compact-layouts-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/editor-tool-layout-inserti-e06e6-e-labels-in-compact-layouts-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/editor-tool-layout-inserti-e06e6-e-labels-in-compact-layouts-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [touch] › tests/e2e/editor-tool-layout.spec.ts:33:1 › insertion palettes open directly and retain visible labels in compact layouts 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 104
+    Received:    117
+
+      37 |       await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+      38 |     }
+    > 39 |     expect((await page.locator(".editor-layout").boundingBox())!.y).toBeLessThanOrEqual(104);
+         |                                                                     ^
+      40 |     await page.getByRole("button", { name: "もっと見る（図解・グラフ）", exact: true }).click();
+      41 |     const palette = page.getByRole("dialog", { name: "図解・グラフを追加", exact: true });
+      42 |     await expect(palette).toBeVisible();
+        at /workspace/vhslide-dual-auth/tests/e2e/editor-tool-layout.spec.ts:39:69
+
+    Error Context: test-results/editor-tool-layout-inserti-e06e6-e-labels-in-compact-layouts-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/editor-tool-layout-inserti-e06e6-e-labels-in-compact-layouts-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/editor-tool-layout-inserti-e06e6-e-labels-in-compact-layouts-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [touch] › tests/e2e/structure-editing.spec.ts:342:1 › structure palette remains usable in Chromebook and narrow layouts 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 390
+    Received:    392.015625
+
+      362 |     expect(r!.x).toBeGreaterThanOrEqual(0);
+      363 |     expect(r!.y).toBeGreaterThanOrEqual(0);
+    > 364 |     expect(r!.x + r!.width).toBeLessThanOrEqual(viewport.width);
+          |                             ^
+      365 |     expect(r!.y + r!.height).toBeLessThanOrEqual(viewport.height);
+      366 |     await expect(card).toBeInViewport();
+      367 |     if (viewport.width === 1366)
+        at /workspace/vhslide-dual-auth/tests/e2e/structure-editing.spec.ts:364:29
+
+    Error Context: test-results/structure-editing-structur-08ae9-romebook-and-narrow-layouts-touch/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/structure-editing-structur-08ae9-romebook-and-narrow-layouts-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/structure-editing-structur-08ae9-romebook-and-narrow-layouts-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [desktop] › tests/e2e/editor-swipe.spec.ts:551:1 › Chromebook layouts devote at most 104 pixels to the header and tools 
+    [desktop] › tests/e2e/editor-tool-layout.spec.ts:33:1 › insertion palettes open directly and retain visible labels in compact layouts 
+    [touch] › tests/e2e/editor-tool-layout.spec.ts:33:1 › insertion palettes open directly and retain visible labels in compact layouts 
+    [touch] › tests/e2e/structure-editing.spec.ts:342:1 › structure palette remains usable in Chromebook and narrow layouts 
+  2 skipped
+  8 passed (27.4s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

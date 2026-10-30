@@ -1,0 +1,160 @@
+[WebServer] (node:75051) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 2 workers
+(node:75299) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 7:35:12 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:12 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:12 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:12 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:35:14 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:14 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:15 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:15 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:35:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:17 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:35:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:19 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+F(node:75906) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 7:35:23 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:23 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·(node:76041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 7:35:24 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:24 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:25 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:25 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:35:27 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:27 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:35:28 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:28 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+·[WebServer] 7:35:31 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+[WebServer] 7:35:31 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+F·
+
+  1) [desktop] › tests/e2e/object-selection.spec.ts:80:1 › blank-space drag selects, adds ranges, cancels safely and clears with a click 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.editor-workspace .slide-canvas').locator('.selected-element')
+    Expected: 3
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" locator('.editor-workspace .slide-canvas').locator('.selected-element') with timeout 5000ms
+      - waiting for locator('.editor-workspace .slide-canvas').locator('.selected-element')
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      115 |   await expect(canvas.locator(".selected-element")).toHaveCount(3);
+      116 |   await select(30, 30, 700, 500, false, true);
+    > 117 |   await expect(canvas.locator(".selected-element")).toHaveCount(3);
+          |                                                     ^
+      118 |   await page.mouse.click(r.x + 30 * scale, r.y + 30 * scale);
+      119 |   await expect(canvas.locator(".selected-element")).toHaveCount(0);
+      120 |   await select(30, 30, 700, 500);
+        at /workspace/vhslide-dual-auth/tests/e2e/object-selection.spec.ts:117:53
+
+    Error Context: test-results/object-selection-blank-spa-91b99-ely-and-clears-with-a-click-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/object-selection-blank-spa-91b99-ely-and-clears-with-a-click-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/object-selection-blank-spa-91b99-ely-and-clears-with-a-click-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [touch] › tests/e2e/object-selection.spec.ts:80:1 › blank-space drag selects, adds ranges, cancels safely and clears with a click 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.editor-workspace .slide-canvas').locator('.selected-element')
+    Expected: 3
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" locator('.editor-workspace .slide-canvas').locator('.selected-element') with timeout 5000ms
+      - waiting for locator('.editor-workspace .slide-canvas').locator('.selected-element')
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      115 |   await expect(canvas.locator(".selected-element")).toHaveCount(3);
+      116 |   await select(30, 30, 700, 500, false, true);
+    > 117 |   await expect(canvas.locator(".selected-element")).toHaveCount(3);
+          |                                                     ^
+      118 |   await page.mouse.click(r.x + 30 * scale, r.y + 30 * scale);
+      119 |   await expect(canvas.locator(".selected-element")).toHaveCount(0);
+      120 |   await select(30, 30, 700, 500);
+        at /workspace/vhslide-dual-auth/tests/e2e/object-selection.spec.ts:117:53
+
+    Error Context: test-results/object-selection-blank-spa-91b99-ely-and-clears-with-a-click-touch/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/object-selection-blank-spa-91b99-ely-and-clears-with-a-click-touch/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/object-selection-blank-spa-91b99-ely-and-clears-with-a-click-touch/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [desktop] › tests/e2e/object-selection.spec.ts:80:1 › blank-space drag selects, adds ranges, cancels safely and clears with a click 
+    [touch] › tests/e2e/object-selection.spec.ts:80:1 › blank-space drag selects, adds ranges, cancels safely and clears with a click 
+  8 passed (26.1s)

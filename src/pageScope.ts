@@ -147,6 +147,8 @@ export function resolvePageScope(
         .join(" / ");
     }
   }
+  if (book.restrictGuests && access)
+    pages = pages.filter((s) => canEdit(access, s, book));
   return {
     ids: pages.map((s) => s.id),
     pages,

@@ -26,7 +26,9 @@ export async function scopeLogin(page: Page, name: string) {
     ).status(),
   ).toBe(200);
   await page.addInitScript(() => {
-    document.documentElement.requestFullscreen = () =>
+    // Init scripts can run before the HTML root exists. Override the prototype
+    // so this test-only denial also works during that early navigation phase.
+    Element.prototype.requestFullscreen = () =>
       Promise.reject(new Error("local denial"));
   });
 }

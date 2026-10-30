@@ -1,3 +1,11 @@
+import {
+  expireFollow,
+  idleFollow,
+  publicFollow,
+  transitionFollow,
+  FollowError,
+} from "../src/hostFollow.ts";
+import type { FollowState } from "../src/hostFollow.ts";
 import { syncFailure } from "../src/syncRecovery.ts";
 import { COLLABORATION_PROTOCOL } from "../src/collaborationProtocol.ts";
 import {
@@ -50,6 +58,7 @@ import {
 import type { Env, Identity } from "./common.ts";
 
 interface Peer extends Identity {
+  connection?: string;
   since: number;
   count: number;
   bytes: number;
@@ -177,6 +186,46 @@ export class SlideRoom extends DurableObject<Env> {
     return this.ctx
       .getWebSockets()
       .filter((ws) => ws.readyState === WebSocket.OPEN);
+  }
+  private followState(): FollowState {
+    const row = one<{ value: string }>(
+      this.sql,
+      "SELECT value FROM meta WHERE key='host_follow'",
+    );
+    const state: FollowState = row ? JSON.parse(row.value) : idleFollow();
+    if (
+      state.active &&
+      (expireFollow(state) !== state ||
+        !this.peers().some((ws) => {
+          const p = ws.deserializeAttachment() as Peer;
+          return p.connection === state.controller && p.expires > Date.now();
+        }))
+    ) {
+      const idle = idleFollow(state.revision + 1);
+      this.storeFollow(idle);
+      return idle;
+    }
+    return state;
+  }
+  private storeFollow(state: FollowState) {
+    this.sql.exec(
+      "INSERT OR REPLACE INTO meta(key,value) VALUES('host_follow',?)",
+      JSON.stringify(state),
+    );
+  }
+  private sendFollow(requestId?: string) {
+    const message = JSON.stringify({
+      type: "follow-state",
+      state: publicFollow(this.followState()),
+      ...(requestId ? { requestId } : {}),
+    });
+    for (const ws of this.peers()) {
+      try {
+        ws.send(message);
+      } catch {
+        ws.close(1011);
+      }
+    }
   }
   private presence() {
     const peers = this.peers();
@@ -558,6 +607,7 @@ export class SlideRoom extends DurableObject<Env> {
       this.ctx.acceptWebSocket(server);
       server.serializeAttachment({
         ...identity,
+        connection: crypto.randomUUID(),
         since: Date.now(),
         count: 0,
         bytes: 0,
@@ -570,6 +620,12 @@ export class SlideRoom extends DurableObject<Env> {
         }),
       );
       server.send(Y.encodeStateAsUpdate(doc));
+      server.send(
+        JSON.stringify({
+          type: "follow-state",
+          state: publicFollow(this.followState()),
+        }),
+      );
       this.presence();
       return new Response(null, { status: 101, webSocket: client });
     }
@@ -594,6 +650,78 @@ export class SlideRoom extends DurableObject<Env> {
           "通信データが大きすぎます。",
         );
         const value = JSON.parse(message);
+        if (value?.type === "follow-control") {
+          try {
+            if (message.length > 4096)
+              throw new FollowError(400, "追従の通信データが大きすぎます。");
+            if (value.protocol !== COLLABORATION_PROTOCOL)
+              throw new FollowError(409, "ページを再読み込みしてください。");
+            const now = Date.now();
+            if (peer.since + 60000 <= now) {
+              peer.since = now;
+              peer.count = 0;
+              peer.bytes = 0;
+            }
+            peer.count++;
+            peer.bytes += message.length;
+            if (peer.count > 1200 || peer.bytes > 8000000)
+              throw new FollowError(
+                429,
+                "操作が多いため、少し待ってからお試しください。",
+              );
+            peer.connection ??= crypto.randomUUID();
+            ws.serializeAttachment(peer);
+            const response = await checked(
+              await directory(this.env).fetch(
+                internal("/internal/authorize", {
+                  session: peer.session,
+                  user: peer.user.id,
+                  room: this.id(),
+                }),
+              ),
+            );
+            const rights = (await response.json()) as { host: boolean };
+            const next = transitionFollow(
+              this.followState(),
+              value,
+              {
+                host: rights.host,
+                connection: peer.connection,
+                user: peer.user,
+              },
+              readSharedDeck(this.doc()),
+            );
+            this.storeFollow(next);
+            if (next.active) {
+              const alarm = await this.ctx.storage.getAlarm();
+              if (alarm === null || alarm > next.expiresAt)
+                await this.ctx.storage.setAlarm(next.expiresAt);
+            }
+            this.sendFollow(value.id);
+          } catch (error) {
+            ws.send(
+              JSON.stringify({
+                type: "follow-error",
+                requestId:
+                  typeof value.id === "string"
+                    ? value.id.slice(0, 80)
+                    : undefined,
+                status:
+                  error instanceof FollowError
+                    ? error.status
+                    : error instanceof HttpError
+                      ? error.status
+                      : 400,
+                message:
+                  error instanceof FollowError
+                    ? error.message
+                    : "追従の操作を受け付けられません。",
+              }),
+            );
+          }
+          return;
+        }
+
         insist(
           value.type === "update" &&
             typeof value.id === "string" &&
@@ -755,13 +883,30 @@ export class SlideRoom extends DurableObject<Env> {
       }
     });
   }
+  private endFollowFor(ws: WebSocket) {
+    const peer = ws.deserializeAttachment() as Peer;
+    const row = one<{ value: string }>(
+      this.sql,
+      "SELECT value FROM meta WHERE key='host_follow'",
+    );
+    const state: FollowState = row ? JSON.parse(row.value) : idleFollow();
+    if (state.active && state.controller === peer.connection)
+      this.storeFollow(idleFollow(state.revision + 1));
+  }
   webSocketClose(ws: WebSocket, code: number) {
-    ws.close(code, "接続を終了しました。");
+    this.endFollowFor(ws);
+    ws.close(
+      code === 1000 || (code >= 3000 && code <= 4999) ? code : 1000,
+      "接続を終了しました。",
+    );
     this.presence();
+    this.sendFollow();
   }
   webSocketError(ws: WebSocket) {
+    this.endFollowFor(ws);
     ws.close(1011);
     this.presence();
+    this.sendFollow();
   }
   async alarm() {
     let next = Infinity;
@@ -771,6 +916,9 @@ export class SlideRoom extends DurableObject<Env> {
         ws.close(4001, "サインインし直してください。");
       else next = Math.min(next, peer.expires);
     }
+    this.sendFollow();
+    const follow = this.followState();
+    if (follow.active) next = Math.min(next, follow.expiresAt);
     if (Number.isFinite(next)) await this.ctx.storage.setAlarm(next);
   }
 }

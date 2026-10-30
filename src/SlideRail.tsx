@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent } from "react";
+import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
@@ -44,7 +44,14 @@ import {
   MAX_RAIL_SCALE,
 } from "./workspacePreferences";
 
+export type RailPageAddition = {
+  mode: "none" | "append" | "insert";
+  canAdd: (x: number, y: number) => boolean;
+  add: (x: number, y: number) => boolean;
+};
 interface SlideRailProps {
+  headerAction?: ReactNode;
+  pageAddition?: RailPageAddition;
   filtered?: boolean;
   footerLabel: (slide: Slide) => string;
   footerEditable: (slide: Slide) => boolean;
@@ -71,7 +78,9 @@ interface SlideRailProps {
 
 /** A resizable column, with a temporary horizontal view of each grid row. */
 export function SlideRail({
+  headerAction,
   filtered = false,
+  pageAddition,
   footerLabel,
   footerEditable,
   onFooterChange,
@@ -413,7 +422,10 @@ export function SlideRail({
         }}
       >
         <div className="rail-heading">
-          <strong>ページ一覧</strong>
+          <div className="rail-heading-title">
+            <strong>ページ一覧</strong>
+            {headerAction}
+          </div>
           <button
             className="rail-view-toggle"
             aria-label="行番号一覧"
@@ -881,6 +893,30 @@ export function SlideRail({
                               <MoreHorizontal size={15} />
                             </button>
                           )}
+                          {pageAddition &&
+                            (pageAddition.mode === "insert" ||
+                              x ===
+                                Math.max(
+                                  ...deck.slides
+                                    .filter((s) => s.y === openRow)
+                                    .map((s) => s.x),
+                                )) && (
+                              <button
+                                className="row-insert-column"
+                                aria-label={`${openRow + 1}行目の${x + 1}枚目の後にページを追加`}
+                                title={
+                                  pageAddition.mode === "none"
+                                    ? "ホストがページの追加を許可していません。"
+                                    : "担当行にページを追加"
+                                }
+                                disabled={!pageAddition.canAdd(x + 1, openRow)}
+                                onClick={() => {
+                                  if (pageAddition.add(x + 1, openRow)) close();
+                                }}
+                              >
+                                <Plus size={17} />
+                              </button>
+                            )}
                           {!filtered && (
                             <PageInsertDrop
                               x={x + 1}

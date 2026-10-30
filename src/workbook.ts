@@ -40,6 +40,8 @@ export function mergeSheet(book: Deck, next: Deck): Deck {
           ),
         }),
     linkedRows: next.linkedRows,
+    restrictGuests: next.restrictGuests,
+    guestPageCreation: next.guestPageCreation,
     slides: [...others, ...slides],
     ...(book.rowSelections === undefined && next.rowSelections === undefined
       ? {}

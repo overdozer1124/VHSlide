@@ -1,3 +1,5 @@
+import { idleFollow, isPublicFollowState } from "./hostFollow";
+import type { PublicFollowState, FollowTarget } from "./hostFollow";
 import type { CloudSaveSnapshot } from "./saveState";
 import { COLLABORATION_PROTOCOL } from "./collaborationProtocol.ts";
 import type { JoinState } from "./joinRequests";
@@ -95,8 +97,123 @@ export async function portableDeck(deck: Deck): Promise<Deck> {
 }
 
 export class CloudWorkspace {
+  follow: PublicFollowState = idleFollow();
+  followError = "";
+  private followDriver?: string;
+  private followHeartbeat?: ReturnType<typeof setInterval>;
+  private followWatchdog?: ReturnType<typeof setTimeout>;
+  private followReceivedAt = 0;
+  private followLiveness = () => {
+    if (
+      this.follow.active &&
+      performance.now() - this.followReceivedAt >= 60_000
+    ) {
+      this.resetFollow();
+      this.emit();
+      this.reconnect(0);
+    }
+  };
+  private armFollowLiveness() {
+    clearTimeout(this.followWatchdog);
+    this.followReceivedAt = performance.now();
+    if (this.follow.active)
+      this.followWatchdog = setTimeout(this.followLiveness, 60_100);
+    if (this.drivesFollow && !this.followHeartbeat) {
+      this.followHeartbeat = setInterval(() => {
+        if (this.drivesFollow && this.followConnected)
+          void this.followCommand("heartbeat").catch(() => {});
+      }, 15_000);
+    } else if (!this.drivesFollow) {
+      clearInterval(this.followHeartbeat);
+      this.followHeartbeat = undefined;
+    }
+  }
+  private followRequests = new Map<
+    string,
+    {
+      action: string;
+      resolve: () => void;
+      reject: (e: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
+  get followConnected() {
+    return (
+      this.connected &&
+      !this.stopped &&
+      this.socket?.readyState === WebSocket.OPEN
+    );
+  }
+  get drivesFollow() {
+    return this.follow.active && this.follow.sessionId === this.followDriver;
+  }
+  get followPending() {
+    return [...this.followRequests.values()].some(
+      (r) => !["move", "heartbeat"].includes(r.action),
+    );
+  }
+  private resetFollow() {
+    clearInterval(this.followHeartbeat);
+    clearTimeout(this.followWatchdog);
+    this.followHeartbeat = undefined;
+    this.follow = idleFollow();
+    this.followDriver = undefined;
+    for (const r of this.followRequests.values()) {
+      clearTimeout(r.timer);
+      r.reject(new Error("追従の接続が終了しました。"));
+    }
+    this.followRequests.clear();
+  }
+  private followCommand(
+    action: "start" | "move" | "stop" | "heartbeat",
+    target?: FollowTarget,
+  ): Promise<void> {
+    if (
+      !this.isHost ||
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN
+    )
+      return Promise.reject(new Error("ホストの接続を確認してください。"));
+    this.flush();
+    const id = crypto.randomUUID();
+    this.followError = "";
+    const promise = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.followRequests.delete(id);
+        this.followError = "追従の応答がありません。接続を確認してください。";
+        this.emit();
+        reject(new Error(this.followError));
+      }, 8000);
+      this.followRequests.set(id, { action, resolve, reject, timer });
+      this.socket!.send(
+        JSON.stringify({
+          type: "follow-control",
+          protocol: COLLABORATION_PROTOCOL,
+          id,
+          action,
+          ...(this.follow.active ? { sessionId: this.follow.sessionId } : {}),
+          ...(target ? { target } : {}),
+        }),
+      );
+    });
+    this.emit();
+    return promise;
+  }
+  startFollow(target: FollowTarget) {
+    return this.followCommand("start", target);
+  }
+  stopFollow() {
+    return this.followCommand("stop");
+  }
+  moveFollow(target: FollowTarget) {
+    return this.drivesFollow
+      ? this.followCommand("move", target)
+      : Promise.resolve();
+  }
   available = false;
   clientId = "";
+  schoolClientId = "";
+  schoolDomain = "";
   user: CloudUser | null = null;
   decks: CloudDeck[] = [];
   active?: { id: string; owner: string };
@@ -506,6 +623,7 @@ export class CloudWorkspace {
     clearTimeout(this.retry);
     this.clearConnectionTimers();
     const socket = this.socket;
+    this.resetFollow();
     this.socket = undefined;
     socket?.close();
     this.connected = false;
@@ -536,6 +654,7 @@ export class CloudWorkspace {
   }
   private emit = () => this.onState();
   private offline = () => {
+    this.resetFollow();
     clearTimeout(this.retry);
     this.clearConnectionTimers();
     const socket = this.socket;
@@ -552,6 +671,7 @@ export class CloudWorkspace {
   async initialize() {
     window.addEventListener("offline", this.offline);
     window.addEventListener("online", this.online);
+    document.addEventListener("visibilitychange", this.followLiveness);
     const generation = ++this.generation;
     try {
       const configResponse = await fetch("./api/config");
@@ -560,6 +680,8 @@ export class CloudWorkspace {
       if (generation !== this.generation) return;
       this.available = true;
       this.clientId = config.clientId || "";
+      this.schoolClientId = config.schoolClientId || "";
+      this.schoolDomain = config.schoolDomain || "";
       this.notice = typeof config.notice === "string" ? config.notice : "";
       if (Number.isFinite(config.syncIntervalMs))
         this.syncIntervalMs = Math.max(
@@ -955,6 +1077,36 @@ export class CloudWorkspace {
           }
         } else {
           const message = JSON.parse(event.data);
+          if (
+            message.type === "follow-state" &&
+            isPublicFollowState(message.state)
+          ) {
+            if (message.state.revision >= this.follow.revision)
+              this.follow = message.state;
+            const request = this.followRequests.get(message.requestId);
+            if (request) {
+              clearTimeout(request.timer);
+              this.followRequests.delete(message.requestId);
+              if (request.action === "start" && message.state.active)
+                this.followDriver = message.state.sessionId;
+              if (request.action === "stop") this.followDriver = undefined;
+              request.resolve();
+            }
+            if (!this.follow.active) this.followDriver = undefined;
+            this.armFollowLiveness();
+          }
+          if (message.type === "follow-error") {
+            this.followError =
+              typeof message.message === "string"
+                ? message.message
+                : "追従を操作できませんでした。";
+            const request = this.followRequests.get(message.requestId);
+            if (request) {
+              clearTimeout(request.timer);
+              this.followRequests.delete(message.requestId);
+              request.reject(new Error(this.followError));
+            }
+          }
           if (message.type === "access") {
             this.access = message.access;
             this.undoManager?.clear();
@@ -1021,6 +1173,7 @@ export class CloudWorkspace {
       if (this.socket !== ws) return;
       this.clearConnectionTimers();
       this.connected = false;
+      this.resetFollow();
       this.members = [];
       if (event.code === 4004 && this.active) {
         const id = this.active.id;
@@ -1122,6 +1275,7 @@ export class CloudWorkspace {
     });
   }
   detach() {
+    this.resetFollow();
     const wasActive = !!this.active || !!this.joinRequest;
     clearTimeout(this.joinTimer);
     this.joinRequest = undefined;
@@ -1170,6 +1324,7 @@ export class CloudWorkspace {
     this.generation++;
     window.removeEventListener("offline", this.offline);
     window.removeEventListener("online", this.online);
+    document.removeEventListener("visibilitychange", this.followLiveness);
     this.detach();
   }
 }

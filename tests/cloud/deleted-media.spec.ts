@@ -117,9 +117,7 @@ test("deleting a page hides its media from members while host version recovery c
             .deck.slides.length,
       )
       .toBe(1);
-    await page
-      .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-      .click();
+    await page.getByRole("button", { name: "ファイル", exact: true }).click();
     await page.getByRole("menuitem", { name: /^保存した版/ }).click();
     await page
       .getByRole("button", { name: "この版を確認", exact: true })

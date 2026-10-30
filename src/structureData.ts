@@ -185,8 +185,9 @@ export function copyElements(
           ? { ...a, elementId: map.get(a.elementId)! }
           : undefined;
     }
-    if (e.link)
+    if (e.link?.slideId)
       next.link = { slideId: slides.get(e.link.slideId) ?? e.link.slideId };
+    else if (e.link?.url) next.link = { url: e.link.url };
     if (e.chart)
       next.chart = {
         ...structuredClone(e.chart),

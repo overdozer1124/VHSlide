@@ -1,3 +1,11 @@
+import {
+  expireFollow,
+  idleFollow,
+  publicFollow,
+  transitionFollow,
+  FollowError,
+} from "../src/hostFollow.ts";
+import type { FollowState } from "../src/hostFollow.ts";
 import { syncFailure } from "../src/syncRecovery.ts";
 import { COLLABORATION_PROTOCOL } from "../src/collaborationProtocol.ts";
 import {
@@ -83,11 +91,14 @@ interface Options {
   directory: string;
   origin: string;
   clientId: string;
+  schoolClientId?: string;
+  schoolDomain?: string;
   /** Tests inject an identity verifier; production always verifies Google's signature. */
   verifyIdentity?: (credential: string) => Promise<User>;
   maxConnections?: number;
 }
 interface Room {
+  follow?: FollowState;
   media?: Set<string>;
   doc: Y.Doc;
   clients: Set<Peer>;
@@ -95,6 +106,7 @@ interface Room {
   updates: number;
 }
 interface Peer {
+  connection: string;
   ws: WebSocket;
   user: User;
   session: string;
@@ -253,7 +265,9 @@ export function createApplication(options: Options) {
     options.verifyIdentity ??
     (async (credential: string): Promise<User> => {
       const { payload } = await jwtVerify(credential, googleKeys, {
-        audience: options.clientId,
+        audience: [options.clientId, options.schoolClientId].filter(
+          (value): value is string => !!value,
+        ),
         issuer: ["https://accounts.google.com", "accounts.google.com"],
         algorithms: ["RS256"],
       });
@@ -584,6 +598,8 @@ export function createApplication(options: Options) {
       if (path === "/api/config" && method === "GET")
         return json(res, 200, {
           clientId: options.clientId,
+          schoolClientId: options.schoolClientId || "",
+          schoolDomain: options.schoolDomain || "",
           enabled: !!options.clientId,
         });
       if (path === "/api/session" && method === "GET") {
@@ -1691,6 +1707,18 @@ export function createApplication(options: Options) {
     maxPayload: 3_000_000,
     perMessageDeflate: false,
   });
+  function sendFollow(r: Room, requestId?: string) {
+    const state = r.follow ?? idleFollow();
+    for (const p of r.clients)
+      if (p.ws.readyState === WebSocket.OPEN)
+        p.ws.send(
+          JSON.stringify({
+            type: "follow-state",
+            state: publicFollow(state),
+            ...(requestId ? { requestId } : {}),
+          }),
+        );
+  }
   function broadcastPresence(r: Room) {
     const members = [
       ...new Map(
@@ -1730,6 +1758,7 @@ export function createApplication(options: Options) {
       wss.handleUpgrade(req, socket, head, (ws) => {
         const peer: Peer = {
           ws,
+          connection: randomUUID(),
           user: u,
           session: sessionHash(req),
           room: id,
@@ -1745,6 +1774,12 @@ export function createApplication(options: Options) {
           }),
         );
         ws.send(Y.encodeStateAsUpdate(r.doc));
+        ws.send(
+          JSON.stringify({
+            type: "follow-state",
+            state: publicFollow(r.follow ?? idleFollow()),
+          }),
+        );
         broadcastPresence(r);
         ws.on("pong", () => {
           peer.alive = true;
@@ -1765,6 +1800,51 @@ export function createApplication(options: Options) {
             const work = member(id, u);
             rateLimit(`updates:${id}:${u.id}`, 1200);
             const message = JSON.parse(data.toString());
+            if (message?.type === "follow-control") {
+              try {
+                if (data.toString().length > 4096)
+                  throw new FollowError(
+                    400,
+                    "追従の通信データが大きすぎます。",
+                  );
+                if (message.protocol !== COLLABORATION_PROTOCOL)
+                  throw new FollowError(
+                    409,
+                    "ページを再読み込みしてください。",
+                  );
+                const previousFollow = r.follow ?? idleFollow();
+                r.follow = expireFollow(previousFollow);
+                if (previousFollow !== r.follow) sendFollow(r);
+                r.follow = transitionFollow(
+                  r.follow ?? idleFollow(),
+                  message,
+                  {
+                    host: work.owner === u.id,
+                    connection: peer.connection,
+                    user: u,
+                  },
+                  readSharedDeck(r.doc),
+                );
+                sendFollow(r, message.id);
+              } catch (error) {
+                ws.send(
+                  JSON.stringify({
+                    type: "follow-error",
+                    requestId:
+                      typeof message.id === "string"
+                        ? message.id.slice(0, 80)
+                        : undefined,
+                    status: error instanceof FollowError ? error.status : 400,
+                    message:
+                      error instanceof FollowError
+                        ? error.message
+                        : "追従の操作を受け付けられません。",
+                  }),
+                );
+              }
+              return;
+            }
+
             insist(
               message.type === "update" &&
                 typeof message.update === "string" &&
@@ -1885,6 +1965,10 @@ export function createApplication(options: Options) {
         ws.on("close", () => {
           peers.delete(peer);
           r.clients.delete(peer);
+          if (r.follow?.active && r.follow.controller === peer.connection) {
+            r.follow = idleFollow(r.follow.revision + 1);
+            sendFollow(r);
+          }
           r.touched = Date.now();
           broadcastPresence(r);
         });
@@ -1896,6 +1980,17 @@ export function createApplication(options: Options) {
       socket.destroy();
     }
   });
+  const followTimer = setInterval(() => {
+    for (const r of rooms.values()) {
+      const previous = r.follow ?? idleFollow();
+      const next = expireFollow(previous);
+      if (next !== previous) {
+        r.follow = next;
+        sendFollow(r);
+      }
+    }
+  }, 1000);
+  followTimer.unref();
   const timer = setInterval(() => {
     for (const peer of peers) {
       if (
@@ -1927,6 +2022,7 @@ export function createApplication(options: Options) {
     server,
     async close() {
       clearInterval(timer);
+      clearInterval(followTimer);
       for (const peer of peers) peer.ws.terminate();
       wss.close();
       for (const [id, r] of rooms) {

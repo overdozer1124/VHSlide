@@ -1,3 +1,7 @@
+import { idleFollow, transitionFollow, publicFollow } from "./hostFollow";
+import { addGuestPage } from "./guestPages";
+import { blank, parseDeck } from "./model";
+import { applyDeckChange } from "./sharedDeck";
 import { describe, it, expect } from "vitest";
 import * as Y from "yjs";
 import { sample } from "./model";
@@ -152,4 +156,248 @@ it("reserves map headings and account-name settings for the host even with full 
   changed.sheets![0].showRowAccounts = true;
   expect(() => assertDeckAccess(book, changed, all, false)).toThrow();
   expect(() => assertDeckAccess(book, changed, all, true)).not.toThrow();
+});
+
+it("only the host changes the enforced guest display policy", () => {
+  const before = sample(),
+    after = { ...before, restrictGuests: true };
+  expect(() => assertDeckAccess(before, after, all, false)).toThrow();
+  expect(() => assertDeckAccess(before, after, all, true)).not.toThrow();
+});
+it("Yjs preserves the policy and rejects a guest removing it", () => {
+  const book = { ...sample(), restrictGuests: true },
+    doc = createSharedDeck(book);
+  expect(readSharedDeck(doc).restrictGuests).toBe(true);
+  const update = change(doc, (d) =>
+    d.getMap("settings").set("restrictGuests", false),
+  );
+  expect(() =>
+    applyAuthorizedUpdate(doc, update.candidate, update.update, all, false),
+  ).toThrow();
+  doc.destroy();
+});
+
+describe("guest page creation policy", () => {
+  const book = () => ({
+    version: 1 as const,
+    title: "assigned",
+    restrictGuests: true,
+    slides: [
+      ...Array.from({ length: 3 }, (_, x) => ({ ...blank(x, 0), id: `a${x}` })),
+      ...Array.from({ length: 3 }, (_, x) => ({ ...blank(x, 1), id: `b${x}` })),
+    ],
+  });
+  const row = {
+    ...defaultAccess(),
+    mode: "scoped" as const,
+    rows: [{ sheetId: "main", index: 0 }],
+  };
+  it("defaults to append and inserts in the assigned row only without altering axes", () => {
+    const b = book();
+    const appended = addGuestPage(b, row, "main", 3, 0, "new");
+    expect(appended.slides.at(-1)?.x).toBe(3);
+    expect(appended.slides.slice(0, 6)).toEqual(b.slides);
+    expect(() => addGuestPage(b, row, "main", 1, 0)).toThrow();
+    const inserting = { ...b, guestPageCreation: "insert" as const };
+    const result = addGuestPage(inserting, row, "main", 1, 0, "new");
+    expect(result.slides.filter((s) => s.y === 1)).toEqual(
+      b.slides.filter((s) => s.y === 1),
+    );
+    expect(result.slides.find((s) => s.id === "a1")?.x).toBe(2);
+    expect(result.slides.find((s) => s.id === "a2")?.x).toBe(3);
+    expect(result.sheets).toBeUndefined();
+  });
+  it("rejects disabled creation, tampered policy, middle append, protected shifts and scope escapes", () => {
+    const b = book();
+    expect(() =>
+      addGuestPage({ ...b, guestPageCreation: "none" }, row, "main", 3, 0),
+    ).toThrow();
+    expect(() =>
+      assertDeckAccess(b, { ...b, guestPageCreation: "insert" }, row, false),
+    ).toThrow();
+    expect(() =>
+      assertDeckAccess(
+        b,
+        {
+          ...b,
+          slides: [
+            ...b.slides.filter((s) => s.id !== "a1"),
+            { ...blank(1, 0), id: "forged" },
+          ],
+        },
+        row,
+        false,
+      ),
+    ).toThrow();
+    expect(() =>
+      addGuestPage(
+        { ...b, guestPageCreation: "insert" },
+        { ...row, rows: [], columns: [{ sheetId: "main", index: 0 }] },
+        "main",
+        1,
+        0,
+      ),
+    ).toThrow();
+    expect(() =>
+      addGuestPage(b, { ...row, rows: [], slides: ["a0"] }, "main", 3, 0),
+    ).toThrow();
+    expect(() => addGuestPage(b, row, "main", 3, 1)).toThrow();
+    expect(() => addGuestPage(b, row, "main", 100, 0)).toThrow();
+  });
+  it("persists policy through JSON/Yjs and enforces it against forged Yjs updates", () => {
+    const b = { ...book(), guestPageCreation: "none" as const };
+    expect(parseDeck(JSON.stringify(b)).guestPageCreation).toBe("none");
+    const server = createSharedDeck(b);
+    expect(readSharedDeck(server).guestPageCreation).toBe("none");
+    const fake = change(server, (client) => {
+      const before = readSharedDeck(client);
+      applyDeckChange(client, before, {
+        ...before,
+        slides: [...before.slides, { ...blank(3, 0), id: "forged" }],
+      });
+    });
+    expect(() =>
+      applyAuthorizedUpdate(server, fake.candidate, fake.update, row, false),
+    ).toThrow();
+    const policy = change(server, (client) =>
+      client.getMap("settings").set("guestPageCreation", "insert"),
+    );
+    expect(() =>
+      applyAuthorizedUpdate(
+        server,
+        policy.candidate,
+        policy.update,
+        row,
+        false,
+      ),
+    ).toThrow();
+    applyAuthorizedUpdate(server, policy.candidate, policy.update, all, true);
+    Y.applyUpdate(server, policy.update);
+    expect(readSharedDeck(server).guestPageCreation).toBe("insert");
+    const approved = change(server, (client) => {
+      const before = readSharedDeck(client);
+      applyDeckChange(
+        client,
+        before,
+        addGuestPage(before, row, "main", 1, 0, "inserted"),
+      );
+    });
+    applyAuthorizedUpdate(
+      server,
+      approved.candidate,
+      approved.update,
+      row,
+      false,
+    );
+    Y.applyUpdate(server, approved.update);
+    expect(readSharedDeck(server).slides.some((s) => s.id === "inserted")).toBe(
+      true,
+    );
+  });
+});
+
+it("speaker note edits respect the same slide permissions", () => {
+  const b = sample(),
+    access = {
+      ...defaultAccess(),
+      mode: "scoped" as const,
+      slides: [b.slides[0].id],
+    };
+  expect(() =>
+    assertDeckAccess(
+      b,
+      {
+        ...b,
+        slides: b.slides.map((s, i) =>
+          i ? s : { ...s, speakerNotes: "担当のメモ" },
+        ),
+      },
+      access,
+      false,
+    ),
+  ).not.toThrow();
+  expect(() =>
+    assertDeckAccess(
+      b,
+      {
+        ...b,
+        slides: b.slides.map((s, i) =>
+          i === 1 ? { ...s, speakerNotes: "他の人のメモ" } : s,
+        ),
+      },
+      access,
+      false,
+    ),
+  ).toThrow();
+});
+
+it("follow control state rejects guests and stale sessions while retaining stable targets", () => {
+  const b = sample(),
+    target = { mode: "page", sheetId: "main", pageId: b.slides[0].id },
+    actor = {
+      host: true,
+      connection: "socket-a",
+      user: { id: "owner", name: "先生" },
+    };
+  expect(() =>
+    transitionFollow(
+      idleFollow(),
+      { id: "a", action: "start", target },
+      { ...actor, host: false },
+      b,
+    ),
+  ).toThrow();
+  const running = transitionFollow(
+    idleFollow(),
+    { id: "a", action: "start", target },
+    actor,
+    b,
+    100,
+    "session-a",
+  );
+  expect(running.active).toBe(true);
+  expect(publicFollow(running)).not.toHaveProperty("controller");
+  expect(() =>
+    transitionFollow(
+      running,
+      { id: "b", action: "move", sessionId: "session-a", target },
+      { ...actor, connection: "socket-b" },
+      b,
+    ),
+  ).toThrow();
+  const ended = transitionFollow(
+    running,
+    { id: "b", action: "stop", sessionId: "session-a" },
+    { ...actor, connection: "socket-b" },
+    b,
+  );
+  const next = transitionFollow(
+    ended,
+    { id: "c", action: "start", target },
+    actor,
+    b,
+    200,
+    "session-b",
+  );
+  expect(() =>
+    transitionFollow(
+      next,
+      { id: "late", action: "stop", sessionId: "session-a" },
+      actor,
+      b,
+    ),
+  ).toThrow();
+  expect(() =>
+    transitionFollow(
+      idleFollow(),
+      {
+        id: "bad",
+        action: "start",
+        target: { mode: "page", sheetId: "main", pageId: "missing" },
+      },
+      actor,
+      b,
+    ),
+  ).toThrow();
+  expect(next.revision).toBe(3);
 });

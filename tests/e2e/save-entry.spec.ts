@@ -10,9 +10,7 @@ test("file saving explains formats and opens backup recovery without signing in"
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
   await expect(page.locator(".toast")).toContainText("ダウンロード先を確認");
   await expect(page.locator(".toast")).toContainText("付箋・共有設定");
-  await page
-    .getByRole("button", { name: "保存方法を選ぶ", exact: true })
-    .click();
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await expect(page.getByRole("menu")).toContainText(
     "付箋・共有設定は含みません",
   );
@@ -27,6 +25,6 @@ test("file saving explains formats and opens backup recovery without signing in"
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "保存方法を選ぶ", exact: true }),
+    page.getByRole("button", { name: "ファイル", exact: true }),
   ).toBeFocused();
 });

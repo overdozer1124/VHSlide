@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { webLink } from "./webLink";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Deck, Element } from "./model";
 import { uid } from "./model";
@@ -26,16 +27,31 @@ export function StructureInsert({
 }) {
   const [open, setOpen] = useState(false),
     [tab, setTab] = useState<"diagram" | "chart">("diagram"),
-    [pos, setPos] = useState({ left: 8, top: 90 }),
+    [pos, setPos] = useState({ left: 8, top: 90, width: 348, maxHeight: 480 }),
     button = useRef<HTMLButtonElement>(null),
     panel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
       const r = button.current!.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const width = Math.min(
+        viewport?.width ?? innerWidth,
+        document.documentElement.clientWidth,
+      );
+      const height = Math.min(
+        viewport?.height ?? innerHeight,
+        document.documentElement.clientHeight,
+      );
+      const panelWidth = Math.min(348, width - 16);
       setPos({
-        left: Math.max(8, Math.min(r.left, innerWidth - 356)),
-        top: Math.max(8, Math.min(r.bottom + 8, innerHeight - 480)),
+        left: Math.max(8, Math.min(r.left, width - panelWidth - 8)),
+        top: Math.max(
+          8,
+          Math.min(r.bottom + 8, height - Math.min(480, height - 24)),
+        ),
+        width: panelWidth,
+        maxHeight: height - 24,
       });
     };
     place();
@@ -56,10 +72,17 @@ export function StructureInsert({
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", key, true);
     window.addEventListener("resize", place);
+    const scroll = (event: Event) => {
+      if (!panel.current?.contains(event.target as Node)) place();
+    };
+    window.addEventListener("scroll", scroll, true);
+    window.visualViewport?.addEventListener("resize", place);
     return () => {
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", key, true);
       window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", scroll, true);
+      window.visualViewport?.removeEventListener("resize", place);
     };
   }, [open]);
   return (
@@ -67,13 +90,15 @@ export function StructureInsert({
       <button
         ref={button}
         className="tool-button"
-        aria-label="図解・グラフを追加"
+        aria-label="もっと見る（図解・グラフ）"
+        title="図解・グラフを追加"
+        aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen(!open)}
       >
         <BarChart3 size={20} />
-        図解・グラフ
+        もっと見る
       </button>
       {open &&
         !disabled &&
@@ -87,7 +112,13 @@ export function StructureInsert({
           >
             <div className="object-palette-heading">
               <strong>考えを形にする</strong>
-              <button className="quiet" onClick={() => setOpen(false)}>
+              <button
+                className="quiet"
+                onClick={() => {
+                  setOpen(false);
+                  button.current?.focus({ preventScroll: true });
+                }}
+              >
                 閉じる
               </button>
             </div>
@@ -465,10 +496,14 @@ export function ObjectLinkControls({
     [sheet, setSheet] = useState(book.activeSheetId ?? "main"),
     [query, setQuery] = useState(""),
     root = useRef<HTMLElement>(null);
+  const [urlDraft, setUrlDraft] = useState("");
+  const [urlError, setUrlError] = useState("");
   const target = book.slides.find((s) => s.id === e.link?.slideId);
   useEffect(() => {
     setOpen(false);
-  }, [e.id]);
+    setUrlDraft(e.link?.url ?? "");
+    setUrlError("");
+  }, [e.id, e.link?.url]);
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -502,20 +537,48 @@ export function ObjectLinkControls({
       ? "移動先のページがありません"
       : "移動先を設定していません";
   return (
-    <section className="object-link-controls" aria-label="作品内リンク">
+    <section className="object-link-controls" aria-label="リンク設定">
       <h3>
         <Link2 size={16} />
-        ページへのリンク
+        リンク
       </h3>
-      <p>{caption}</p>
+      <p>{e.link?.url || caption}</p>
+      <label>
+        WebページのURL
+        <input
+          aria-label="WebページのURL"
+          type="url"
+          value={urlDraft}
+          onChange={(event) => setUrlDraft(event.target.value)}
+          placeholder="https://example.com/"
+        />
+      </label>
+      <button
+        className="button"
+        onClick={() => {
+          try {
+            onChange({ link: { url: webLink(urlDraft) } });
+            setUrlError("");
+          } catch {
+            setUrlError("http:// または https:// のURLを指定してください。");
+          }
+        }}
+      >
+        URLリンクを設定
+      </button>
+      {urlError && <p role="alert">{urlError}</p>}
       <button className="button" onClick={() => setOpen(true)}>
         移動先を選ぶ
       </button>
       {e.link && (
         <div className="object-action-pair">
           <button
-            disabled={!target}
-            onClick={() => target && onOpen(target.id)}
+            disabled={!target && !e.link?.url}
+            onClick={() =>
+              e.link?.url
+                ? window.open(e.link.url, "_blank", "noopener,noreferrer")
+                : target && onOpen(target.id)
+            }
           >
             リンク先を開く
           </button>

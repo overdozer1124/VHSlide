@@ -37,7 +37,7 @@ export function CloudTrash({ cloud }: { cloud: CloudWorkspace }) {
   }
   return (
     <section aria-label="クラウド作品のごみ箱">
-      <h3>クラウド作品のごみ箱</h3>
+      <h3 tabIndex={-1}>クラウド作品のごみ箱</h3>
       <p>
         共同編集者からは開けません。容量と作品数の上限には含まれます。作品一覧に戻すと元の共有メンバーの権限も再び有効になります。招待リンクは再発行が必要です。
       </p>
