@@ -28,3 +28,10 @@
 
 参考： [Cloudflare Data Studio](https://developers.cloudflare.com/durable-objects/observability/data-studio/)、[DO Storage API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/)、[DO の権限](https://developers.cloudflare.com/workers/authorization/durable-objects/)。
 
+## Muse の中間レビューへの追記（2026-11-02）
+
+- **識別子と事後照合**：これまでの試作の HMAC と削除済みの塩では、後から元の Google sub や旧新の対応を照合できない。したがって設計書の完了・復旧記録の充足を証明していない。ローカルで確認した work 由来のコードでは Cloudflare／Node とも Google の `payload.sub` をそのまま `user.id` に設定している。よって現行の user_id を記録する場合も実質的に sub を記録することであり、匿名化にはならない。次の試作では、検証用の安定した対象 ID を使い、対象環境・日時・旧新対応を認可された内部記録として照合し、ログや GitHub には値を出さない。保持期間と閲覧権限は実運用設計で明確にする。実際の識別子方式を変更する決定ではない。
+- **A と C の要素配分**：一時受付・完了後停止は A、別途の運営者管理認可と復旧認可は C に近い要素であり、提案中の次期試作は A と C の組み合わせである。純粋な A が実証済みという意味ではない。常設の C を採用する判断でもなく、方式の採用は条件確認後に開発者が別途判断する。
+- **中継エラー**：実 Cloudflare 経由の 403 時に request stream エラーが発生した。要求本文を先に読む変更後、１回の実環境再確認では再現しなかったが、原因は確定していない。A/C の経路に関連する未解決事象として保持する。
+- **限定権限の追加観察**：検証 Worker だけの Individual Workers Editor を持つ期限付きアカウント API トークンは有効で対象設定の読取ができた。一方 Wrangler の remote service binding は認証エラーで開始できず、権限不足か機能上の制限かは未確定。Wrangler の実装は対象 Worker に接続する前にアカウント側 edge-preview セッションを取得しており、検証 Worker 単体の権限だけで全手順が成立するとはまだ言えない。権限を拡大せず調査を続ける。
+
