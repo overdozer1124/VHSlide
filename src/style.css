@@ -6913,3 +6913,208 @@ h1 span {
 @media(max-width:600px) { .activity-panel>header h2 { font-size:20px; } .activity-tabs [role=tab] { padding-inline:14px;flex:1; } }
 .survey-live-actions { display:flex;flex-wrap:wrap;gap:10px;margin-top:12px; }
 .survey-live-actions p { flex-basis:100%;font-size:13px; }
+
+/* Individual, freely positioned account answer fields. */
+.response-field {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: auto;
+}
+.response-field form,
+.response-field .worksheet-inputs {
+  height: 100%;
+  margin: 0;
+}
+.response-field .worksheet-inputs {
+  display: block;
+}
+.response-field label,
+.response-field input,
+.response-field textarea,
+.response-field select,
+.response-field h4 {
+  font: inherit;
+  color: inherit;
+}
+.response-field textarea {
+  width: 100%;
+  min-height: 2em;
+  flex: 1;
+  resize: none;
+  background: transparent;
+  box-sizing: border-box;
+}
+.response-field .worksheet-field {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.response-field .worksheet-field textarea {
+  height: calc(100% - 2em);
+}
+.response-field.hide-label .worksheet-field > span:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.response-field.hide-label .worksheet-field textarea {
+  height: 100%;
+}
+.response-field input:disabled,
+.response-field textarea:disabled,
+.response-field select:disabled {
+  opacity: 1;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+.response-field-move {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  font-size: 12px;
+  cursor: move;
+}
+.response-field h4 {
+  margin: 0 0 0.4em;
+}
+.response-field-tools {
+  padding: 12px;
+  border-bottom: 1px solid #d6e0d9;
+  font-size: 13px;
+}
+.response-field-tools label {
+  display: block;
+  margin: 8px 0;
+}
+.response-field-tools input:not([type="checkbox"]),
+.response-field-tools select,
+.response-field-tools textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.answer-save-status {
+  position: fixed;
+  z-index: 1500;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  background: #eef6ee;
+  border: 1px solid #b2c9b5;
+  border-radius: 9px;
+  padding: 8px 14px;
+  max-width: 85vw;
+  box-shadow: 0 2px 8px #0002;
+  font-size: 14px;
+  pointer-events: none;
+}
+.answer-save-status.error {
+  background: #fff2e3;
+  pointer-events: auto;
+}
+.gallery-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 16px 0;
+}
+.gallery-grid {
+  display: grid;
+  gap: 18px;
+}
+.gallery-card {
+  min-width: 0;
+  border: 1px solid #cbd9cf;
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+.gallery-card header,
+.gallery-card footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px;
+}
+.gallery-card small {
+  overflow-wrap: anywhere;
+}
+.gallery-slide {
+  width: 100%;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+}
+.gallery-enlarged {
+  position: fixed;
+  inset: 20px;
+  z-index: 1600;
+  background: white;
+  overflow: auto;
+  padding: 20px;
+  box-shadow: 0 0 0 30px #0008;
+  border-radius: 12px;
+}
+@media (max-width: 700px) {
+  .gallery-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.response-field form,
+.response-field .worksheet-fields,
+.response-field .worksheet-group,
+.response-field .worksheet-group-fields {
+  height: 100%;
+  margin: 0;
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.response-field .worksheet-field > label {
+  flex: none;
+}
+.response-field.hide-label .worksheet-field > label:not(.worksheet-check) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.response-field .worksheet-score {
+  display: none;
+}
+.response-field .worksheet-field textarea {
+  min-height: 0;
+  background: transparent;
+  border: 0;
+  padding: 4px;
+}
+.response-field .worksheet-field fieldset {
+  overflow: auto;
+}
+.response-field .slide-survey-inputs {
+  max-height: none;
+}
+.response-field .worksheet-field textarea {
+  background:transparent!important;
+  border:0!important;
+  color:inherit;
+}
+.response-field .worksheet-check,.response-field fieldset {
+  border:0;background:transparent;margin:0;padding:0;
+}
+.response-field .compact-answer {display:flex;flex-direction:column;height:calc(100% - 2em);}
+.response-field.hide-label .compact-answer {height:100%;}
+.response-field .compact-answer fieldset {flex:1;min-height:0;display:flex;flex-direction:column;}
+.response-field .compact-answer textarea {font:inherit;color:inherit;background:transparent;border:0;min-height:0;height:100%;}
+.response-field.interactive,.response-field.interactive * {touch-action:pan-y;user-select:text;}
+.gallery-card header button,.gallery-card footer label,.gallery-controls button,.response-gallery nav button {border:1px solid #cbd9cf;border-radius:7px;padding:7px 10px;}
+.response-gallery nav {display:flex;gap:12px;align-items:center;margin-top:14px;}
+.response-field.hide-label .worksheet-check>span {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}

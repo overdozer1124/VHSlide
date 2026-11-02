@@ -1,3 +1,5 @@
+import { useAnswers } from "./AnswerStore";
+import { SurveyAnswerForm } from "./SurveyAnswerForm";
 import { useActivityPanel } from "./ActivitiesPanel";
 import {
   surveyAnswerText,
@@ -33,6 +35,7 @@ export function SurveyPanel({
   pollActive,
   blocked,
 }: Props) {
+  const answers = useAnswers();
   const activity = useActivityPanel();
   const open = activity.open && activity.active === "survey";
   const close = activity.close;
@@ -48,8 +51,6 @@ export function SurveyPanel({
   const [kind, setKind] = useState<SurveyKind>("single");
   const [options, setOptions] = useState(["", ""]);
   const [selectedId, setSelectedId] = useState("");
-  const [choices, setChoices] = useState<number[]>([]);
-  const [text, setText] = useState("");
   const [message, setMessage] = useState("");
   const [deleteId, setDeleteId] = useState("");
   const alive = useRef(true);
@@ -92,7 +93,11 @@ export function SurveyPanel({
           setError("");
         }
       } catch (e) {
-        if (!stopped && currentScope.current === scope) {
+        if (
+          !stopped &&
+          currentScope.current === scope &&
+          version === refreshVersion.current
+        ) {
           setSurveys([]);
           setError((e as Error).message);
         }
@@ -110,12 +115,22 @@ export function SurveyPanel({
       clearTimeout(timer);
     };
   }, [deckId, scope, open, blocked, refreshToken, pollActive]);
+  useEffect(() => {
+    if (answers.saved?.kind === "survey") {
+      ++refreshVersion.current;
+      setSurveys(answers.saved.data.surveys);
+    }
+  }, [answers.saved]);
+  useEffect(() => {
+    answers.reconcile(
+      "survey",
+      surveys.map((s) => s.id),
+    );
+  }, [surveys]);
   function select(survey: SurveyView) {
     setSelectedId(survey.id);
     setCreating(false);
     setDeleteId("");
-    setChoices(survey.own?.choices ?? []);
-    setText(survey.own?.text ?? "");
     setMessage("");
     setError("");
   }
@@ -456,78 +471,7 @@ export function SurveyPanel({
                     </div>
                   )}
                   {selected.status !== "draft" && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void command(`/${selected.id}/answer`, {
-                          choices,
-                          text,
-                        });
-                      }}
-                    >
-                      <fieldset disabled={busy || selected.status !== "open"}>
-                        <legend>
-                          {host ? "自分も回答する" : "あなたの回答"}
-                        </legend>
-                        {selected.kind === "text" ? (
-                          <textarea
-                            aria-label="アンケートの回答"
-                            value={
-                              selected.status === "open"
-                                ? text
-                                : (selected.own?.text ?? "")
-                            }
-                            onChange={(e) => setText(e.target.value)}
-                            maxLength={2000}
-                            required
-                            rows={4}
-                          />
-                        ) : (
-                          selected.options.map((option, i) => (
-                            <label className="survey-choice" key={i}>
-                              <input
-                                type={
-                                  selected.kind === "single"
-                                    ? "radio"
-                                    : "checkbox"
-                                }
-                                name="survey-choice"
-                                checked={(selected.status === "open"
-                                  ? choices
-                                  : (selected.own?.choices ?? [])
-                                ).includes(i)}
-                                onChange={() => {
-                                  setChoices(
-                                    selected.kind === "single"
-                                      ? [i]
-                                      : choices.includes(i)
-                                        ? choices.filter((v) => v !== i)
-                                        : [...choices, i],
-                                  );
-                                  setText("");
-                                }}
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))
-                        )}
-                        {selected.status === "open" && (
-                          <button
-                            className="button primary"
-                            disabled={
-                              selected.kind === "text"
-                                ? !text.trim()
-                                : !choices.length
-                            }
-                          >
-                            {selected.own ? "回答を変更して保存" : "回答を送信"}
-                          </button>
-                        )}
-                      </fieldset>
-                      {selected.status === "closed" && (
-                        <p>受付は終了しています。回答は変更できません。</p>
-                      )}
-                    </form>
+                    <SurveyAnswerForm key={selected.id} survey={selected} />
                   )}
                   {host && selected.results && (
                     <section className="survey-results" aria-label="集計結果">

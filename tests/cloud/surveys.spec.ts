@@ -80,8 +80,8 @@ test("host creates both question types, guests answer privately and results beco
       .getByRole("button", { name: /好きな季節は？/ })
       .click();
     await guest.getByRole("radio", { name: "春", exact: true }).check();
-    await guest.getByRole("button", { name: "回答を送信" }).click();
-    await expect(dialog(guest)).toContainText("回答を保存しました");
+    await guest.locator("textarea,input").first().blur();
+    await expect(dialog(guest)).toContainText("回答は保存済みです。");
     await expect(guest.getByRole("region", { name: "集計結果" })).toHaveCount(
       0,
     );
@@ -89,7 +89,7 @@ test("host creates both question types, guests answer privately and results beco
       guest.getByRole("button", { name: "集計結果をスライドに挿入" }),
     ).toHaveCount(0);
     await guest.getByRole("radio", { name: "夏", exact: true }).check();
-    await guest.getByRole("button", { name: "回答を変更して保存" }).click();
+    await guest.locator("textarea,input").first().blur();
     await expect(dialog(page)).toContainText("集計結果 · 1人が回答");
     await expect(
       page.locator(".survey-result").filter({ hasText: "夏" }),
@@ -125,9 +125,7 @@ test("host creates both question types, guests answer privately and results beco
       page.locator('.chart-graphic[data-survey-result="live"]'),
     ).toHaveCount(1);
     await guest.getByRole("radio", { name: "春", exact: true }).check();
-    await guest
-      .getByRole("button", { name: "回答を変更して保存", exact: true })
-      .click();
+    await guest.locator("textarea,input").first().blur();
     await expect(
       page.locator('.chart-graphic[data-survey-result="live"] > title'),
     ).toContainText("春 1");
@@ -152,8 +150,8 @@ test("host creates both question types, guests answer privately and results beco
     await guest
       .getByRole("textbox", { name: "アンケートの回答", exact: true })
       .fill(answer);
-    await guest.getByRole("button", { name: "回答を送信" }).click();
-    await expect(dialog(guest)).toContainText("回答を保存しました");
+    await guest.locator("textarea,input").first().blur();
+    await expect(dialog(guest)).toContainText("回答は保存済みです。");
     await expect(page.locator(".survey-results li")).toHaveText(answer);
     await expect(page.locator(".survey-response-answer")).toHaveText(answer);
     const textDownloading = page.waitForEvent("download");
@@ -338,10 +336,8 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
       await guestCard.getByRole("radio", { name: "春", exact: true }).tap();
     else
       await guestCard.getByRole("radio", { name: "春", exact: true }).check();
-    await guestCard
-      .getByRole("button", { name: "回答を送信", exact: true })
-      .click();
-    await expect(guestCard).toContainText("回答を保存しました");
+    await guestCard.locator("textarea,input").first().blur();
+    await expect(guestCard).toContainText("回答は保存済みです。");
     expect(await guestCard.boundingBox({ timeout: 5000 })).toEqual(before);
     const list = async () =>
       (await (await page.request.get(`/api/decks/${id}/surveys`)).json())
@@ -374,10 +370,8 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     const presentCard = guest.locator(".present-mode [data-slide-survey]");
     await expect(presentCard).toContainText("好きな季節");
     await presentCard.getByRole("radio", { name: "夏", exact: true }).check();
-    await presentCard
-      .getByRole("button", { name: "回答を変更して保存" })
-      .click();
-    await expect(presentCard).toContainText("回答を保存しました");
+    await presentCard.locator("textarea,input").first().blur();
+    await expect(presentCard).toContainText("回答は保存済みです。");
     expect(
       (await list()).find((s: any) => s.id === ids.single).results,
     ).toMatchObject({ count: 1, counts: [0, 1] });
@@ -390,10 +384,8 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     await answer.fill("スライドの中で回答できました🌸");
     await answer.press("ArrowLeft");
     await expect(presentCard).toContainText("今日の気づき");
-    await presentCard
-      .getByRole("button", { name: "回答を送信", exact: true })
-      .click();
-    await expect(presentCard).toContainText("回答を保存しました");
+    await presentCard.locator("textarea,input").first().blur();
+    await expect(presentCard).toContainText("回答は保存済みです。");
     // Following the host still allows only the embedded questionnaire, not background editing.
     await page
       .getByRole("button", { name: "全員の画面を同期", exact: true })
@@ -409,10 +401,8 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     await followCard
       .getByRole("textbox", { name: "スライド内アンケートの回答" })
       .fill("集合中も記述して回答🌸");
-    await followCard
-      .getByRole("button", { name: "回答を変更して保存" })
-      .click();
-    await expect(followCard).toContainText("回答を保存しました");
+    await followCard.locator("textarea,input").first().blur();
+    await expect(followCard).toContainText("回答は保存済みです。");
     expect(
       (await list()).find((s: any) => s.id === ids.text).results.texts,
     ).toEqual(["集合中も記述して回答🌸"]);

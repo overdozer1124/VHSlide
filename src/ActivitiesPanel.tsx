@@ -9,7 +9,7 @@ import {
 import type { ReactNode } from "react";
 import { ClipboardList, X } from "lucide-react";
 import { useWorksheets } from "./WorksheetContext";
-type Kind = "survey" | "worksheet";
+type Kind = "survey" | "worksheet" | "gallery";
 const Context = createContext({
   open: false,
   active: "survey" as Kind,
@@ -19,12 +19,14 @@ export const useActivityPanel = () => useContext(Context);
 export function ActivitiesPanel({
   survey,
   worksheet,
+  gallery,
   surveyCount,
   blocked,
   presenting,
 }: {
   survey: ReactNode;
   worksheet: ReactNode;
+  gallery: ReactNode;
   surveyCount: number;
   blocked: boolean;
   presenting: boolean;
@@ -35,7 +37,12 @@ export function ActivitiesPanel({
   const modal = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const id = useId();
-  const title = active === "survey" ? "アンケート" : "ワークシート";
+  const title =
+    active === "survey"
+      ? "アンケート"
+      : active === "worksheet"
+        ? "ワークシート"
+        : "回答スライド";
   function launch(kind: Kind, element: HTMLElement) {
     trigger.current = element;
     setActive(kind);
@@ -127,21 +134,24 @@ export function ActivitiesPanel({
               if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
                 return;
               e.preventDefault();
+              const kinds = ["survey", "worksheet", "gallery"] as const;
               const next =
-                e.key === "Home"
-                  ? "survey"
-                  : e.key === "End"
-                    ? "worksheet"
-                    : active === "survey"
-                      ? "worksheet"
-                      : "survey";
+                kinds[
+                  e.key === "Home"
+                    ? 0
+                    : e.key === "End"
+                      ? 2
+                      : (kinds.indexOf(active) +
+                          (e.key === "ArrowRight" ? 1 : 2)) %
+                        3
+                ];
               setActive(next);
               e.currentTarget
                 .querySelector<HTMLButtonElement>(`[data-kind="${next}"]`)
                 ?.focus();
             }}
           >
-            {(["survey", "worksheet"] as const).map((kind) => (
+            {(["survey", "worksheet", "gallery"] as const).map((kind) => (
               <button
                 key={kind}
                 id={`${id}-${kind}-tab`}
@@ -152,7 +162,11 @@ export function ActivitiesPanel({
                 tabIndex={active === kind ? 0 : -1}
                 onClick={() => setActive(kind)}
               >
-                {kind === "survey" ? "アンケート" : "ワークシート"}
+                {kind === "survey"
+                  ? "アンケート"
+                  : kind === "worksheet"
+                    ? "ワークシート"
+                    : "回答スライド"}
               </button>
             ))}
           </div>
@@ -173,6 +187,15 @@ export function ActivitiesPanel({
             hidden={active !== "worksheet"}
           >
             {worksheet}
+          </div>
+          <div
+            className="activity-content"
+            role="tabpanel"
+            id={`${id}-gallery-pane`}
+            aria-labelledby={`${id}-gallery-tab`}
+            hidden={active !== "gallery"}
+          >
+            {gallery}
           </div>
         </section>
       </div>

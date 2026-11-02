@@ -8,6 +8,7 @@ export type SurveySlideData = {
 export const SurveySlideContext = createContext<
   SurveySlideData & {
     enabled: boolean;
+    readOnly?: boolean;
     onUpdated: (
       surveys: SurveyView[],
       deckId?: string,

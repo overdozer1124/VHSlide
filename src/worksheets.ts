@@ -115,7 +115,8 @@ export function parseWorksheetValues(
   const result: WorksheetValues = {};
   for (const f of sheet.fields) {
     const x =
-      v[f.id] ?? (f.kind === "text" ? "" : f.kind === "checkbox" ? false : []);
+      (Object.hasOwn(v, f.id) ? v[f.id] : undefined) ??
+      (f.kind === "text" ? "" : f.kind === "checkbox" ? false : []);
     if (f.kind === "text") check(str(x, 2000), "記述欄は2000文字までです。");
     else if (f.kind === "checkbox")
       check(typeof x === "boolean", "チェック項目が不正です。");
@@ -190,6 +191,10 @@ export function worksheetCommand(
   id: string | undefined,
   value: Record<string, unknown>,
 ) {
+  check(
+    value && typeof value === "object" && !Array.isArray(value),
+    "入力内容を確認してください。",
+  );
   if (action === "create") {
     check(host, "作成できるのはホストだけです。", 403);
     check(
@@ -219,10 +224,26 @@ export function worksheetCommand(
       "このワークシートは入力を受け付けていません。",
       409,
     );
-    const values = parseWorksheetValues(
-      JSON.parse(row.definition),
-      value.values,
-    );
+    const definition = JSON.parse(row.definition) as WorksheetDefinition;
+    const incoming = parseWorksheetValues(definition, value.values);
+    const existing = [
+      ...sql(
+        "SELECT value FROM worksheet_answers WHERE worksheet=? AND author=?",
+        row.id,
+        actor,
+      ),
+    ][0];
+    const values =
+      value.patch === true
+        ? {
+            ...(existing
+              ? JSON.parse(existing.value)
+              : parseWorksheetValues(definition, {})),
+            ...Object.fromEntries(
+              Object.keys(value.values as object).map((k) => [k, incoming[k]]),
+            ),
+          }
+        : incoming;
     const prior = [
       ...sql(
         "SELECT author FROM worksheet_answers WHERE worksheet=? AND author=?",
@@ -251,7 +272,19 @@ export function worksheetCommand(
     return;
   }
   check(host, "管理できるのはホストだけです。", 403);
-  if (action === "status") {
+  if (action === "field") {
+    const definition = JSON.parse(row.definition) as WorksheetDefinition;
+    const field = (value as { field: WorksheetField }).field;
+    const next = parseWorksheet({
+      ...definition,
+      fields: [...definition.fields, field],
+    });
+    sql(
+      "UPDATE worksheets SET definition=? WHERE id=?",
+      JSON.stringify(next),
+      row.id,
+    );
+  } else if (action === "status") {
     check(
       ["open", "closed"].includes(String(value.status)),
       "受付状態を確認してください。",

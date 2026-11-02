@@ -172,6 +172,16 @@ export async function exerciseSurveys(
     (await list()).find((s) => s.id === multiple.id)!.results!.counts.join(),
     "1,1",
   );
+  await write(
+    `/${free.id}/answer`,
+    { choices: [], text: "", clear: true },
+    guest,
+  );
+  assert.equal((await list()).find((s) => s.id === free.id)!.results!.count, 0);
+  assert.equal(
+    (await list(guest)).find((s) => s.id === free.id)!.own,
+    undefined,
+  );
   await write(`/${free.id}`, undefined, guest, 403, "DELETE");
   await write(`/${free.id}`, undefined, owner, 200, "DELETE");
   assert.ok(!(await list()).some((s) => s.id === free.id));

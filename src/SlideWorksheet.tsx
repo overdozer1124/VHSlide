@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId } from "react";
 import type { PointerEvent } from "react";
 import type { Element } from "./model";
 import type {
@@ -8,21 +8,35 @@ import type {
   WorksheetView,
 } from "./worksheets";
 import { useWorksheets } from "./WorksheetContext";
-import { api } from "./cloud";
+import { useAnswers } from "./AnswerStore";
 export function WorksheetInputs({
   sheet,
   values,
   onChange,
   disabled = false,
   preview = false,
+  onFieldChange,
 }: {
   sheet: WorksheetDefinition;
   values: WorksheetValues;
   onChange: (v: WorksheetValues) => void;
   disabled?: boolean;
   preview?: boolean;
+  onFieldChange?: (
+    id: string,
+    value: WorksheetValues[string],
+    immediate: boolean,
+  ) => void;
 }) {
   const prefix = useId();
+  const change = (
+    id: string,
+    value: WorksheetValues[string],
+    immediate = false,
+  ) =>
+    onFieldChange
+      ? onFieldChange(id, value, immediate)
+      : onChange({ ...values, [id]: value });
   const checks = sheet.fields.filter((f) => f.kind === "checkbox");
   const groups: { section: string; fields: WorksheetField[] }[] = [];
   for (const f of sheet.fields) {
@@ -59,9 +73,7 @@ export function WorksheetInputs({
                           type="checkbox"
                           disabled={disabled}
                           checked={values[f.id] === true}
-                          onChange={(e) =>
-                            onChange({ ...values, [f.id]: e.target.checked })
-                          }
+                          onChange={(e) => change(f.id, e.target.checked, true)}
                         />
                         <span>{f.label}</span>
                       </label>
@@ -76,9 +88,7 @@ export function WorksheetInputs({
                             placeholder={f.placeholder}
                             value={String(values[f.id] ?? "")}
                             disabled={disabled}
-                            onChange={(e) =>
-                              onChange({ ...values, [f.id]: e.target.value })
-                            }
+                            onChange={(e) => change(f.id, e.target.value)}
                           />
                         ) : (
                           <fieldset
@@ -100,15 +110,15 @@ export function WorksheetInputs({
                                   onChange={() => {
                                     const prev =
                                       (values[f.id] as number[]) ?? [];
-                                    onChange({
-                                      ...values,
-                                      [f.id]:
-                                        f.kind === "single"
-                                          ? [n]
-                                          : prev.includes(n)
-                                            ? prev.filter((x) => x !== n)
-                                            : [...prev, n],
-                                    });
+                                    change(
+                                      f.id,
+                                      f.kind === "single"
+                                        ? [n]
+                                        : prev.includes(n)
+                                          ? prev.filter((x) => x !== n)
+                                          : [...prev, n],
+                                      true,
+                                    );
                                   }}
                                 />
                                 {option}
@@ -139,64 +149,53 @@ export function WorksheetInputs({
 }
 export function WorksheetAnswer({ sheet }: { sheet: WorksheetView }) {
   const ctx = useWorksheets();
-  const [draft, setDraft] = useState<WorksheetValues>();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const values = draft ?? sheet.own?.values ?? {};
-  const open = sheet.status === "open" && ctx.enabled;
-  async function save() {
-    if (!open || busy) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const data = await api<{ worksheets: WorksheetView[] }>(
-        `/api/decks/${ctx.deckId}/worksheets/${sheet.id}/answer`,
-        { method: "POST", body: JSON.stringify({ values }) },
-      );
-      ctx.update(data.worksheets);
-      setDraft(undefined);
-      setMessage("入力を保存しました。");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const answers = useAnswers();
+  const values = {
+    ...sheet.own?.values,
+    ...(!ctx.readOnly ? answers.draft("worksheet", sheet.id) : {}),
+  } as WorksheetValues;
+  const open = sheet.status === "open" && ctx.enabled && !ctx.readOnly;
+  const status = answers.status("worksheet", sheet.id);
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        void save();
+        answers.flush("worksheet", sheet.id);
       }}
+      onBlur={() => {
+        if (open) answers.flush("worksheet", sheet.id);
+      }}
+      onCompositionStart={() => answers.compose("worksheet", sheet.id, true)}
+      onCompositionEnd={() => answers.compose("worksheet", sheet.id, false)}
     >
       <WorksheetInputs
         sheet={sheet}
         values={values}
-        onChange={setDraft}
-        disabled={!open || busy}
+        onChange={() => {}}
+        onFieldChange={(id, value, immediate) =>
+          answers.change("worksheet", sheet.id, { [id]: value }, immediate)
+        }
+        disabled={!open}
       />
-      <div className="worksheet-save">
-        {open && (
-          <button type="submit" disabled={busy}>
-            {busy ? "保存中…" : sheet.own ? "入力を変更して保存" : "入力を保存"}
-          </button>
-        )}
-        <span>
-          {draft
-            ? "未保存の入力があります。保存ボタンを押してください。"
-            : sheet.own
-              ? "保存済み"
-              : ""}{" "}
-          {sheet.status !== "open" && "受付は終了しています。"}
-        </span>
-      </div>
-      <p className="worksheet-privacy">
-        名前・メールアドレスと入力内容はホストだけが確認できます。途中の内容や未チェックの状態も保存できます。
-      </p>
-      {message && <p role="status">{message}</p>}
-      {error && <p role="alert">{error}</p>}
+      {!ctx.readOnly && (
+        <>
+          <p className="answer-inline-status" role="status">
+            {status.error
+              ? `未保存：${status.error}`
+              : status.saving
+                ? "保存中…"
+                : status.dirty
+                  ? "入力を自動保存します…"
+                  : sheet.own
+                    ? "入力は保存済みです。"
+                    : "入力すると自動保存します。"}
+            {sheet.status !== "open" && " 受付は終了しています。"}
+          </p>
+          <p className="worksheet-privacy">
+            名前・メールアドレスと入力内容はホストが確認できます。入力は自動保存されます。共有された回答は「回答スライド」で参照できます。
+          </p>
+        </>
+      )}
     </form>
   );
 }

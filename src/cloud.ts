@@ -64,7 +64,10 @@ export async function api<T>(
   });
   const value = await response.json().catch(() => ({}));
   if (!response.ok)
-    throw new Error(value.error || "サーバーに接続できませんでした。");
+    throw Object.assign(
+      new Error(value.error || "サーバーに接続できませんでした。"),
+      { status: response.status },
+    );
   return value as T;
 }
 export async function portableDeck(deck: Deck): Promise<Deck> {

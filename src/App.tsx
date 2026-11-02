@@ -1,3 +1,5 @@
+import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
+import { AnswerProvider } from "./AnswerStore";
 import { linkSurveyResult, snapshotSurveyResults } from "./surveyResults";
 import { ActivitiesPanel } from "./ActivitiesPanel";
 import { WorksheetPanel } from "./WorksheetPanel";
@@ -2888,6 +2890,7 @@ export default function App() {
         )}
       </div>
       <ActivitiesPanel
+        gallery={<ResponseGalleryPanel slide={slide} />}
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
         blocked={cloud.viewingRevoked || cloud.recoveryOnly}
         presenting={
@@ -2916,7 +2919,10 @@ export default function App() {
               workbook.slides.some((s) =>
                 s.elements.some((e) => e.surveyResult),
               ) ||
-              (view !== "map" && slide.elements.some((e) => e.survey)) ||
+              (view !== "map" &&
+                slide.elements.some(
+                  (e) => e.survey || e.responseField?.source === "survey",
+                )) ||
               followLocked
             }
             onEmbed={(survey) => {
@@ -3064,5 +3070,10 @@ export default function App() {
       )}
     </CloudDocument.Provider>,
   );
-  return createElement(WorksheetProvider, worksheetProps, content);
+  return createElement(AnswerProvider, {
+    deckId: cloud.active?.id,
+    userId: cloud.user?.id,
+    enabled: !!cloud.active && !cloud.viewingRevoked && !cloud.recoveryOnly,
+    children: createElement(WorksheetProvider, worksheetProps, content),
+  });
 }

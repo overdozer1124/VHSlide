@@ -230,6 +230,21 @@ export function surveyCommand(
       409,
       "このアンケートは回答を受け付けていません。",
     );
+    if (value.clear === true) {
+      insist(
+        Array.isArray(value.choices) &&
+          value.choices.length === 0 &&
+          value.text === "",
+        400,
+        "回答の取り消し内容を確認してください。",
+      );
+      sql(
+        "DELETE FROM survey_answers WHERE survey=? AND author=?",
+        survey.id,
+        actor,
+      );
+      return;
+    }
     const choices = value.choices;
     insist(
       Array.isArray(choices) &&

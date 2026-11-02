@@ -1,9 +1,8 @@
-import { useContext, useId, useState } from "react";
+import { useContext } from "react";
 import type { PointerEvent } from "react";
 import type { Element } from "./model";
-import type { SurveyView } from "./surveys";
 import { SurveySlideContext } from "./SurveySlideContext";
-import { api } from "./cloud";
+import { SurveyAnswerForm } from "./SurveyAnswerForm";
 
 export function SlideSurvey(props: {
   element: Element;
@@ -33,34 +32,7 @@ function SurveyCard({
     interactive && context.enabled && binding.deckId === context.deckId
       ? context.surveys.find((s) => s.id === binding.surveyId)
       : undefined;
-  const [draft, setDraft] = useState<{ choices: number[]; text: string }>();
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const id = useId();
-  const value = (survey?.status === "open" ? draft : undefined) ??
-    survey?.own ?? { choices: [], text: "" };
   const question = survey ?? binding;
-  const open = survey?.status === "open";
-  async function submit() {
-    if (!survey || !open || busy) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const data = await api<{ surveys: SurveyView[] }>(
-        `/api/decks/${context.deckId}/surveys/${binding.surveyId}/answer`,
-        { method: "POST", body: JSON.stringify(value) },
-      );
-      context.onUpdated(data.surveys, context.deckId, context.userId);
-      setDraft(undefined);
-      setMessage("回答を保存しました。");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <section
       className={`slide-survey ${interactive ? "is-interactive" : "is-preview"}`}
@@ -117,80 +89,7 @@ function SurveyCard({
           </p>
         </>
       ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <fieldset disabled={busy || !open}>
-            <legend className="sr-only">あなたの回答</legend>
-            <div className="slide-survey-inputs">
-              {survey.kind === "text" ? (
-                <textarea
-                  aria-label="スライド内アンケートの回答"
-                  rows={4}
-                  maxLength={2000}
-                  required
-                  value={value.text}
-                  onChange={(e) =>
-                    setDraft({ choices: [], text: e.target.value })
-                  }
-                />
-              ) : (
-                survey.options.map((option, i) => (
-                  <label key={i}>
-                    <input
-                      type={survey.kind === "single" ? "radio" : "checkbox"}
-                      name={id}
-                      checked={value.choices.includes(i)}
-                      onChange={() =>
-                        setDraft({
-                          text: "",
-                          choices:
-                            survey.kind === "single"
-                              ? [i]
-                              : value.choices.includes(i)
-                                ? value.choices.filter((v) => v !== i)
-                                : [...value.choices, i],
-                        })
-                      }
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))
-              )}
-            </div>
-            {open && (
-              <button
-                type="submit"
-                disabled={
-                  busy ||
-                  (survey.kind === "text"
-                    ? !value.text.trim()
-                    : !value.choices.length)
-                }
-              >
-                {busy
-                  ? "保存中…"
-                  : survey.own
-                    ? "回答を変更して保存"
-                    : "回答を送信"}
-              </button>
-            )}
-          </fieldset>
-          <p>
-            {survey.status === "draft"
-              ? "下書き · 回答の受付前です。"
-              : !open
-                ? "受付は終了しています。"
-                : survey.own
-                  ? "回答済み · 受付中は変更できます。"
-                  : "受付中 · 回答はホストだけが確認できます。"}
-          </p>
-          {message && <p role="status">{message}</p>}
-          {error && <p role="alert">{error}</p>}
-        </form>
+        <SurveyAnswerForm survey={survey} embedded />
       )}
     </section>
   );

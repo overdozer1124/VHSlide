@@ -1,3 +1,7 @@
+import {
+  ResponseFieldTools,
+  ResponseFieldAppearance,
+} from "./ResponseFieldTools";
 import { InkControls } from "./InkControls";
 import { emptyInkImage } from "./InkObject";
 import { EditorInspector, TableInspector } from "./EditorInspector";
@@ -752,6 +756,19 @@ export function Editor({
           </aside>
         ) : (
           <aside className="inspector" id="editor-inspector">
+            {editable && (
+              <details>
+                <summary>回答欄を自由に配置</summary>
+                <ResponseFieldTools slide={slide} onPlace={onInsertStructure} />
+              </details>
+            )}
+            {editable && element?.responseField && (
+              <ResponseFieldAppearance
+                element={element}
+                onPlace={onInsertStructure}
+                onChange={(patch) => updateElement(patch)}
+              />
+            )}
             <EditorInspector
               headerAction={panelToggle("inspector")}
               pageKey={`${cloud?.active?.id ?? "local"}:${slide.id}`}

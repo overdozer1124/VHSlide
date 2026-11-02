@@ -1,3 +1,5 @@
+import { parseResponseField } from "./responseFields.ts";
+import type { ResponseFieldBinding } from "./responseFields.ts";
 import { parseSurveyResultBinding } from "./surveyResults.ts";
 import type { SurveyResultBinding } from "./surveyResults.ts";
 import { parseWorksheetBinding } from "./worksheets.ts";
@@ -29,6 +31,7 @@ export interface GridMove {
 }
 export type Shape = ShapeKind;
 export interface Element {
+  responseField?: ResponseFieldBinding;
   worksheet?: WorksheetBinding;
   survey?: SurveyBinding;
   surveyResult?: SurveyResultBinding;
@@ -664,6 +667,16 @@ export function parseDeck(input: string): Deck {
           h: num(e.h, 20, H),
         };
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
+        if (e.responseField !== undefined) {
+          if (
+            e.type !== "shape" ||
+            e.survey !== undefined ||
+            e.worksheet !== undefined ||
+            e.surveyResult !== undefined
+          )
+            fail();
+          base.responseField = parseResponseField(e.responseField);
+        }
         if (e.surveyResult !== undefined) {
           const binding = parseSurveyResultBinding(e.surveyResult);
           if (

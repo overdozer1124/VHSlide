@@ -1,3 +1,4 @@
+import { useAnswers } from "./AnswerStore";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { WorksheetView } from "./worksheets";
@@ -6,19 +7,21 @@ export type WorksheetContextValue = {
   deckId?: string;
   userId?: string;
   enabled: boolean;
+  host?: boolean;
+  readOnly?: boolean;
   error: string;
   sheets: WorksheetView[];
   refresh: () => Promise<WorksheetView[]>;
   update: (sheets: WorksheetView[]) => void;
 };
-const Context = createContext<WorksheetContextValue>({
+export const WorksheetContext = createContext<WorksheetContextValue>({
   enabled: false,
   error: "",
   sheets: [],
   refresh: async () => [],
   update: () => {},
 });
-export const useWorksheets = () => useContext(Context);
+export const useWorksheets = () => useContext(WorksheetContext);
 export function WorksheetProvider({
   deckId,
   userId,
@@ -34,7 +37,7 @@ export function WorksheetProvider({
 }) {
   const scope = `${deckId}:${userId}:${host}:${blocked}`;
   return (
-    <WorksheetSession key={scope} {...{ deckId, userId, blocked }}>
+    <WorksheetSession key={scope} {...{ deckId, userId, host, blocked }}>
       {children}
     </WorksheetSession>
   );
@@ -42,15 +45,29 @@ export function WorksheetProvider({
 function WorksheetSession({
   deckId,
   userId,
+  host,
   blocked,
   children,
 }: {
   deckId?: string;
   userId?: string;
+  host: boolean;
   blocked: boolean;
   children?: ReactNode;
 }) {
   const [sheets, setSheets] = useState<WorksheetView[]>([]);
+  const answers = useAnswers();
+  useEffect(() => {
+    if (answers.saved?.kind === "worksheet")
+      update(answers.saved.data.worksheets);
+  }, [answers.saved]);
+  useEffect(() => {
+    answers.reconcile(
+      "worksheet",
+      sheets.map((s) => s.id),
+    );
+  }, [sheets]);
+
   const [error, setError] = useState("");
   const alive = useRef(true);
   const generation = useRef(0);
@@ -77,10 +94,11 @@ function WorksheetSession({
     alive.current = true;
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
+      const version = generation.current + 1;
       try {
         await refresh();
       } catch (e) {
-        if (alive.current) {
+        if (alive.current && version === generation.current) {
           setSheets([]);
           setError((e as Error).message);
         }
@@ -94,10 +112,10 @@ function WorksheetSession({
     };
   }, [enabled, deckId, userId]);
   return (
-    <Context.Provider
-      value={{ deckId, userId, enabled, error, sheets, refresh, update }}
+    <WorksheetContext.Provider
+      value={{ deckId, userId, host, enabled, error, sheets, refresh, update }}
     >
       {children}
-    </Context.Provider>
+    </WorksheetContext.Provider>
   );
 }

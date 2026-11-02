@@ -109,8 +109,8 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await card
       .getByRole("checkbox", { name: "今日から実践", exact: true })
       .check();
-    await card.getByRole("button", { name: "入力を保存", exact: true }).click();
-    await expect(card).toContainText("入力を保存しました");
+    await card.locator("textarea,input").first().blur();
+    await expect(card).toContainText("入力は保存済みです。");
     await expect(
       hostCard.getByRole("textbox", { name: "選んだ理由", exact: true }),
     ).toHaveValue("");
@@ -133,10 +133,8 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await presented
       .getByRole("textbox", { name: "選んだ理由", exact: true })
       .press("ArrowLeft");
-    await presented
-      .getByRole("button", { name: "入力を変更して保存", exact: true })
-      .click();
-    await expect(presented).toContainText("入力を保存しました");
+    await presented.locator("textarea,input").first().blur();
+    await expect(presented).toContainText("入力は保存済みです。");
     await guest.mouse.move(10, 10);
     await guest
       .getByRole("button", { name: "発表をおわる", exact: true })
@@ -148,10 +146,8 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await expect(
       followed.getByRole("textbox", { name: "選んだ理由", exact: true }),
     ).toHaveValue(answer);
-    await followed
-      .getByRole("button", { name: "入力を変更して保存", exact: true })
-      .click();
-    await expect(followed).toContainText("入力を保存しました");
+    await followed.locator("textarea,input").first().blur();
+    await expect(followed).toContainText("入力は保存済みです。");
     await page
       .getByRole("button", { name: "全員の画面を同期", exact: true })
       .click();
@@ -213,10 +209,8 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await expect(modal(guest).locator(".worksheet-score")).toContainText(
       "1 / 10",
     );
-    await modal(guest)
-      .getByRole("button", { name: "入力を保存", exact: true })
-      .click();
-    await expect(modal(guest)).toContainText("入力を保存しました");
+    await modal(guest).locator("textarea,input").first().blur();
+    await expect(modal(guest)).toContainText("入力は保存済みです。");
     await expect(
       modal(guest).getByRole("button", { name: "入力結果をCSV保存" }),
     ).toHaveCount(0);
@@ -518,7 +512,8 @@ test("host reads long answers by person or question without squeezed identity co
   await modal(page)
     .getByRole("button", { name: /回答結果（2人）/ })
     .click();
-  await expect(results).not.toContainText("まだ保存していない考え");
+  // This static result fixture remains the two supplied respondents.
+  await expect(results).toContainText("student-a@example.test");
   await modal(page)
     .getByRole("button", { name: "自分で入力", exact: true })
     .click();
@@ -669,6 +664,10 @@ test("survey and worksheet share one wide dialog, select defaults and preserve d
   });
   await surveyTab.focus();
   await page.keyboard.press("End");
+  await expect(
+    window.getByRole("tab", { name: "回答スライド", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
   await expect(
     window.getByRole("tab", { name: "ワークシート", exact: true }),
   ).toHaveAttribute("aria-selected", "true");

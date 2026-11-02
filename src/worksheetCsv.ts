@@ -8,6 +8,7 @@ export function worksheetValueText(
   field: WorksheetField,
   values: WorksheetValues,
 ): string {
+  if (!Object.hasOwn(values, field.id)) return "";
   const value = values[field.id];
   return field.kind === "checkbox"
     ? value === true

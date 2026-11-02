@@ -1,3 +1,4 @@
+import { galleryCommand } from "../src/responseGallery.ts";
 import {
   worksheetSchema,
   worksheetList,
@@ -942,6 +943,38 @@ export function createApplication(options: Options) {
             409,
             "復元中の作品です。復元を完了するか削除してください。",
           );
+        if (extra === "gallery" || extra?.startsWith("gallery/")) {
+          insist(
+            (method === "GET" && extra === "gallery") ||
+              (method === "POST" &&
+                ["gallery/preview", "gallery/publish", "gallery/stop"].includes(
+                  extra,
+                )),
+            405,
+            "この操作には対応していません。",
+          );
+          const value =
+            method === "POST"
+              ? JSON.parse((await body(req, 3000000)).toString())
+              : {};
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const result = galleryCommand(
+              historySQL,
+              id,
+              u.id,
+              current.owner === u.id,
+              method === "GET" ? "read" : extra.split("/")[1],
+              value,
+            );
+            db.exec("COMMIT");
+            return json(res, 200, result);
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
         if (extra === "worksheets" || extra?.startsWith("worksheets/")) {
           insist(
             ["GET", "POST", "DELETE"].includes(method),
@@ -949,7 +982,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer))?)?$/.exec(
+            /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer|field))?)?$/.exec(
               extra,
             );
           insist(

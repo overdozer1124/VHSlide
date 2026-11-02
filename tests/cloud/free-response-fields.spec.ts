@@ -1,0 +1,261 @@
+import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { blank } from "../../src/model";
+const headers = { Origin: "http://127.0.0.1:3187" };
+async function signIn(page: Page, name: string) {
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (await page.request.get(`/__test/token?name=${name}`)).text()
+      : name;
+  expect(
+    (
+      await page.request.post("/api/auth/google", {
+        headers,
+        data: { credential },
+      })
+    ).status(),
+  ).toBe(200);
+}
+const launcher = (page: Page) =>
+  page.getByRole("button", { name: "アンケート・ワークシート", exact: true });
+test("free input creation, blur/idle autosave, pending recovery, read-only anonymous slide sharing and live changes", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(180_000);
+  const context = await browser.newContext(info.project.use);
+  const guest = await context.newPage();
+  try {
+    await signIn(page, "free-host");
+    await signIn(guest, "free-guest");
+    const created = await page.request.post("/api/decks", {
+      headers,
+      data: { version: 1, title: "自由な回答欄", slides: [blank(0, 0)] },
+    });
+    expect(created.status()).toBe(201);
+    const { id } = await created.json();
+    const invite = await page.request.post(`/api/decks/${id}/invite`, {
+      headers,
+    });
+    const token = new URL((await invite.json()).url).searchParams.get("join");
+    const accepted = await guest.request.post(`/api/invites/${token}/accept`, {
+      headers,
+    });
+    const join = await accepted.json();
+    if (join.requestId)
+      expect(
+        (
+          await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+            headers,
+            data: { requestIds: [join.requestId] },
+          })
+        ).status(),
+      ).toBe(200);
+    await page.goto(`/?room=${id}`);
+    await guest.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(1);
+    await expect(guest.locator(".slide-card")).toHaveCount(1);
+    await page.locator(".thumbnail").first().click();
+    await guest.locator(".thumbnail").first().click();
+    await page.getByText("回答欄を自由に配置", { exact: true }).click();
+    const tools = page.getByRole("region", {
+      name: "回答欄の追加",
+      exact: true,
+    });
+    await tools.getByRole("checkbox", { name: "新しい項目を作る" }).check();
+    await tools
+      .getByRole("textbox", { name: "新しい入力項目名" })
+      .fill("観察から気づいたこと");
+    await tools.getByRole("button", { name: "受付を開始して配置" }).click();
+    const appearance = page.getByRole("region", {
+      name: "入力欄の設定",
+      exact: true,
+    });
+    await appearance
+      .getByRole("checkbox", { name: "背景を透明にする" })
+      .check();
+    await appearance.getByRole("checkbox", { name: "枠線を非表示" }).check();
+    await appearance.getByRole("checkbox", { name: "項目名を表示" }).uncheck();
+    const field = guest.locator(".editor-workspace [data-response-field]");
+    await expect(field).toHaveCount(1);
+    const input = field.getByRole("textbox", {
+      name: "観察から気づいたこと",
+      exact: true,
+    });
+    await expect(input).toBeEnabled({ timeout: 10000 });
+    await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(field).toHaveCSS("border-top-width", "0px");
+    let requests = 0;
+    guest.on("request", (r) => {
+      if (r.method() === "POST" && r.url().endsWith("/answer")) requests++;
+    });
+    await input.fill("一秒後に保存");
+    await expect(guest.getByLabel("回答の保存状態")).toHaveText(
+      "回答は保存済みです",
+    );
+    expect(requests).toBe(1);
+    await input.dispatchEvent("compositionstart");
+    await input.fill("日本語を変換中");
+    await guest.waitForTimeout(1200); // No request may leave while an IME composition is active.
+    expect(requests).toBe(1);
+    await input.dispatchEvent("compositionend");
+    await expect(guest.getByLabel("回答の保存状態")).toHaveText(
+      "回答は保存済みです",
+    );
+    expect(requests).toBe(2);
+    await input.fill("入力欄を離れて保存");
+    await input.blur();
+    await expect
+      .poll(async () => {
+        const r = await guest.request.get(`/api/decks/${id}/worksheets`);
+        return (await r.json()).worksheets[0]?.own?.values;
+      })
+      .toEqual(
+        expect.objectContaining({
+          [Object.keys(
+            (
+              await (
+                await guest.request.get(`/api/decks/${id}/worksheets`)
+              ).json()
+            ).worksheets[0].own.values,
+          )[0]]: "入力欄を離れて保存",
+        }),
+      );
+    await guest.route("**/worksheets/*/answer", (route) => route.abort());
+    await input.fill("通信復帰後の回答");
+    await input.blur();
+    await expect(guest.getByLabel("回答の保存状態")).toContainText("未保存");
+    await guest.reload();
+    await expect(guest.locator(".slide-card")).toHaveCount(1);
+    await guest.locator(".thumbnail").first().click();
+    await expect(input).toHaveValue("通信復帰後の回答");
+    await guest.unroute("**/worksheets/*/answer");
+    await guest.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(guest.getByLabel("回答の保存状態")).toHaveText(
+      "回答は保存済みです",
+    );
+    await launcher(page).click();
+    await page.getByRole("tab", { name: "回答スライド", exact: true }).click();
+    await page
+      .getByRole("button", { name: "現在のページの回答をプレビュー" })
+      .click();
+    await expect(page.locator(".gallery-card")).toHaveCount(1);
+    await expect(page.locator(".gallery-card textarea")).toHaveValue(
+      "通信復帰後の回答",
+    );
+    await expect(page.locator(".gallery-card textarea")).toBeDisabled();
+    expect(
+      (await (await guest.request.get(`/api/decks/${id}/gallery`)).json())
+        .gallery,
+    ).toBe(null);
+    await page
+      .getByRole("button", { name: "このページの回答を全員に共有" })
+      .click();
+    await launcher(guest).click();
+    await guest.getByRole("tab", { name: "回答スライド", exact: true }).click();
+    await expect(guest.locator(".gallery-card")).toHaveCount(1);
+    await expect(guest.locator(".gallery-card")).toContainText("回答 1");
+    await expect(guest.locator(".gallery-card")).not.toContainText(
+      "free-guest",
+    );
+    await page
+      .getByRole("checkbox", { name: "保存された回答を自動更新" })
+      .check();
+    await page
+      .getByRole("button", { name: "このページの回答を全員に共有" })
+      .click();
+    await guest.getByRole("button", { name: "回答スライドを閉じる" }).click();
+    await input.fill("みんなへの最新の回答");
+    await input.blur();
+    await expect(guest.getByLabel("回答の保存状態")).toHaveText(
+      "回答は保存済みです",
+    );
+    await launcher(guest).click();
+    await expect(guest.locator(".gallery-card textarea")).toHaveValue(
+      "みんなへの最新の回答",
+    );
+    await page.getByRole("button", { name: "共有を停止" }).click();
+    await expect(guest.locator(".gallery-card")).toHaveCount(0);
+    await page.screenshot({
+      path: info.outputPath("free-input-gallery.png"),
+      fullPage: true,
+    });
+    const original = (
+      await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+    ).worksheets[0];
+    expect(
+      (
+        await page.request.post(
+          `/api/decks/${id}/worksheets/${original.id}/answer`,
+          {
+            headers,
+            data: {
+              patch: true,
+              values: { [original.fields[0].id]: "ホストの入力" },
+            },
+          },
+        )
+      ).status(),
+    ).toBe(200);
+    await page
+      .getByRole("button", { name: "現在のページの回答をプレビュー" })
+      .click();
+    await expect(page.locator(".gallery-card")).toHaveCount(2);
+    const comparisons = page.getByRole("checkbox", {
+      name: "比較",
+      exact: true,
+    });
+    await comparisons.nth(0).check();
+    await comparisons.nth(1).check();
+    await page.getByRole("button", { name: "選択した回答を比較" }).click();
+    await expect(page.locator(".gallery-card")).toHaveCount(2);
+    await page
+      .getByRole("button", { name: "拡大", exact: true })
+      .first()
+      .click();
+    const enlarged = page.getByRole("dialog", {
+      name: "回答スライドの拡大",
+      exact: true,
+    });
+    await expect(enlarged.getByRole("textbox")).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(enlarged).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "回答スライド", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "比較を解除" }).click();
+    await page.getByRole("button", { name: "回答スライドを閉じる" }).click();
+    await appearance
+      .getByRole("button", { name: "別の回答項目として複製" })
+      .click();
+    await expect(
+      guest.locator(".editor-workspace [data-response-field]"),
+    ).toHaveCount(2);
+    await expect(
+      guest.locator(".editor-workspace [data-response-field] textarea").nth(1),
+    ).toHaveValue("");
+    await tools.getByText("入力欄の配置ひな形", { exact: true }).click();
+    await tools
+      .getByRole("textbox", { name: "ひな形の名前" })
+      .fill("観察の配置");
+    await tools
+      .getByRole("button", { name: "このページの入力欄の配置を保存" })
+      .click();
+    await tools
+      .getByRole("button", { name: "新しい項目として配置", exact: true })
+      .click();
+    await expect(
+      guest.locator(".editor-workspace [data-response-field]"),
+    ).toHaveCount(4);
+    const sheets = (
+      await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+    ).worksheets;
+    expect(sheets).toHaveLength(2);
+    expect(sheets.every((sheet: any) => sheet.fields.length === 2)).toBe(true);
+    expect(
+      sheets.find((sheet: any) => sheet.id !== original.id).own,
+    ).toBeUndefined();
+  } finally {
+    await context.close();
+  }
+});

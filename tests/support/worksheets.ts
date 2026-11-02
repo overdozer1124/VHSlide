@@ -1,3 +1,4 @@
+import { blank } from "../../src/model.ts";
 import assert from "node:assert/strict";
 import type {
   WorksheetView,
@@ -148,6 +149,149 @@ export async function exerciseWorksheets(
       .check,
     true,
   );
+  // Independent free fields patch the same response without erasing other fields.
+  await post(
+    `/${sheet.id}/answer`,
+    { patch: true, values: { reason: "自動保存した理由" } },
+    guest,
+  );
+  await post(
+    `/${sheet.id}/answer`,
+    { patch: true, values: { choice: [0] } },
+    guest,
+  );
+  const patched = (await list(guest))[0].own!.values;
+  assert.equal(patched.reason, "自動保存した理由");
+  assert.equal(patched.check, true);
+  assert.deepEqual(patched.choice, [0]);
+  const added = { ...definition.fields[0], id: "newfield", label: "追加欄" };
+  await post(`/${sheet.id}/field`, { field: added }, guest, 403);
+  await post(`/${sheet.id}/field`, { field: added });
+  assert.equal((await list(guest))[0].own!.values.reason, "自動保存した理由");
+  const slide = blank(0, 0);
+  slide.elements = [
+    {
+      id: crypto.randomUUID(),
+      type: "shape",
+      shape: "rect",
+      x: 20,
+      y: 20,
+      w: 400,
+      h: 200,
+      fill: "none",
+      stroke: "#000000",
+      text: "理由",
+      fontSize: 20,
+      responseField: {
+        source: "worksheet",
+        deckId: id,
+        worksheetId: sheet.id,
+        field: definition.fields[0],
+        showLabel: true,
+      },
+    },
+  ];
+  const galleryPath = `/api/decks/${id}/gallery`;
+  const galleryCall = async (
+    action: string,
+    who = owner,
+    body: unknown = { slide },
+    status = 200,
+  ) => {
+    const r = await call(
+      galleryPath + action,
+      action ? "POST" : "GET",
+      action ? body : undefined,
+      who,
+    );
+    assert.equal(r.status, status, await r.clone().text());
+    return status === 200 ? (await r.json()).gallery : null;
+  };
+  assert.equal(await galleryCall("", guest), null);
+  await galleryCall("/preview", guest, { slide }, 403);
+  const preview = await galleryCall("/preview");
+  assert.equal(preview.cards.length, 2);
+  assert.ok(preview.cards.some((c: any) => c.email === identity.email));
+  assert.equal(await galleryCall("", guest), null); // Preview never publishes.
+  await galleryCall("/publish", owner, { slide, participants: [identity.id] });
+  const snapshot = await galleryCall("", guest);
+  assert.equal(snapshot.cards.length, 1);
+  assert.equal(snapshot.cards[0].name, "回答 1");
+  const serialized = JSON.stringify(snapshot);
+  assert.ok(!serialized.includes(identity.email));
+  assert.ok(!serialized.includes(identity.id));
+  assert.ok(!serialized.includes('"check":'));
+  assert.ok(!serialized.includes('"choice":'));
+  await post(
+    `/${sheet.id}/answer`,
+    { patch: true, values: { reason: "更新された回答" } },
+    guest,
+  );
+  assert.equal(
+    (await galleryCall("", guest)).cards[0].worksheets[0].own.values.reason,
+    "自動保存した理由",
+  );
+  await galleryCall("/publish", owner, {
+    slide,
+    participants: [identity.id],
+    names: true,
+    live: true,
+  });
+  await post(
+    `/${sheet.id}/answer`,
+    { patch: true, values: { reason: "再更新" } },
+    guest,
+  );
+  const liveGallery = await galleryCall("", guest);
+  assert.equal(liveGallery.cards[0].name, identity.name);
+  assert.equal(liveGallery.cards[0].worksheets[0].own.values.reason, "再更新");
+  await galleryCall("/stop", guest, {}, 403);
+  await restart();
+  assert.equal((await galleryCall("", guest)).cards.length, 1);
+  await galleryCall("/stop");
+  assert.equal(await galleryCall("", guest), null);
+  // Anonymous IDs and display numbers survive a newly saved participant and restart.
+  await post("", {
+    title: "匿名ID固定",
+    description: "",
+    fields: [definition.fields[0]],
+  });
+  const future = (await list()).find((s) => s.title === "匿名ID固定")!;
+  await post(`/${future.id}/status`, { status: "open" });
+  await post(
+    `/${future.id}/answer`,
+    { values: { reason: "先に回答した参加者" } },
+    guest,
+  );
+  const futureSlide = structuredClone(slide);
+  futureSlide.elements[0].responseField = {
+    source: "worksheet",
+    deckId: id,
+    worksheetId: future.id,
+    field: definition.fields[0],
+    showLabel: true,
+  };
+  const initial = await galleryCall("/publish", owner, {
+    slide: futureSlide,
+    live: true,
+  });
+  const before = initial.cards[0];
+  await post(
+    `/${future.id}/answer`,
+    { values: { reason: "後から回答したホスト" } },
+    owner,
+  );
+  await restart();
+  const expanded = await galleryCall("", guest);
+  assert.equal(expanded.cards.length, 2);
+  const retained = expanded.cards.find(
+    (c: any) => c.worksheets[0].own.values.reason === "先に回答した参加者",
+  );
+  assert.equal(retained.id, before.id);
+  assert.equal(retained.name, before.name);
+  assert.notEqual(retained.id, identity.id);
+  await galleryCall("/stop");
+  await post(`/${future.id}`, undefined, owner, 200, "DELETE");
   await post(`/${sheet.id}/status`, { status: "closed" });
   await post(`/${sheet.id}/answer`, { values: {} }, guest, 409);
   await post(`/${sheet.id}`, undefined, guest, 403, "DELETE");

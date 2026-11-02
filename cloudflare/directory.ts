@@ -1,3 +1,4 @@
+import { galleryCommand } from "../src/responseGallery.ts";
 import {
   worksheetSchema,
   worksheetList,
@@ -835,6 +836,32 @@ export class Directory extends DurableObject<Env> {
       404,
       "作品はごみ箱にあります。作品一覧に戻してから開いてください。",
     );
+    if (extra === "gallery" || extra?.startsWith("gallery/")) {
+      insist(
+        (method === "GET" && extra === "gallery") ||
+          (method === "POST" &&
+            ["gallery/preview", "gallery/publish", "gallery/stop"].includes(
+              extra,
+            )),
+        405,
+        "この操作には対応していません。",
+      );
+      const value = method === "POST" ? await input(request, 3000000) : {};
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        if (method !== "GET") this.rate(`gallery:${user.id}`, 60);
+        return json(
+          galleryCommand(
+            (query, ...args) => this.sql.exec(query, ...args),
+            id,
+            user.id,
+            current.owner === user.id,
+            method === "GET" ? "read" : extra.split("/")[1],
+            value,
+          ),
+        );
+      });
+    }
     if (extra === "worksheets" || extra?.startsWith("worksheets/")) {
       insist(
         ["GET", "POST", "DELETE"].includes(method),
@@ -842,7 +869,9 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer))?)?$/.exec(extra);
+        /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer|field))?)?$/.exec(
+          extra,
+        );
       insist(
         route &&
           (method === "GET"
