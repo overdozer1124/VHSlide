@@ -50,6 +50,7 @@ export function ResponseFieldTools({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   const [templateName, setTemplateName] = useState("");
   const storageKey = `vhslide-input-layouts:${ctx.userId}`;
   const [templates, setTemplates] = useState<

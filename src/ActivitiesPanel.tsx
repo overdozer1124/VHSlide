@@ -9,17 +9,57 @@ import {
 import type { ReactNode } from "react";
 import { ClipboardList, X } from "lucide-react";
 import { useWorksheets } from "./WorksheetContext";
-type Kind = "survey" | "worksheet" | "gallery";
+type Kind = "survey" | "worksheet" | "gallery" | "fields";
 const Context = createContext({
   open: false,
   active: "survey" as Kind,
-  close: () => {},
+  close: (_completed = false) => {},
+  launch: (_kind: Kind, _element: HTMLElement) => {},
+  busy: false,
+  setBusy: (_busy: boolean) => {},
+  select: (_kind: Kind) => {},
 });
 export const useActivityPanel = () => useContext(Context);
+export function ActivityPanelProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false),
+    [active, setActive] = useState<Kind>("survey"),
+    [busy, setBusy] = useState(false);
+  const trigger = useRef<HTMLElement | null>(null);
+  function launch(kind: Kind, element: HTMLElement) {
+    if (busy) return;
+    trigger.current = element;
+    setActive(kind);
+    setOpen(true);
+  }
+  function close(completed = false) {
+    if (busy && !completed) return;
+    setOpen(false);
+    if (completed) setBusy(false);
+    requestAnimationFrame(() => trigger.current?.focus());
+  }
+  return (
+    <Context.Provider
+      value={{
+        open,
+        active,
+        close,
+        launch,
+        busy,
+        setBusy,
+        select: (kind) => {
+          if (!busy) setActive(kind);
+        },
+      }}
+    >
+      {children}
+    </Context.Provider>
+  );
+}
 export function ActivitiesPanel({
   survey,
   worksheet,
   gallery,
+  fields,
   surveyCount,
   blocked,
   presenting,
@@ -27,36 +67,31 @@ export function ActivitiesPanel({
   survey: ReactNode;
   worksheet: ReactNode;
   gallery: ReactNode;
+  fields: ReactNode;
   surveyCount: number;
   blocked: boolean;
   presenting: boolean;
 }) {
   const ctx = useWorksheets();
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState<Kind>("survey");
+  const { open, active, close, launch, busy, select } = useActivityPanel();
   const modal = useRef<HTMLElement>(null);
-  const trigger = useRef<HTMLElement | null>(null);
   const id = useId();
-  const title =
-    active === "survey"
-      ? "アンケート"
-      : active === "worksheet"
-        ? "ワークシート"
-        : "回答スライド";
-  function launch(kind: Kind, element: HTMLElement) {
-    trigger.current = element;
-    setActive(kind);
-    setOpen(true);
-  }
-  function close() {
-    setOpen(false);
-    trigger.current?.focus();
-  }
+  const kinds: Kind[] =
+    ctx.enabled && !ctx.host
+      ? ["survey", "worksheet", "gallery"]
+      : ["survey", "worksheet", "fields", "gallery"];
+  const labels: Record<Kind, string> = {
+    survey: "アンケート",
+    worksheet: "ワークシート",
+    gallery: "回答スライド",
+    fields: "回答欄の追加",
+  };
+  const title = labels[active];
   useEffect(() => {
     if (open) modal.current?.focus();
   }, [open]);
   return (
-    <Context.Provider value={{ open, active, close }}>
+    <>
       <button
         className={`button outline survey-launch ${presenting ? "in-presentation" : ""}`}
         disabled={blocked}
@@ -84,6 +119,7 @@ export function ActivitiesPanel({
             ).filter(
               (el) =>
                 el.tabIndex >= 0 &&
+                !el.matches(":disabled") &&
                 el.getClientRects().length > 0 &&
                 getComputedStyle(el).visibility !== "hidden" &&
                 !el.closest("[hidden],[inert]") &&
@@ -121,7 +157,8 @@ export function ActivitiesPanel({
             <button
               className="button outline"
               aria-label={`${title}を閉じる`}
-              onClick={close}
+              disabled={busy}
+              onClick={() => close()}
             >
               <X size={18} />
             </button>
@@ -134,24 +171,24 @@ export function ActivitiesPanel({
               if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
                 return;
               e.preventDefault();
-              const kinds = ["survey", "worksheet", "gallery"] as const;
+              if (busy) return;
               const next =
                 kinds[
                   e.key === "Home"
                     ? 0
                     : e.key === "End"
-                      ? 2
+                      ? kinds.length - 1
                       : (kinds.indexOf(active) +
-                          (e.key === "ArrowRight" ? 1 : 2)) %
-                        3
+                          (e.key === "ArrowRight" ? 1 : kinds.length - 1)) %
+                        kinds.length
                 ];
-              setActive(next);
+              select(next);
               e.currentTarget
                 .querySelector<HTMLButtonElement>(`[data-kind="${next}"]`)
                 ?.focus();
             }}
           >
-            {(["survey", "worksheet", "gallery"] as const).map((kind) => (
+            {kinds.map((kind) => (
               <button
                 key={kind}
                 id={`${id}-${kind}-tab`}
@@ -160,13 +197,10 @@ export function ActivitiesPanel({
                 aria-selected={active === kind}
                 aria-controls={`${id}-${kind}-pane`}
                 tabIndex={active === kind ? 0 : -1}
-                onClick={() => setActive(kind)}
+                disabled={busy}
+                onClick={() => select(kind)}
               >
-                {kind === "survey"
-                  ? "アンケート"
-                  : kind === "worksheet"
-                    ? "ワークシート"
-                    : "回答スライド"}
+                {kind === "fields" ? "回答欄を追加" : labels[kind]}
               </button>
             ))}
           </div>
@@ -191,6 +225,15 @@ export function ActivitiesPanel({
           <div
             className="activity-content"
             role="tabpanel"
+            id={`${id}-fields-pane`}
+            aria-labelledby={`${id}-fields-tab`}
+            hidden={active !== "fields"}
+          >
+            {fields}
+          </div>
+          <div
+            className="activity-content"
+            role="tabpanel"
             id={`${id}-gallery-pane`}
             aria-labelledby={`${id}-gallery-tab`}
             hidden={active !== "gallery"}
@@ -199,6 +242,6 @@ export function ActivitiesPanel({
           </div>
         </section>
       </div>
-    </Context.Provider>
+    </>
   );
 }

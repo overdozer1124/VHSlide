@@ -65,10 +65,19 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       exact: true,
     });
     const creator = page.getByRole("dialog", {
-      name: "スライドに回答欄を追加",
+      name: "回答欄の追加",
       exact: true,
     });
     await expect(creator).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(1);
+    await expect(
+      creator.getByRole("heading", {
+        name: "アンケート・ワークシート",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const sharedModalId = await creator.getAttribute("id");
+
     await expect(
       tools.getByRole("button", { name: "新しく作る", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -104,6 +113,20 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(
       tools.getByRole("textbox", { name: "新しい入力項目名" }),
     ).toHaveValue("観察から気づいたこと");
+    await creator
+      .getByRole("tab", { name: "ワークシート", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toHaveAttribute(
+      "id",
+      sharedModalId!,
+    );
+    await page
+      .getByRole("dialog")
+      .getByRole("tab", { name: "回答欄を追加", exact: true })
+      .click();
+    await expect(
+      tools.getByRole("textbox", { name: "新しい入力項目名" }),
+    ).toHaveValue("観察から気づいたこと");
     await page.screenshot({
       path: info.outputPath("response-field-creator.png"),
       fullPage: true,
@@ -122,6 +145,9 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await tools.getByRole("button", { name: "スライドに追加" }).click();
     await expect(
       creator.getByRole("button", { name: "回答欄の追加を閉じる" }),
+    ).toBeDisabled();
+    await expect(
+      creator.getByRole("tab", { name: "アンケート", exact: true }),
     ).toBeDisabled();
     await page.keyboard.press("Escape");
     await expect(creator).toBeVisible();

@@ -430,8 +430,6 @@ export function Editor({
         </button>
         <ResponseFieldLauncher
           key={`${cloud?.active?.id}:${slide.id}`}
-          slide={slide}
-          onPlace={onInsertStructure}
           disabled={!editable}
         />
         <button

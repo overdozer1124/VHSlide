@@ -669,6 +669,10 @@ test("survey and worksheet share one wide dialog, select defaults and preserve d
   ).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");
   await expect(
+    window.getByRole("tab", { name: "回答欄を追加", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(
     window.getByRole("tab", { name: "ワークシート", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");

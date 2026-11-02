@@ -99,6 +99,23 @@ test("response fields have a visible toolbar entry and a centered accessible cre
 }) => {
   await page.goto("/");
   await expect(page.locator(".slide-card")).toHaveCount(5);
+  const mainLaunch = page.getByRole("button", {
+    name: "アンケート・ワークシート",
+    exact: true,
+  });
+  await mainLaunch.click();
+  await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
+  const first = page.getByRole("dialog", { name: "回答欄の追加", exact: true });
+  const sharedId = await first.getAttribute("id");
+  await expect(
+    first.getByRole("heading", {
+      name: "アンケート・ワークシート",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(mainLaunch).toBeFocused();
   await page.locator(".thumbnail").first().click();
   const launch = page.getByRole("button", {
     name: "回答欄を追加",
@@ -111,11 +128,18 @@ test("response fields have a visible toolbar entry and a centered accessible cre
   );
   await launch.click();
   const dialog = page.getByRole("dialog", {
-    name: "スライドに回答欄を追加",
+    name: "回答欄の追加",
     exact: true,
   });
   await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("id", sharedId!);
   await expect(dialog).toContainText("クラウドの共有作品");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(page.locator("dialog")).toHaveCount(0);
+  await expect(
+    dialog.getByRole("tab", { name: "回答欄を追加", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+
   await expect(
     dialog.getByRole("button", { name: "スライドに追加", exact: true }),
   ).toHaveCount(0);

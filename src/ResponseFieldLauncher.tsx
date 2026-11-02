@@ -1,29 +1,51 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { ClipboardList, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ClipboardList } from "lucide-react";
 import type { Element, Slide } from "./model";
 import { ResponseFieldTools } from "./ResponseFieldTools";
 import { useWorksheets } from "./WorksheetContext";
-export function ResponseFieldLauncher({
+import { useActivityPanel } from "./ActivitiesPanel";
+export function ResponseFieldLauncher({ disabled }: { disabled: boolean }) {
+  const ctx = useWorksheets(),
+    activity = useActivityPanel();
+  return (
+    <button
+      className="tool-button response-field-launch"
+      disabled={disabled || (ctx.enabled && !ctx.host)}
+      title="共通モーダルでスライドに回答欄を追加"
+      onClick={(event) => activity.launch("fields", event.currentTarget)}
+    >
+      <ClipboardList size={20} />
+      回答欄を追加
+    </button>
+  );
+}
+export function ResponseFieldCreator({
   slide,
   onPlace,
-  disabled,
 }: {
   slide: Slide;
   onPlace: (elements: Element[]) => void;
-  disabled: boolean;
 }) {
-  const ctx = useWorksheets(),
-    dialog = useRef<HTMLDialogElement>(null),
+  const activity = useActivityPanel(),
+    root = useRef<HTMLElement>(null),
     alive = useRef(true);
-  const [busy, setBusy] = useState(false),
-    [hint, setHint] = useState(false);
-  const id = useId();
+  const [hint, setHint] = useState(false);
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
     };
   }, []);
+  useEffect(() => {
+    if (!activity.open || activity.active !== "fields") return;
+    const frame = requestAnimationFrame(() =>
+      root.current
+        ?.querySelector<HTMLInputElement>('[aria-label="新しい入力項目名"]')
+        ?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [activity.open]);
   useEffect(() => {
     if (!hint) return;
     const timer = setTimeout(() => setHint(false), 12000);
@@ -32,79 +54,47 @@ export function ResponseFieldLauncher({
   function placed(elements: Element[]) {
     if (!alive.current) return;
     onPlace(elements);
-    dialog.current?.close();
+    activity.close(true);
     setHint(true);
   }
   return (
     <>
-      <button
-        className="tool-button response-field-launch"
-        disabled={disabled || (ctx.enabled && !ctx.host)}
-        title="スライドに記述・チェック・選択式の回答欄を追加"
-        onClick={() => {
-          dialog.current?.showModal();
-          dialog.current
-            ?.querySelector<HTMLInputElement>('[aria-label="新しい入力項目名"]')
-            ?.focus();
-        }}
-      >
-        <ClipboardList size={20} />
-        回答欄を追加
-      </button>
-      <dialog
-        className="response-field-dialog"
-        role="dialog"
-        ref={dialog}
-        aria-labelledby={`${id}-title`}
-        onCancel={(event) => {
-          if (busy) event.preventDefault();
-        }}
-        onKeyDown={(event) => event.stopPropagation()}
-      >
-        <header>
-          <div>
-            <h2 id={`${id}-title`}>スライドに回答欄を追加</h2>
-            <p>
-              項目を決めて追加し、スライド上で自由に移動・サイズ変更できます。
-            </p>
-          </div>
-          <button
-            className="button outline"
-            aria-label="回答欄の追加を閉じる"
-            disabled={busy}
-            onClick={() => dialog.current?.close()}
-          >
-            <X size={20} />
-          </button>
-        </header>
+      <section ref={root} className="response-field-integrated">
+        <h3>スライドに回答欄を追加</h3>
+        <p>
+          配置先：{slide.title || "現在のページ"}
+          。追加後にスライド上で自由に移動・サイズ変更できます。
+        </p>
         <ol className="response-field-steps" aria-label="回答欄の作成手順">
           <li>
-            <b>1</b> 項目を決める
+            <b>1</b>項目を決める
           </li>
           <li>
-            <b>2</b> プレビューを確認して追加
+            <b>2</b>プレビューを確認して追加
           </li>
           <li>
-            <b>3</b> スライド上で配置を調整
+            <b>3</b>スライド上で配置を調整
           </li>
         </ol>
         <ResponseFieldTools
           slide={slide}
           onPlace={placed}
-          onBusyChange={setBusy}
+          onBusyChange={activity.setBusy}
         />
-      </dialog>
-      {hint && (
-        <div className="response-placement-hint" role="status">
-          回答欄を追加しました。「移動」で位置を変え、四隅のハンドルで大きさを調整できます。
-          <button
-            onClick={() => setHint(false)}
-            aria-label="配置の案内を閉じる"
-          >
-            ×
-          </button>
-        </div>
-      )}
+      </section>
+      {hint &&
+        createPortal(
+          <div className="response-placement-hint" role="status">
+            回答欄を追加しました。「移動」で位置を変え、四隅のハンドルで大きさを調整できます。
+            <button
+              onClick={() => setHint(false)}
+              aria-label="配置の案内を閉じる"
+            >
+              ×
+            </button>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

@@ -1,7 +1,8 @@
 import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
 import { AnswerProvider } from "./AnswerStore";
 import { linkSurveyResult, snapshotSurveyResults } from "./surveyResults";
-import { ActivitiesPanel } from "./ActivitiesPanel";
+import { ActivitiesPanel, ActivityPanelProvider } from "./ActivitiesPanel";
+import { ResponseFieldCreator } from "./ResponseFieldLauncher";
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
 import { parseWorksheetBinding } from "./worksheets";
@@ -2890,6 +2891,18 @@ export default function App() {
         )}
       </div>
       <ActivitiesPanel
+        fields={
+          <ResponseFieldCreator
+            key={`${cloud.active?.id}:${slide.id}`}
+            slide={slide}
+            onPlace={(elements) => {
+              if (slide.elements.length + elements.length > 200)
+                throw Error("1ページの要素は200個までです。");
+              insertStructure(elements);
+              setView("editor");
+            }}
+          />
+        }
         gallery={<ResponseGalleryPanel slide={slide} />}
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
         blocked={cloud.viewingRevoked || cloud.recoveryOnly}
@@ -3074,6 +3087,10 @@ export default function App() {
     deckId: cloud.active?.id,
     userId: cloud.user?.id,
     enabled: !!cloud.active && !cloud.viewingRevoked && !cloud.recoveryOnly,
-    children: createElement(WorksheetProvider, worksheetProps, content),
+    children: createElement(
+      WorksheetProvider,
+      worksheetProps,
+      createElement(ActivityPanelProvider, { children: content }),
+    ),
   });
 }
