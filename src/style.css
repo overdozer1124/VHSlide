@@ -6829,3 +6829,67 @@ h1 span {
 .worksheet-feedback { position:sticky;top:0;z-index:3;padding:10px 14px;margin:0 0 16px;border:1px solid #9fbba2;border-radius:8px;background:#edf7ef;box-shadow:0 2px 6px #173d3810; }
 .worksheet-feedback.has-error { background:#fff2ec;border-color:#c87752;color:#8a3020; }
 .worksheet-feedback p { margin:0; }
+/* Worksheet management gives results their own space, rather than squeezing every field into columns. */
+.worksheet-panel { width:min(1440px,100%);height:min(960px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box; }
+.worksheet-panel>header { flex-shrink:0;margin-bottom:12px; }
+.worksheet-panel>p { flex-shrink:0;margin:0 0 14px; }
+.worksheet-panel>.worksheet-feedback { flex-shrink:0; }
+.worksheet-panel .survey-layout { flex:1;min-height:0;grid-template-columns:210px minmax(0,1fr);gap:20px; }
+.worksheet-panel .survey-layout>aside { min-height:0;overflow:auto;padding-right:4px; }
+.worksheet-panel .survey-layout>main { min-width:0;min-height:0;overflow:auto;padding:0 8px 20px 0;overscroll-behavior:contain; }
+.worksheet-panel .survey-layout>main>h3 { margin-top:0; }
+.worksheet-section-tabs,.worksheet-segment { display:flex;flex-wrap:wrap;gap:4px; }
+.worksheet-section-tabs { border-bottom:1px solid #d4dfd7;margin:16px 0 20px;padding-bottom:8px; }
+.worksheet-section-tabs button,.worksheet-segment button { border:1px solid #c9d8ce;background:#fff;color:#315b4c;border-radius:8px;padding:10px 14px;min-height:44px;font:inherit;font-weight:600;cursor:pointer; }
+.worksheet-section-tabs button[aria-pressed=true],.worksheet-segment button[aria-pressed=true] { background:#365d50;color:white;border-color:#365d50; }
+.worksheet-panel .worksheet-results { border:0;margin:0;padding:0; }
+.worksheet-results-heading { display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap; }
+.worksheet-results-heading h3 { margin:0 0 6px; }
+.worksheet-results-heading h3 span { display:inline-block;margin-left:8px;padding:3px 10px;border-radius:20px;background:#eaf2eb;font-size:16px; }
+.worksheet-results-heading p { margin:0; }
+.worksheet-result-tools { display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:20px 0 8px; }
+.worksheet-search { display:grid;gap:6px;font-size:14px;min-width:220px; }
+.worksheet-result-count { font-size:13px!important;color:#526b60; }
+.worksheet-person-layout { display:grid;grid-template-columns:210px minmax(0,1fr);gap:16px;margin-top:16px;align-items:start; }
+.worksheet-people { display:flex;flex-direction:column;gap:8px;max-height:460px;overflow:auto; }
+.worksheet-people button { padding:12px;text-align:left;background:#fff;border:1px solid #d4dfd7;border-radius:9px;cursor:pointer;min-height:66px; }
+.worksheet-people button[aria-pressed=true] { background:#edf4ed;border-color:#365d50;box-shadow:inset 4px 0 #365d50; }
+.worksheet-people strong,.worksheet-people span { display:block;overflow-wrap:anywhere; }
+.worksheet-people span { margin-top:4px;color:#526b60;font-size:12px; }
+.worksheet-person-detail { border:1px solid #d4dfd7;border-radius:12px;overflow:hidden;min-width:0; }
+.worksheet-person-detail>header { padding:16px 20px;background:#f1f6f0;border-bottom:1px solid #d4dfd7; }
+.worksheet-person-detail h4 { font-size:20px;margin:0; }
+.worksheet-person-detail header p { margin:4px 0 0;font-size:13px;overflow-wrap:anywhere; }
+.worksheet-person-detail dl { margin:0; }
+.worksheet-answer-item { padding:16px 20px;border-bottom:1px solid #e0e7e0; }
+.worksheet-answer-item:last-child { border:0; }
+.worksheet-answer-item dt span { display:block;font-size:12px;color:#637569;margin-bottom:4px; }
+.worksheet-answer-item dt strong { display:block;font-size:16px; }
+.worksheet-answer-item dd { margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;color:#263b32; }
+.worksheet-unanswered { color:#718076;font-size:14px; }
+.worksheet-field-picker { display:grid;gap:6px;margin:16px 0; }
+.worksheet-field-picker select { width:100%;min-width:0; }
+.worksheet-comparison-wrap { overflow:auto;max-height:560px;border:1px solid #d4dfd7;border-radius:10px; }
+.worksheet-comparison { width:100%;min-width:740px;table-layout:fixed;border-collapse:separate;border-spacing:0;text-align:left;font-size:14px; }
+.worksheet-comparison .worksheet-col-person { width:210px; }
+.worksheet-comparison .worksheet-col-time { width:185px; }
+.worksheet-comparison th,.worksheet-comparison td { padding:14px 16px;border-bottom:1px solid #dce5dc;vertical-align:top;line-height:1.7; }
+.worksheet-comparison thead th { position:sticky;top:0;z-index:1;background:#edf4e9;font-weight:700;white-space:nowrap; }
+.worksheet-comparison tbody th { background:#fbfcf9;overflow-wrap:anywhere; }
+.worksheet-comparison tbody th strong,.worksheet-comparison tbody th span { display:block; }
+.worksheet-comparison tbody th span { font-weight:400;font-size:12px;color:#526b60;margin-top:4px; }
+.worksheet-comparison td:nth-child(2) { white-space:pre-wrap;overflow-wrap:anywhere; }
+.worksheet-comparison td:last-child { white-space:nowrap;font-size:13px; }
+.worksheet-scroll-hint { font-size:12px!important;color:#637569; }
+.worksheet-empty { margin-top:20px;padding:24px;background:#f5f7f2;border:1px dashed #bdcebd;border-radius:10px; }
+.worksheet-empty h4 { margin-top:0; }
+.worksheet-settings>h4 { margin-top:0; }
+.worksheet-delete { margin-top:24px;padding:16px;border:1px solid #e4c9bc;border-radius:8px; }
+.worksheet-delete summary { cursor:pointer;color:#8b432c; }
+@media(max-width:1050px) { .worksheet-person-layout { grid-template-columns:minmax(0,1fr); } .worksheet-people { max-height:180px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .worksheet-panel { padding:16px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px); } .worksheet-panel .survey-layout { grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:12px; } .worksheet-panel .survey-layout>aside { max-height:140px; } .worksheet-person-layout { grid-template-columns:minmax(0,1fr); } .worksheet-search { width:100%; } .worksheet-people { max-height:160px; } .worksheet-section-tabs button { flex:1;padding:8px;font-size:13px; } }
+@media(max-width:1050px) {
+ .worksheet-panel .survey-layout { grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:14px; }
+ .worksheet-panel .survey-layout>aside { flex-direction:row;align-items:stretch;max-height:110px;overflow:auto;padding-bottom:6px; }
+ .worksheet-panel .survey-layout>aside>button { flex:0 0 190px;max-width:240px; }
+}

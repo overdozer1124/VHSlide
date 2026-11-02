@@ -310,3 +310,191 @@ test("draft validation and save failures remain visible and preserve the edited 
     }),
   ).toBeVisible();
 });
+
+test("host reads long answers by person or question without squeezed identity columns, searches and exports everyone", async ({
+  page,
+}, info) => {
+  await signIn(page, "results-host");
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: sample(),
+  });
+  const { id } = await created.json();
+  const fields = Array.from({ length: 40 }, (_, i) => ({
+    id: `field-${i}`,
+    label: i === 0 ? "選んだ理由" : `ふり返りの項目 ${i + 1}`,
+    section: i < 3 ? "理由と工夫" : "ふり返り",
+    kind: i === 1 ? "checkbox" : "text",
+    options: [],
+    placeholder: "ここに入力",
+    wide: true,
+  }));
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/worksheets`, {
+        headers,
+        data: {
+          title: "授業のふり返り",
+          description: "資料から考えたことを整理しよう。",
+          fields,
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  const data = await (
+    await page.request.get(`/api/decks/${id}/worksheets`)
+  ).json();
+  const sheet = data.worksheets[0];
+  const long =
+    "朝食を食べるために、前の日から準備する。\n" +
+    "自分の生活に合わせた工夫を考えました。".repeat(25);
+  sheet.status = "open";
+  sheet.results.responses = [
+    {
+      respondentId: "student-a",
+      name: "同じ名前",
+      email: "student-a@example.test",
+      updated: Date.UTC(2026, 10, 2, 1, 30),
+      values: { "field-0": long, "field-1": true },
+    },
+    {
+      respondentId: "student-b",
+      name: "同じ名前",
+      email: "student-b@example.test",
+      updated: Date.UTC(2026, 10, 2, 2, 30),
+      values: {
+        "field-0": "別の人の考え\n温かいスープを用意する",
+        "field-1": false,
+      },
+    },
+  ];
+  await page.route(`**/api/decks/${id}/worksheets`, (r) =>
+    r.fulfill({ json: data }),
+  );
+  await page.goto(`/?room=${id}`);
+  await expect(page.locator(".slide-card")).toHaveCount(5);
+  await launcher(page).click();
+  await modal(page)
+    .getByRole("button", { name: /授業のふり返り/ })
+    .click();
+  const results = page.locator(".worksheet-results");
+  const detail = results.getByRole("article", { name: "選択した参加者の回答" });
+  await expect(results).toBeInViewport();
+  await expect(detail).toContainText("student-a@example.test");
+  await expect(detail).toContainText(long);
+  await expect(detail).toContainText("未入力");
+  await expect(
+    modal(page).getByRole("button", { name: "入力を保存", exact: true }),
+  ).toHaveCount(0);
+  await results
+    .getByRole("navigation", { name: "回答した参加者" })
+    .getByRole("button")
+    .filter({ hasText: "student-b@example.test" })
+    .click();
+  await expect(detail).toContainText("温かいスープを用意する");
+  await expect(detail).toContainText("いいえ");
+  const search = results.getByRole("searchbox", { name: "参加者を検索" });
+  await search.fill("student-b");
+  await expect(results.getByRole("navigation").getByRole("button")).toHaveCount(
+    1,
+  );
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "入力結果をCSV保存" }).click();
+  const download = await downloading;
+  const csv = await readFile((await download.path())!, "utf8");
+  expect(csv).toContain("student-a@example.test");
+  expect(csv).toContain("student-b@example.test");
+  await search.fill("該当なし");
+  await expect(results).toContainText("該当する参加者がいません");
+  await search.fill("");
+  await results
+    .getByRole("button", { name: "項目ごとに比較", exact: true })
+    .click();
+  await expect(results.locator("tbody tr")).toHaveCount(2);
+  await expect(results.locator("thead th")).toHaveCount(3);
+  await expect(results.locator("tbody tr").first()).toContainText(long);
+  const timeStyle = await results
+    .locator("tbody tr td:last-child")
+    .first()
+    .evaluate((el) => getComputedStyle(el).whiteSpace);
+  expect(timeStyle).toBe("nowrap");
+  expect(
+    await results
+      .locator(".worksheet-col-person")
+      .evaluate((el) => el.getBoundingClientRect().width),
+  ).toBeGreaterThanOrEqual(200);
+  await results
+    .getByRole("combobox", { name: "比較する項目" })
+    .selectOption("field-1");
+  await expect(results.locator("tbody tr").first()).toContainText("はい");
+  await expect(results.locator("tbody tr").last()).toContainText("いいえ");
+  expect(
+    await modal(page).evaluate((el) => el.scrollWidth <= el.clientWidth + 2),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("worksheet-comparison.png"),
+    fullPage: true,
+  });
+  await results
+    .getByRole("button", { name: "参加者ごと", exact: true })
+    .click();
+  await expect(detail).toContainText("student-b@example.test");
+  await expect(
+    results.getByRole("button", { name: "参加者ごと", exact: true }),
+  ).toHaveCSS("background-color", "rgb(54, 93, 80)");
+  await page.screenshot({
+    path: info.outputPath("worksheet-person-results.png"),
+    fullPage: true,
+  });
+  await modal(page)
+    .getByRole("button", { name: "自分で入力", exact: true })
+    .click();
+  await expect(
+    modal(page).getByRole("textbox", { name: "選んだ理由", exact: true }),
+  ).toBeVisible();
+  await modal(page)
+    .getByRole("textbox", { name: "選んだ理由", exact: true })
+    .fill("まだ保存していない考え");
+  await modal(page)
+    .getByRole("button", { name: /回答結果（2人）/ })
+    .click();
+  await expect(results).not.toContainText("まだ保存していない考え");
+  await modal(page)
+    .getByRole("button", { name: "自分で入力", exact: true })
+    .click();
+  await expect(
+    modal(page).getByRole("textbox", { name: "選んだ理由", exact: true }),
+  ).toHaveValue("まだ保存していない考え");
+  await modal(page)
+    .getByRole("button", { name: "設定・内容の確認", exact: true })
+    .click();
+  await expect(
+    modal(page).getByRole("region", { name: "ワークシートの設定" }),
+  ).toContainText("入力項目：40項目");
+  await expect(
+    modal(page).getByRole("button", {
+      name: "ワークシートを削除",
+      exact: true,
+    }),
+  ).not.toBeVisible();
+  await modal(page)
+    .getByRole("button", { name: "ワークシートを閉じる" })
+    .focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(
+    modal(page).locator(".worksheet-delete summary"),
+    await page.evaluate(() => document.activeElement?.outerHTML ?? "no focus"),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    modal(page).getByRole("button", { name: "ワークシートを閉じる" }),
+  ).toBeFocused();
+  await modal(page)
+    .getByRole("button", { name: /回答結果（2人）/ })
+    .click();
+  await expect(results).toBeInViewport();
+  await expect(
+    modal(page).getByRole("button", { name: "ワークシートを閉じる" }),
+  ).toBeInViewport();
+});

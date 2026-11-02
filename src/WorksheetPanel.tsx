@@ -10,8 +10,8 @@ import type {
   WorksheetField,
   WorksheetView,
 } from "./worksheets";
-import { worksheetCsv, worksheetValueText } from "./worksheetCsv";
-import { surveyResponseTime } from "./surveyCsv";
+import { worksheetCsv } from "./worksheetCsv";
+import { WorksheetResults } from "./WorksheetResults";
 import { api } from "./cloud";
 import { parseWorksheet } from "./worksheets";
 export function WorksheetPanel({
@@ -28,10 +28,18 @@ export function WorksheetPanel({
   const ctx = useWorksheets();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [hostView, setHostView] = useState<"results" | "input" | "settings">(
+    "results",
+  );
+  const content = useRef<HTMLElement>(null);
+
   const [definition, setDefinition] = useState<WorksheetDefinition>(() =>
     worksheetTemplate("reason"),
   );
   const [selectedId, setSelectedId] = useState("");
+  useEffect(() => {
+    content.current?.scrollTo({ top: 0 });
+  }, [selectedId, creating, hostView]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -100,6 +108,7 @@ export function WorksheetPanel({
       ctx.update(data.worksheets);
       if (path === "") {
         setCreating(false);
+        setHostView("settings");
         setSelectedId(data.worksheets[0]?.id ?? "");
       }
       if (method === "DELETE") setSelectedId("");
@@ -170,8 +179,18 @@ export function WorksheetPanel({
             e.stopPropagation();
             if (e.key === "Escape") close();
             if (e.key === "Tab") {
-              const items = modal.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]',
+              const items = Array.from(
+                modal.current?.querySelectorAll<HTMLElement>(
+                  'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),summary,[tabindex="0"]',
+                ) ?? [],
+              ).filter(
+                (el) =>
+                  el.getClientRects().length > 0 &&
+                  getComputedStyle(el).visibility !== "hidden" &&
+                  !el.closest("[hidden],[inert]") &&
+                  (!el.closest("details:not([open])") ||
+                    (el.tagName === "SUMMARY" &&
+                      el.parentElement === el.closest("details:not([open])"))),
               );
               if (items?.length) {
                 const first = items[0],
@@ -251,6 +270,7 @@ export function WorksheetPanel({
                         className={`survey-item ${selectedId === s.id ? "active" : ""}`}
                         onClick={() => {
                           setSelectedId(s.id);
+                          setHostView("results");
                           setCreating(false);
                           setError("");
                           setMessage("");
@@ -270,7 +290,7 @@ export function WorksheetPanel({
                       <p>まだワークシートがありません。</p>
                     )}
                   </aside>
-                  <main>
+                  <main ref={content}>
                     {host && creating ? (
                       <form
                         noValidate
@@ -492,7 +512,6 @@ export function WorksheetPanel({
                     ) : selected ? (
                       <>
                         <h3>{selected.title}</h3>
-                        <p>{selected.description}</p>
                         {host && (
                           <div className="worksheet-admin">
                             <button
@@ -525,83 +544,100 @@ export function WorksheetPanel({
                             >
                               このワークシートをスライドに配置
                             </button>
+                          </div>
+                        )}
+                        {host && (
+                          <div
+                            className="worksheet-section-tabs"
+                            role="group"
+                            aria-label="ワークシートの表示内容"
+                          >
                             <button
-                              className="button outline"
-                              disabled={busy}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    "このワークシートと全員の入力結果を削除します。元に戻せません。",
-                                  )
-                                )
-                                  void command(
-                                    `/${selected.id}`,
-                                    undefined,
-                                    "DELETE",
-                                  );
-                              }}
+                              type="button"
+                              aria-pressed={hostView === "results"}
+                              onClick={() => setHostView("results")}
                             >
-                              ワークシートを削除
+                              回答結果（
+                              {selected.results?.responses.length ?? 0}人）
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={hostView === "input"}
+                              onClick={() => setHostView("input")}
+                            >
+                              自分で入力
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={hostView === "settings"}
+                              onClick={() => setHostView("settings")}
+                            >
+                              設定・内容の確認
                             </button>
                           </div>
                         )}
-                        <WorksheetAnswer key={selected.id} sheet={selected} />
-                        {host && selected.results && (
+                        {host && hostView === "settings" && (
                           <section
-                            className="worksheet-results"
-                            aria-label="ワークシート入力結果"
+                            className="worksheet-settings"
+                            aria-label="ワークシートの設定"
                           >
-                            <h3>
-                              入力結果 · {selected.results.responses.length}人
-                            </h3>
-                            <button
-                              className="button outline"
-                              disabled={
-                                busy || !selected.results.responses.length
-                              }
-                              onClick={() => void download()}
-                            >
-                              入力結果をCSV保存
-                            </button>
+                            <h4>内容の確認</h4>
                             <p>
-                              1人1行で、全項目と最終保存日時を保存します。未入力も含め、各参加者の最新の保存内容を表示します。
+                              {selected.description ||
+                                "説明は設定されていません。"}
                             </p>
-                            <div className="survey-response-table-wrap">
-                              <table className="survey-response-table">
-                                <thead>
-                                  <tr>
-                                    <th>回答者名</th>
-                                    <th>メールアドレス</th>
-                                    {selected.fields.map((f) => (
-                                      <th key={f.id}>
-                                        {f.section ? f.section + "：" : ""}
-                                        {f.label}
-                                      </th>
-                                    ))}
-                                    <th>最終保存（日本時間）</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {selected.results.responses.map((r) => (
-                                    <tr key={r.respondentId}>
-                                      <th scope="row">{r.name}</th>
-                                      <td>{r.email}</td>
-                                      {selected.fields.map((f) => (
-                                        <td
-                                          className="survey-response-answer"
-                                          key={f.id}
-                                        >
-                                          {worksheetValueText(f, r.values) ||
-                                            "（未入力）"}
-                                        </td>
-                                      ))}
-                                      <td>{surveyResponseTime(r.updated)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                            <p>
+                              入力項目：{selected.fields.length}項目 ·{" "}
+                              {selected.status === "draft"
+                                ? "下書き（未公開）"
+                                : selected.status === "open"
+                                  ? "入力受付中"
+                                  : "受付終了"}
+                            </p>
+                            <WorksheetInputs
+                              sheet={selected}
+                              values={{}}
+                              onChange={() => {}}
+                              disabled
+                              preview
+                            />
+                            <p>
+                              作成済みの項目は固定されています。項目を変更する場合は、新しいワークシートを作成してください。
+                            </p>
+                            <details className="worksheet-delete">
+                              <summary>ワークシートの削除</summary>
+                              <p>全員の入力結果も削除され、元に戻せません。</p>
+                              <button
+                                className="button outline"
+                                disabled={busy}
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      "このワークシートと全員の入力結果を削除します。元に戻せません。",
+                                    )
+                                  )
+                                    void command(
+                                      `/${selected.id}`,
+                                      undefined,
+                                      "DELETE",
+                                    );
+                                }}
+                              >
+                                ワークシートを削除
+                              </button>
+                            </details>
                           </section>
+                        )}
+                        <div hidden={host && hostView !== "input"}>
+                          <WorksheetAnswer key={selected.id} sheet={selected} />
+                        </div>
+                        {host && hostView === "results" && selected.results && (
+                          <WorksheetResults
+                            key={selected.id}
+                            sheet={selected}
+                            busy={busy}
+                            onDownload={() => void download()}
+                          />
                         )}
                       </>
                     ) : (
