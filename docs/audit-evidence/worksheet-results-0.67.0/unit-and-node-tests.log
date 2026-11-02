@@ -1,0 +1,77 @@
+
+> vhslide@0.67.0 test
+> vitest run src/worksheets.test.ts src/surveyCsv.test.ts src/surveyBinding.test.ts src/surveySlides.test.ts src/chartLayout.test.ts src/noteRecovery.test.ts src/saveState.test.ts src/mapBatch.test.ts src/pageScope.test.ts src/cloudDocument.test.ts src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts && npm run test:server
+
+
+ RUN  v3.2.7 /workspace/VHSlide-deploy
+
+ ✓ src/learningTools.test.ts (6 tests) 1198ms
+   ✓ rolls back a version with its surrounding data transaction and enforces the byte budget  1108ms
+ ✓ src/backup.test.ts (5 tests) 308ms
+ ✓ src/sharedDeck.test.ts (10 tests) 134ms
+ ✓ src/permissions.test.ts (13 tests) 97ms
+ ✓ src/contentEditing.test.ts (7 tests) 62ms
+ ✓ src/workbook.test.ts (7 tests) 106ms
+ ✓ src/surveyBinding.test.ts (3 tests) 102ms
+ ✓ src/cloudDocument.test.ts (5 tests) 75ms
+ ✓ src/model.test.ts (49 tests) 138ms
+ ✓ src/noteRecovery.test.ts (4 tests) 140ms
+ ✓ src/surveySlides.test.ts (4 tests) 40ms
+ ✓ src/structureEditing.test.ts (9 tests) 90ms
+ ✓ src/objectEditing.test.ts (10 tests) 55ms
+ ✓ src/joinRequests.test.ts (4 tests) 75ms
+ ✓ src/worksheets.test.ts (4 tests) 55ms
+ ✓ src/mediaVisibility.test.ts (3 tests) 24ms
+ ✓ src/tableData.test.ts (5 tests) 285ms
+ ✓ src/preSharing.test.ts (5 tests) 179ms
+ ✓ src/mapBatch.test.ts (5 tests) 18ms
+ ✓ src/surveyCsv.test.ts (3 tests) 65ms
+ ✓ src/backupProtocol.test.ts (3 tests) 23ms
+ ✓ src/axes.test.ts (7 tests) 116ms
+ ✓ src/chartLayout.test.ts (4 tests) 66ms
+ ✓ src/releaseHistory.test.ts (1 test) 35ms
+ ✓ src/cellFormatting.test.ts (1 test) 8ms
+ ✓ src/pageScope.test.ts (7 tests) 12ms
+ ✓ src/syncRecovery.test.ts (2 tests) 6ms
+ ✓ src/saveState.test.ts (2 tests) 4ms
+ ✓ src/assignmentReadiness.test.ts (1 test) 7ms
+
+ Test Files  29 passed (29)
+      Tests  189 passed (189)
+   Start at  10:15:44
+   Duration  21.12s (transform 1.42s, setup 0ms, collect 4.83s, tests 3.52s, environment 9ms, prepare 4.05s)
+
+
+> vhslide@0.67.0 test:server
+> node --test tests/server/*.test.ts
+
+✔ requires Google identity and same-origin writes, and protects sessions (153.03468ms)
+✔ shares only through authenticated invitations and can revoke a member immediately (106.429978ms)
+✔ stores private photos, validates file type, and denies cross-project asset references (127.18799ms)
+✔ 40 authenticated peers merge simultaneous text edits and survive a server restart (2471.670724ms)
+✔ rejects foreign WebSocket origins and invalid updates, without breaking other works (70.784219ms)
+✔ sign-out revokes active sockets and persisted session access (30.862718ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (339.665641ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (248.869675ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (213.174255ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (183.430792ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (220.527911ms)
+✔ an interrupted image reservation cannot finalize before its bytes are recovered (27.974409ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (290.54529ms)
+✔ a failed permanent deletion cannot be untrashed and can be retried after restart (54.245684ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (204.100489ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (490.75938ms)
+✔ host follow state validates host, initiator, target and session without editing the work (46345.036101ms)
+FOLLOW_40_METRICS {"backend":"Node","connections":40,"samples":20,"p95Ms":19.958607000000484,"maxMs":39.18178600000101,"allMs":[19.958607000000484,5.116564000003564,4.984495999997307,4.522489000002679,5.740184000002046,5.589202999995905,4.869845000001078,5.620458999997936,5.587412000000768,7.662989000004018,11.219221999999718,9.981502000002365,39.18178600000101,5.805684999999357,11.750480999995489,5.149036999995587,5.844916999994894,5.46567800000048,11.63970100000006,4.878166999995301]}
+✔ host follow 40 live connections P95 target (508.475606ms)
+✔ surveys enforce host-only results, private answers, validation, closing and durable restart (259.369018ms)
+✔ scoped edits survive multi-client field order reconstruction and reconnect, while protected changes stay denied (104.619669ms)
+✔ worksheets isolate accounts, enforce membership, validate fields and persist across restart (154.818338ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53363.454416

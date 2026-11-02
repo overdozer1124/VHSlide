@@ -1,0 +1,19 @@
+
+Running 10 tests using 1 worker
+
+(node:44922) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [desktop] › tests/e2e/pptx.spec.ts:46:1 › PPTX imports in presentation order, persists, exports and can be undone (4.3s)
+  ✓   2 [desktop] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (2.0s)
+  ✓   3 [desktop] › tests/e2e/surveys-entry.spec.ts:29:1 › portable survey cards render inside a slide without accessing another work's answers (4.0s)
+  ✓   4 [desktop] › tests/e2e/worksheets-entry.spec.ts:4:1 › worksheet entry explains accounts and returns keyboard focus (3.0s)
+  ✓   5 [desktop] › tests/e2e/worksheets-entry.spec.ts:34:1 › portable worksheet definitions render without reading the source accounts (4.0s)
+(node:45202) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [touch] › tests/e2e/pptx.spec.ts:46:1 › PPTX imports in presentation order, persists, exports and can be undone (4.2s)
+  ✓   7 [touch] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (7.9s)
+  ✓   8 [touch] › tests/e2e/surveys-entry.spec.ts:29:1 › portable survey cards render inside a slide without accessing another work's answers (13.7s)
+  ✓   9 [touch] › tests/e2e/worksheets-entry.spec.ts:4:1 › worksheet entry explains accounts and returns keyboard focus (2.1s)
+  ✓  10 [touch] › tests/e2e/worksheets-entry.spec.ts:34:1 › portable worksheet definitions render without reading the source accounts (3.6s)
+
+  10 passed (53.9s)

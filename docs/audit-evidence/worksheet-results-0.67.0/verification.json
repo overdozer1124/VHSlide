@@ -1,0 +1,20 @@
+{
+  "version": "0.67.0",
+  "deployment": "c44c85d5-2ea9-4be2-b51e-091868ff2caf",
+  "sourceCommit": "f0ce1aa4ded62fc0cc8965aea558eac78783a9ef",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-CbUM_LID.js": "385868053ca3a14ba80b94f9181ac104f7580d64d9eede78bfbd3f8b14517d3c",
+    "assets/index-B5tjto8q.css": "a43abab6b5f624a2a7feaf20088ab8bcaee1308835ca675766c0c06bd0c50e54"
+  },
+  "unitTests": 189,
+  "nodeTests": 21,
+  "nodeBrowserTests": 8,
+  "finalNodeLayoutTests": 2,
+  "cloudflareBrowserTests": 8,
+  "notes": "Host results split into per-person detail and per-question comparison. Tests cover 40 fields, multiline answers, duplicate names, email search, CSV including all respondents under filtering, input draft preservation and keyboard focus. Authenticated tests used isolated local accounts; result layout stress fixtures used synthetic responses. No production user work was accessed.",
+  "productionBrowserTests": 10
+}

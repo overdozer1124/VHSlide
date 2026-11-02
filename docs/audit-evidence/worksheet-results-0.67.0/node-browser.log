@@ -1,0 +1,19 @@
+[WebServer] (node:41660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:41715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/worksheets.spec.ts:25:1 › worksheet templates embed on slides, save per account, export named CSV and preserve privacy (19.3s)
+  ✓  2 [cloud-desktop] › tests/cloud/worksheets.spec.ts:224:1 › every unmodified worksheet template creates a draft, including the initial reason template (5.3s)
+  ✓  3 [cloud-desktop] › tests/cloud/worksheets.spec.ts:266:1 › draft validation and save failures remain visible and preserve the edited worksheet for retry (5.1s)
+  ✓  4 [cloud-desktop] › tests/cloud/worksheets.spec.ts:314:1 › host reads long answers by person or question without squeezed identity columns, searches and exports everyone (5.4s)
+(node:42410) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [cloud-touch] › tests/cloud/worksheets.spec.ts:25:1 › worksheet templates embed on slides, save per account, export named CSV and preserve privacy (17.5s)
+  ✓  6 [cloud-touch] › tests/cloud/worksheets.spec.ts:224:1 › every unmodified worksheet template creates a draft, including the initial reason template (3.4s)
+  ✓  7 [cloud-touch] › tests/cloud/worksheets.spec.ts:266:1 › draft validation and save failures remain visible and preserve the edited worksheet for retry (3.0s)
+  ✓  8 [cloud-touch] › tests/cloud/worksheets.spec.ts:314:1 › host reads long answers by person or question without squeezed identity columns, searches and exports everyone (5.8s)
+
+  8 passed (1.2m)
