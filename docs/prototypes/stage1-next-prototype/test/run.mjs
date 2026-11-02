@@ -10,13 +10,28 @@
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
 
 import { Miniflare } from "miniflare";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+// 実行環境の記録（環境差による再現条件の切り分け用。レビューでの指摘に対応）。
+{
+  let mfVersion = "unknown";
+  try {
+    mfVersion = JSON.parse(
+      readFileSync(path.join(ROOT, "node_modules", "miniflare", "package.json"), "utf8")
+    ).version;
+  } catch { /* バージョンが読めなくても試験は続ける */ }
+  console.log(
+    `実行環境: OS=${os.platform()} ${os.release()} (${os.arch()}) Node=${process.version} Miniflare=${mfVersion}`
+  );
+}
 const ORIGIN = "http://localhost:8787";
 const ENV_ID = "stage1-verification-only-20261101";
 const BOOTSTRAP_SECRET = "test-bootstrap-secret";
@@ -57,23 +72,60 @@ async function startHarness(persistName, extraBindings = {}) {
       VERIFY_ONLY: { className: "VerificationDO", useSQLite: true },
     },
     durableObjectsPersist: persist,
-    bindings: {
-      BOOTSTRAP_SECRET,
-      RECOVERY_KEY,
-      RESTART_KEY,
-      DIAG_KEY,
-      DEPLOYMENT_TIER: "local-mock",
-      MOCK_AUTH: "1",
-      ALLOW_TEST_HOOKS: "1",
-      ENV_ID,
-      ...extraBindings,
-    },
+    // 値が undefined のキーは binding 自体を外す（「未設定」の再現用）。
+    bindings: Object.fromEntries(
+      Object.entries({
+        BOOTSTRAP_SECRET,
+        RECOVERY_KEY,
+        RESTART_KEY,
+        DIAG_KEY,
+        DEPLOYMENT_TIER: "local-mock",
+        MOCK_AUTH: "1",
+        ALLOW_TEST_HOOKS: "1",
+        ENV_ID,
+        ...extraBindings,
+      }).filter(([, v]) => v !== undefined)
+    ),
   });
   const url = await mf.ready;
   return { mf, base: url.toString().replace(/\/$/, "") };
 }
 
 // ---------- HTTP ヘルパ ----------
+// 接続レベルの例外（fetch failed / ECONNRESET 等）だけを対象に、短い間隔で
+// 最大3回まで再試行する。環境によっては Miniflare（workerd）への接続が
+// 一時的に切れることがあるための措置で、HTTP 状態や応答内容の不一致は
+// 再試行しない（アサーションの失敗をごまかさない）。再試行は出力に残す。
+let connRetryTotal = 0;
+function connErrorLabel(e) {
+  const parts = [e && e.message, e && e.cause && (e.cause.code || e.cause.message)]
+    .filter(Boolean)
+    .join(" / ");
+  return parts || String(e);
+}
+function isConnLevelError(e) {
+  const label = connErrorLabel(e);
+  return (
+    (e instanceof TypeError && /fetch failed/.test(label)) ||
+    /ECONNRESET|ECONNREFUSED|EPIPE|socket hang up|UND_ERR_(CONNECT|CONN)/.test(label)
+  );
+}
+async function fetchWithRetry(url, init) {
+  const delaysMs = [150, 400, 1000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (e) {
+      if (!isConnLevelError(e) || attempt >= 3) throw e;
+      connRetryTotal++;
+      console.log(
+        `  [retry] 接続レベルの例外のため再試行します (${attempt + 1}/3): ${init.method || "GET"} ${url} -- ${connErrorLabel(e)}`
+      );
+      await new Promise((r) => setTimeout(r, delaysMs[attempt]));
+    }
+  }
+}
+
 async function call(base, method, p, opts = {}) {
   const headers = { ...(opts.headers || {}) };
   if (opts.origin === undefined) {
@@ -88,7 +140,7 @@ async function call(base, method, p, opts = {}) {
   }
   if (opts.cookie) headers["Cookie"] = opts.cookie;
   if (opts.csrf !== undefined && opts.csrf !== null) headers["X-CSRF"] = opts.csrf;
-  const res = await fetch(base + p, { method, headers, body });
+  const res = await fetchWithRetry(base + p, { method, headers, body });
   const text = await res.text();
   let json = null;
   try {
@@ -151,6 +203,9 @@ function coreOf(state) {
 //   good.<nonce>      正しいクレーム一式
 //   badaud.<nonce>    aud 不一致
 //   expired.<nonce>   exp 切れ
+//   expstr.<nonce>    exp が非数値文字列（"not-a-number"）
+//   expnull.<nonce>   exp が null（欠落相当）
+//   expinf.<nonce>    exp が "Infinity" 文字列（有限でない）
 //   unverified.<nonce> email_verified=false
 //   nosub.<nonce>     sub 欠落
 // それ以外は 400 を返す（tokeninfo_rejected の経路）。
@@ -173,6 +228,9 @@ const fakeTokeninfo = http.createServer((req, res) => {
   if (kind === "good") claims = { ...base, sub: REAL_SUB };
   else if (kind === "badaud") claims = { ...base, sub: REAL_SUB, aud: "other-client-id" };
   else if (kind === "expired") claims = { ...base, sub: REAL_SUB, exp: now - 3600 };
+  else if (kind === "expstr") claims = { ...base, sub: REAL_SUB, exp: "not-a-number" };
+  else if (kind === "expnull") claims = { ...base, sub: REAL_SUB, exp: null };
+  else if (kind === "expinf") claims = { ...base, sub: REAL_SUB, exp: "Infinity" };
   else if (kind === "unverified") claims = { ...base, sub: REAL_SUB, email_verified: "false" };
   else if (kind === "nosub") claims = { ...base };
   if (!claims) {
@@ -194,6 +252,7 @@ for (const d of [
   ".persist-ctx",
   ".persist-real",
   ".persist-config",
+  ".persist-serve",
 ]) {
   rmSync(path.join(ROOT, d), { recursive: true, force: true });
 }
@@ -538,6 +597,76 @@ try {
     await relayMf.dispose();
   }
 
+  // ================= 実画面の提供サーバー（tools/serve-real.mjs） =================
+  // ハーネス（模擬形態）を RELAY_URL の先に置き、serve-real が画面と API を
+  // 同一生成元で提供する形（実試験の PC 側構成）を確認する。待ち受け
+  // ポートは試験用に PORT で 18787 へずらすが、ブラウザー生成元は
+  // http://localhost:8787 として Origin を付ける（実構成では 8787）。
+  section("実画面の提供サーバー: serve-real");
+  {
+    const srv = await startHarness(".persist-serve");
+    const SERVE_PORT = "18787";
+    const SERVE_BASE = `http://127.0.0.1:${SERVE_PORT}`;
+    const child = spawn(process.execPath, [path.join(ROOT, "tools", "serve-real.mjs")], {
+      env: {
+        ...process.env,
+        GOOGLE_CLIENT_ID: REAL_CLIENT_ID,
+        RELAY_URL: srv.base,
+        PORT: SERVE_PORT,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let childOut = "";
+    child.stdout.on("data", (d) => { childOut += d; });
+    child.stderr.on("data", (d) => { childOut += d; });
+    try {
+      // 起動待ち（接続できるまで短く繰り返す。ここは試験対象の応答ではない）
+      let html = null;
+      for (let i = 0; i < 50 && html === null; i++) {
+        try {
+          const rr = await fetch(SERVE_BASE + "/");
+          if (rr.status === 200) html = await rr.text();
+        } catch {
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
+      check(
+        "serve-real が実画面を返し、クライアント ID が差し込まれている（プレースホルダは残らない）",
+        html !== null &&
+          html.includes(REAL_CLIENT_ID) &&
+          !html.includes("REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID"),
+        html === null ? "serve-real が起動しませんでした" : "差し込み結果が不正です"
+      );
+      // serve-real 経由で nonce → 登録 → 操作の一連が通る
+      const n = await issueNonce(SERVE_BASE);
+      const reg = await call(SERVE_BASE, "POST", "/register", {
+        cookie: n.ctx,
+        body: { id_token: mockToken(SUB_A, n.nonce), bootstrap_secret: BOOTSTRAP_SECRET },
+      });
+      const sess = { cookie: sessionCookieFrom(reg.setCookie), csrf: reg.json && reg.json.csrf_token };
+      const op = sess.cookie
+        ? await call(SERVE_BASE, "POST", "/operate", { cookie: sess.cookie, csrf: sess.csrf, body: {} })
+        : { status: 0 };
+      check(
+        "serve-real 経由で nonce 取得 → 登録 201 → 操作 200 の一連が通る",
+        reg.status === 201 && op.status === 200,
+        `register=${reg.status} operate=${op.status}`
+      );
+      // ログ秘匿: 秘密の値・トークン類が serve-real の出力に現れない
+      check(
+        "serve-real のログに秘密の値・nonce・CSRF・セッション値が出ない",
+        !childOut.includes(BOOTSTRAP_SECRET) &&
+          !childOut.includes(n.nonce) &&
+          !(sess.csrf && childOut.includes(sess.csrf)) &&
+          !(sess.cookie && childOut.includes(sess.cookie.split("=")[1])),
+        "serve-real のログに秘匿すべき値が含まれています"
+      );
+    } finally {
+      child.kill();
+      await srv.mf.dispose();
+    }
+  }
+
   // ================= 再起動（dispose → 同じ永続化先で再生成） =================
   section("再起動: dispose → 再生成");
   const bootBefore = (await getState(B)).boot_count;
@@ -801,6 +930,9 @@ try {
     for (const [label, kind] of [
       ["aud 不一致", "badaud"],
       ["exp 切れ", "expired"],
+      ["exp が非数値文字列", "expstr"],
+      ["exp が null", "expnull"],
+      ["exp が Infinity 文字列（有限でない）", "expinf"],
       ["email_verified=false", "unverified"],
       ["sub 欠落", "nosub"],
     ]) {
@@ -961,6 +1093,57 @@ try {
       st.status === 404 && rst.status === 404 && n.status === 200 && op.status === 403,
       `state=${st.status} restart=${rst.status} nonce=${n.status} operate=${op.status}`
     );
+    // カナリア確認: 模擬形式のトークン（mock.*）が verify 形態で受理され
+    // ないことを、振る舞いで確認する。verifyIdToken は実 tokeninfo へ
+    // 照会するため、応答は 401（tokeninfo_rejected）または、tokeninfo に
+    // 到達できない環境では 500 になる。いずれでも「登録として受理され
+    // ない」ことが要点であり、201 にならないことを確認する。
+    // 送るのは偽トークン文字列のみで、実 ID トークンではない。
+    const canaryNonce = await issueNonce(h.base);
+    const canary = await call(h.base, "POST", "/register", {
+      cookie: canaryNonce.ctx,
+      body: {
+        id_token: mockToken("canary-subject", canaryNonce.nonce),
+        bootstrap_secret: BOOTSTRAP_SECRET,
+      },
+    });
+    check(
+      "カナリア: tier=verify では模擬形式トークン（mock.*）での登録が拒否される",
+      canary.status !== 201 && (canary.status === 401 || canary.status === 500),
+      `status=${canary.status} error=${canary.json && canary.json.error}`
+    );
+    await h.mf.dispose();
+  }
+  // DEPLOYMENT_TIER 未設定 → 既定値への読み替えをせず全経路を拒否する
+  {
+    const h = await startHarness(".persist-config", { DEPLOYMENT_TIER: undefined });
+    const n = await call(h.base, "GET", "/nonce", { origin: ORIGIN });
+    const r = await call(h.base, "POST", "/register", {
+      body: { id_token: mockToken(SUB_A, "any-nonce"), bootstrap_secret: BOOTSTRAP_SECRET },
+    });
+    const st = await call(h.base, "GET", "/test/state", {
+      origin: null,
+      headers: { "X-Diag-Key": DIAG_KEY },
+    });
+    check(
+      "DEPLOYMENT_TIER 未設定では全経路が拒否される（既定値への読み替えをしない）",
+      n.status === 500 && r.status === 500 && st.status === 500 &&
+        n.json && n.json.error === "config_refused" &&
+        n.json.detail === "config_bad_tier",
+      `nonce=${n.status} register=${r.status} state=${st.status} detail=${n.json && n.json.detail}`
+    );
+    await h.mf.dispose();
+  }
+  // DEPLOYMENT_TIER が想定外の値 → 全経路を拒否する
+  {
+    const h = await startHarness(".persist-config", { DEPLOYMENT_TIER: "staging" });
+    const n = await call(h.base, "GET", "/nonce", { origin: ORIGIN });
+    check(
+      "DEPLOYMENT_TIER が想定外の値では全経路が拒否される",
+      n.status === 500 && n.json && n.json.error === "config_refused" &&
+        n.json.detail === "config_bad_tier",
+      `nonce=${n.status} detail=${n.json && n.json.detail}`
+    );
     await h.mf.dispose();
   }
 } catch (e) {
@@ -978,6 +1161,11 @@ try {
 const failed = results.filter((r) => !r.pass);
 console.log(`\n== 結果 ==`);
 console.log(`合計 ${results.length} 件: PASS ${results.length - failed.length} / FAIL ${failed.length}`);
+if (connRetryTotal > 0) {
+  console.log(
+    `接続レベルの例外による再試行が ${connRetryTotal} 回発生しました（HTTP 応答の不一致は再試行していません）`
+  );
+}
 if (failed.length) {
   for (const f of failed) console.log(`  FAIL: ${f.name} -- ${f.detail}`);
 }

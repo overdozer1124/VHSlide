@@ -7,7 +7,10 @@
 // - 識別子は生の sub を保存せず、sub の SHA-256 ハッシュで記録する（計画 第2節）。
 // - テーブルは接頭辞 mtrial_*（計画 第3節）。
 //
-// 設定検証（fail-closed）: DEPLOYMENT_TIER は `local-mock` / `verify`。
+// 設定検証（fail-closed）: DEPLOYMENT_TIER は `local-mock` / `verify` の
+// 明示指定が必須。未設定・空・想定外の値では全経路を 500 config_refused で
+// 拒否する（既定値への読み替えはしない。配置設定の取り違えで MOCK_AUTH や
+// テストフックが意図せず有効になる組合せを残さないため）。
 // 不正な組み合わせでは全経路を 500 config_refused で拒否する。
 // - tier=verify では MOCK_AUTH=1・ALLOW_TEST_HOOKS=1・TOKENINFO_URL の上書きを禁止
 // - 非 MOCK 時は GOOGLE_CLIENT_ID が未設定・空なら必ず拒否（aud 検査を省略しない）
@@ -63,14 +66,11 @@ function jsonResponse(data, status = 200, extraHeaders = {}) {
   });
 }
 
-function deploymentTier(env) {
-  return env.DEPLOYMENT_TIER || "local-mock";
-}
-
 // 設定検証。問題がなければ null、あれば拒否理由のコードを返す。
 // 不正な組み合わせでは推測で動かさず、全経路を拒否する（fail-closed）。
+// DEPLOYMENT_TIER は明示指定が必須で、未設定・空・想定外はすべて拒否する。
 function validateConfig(env) {
-  const tier = deploymentTier(env);
+  const tier = env.DEPLOYMENT_TIER;
   if (tier !== "local-mock" && tier !== "verify") return "config_bad_tier";
   if (tier === "verify") {
     if (env.MOCK_AUTH === "1") return "config_mock_in_verify";
@@ -88,6 +88,20 @@ function validateConfig(env) {
 function requireEnvId(env) {
   if (!env.ENV_ID) throw new HttpError(500, "config_missing_env_id");
   return env.ENV_ID;
+}
+
+// クレームの数値項目を有限の数値として解釈する。
+// 数値そのもの、または数値として解釈できる文字列なら数値を返し、
+// 非数値文字列・空文字・NaN・Infinity・null・欠落などは null を返す。
+// （`Number("not-a-number")` は NaN となり比較が常に false になるため、
+//  単なる数値比較では不正値を拒否できない。有限性を明示的に検査する。）
+function finiteNumber(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
 }
 
 // ID トークンの検証。成功時は { sub, nonce } を返す。失敗時は HttpError。
@@ -113,7 +127,7 @@ async function verifyIdToken(token, env) {
   // TOKENINFO_URL の上書きは tier=local-mock でのみ有効（検証ロジックの試験用）。
   // tier=verify では設定検証で上書き自体を拒否し、ここでも既定値だけを使う。
   const tokeninfoUrl =
-    deploymentTier(env) === "local-mock" && env.TOKENINFO_URL
+    env.DEPLOYMENT_TIER === "local-mock" && env.TOKENINFO_URL
       ? env.TOKENINFO_URL
       : DEFAULT_TOKENINFO_URL;
   const res = await fetch(
@@ -130,7 +144,12 @@ async function verifyIdToken(token, env) {
   if (!["accounts.google.com", "https://accounts.google.com"].includes(c.iss)) {
     throw new HttpError(401, "bad_iss");
   }
-  if (!c.exp || Number(c.exp) <= nowSec) throw new HttpError(401, "token_expired");
+  // exp は有限の数値であることを明示的に検査する（fail-closed）。
+  // 非数値文字列・NaN・Infinity・欠落はすべて期限不正として拒否する。
+  const expSec = finiteNumber(c.exp);
+  if (expSec === null || expSec <= nowSec) {
+    throw new HttpError(401, "token_expired");
+  }
   if (c.email_verified !== "true" && c.email_verified !== true) {
     throw new HttpError(401, "email_not_verified");
   }
@@ -217,7 +236,7 @@ export class VerificationDO {
   }
 
   tier() {
-    return deploymentTier(this.env);
+    return this.env.DEPLOYMENT_TIER;
   }
 
   nonceTtlMs() {

@@ -1,6 +1,6 @@
 # 段階①フェーズ1 次期独立試作ハーネス（手順1・ローカル模擬）
 
-実施計画 v0.3（`~/workspace/vhslide-stage1-next-prototype-plan.md`）の **手順1（ローカル模擬）** の成果物です。共有コードへの Codex レビュー（Issue #3 コメント 6590319199）の指摘6点への修正を反映しています。
+実施計画 v0.3（`~/workspace/vhslide-stage1-next-prototype-plan.md`）の **手順1（ローカル模擬）** の成果物です。共有コードへの Codex レビュー（Issue #3 コメント 6590319199 の指摘6点、同 6590552695 の再レビュー指摘）への修正を反映しています。再レビューへの対応: exp の有限数値の明示検査（fail-closed）、DEPLOYMENT_TIER の明示指定必須化と配置防護（マニフェスト生成＋カナリア確認）、実画面の提供サーバー `tools/serve-real.mjs`、試験ランナーの接続リトライと実行環境の出力。なお再レビュー指摘3（verify 形態では失敗注入・診断・再起動フックが無効なため、実 Cloudflare での途中失敗・再起動・状態照合をどう扱うか）は、計画側の判断事項として本コード変更には含めていません。
 
 > **これは模擬層です。** すべてこの VM 内のローカル作業で、実 Google・実 Cloudflare には一切接続しません。ID トークンは模擬値（`mock.<sub>.<nonce>`）、シークレットはすべてダミー値を使います。実認証の検証ロジックは、ローカルに立てた偽 tokeninfo サーバー（fabricated な JSON を返すだけ）で確認します。ここでの結果は「模擬層での確認」であり、実経路（手順2以降）の実証ではありません。
 
@@ -13,20 +13,30 @@
 | `public/login-real.html` | **実試験用**のログイン画面。Google Identity Services（GIS）を読み込み、nonce を取得してから実 Google ログインを行い、ID トークンを同一生成元の固定パスへ送る。クライアント ID はプレースホルダで、実値は PC 側で設定する | 第3節（ログイン画面）、手順2以降 |
 | `relay/worker.js` | PC 側中継のひな形（変形B用）。受けた要求のヘッダー（Origin・Cookie）を変更せず、検証用 Worker への service binding 呼び出しへ素通しする | 第3節（中継：素通し・アプリケーションレベルの拒否をしない） |
 | `relay/wrangler.toml.example` | 中継の設定例（変形Bの service binding は `remote = true` 付き／ローカル模擬の HARNESS_URL） | 第3節（変形B）、手順0（接続先の照合） |
-| `tools/serve-login.mjs` | **模擬専用**の小さな配信サーバー。模擬画面を `http://localhost:8787` で配信し、それ以外の経路をハーネスへ素通しする。実試験では PC 側の静的配信を使う前提で、このツールは使いません | 手順1（ローカルで画面を動かすため） |
+| `tools/serve-login.mjs` | **模擬専用**の小さな配信サーバー。模擬画面を `http://localhost:8787` で配信し、それ以外の経路をハーネスへ素通しする。実試験では使いません（実画面用は `tools/serve-real.mjs`） | 手順1（ローカルで画面を動かすため） |
+| `tools/serve-real.mjs` | **実試験用**の提供サーバー（PC 側）。実画面を 127.0.0.1:8787 で配信し、API 経路を中継（RELAY_URL）へ素通しして、画面と API を同一生成元で提供する。クライアント ID は環境変数からメモリ上で差し込む | 第3節（ログイン画面）、手順2以降 |
+| `tools/build-deploy-manifest.mjs` | 配置用マニフェストの生成（`--tier verify` の明示時のみ）。バインディングの一覧（値は含めない）と、ソース検査による配置防護の根拠（行番号）を JSON で出す | 手順0・手順2（配置前の照合） |
 | `tools/serve-harness.mjs` | ハーネスを固定ポート 8799 で起動する手動確認用ランチャー（Miniflare） | 手順1 |
-| `test/run.mjs` | 試験ランナー。Miniflare をプログラムから起動し、手順3〜6の項目＋中継の対照＋設定検証＋実認証ロジック（偽 tokeninfo）を自動確認する | 第6節 手順3〜6 |
+| `test/run.mjs` | 試験ランナー。Miniflare をプログラムから起動し、手順3〜6の項目＋中継の対照＋設定検証＋実認証ロジック（偽 tokeninfo）＋serve-real の動作確認を自動確認する。実行環境（OS／Node／Miniflare）を冒頭に出力し、接続レベルの例外だけ最大3回まで再試行する | 第6節 手順3〜6 |
 | `package.json` | 依存（miniflare のみ）と `npm test` の定義 | ― |
 
 ## ハーネスの仕様
 
 ### 設定検証（fail-closed）
 
-env `DEPLOYMENT_TIER` は `local-mock`（既定）/ `verify` の2値です。全リクエストの入口（Worker 本体と DO の双方）で設定を検証し、不正な組み合わせでは全経路を `500 config_refused` で拒否します。
+env `DEPLOYMENT_TIER` は `local-mock` / `verify` の2値で、**明示指定が必須**です。未設定・空・想定外の値は既定値へ読み替えず、全経路を `500 config_refused`（detail: `config_bad_tier`）で拒否します（配置設定の取り違えで MOCK_AUTH やテストフックが意図せず有効になる組合せを残さないため）。全リクエストの入口（Worker 本体と DO の双方）で設定を検証します。
 
 - tier=verify では `MOCK_AUTH=1`・`ALLOW_TEST_HOOKS=1`・`TOKENINFO_URL` の設定（上書き）を禁止し、いずれか有効なら全経路を拒否します
 - 非 MOCK 時は `GOOGLE_CLIENT_ID` が未設定・空なら必ず拒否します（aud 検査を省略しません）
 - `ENV_ID` が未設定・空なら登録・復旧を `500 config_missing_env_id` で拒否します（`unknown-env` のような代替値への読み替えはしません）
+
+### 配置防護（配置形態の取り違え対策）
+
+設定値だけでは環境を独立に証明したことにはならないため、配置側の手順と併せて防護します。
+
+- `tools/build-deploy-manifest.mjs --tier verify` が、配置に使うバインディングの一覧（シークレットや環境固有値は名前と種別だけで、値は含めない）を JSON で出力します。形態を明示しないと生成しません。あわせて `src/worker.js` を静的に検査し、(1) tier の既定値フォールバックが残っていないこと、(2) MOCK_AUTH の分岐が tier=verify では設定検証で到達不能になる根拠（該当箇所の行番号）、をマニフェストに含めます。問題があれば生成せず終了コード 1 で終わります
+- 配置後のカナリア確認を用意しています: verify 形態で起動したハーネスに対し、模擬形式のトークン（`mock.*`）での /register が拒否されることを試験ランナーが確認します（模擬認証が実配置で効いていないことの、振る舞いによる確認）
+- 実 Worker 自体への local-mock の適用は運用側で禁じる前提です（対象照合は計画 手順0、配置はこのマニフェストで形態を verify に固定する）
 
 ### テーブル（すべて `mtrial_*`、DO の SQLite storage）
 
@@ -75,22 +85,29 @@ env `DEPLOYMENT_TIER` は `local-mock`（既定）/ `verify` の2値です。全
 
 - env `MOCK_AUTH=1` のとき模擬トークンを受け付けます（sub と nonce は実際に照合し、他のクレームは模擬値で満たされたものとして扱う）。
 - MOCK_AUTH でない場合は tokeninfo で検証します。検証先は env `TOKENINFO_URL` で上書きできますが、**tier=local-mock でのみ有効**です（tier=verify では設定自体を拒否し、既定の Google tokeninfo だけを使います）。
-- 試験ランナーはローカルに偽 tokeninfo サーバーを立て、`TOKENINFO_URL` を向けて実認証ロジックを確認します: 正しいクレームで登録できること、aud 不一致・exp 切れ・email_verified=false・sub 欠落で拒否されること、`GOOGLE_CLIENT_ID` 未設定では tokeninfo に届く前に（リクエスト件数が増えないことで）拒否されること。
+- `exp` は有限の数値であることを明示的に検査します（fail-closed）。数値または数値として解釈できる文字列は受理しますが、非数値文字列・NaN・Infinity・null・欠落はすべて拒否します。単なる `Number(exp) <= now` の比較では、非数値が NaN となって拒否条件をすり抜けるためです。
+- 試験ランナーはローカルに偽 tokeninfo サーバーを立て、`TOKENINFO_URL` を向けて実認証ロジックを確認します: 正しいクレームで登録できること、aud 不一致・exp 切れ・exp の非数値文字列／null／Infinity 文字列・email_verified=false・sub 欠落で拒否されること、`GOOGLE_CLIENT_ID` 未設定では tokeninfo に届く前に（リクエスト件数が増えないことで）拒否されること。
 
 ### env 一覧
 
-`DEPLOYMENT_TIER`（`local-mock` / `verify`）、`MOCK_AUTH`、`ALLOW_TEST_HOOKS`、`DIAG_KEY`（診断経路の鍵）、`BOOTSTRAP_SECRET`（初回用シークレット）、`RECOVERY_KEY`、`RESTART_KEY`、`ENV_ID`（完了・復旧記録の対象環境識別子）、`NONCE_TTL_SECONDS`（既定 300）、`GOOGLE_CLIENT_ID`（非 MOCK 時の aud 照合に必須）、`TOKENINFO_URL`（local-mock でのみ有効な検証先の上書き）。値はすべてダミーです。
+`DEPLOYMENT_TIER`（`local-mock` / `verify`、**明示指定が必須**。未設定・空・想定外は全経路を拒否）、`MOCK_AUTH`、`ALLOW_TEST_HOOKS`、`DIAG_KEY`（診断経路の鍵）、`BOOTSTRAP_SECRET`（初回用シークレット）、`RECOVERY_KEY`、`RESTART_KEY`、`ENV_ID`（完了・復旧記録の対象環境識別子）、`NONCE_TTL_SECONDS`（既定 300）、`GOOGLE_CLIENT_ID`（非 MOCK 時の aud 照合に必須）、`TOKENINFO_URL`（local-mock でのみ有効な検証先の上書き）。値はすべてダミーです。
 
 ### 仕様への追加（判断の記録）
 
 - `POST /login` を追加しました。手順5は「復旧後に両アカウントで再ログインし事後照合する」ことを求めますが、/register は一回性（完了後は 409）を保つ必要があるため、登録済み subject 専用の再ログイン経路を分けました。ログイン可否の正本は「現在の資格」（`mtrial_credentials`）であり、提示された subject が現在の資格に現存する場合のみセッションを発行します。完了記録は初代登録の履歴として不変に保ち、ログイン判定には使いません（復旧後、完了記録は初代のまま、現在の資格だけが新 subject に切り替わります）。
 
-## 実ログイン画面（public/login-real.html）
+## 実ログイン画面（public/login-real.html）と PC 側の実行構成
 
-- Google Identity Services（`https://accounts.google.com/gsi/client`）を読み込みます。検証用 OAuth クライアント ID はプレースホルダ定数で、実値は PC 側で設定します。
+- Google Identity Services（`https://accounts.google.com/gsi/client`）を読み込みます。検証用 OAuth クライアント ID はプレースホルダ定数で、実値は提供サーバーがメモリ上で差し込みます（ファイル自体は書き換えません）。
 - 流れ: Worker の /nonce（中継経由）で nonce とコンテキスト Cookie を取得 → その nonce で GIS を初期化 → コールバックの ID トークンを、初回用シークレット（登録）や復旧キー（復旧）とともに同一生成元（`http://localhost:8787`）の固定パスへ POST します。/login（再ログイン）にも対応します。
 - 秘匿の扱い: シークレット類は password 型の入力欄に入れ、送信後に値を消去します。CSRF トークンと ID トークンはメモリー内にだけ保持し、画面のログ領域には成否と HTTP 状態だけを表示します。転送先は同一生成元の固定パスで、URL を入力・変更できる欄はありません。
-- 配信は PC 側の静的配信を使います（`tools/serve-login.mjs` は模擬専用です）。
+
+### PC 側の実行構成（実試験）
+
+1. 中継（`relay/worker.js`）を wrangler dev で起動し、検証用 Worker への remote service binding 経由で要求が届くようにします（接続先のサービス名は手順0で照合します）。この中継が `tools/serve-real.mjs` の転送先（`RELAY_URL`）になります
+2. `GOOGLE_CLIENT_ID=<検証用 OAuth クライアント ID> RELAY_URL=<中継の URL> node tools/serve-real.mjs` で提供サーバーを起動します。提供サーバーは **127.0.0.1 のみ**にバインドし（0.0.0.0 は使いません）、画面（`GET /`）と API 経路（`/nonce`・`/register`・`/login`・`/recover`・`/operate` の中継への素通し転送）を同一生成元 `http://localhost:8787` で提供します。これにより、ブラウザーから見た生成元が OAuth クライアントの登録済み生成元と一致し、Origin と Cookie がそのまま検証用 Worker まで届きます
+3. 提供サーバーのログにはメソッド・パス・応答状態だけを出します（ヘッダー・ボディ・クエリの値は出しません）。クライアント ID 未設定では起動時にエラーで終了します
+4. `tools/serve-login.mjs` は模擬専用で、実試験では使いません（配信する画面自体が模擬版です）
 
 ## 試験の実行方法
 
@@ -100,16 +117,23 @@ npm install   # 初回のみ（miniflare）
 npm test      # = node test/run.mjs
 ```
 
+- 冒頭に実行環境（OS・Node バージョン・Miniflare バージョン）を出力します。環境差で再現条件が異なる場合の切り分け用です。
 - 項目ごとに `PASS` / `FAIL` を出力し、FAIL があれば終了コード 1 を返します。
-- 内容: 通常登録 201 と完了記録の必須項目、再登録 409、並行登録（成功1・拒否1）、登録途中・復旧途中の失敗注入でのロールバック、誤った初回用シークレット／復旧キーの拒否、鍵単独では復旧できないこと、不正 Origin・Origin 欠落・CSRF 欠落／不一致の拒否、nonce の再利用・期限切れ・未知 nonce の拒否、nonce のコンテキスト結び付け（別コンテキスト・Cookie なしの拒否と正規の流れ）、/operate の資格照合、復旧後の旧セッション拒否・新セッション許可、旧 ID トークン拒否・新 ID トークン許可（再ログイン）、復旧記録の env_id、事後照合（ハッシュ再計算）、生の sub が診断応答に現れないこと、診断応答の秘匿化と DIAG_KEY 照合、DO 再起動（Miniflare の dispose → 同じ永続化先で再生成）後の保持と boot_count による検出、中継の素通し対照（extra）、実認証ロジック（偽 tokeninfo: 正常系と aud・exp・email_verified・sub の異常系、GOOGLE_CLIENT_ID 未設定時の事前拒否）、設定検証（tier=verify の禁止事項、ENV_ID 未設定時の拒否、診断経路と再起動フックの無効化）。
+- 通信は、接続レベルの例外（`fetch failed`／ECONNRESET 等）の場合に限り、短い間隔で最大3回まで再試行します（再試行は行ごとに出力し、合計も結果欄に出します）。HTTP 状態や応答内容の不一致は再試行しません（アサーションの失敗をごまかさないため）。環境によっては Miniflare（workerd）への接続が一時的に切れることがあり、その切り分けのために入れています。なお Windows 環境での再現（Codex 環境で完走できなかった件）は、この VM では再現しておらず、原因の特定には至っていません。再試行はその環境でも完走できるようにするための緩和策として入れています。
+- 内容: 通常登録 201 と完了記録の必須項目、再登録 409、並行登録（成功1・拒否1）、登録途中・復旧途中の失敗注入でのロールバック、誤った初回用シークレット／復旧キーの拒否、鍵単独では復旧できないこと、不正 Origin・Origin 欠落・CSRF 欠落／不一致の拒否、nonce の再利用・期限切れ・未知 nonce の拒否、nonce のコンテキスト結び付け（別コンテキスト・Cookie なしの拒否と正規の流れ）、/operate の資格照合、復旧後の旧セッション拒否・新セッション許可、旧 ID トークン拒否・新 ID トークン許可（再ログイン）、復旧記録の env_id、事後照合（ハッシュ再計算）、生の sub が診断応答に現れないこと、診断応答の秘匿化と DIAG_KEY 照合、DO 再起動（Miniflare の dispose → 同じ永続化先で再生成）後の保持と boot_count による検出、中継の素通し対照（extra）、serve-real の動作確認（画面へのクライアント ID 差し込み、経由での nonce → 登録 → 操作、ログ秘匿）、実認証ロジック（偽 tokeninfo: 正常系と aud・exp 切れ・exp の非数値文字列／null／Infinity 文字列・email_verified・sub の異常系、GOOGLE_CLIENT_ID 未設定時の事前拒否）、設定検証（tier=verify の禁止事項、tier 未設定・想定外の値での全経路拒否、カナリア確認、ENV_ID 未設定時の拒否、診断経路と再起動フックの無効化）。
 - 期限切れ nonce の試験は、待ち時間を避けるため `NONCE_TTL_SECONDS=0` の専用インスタンスで確認します（既定値は計画どおり 300 秒）。
-- 最終確認結果: **49 件すべて PASS**（2026-11-03）。
+- 最終確認結果: **58 件すべて PASS**（2026-11-03、2回連続実行で確認）。実行環境: Linux、Node v24.22.1、Miniflare 4.20260730.0。この2回では接続リトライは発生しませんでした（リトライ処理自体の動作は、接続を意図的に切る確認スクリプトで別途確認済み）。
 
 ## 手動で動かす場合
 
 ```sh
 node tools/serve-harness.mjs   # ハーネス http://127.0.0.1:8799（永続化先 .persist-manual/）
 node tools/serve-login.mjs     # 模擬画面 http://localhost:8787/（模擬専用）
+node tools/build-deploy-manifest.mjs --tier verify   # 配置用マニフェストの生成（値は含めない）
+
+# 実画面の提供サーバー（ローカルでの動作確認用。中継の代わりにハーネスへ向ける）
+GOOGLE_CLIENT_ID=<検証用 OAuth クライアント ID> RELAY_URL=http://127.0.0.1:8799 \
+  node tools/serve-real.mjs    # 実画面 http://127.0.0.1:8787/
 ```
 
 ブラウザーで `http://localhost:8787/` を開き、アカウントを選んで登録 → 操作 → 復旧の順に試せます（中継ひな形 `relay/worker.js` は、ローカルでは `HARNESS_URL` を指す通常 fetch 転送として試験ランナーが使います。実 binding の経路はコードのみで、ローカルでは実行しません）。
