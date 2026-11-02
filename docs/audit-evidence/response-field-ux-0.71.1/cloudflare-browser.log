@@ -1,0 +1,13 @@
+[WebServer] (node:68999) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:69016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/free-response-fields.spec.ts:21:1 › free input creation, blur/idle autosave, pending recovery, read-only anonymous slide sharing and live changes (31.5s)
+(node:69213) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [cloud-touch] › tests/cloud/free-response-fields.spec.ts:21:1 › free input creation, blur/idle autosave, pending recovery, read-only anonymous slide sharing and live changes (36.0s)
+
+  2 passed (1.2m)
