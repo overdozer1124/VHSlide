@@ -1,3 +1,5 @@
+import { ResponseFieldLauncher } from "./ResponseFieldLauncher";
+import { useActivityPanel } from "./ActivitiesPanel";
 import { useEffect, useRef, useState } from "react";
 import type { Deck, Slide } from "./model";
 import type { PublicFollowState } from "./hostFollow";
@@ -10,6 +12,7 @@ export function HostFollowView({
   book: Deck;
   state: Extract<PublicFollowState, { active: true }>;
 }) {
+  const activity = useActivityPanel();
   const pages = book.slides.filter(
       (p) => (p.sheetId ?? "main") === state.target.sheetId,
     ),
@@ -22,6 +25,8 @@ export function HostFollowView({
   return (
     <section
       className="host-follow-overlay"
+      inert={activity.open}
+      aria-hidden={activity.open || undefined}
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
@@ -31,6 +36,7 @@ export function HostFollowView({
       <header>
         <strong>{state.host.name}さんの画面を表示中</strong>
         <span>ページ移動・編集はホストが終了するまでできません。</span>
+        <ResponseFieldLauncher />
       </header>
       <p className="host-follow-notice" role="status">
         ホストが集合をかけました。編集中の内容はそのまま保持されています。

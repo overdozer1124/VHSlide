@@ -1,3 +1,4 @@
+import { ResponseFieldLauncher } from "./ResponseFieldLauncher";
 import { speakerPreview, type SpeakerState } from "./speakerChannel";
 import type { SpeakerLaunch } from "./useSpeakerWindow";
 import { useSpeakerWindow } from "./useSpeakerWindow";
@@ -183,6 +184,7 @@ export function PresentationView({
           </small>
         </span>
         <div>
+          <ResponseFieldLauncher />
           <button
             className="quiet"
             aria-label="発表者用ノートを開く"
@@ -222,7 +224,12 @@ export function PresentationView({
         </div>
       </div>
       <div className={`present-slide enter-${direction}`} key={slide.id}>
-        <Canvas surveyInteractive slide={slide} zoom={zoom} onOpenLink={onOpenLink} />
+        <Canvas
+          surveyInteractive
+          slide={slide}
+          zoom={zoom}
+          onOpenLink={onOpenLink}
+        />
       </div>
       <div className="present-bottom">
         {external ? (

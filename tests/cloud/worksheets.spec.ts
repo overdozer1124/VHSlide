@@ -19,7 +19,7 @@ async function signIn(page: Page, name: string) {
   ).toBe(200);
 }
 const launcher = (page: Page) =>
-  page.getByRole("button", { name: "アンケート・ワークシート", exact: true });
+  page.getByRole("button", { name: "フォーム", exact: true });
 async function openWorksheets(page: Page) {
   await launcher(page).click();
   await page.getByRole("tab", { name: "ワークシート", exact: true }).click();

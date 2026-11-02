@@ -5,18 +5,22 @@ import type { Element, Slide } from "./model";
 import { ResponseFieldTools } from "./ResponseFieldTools";
 import { useWorksheets } from "./WorksheetContext";
 import { useActivityPanel } from "./ActivitiesPanel";
-export function ResponseFieldLauncher({ disabled }: { disabled: boolean }) {
+export function ResponseFieldLauncher({
+  disabled = false,
+}: {
+  disabled?: boolean;
+}) {
   const ctx = useWorksheets(),
     activity = useActivityPanel();
   return (
     <button
       className="tool-button response-field-launch"
-      disabled={disabled || (ctx.enabled && !ctx.host)}
-      title="共通モーダルでスライドに回答欄を追加"
-      onClick={(event) => activity.launch("fields", event.currentTarget)}
+      disabled={disabled || (!!ctx.deckId && !ctx.enabled)}
+      title="フォーム：アンケート・ワークシート・回答欄・回答共有"
+      onClick={(event) => activity.launch(activity.active, event.currentTarget)}
     >
       <ClipboardList size={20} />
-      回答欄を追加
+      フォーム
     </button>
   );
 }

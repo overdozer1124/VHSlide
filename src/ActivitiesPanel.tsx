@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { ClipboardList, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useWorksheets } from "./WorksheetContext";
 type Kind = "survey" | "worksheet" | "gallery" | "fields";
 const Context = createContext({
@@ -35,7 +35,15 @@ export function ActivityPanelProvider({ children }: { children: ReactNode }) {
     if (busy && !completed) return;
     setOpen(false);
     if (completed) setBusy(false);
-    requestAnimationFrame(() => trigger.current?.focus());
+    requestAnimationFrame(() => {
+      if (trigger.current?.isConnected) trigger.current.focus();
+      else
+        document
+          .querySelector<HTMLButtonElement>(
+            ".response-field-launch:not(:disabled)",
+          )
+          ?.focus();
+    });
   }
   return (
     <Context.Provider
@@ -60,20 +68,14 @@ export function ActivitiesPanel({
   worksheet,
   gallery,
   fields,
-  surveyCount,
-  blocked,
-  presenting,
 }: {
   survey: ReactNode;
   worksheet: ReactNode;
   gallery: ReactNode;
   fields: ReactNode;
-  surveyCount: number;
-  blocked: boolean;
-  presenting: boolean;
 }) {
   const ctx = useWorksheets();
-  const { open, active, close, launch, busy, select } = useActivityPanel();
+  const { open, active, close, busy, select } = useActivityPanel();
   const modal = useRef<HTMLElement>(null);
   const id = useId();
   const kinds: Kind[] =
@@ -92,16 +94,6 @@ export function ActivitiesPanel({
   }, [open]);
   return (
     <>
-      <button
-        className={`button outline survey-launch ${presenting ? "in-presentation" : ""}`}
-        disabled={blocked}
-        aria-label="アンケート・ワークシート"
-        title={`アンケート受付中${surveyCount}件・ワークシート${ctx.sheets.length}件`}
-        onClick={(e) => launch(active, e.currentTarget)}
-      >
-        <ClipboardList size={17} />
-        <span>アンケート・ワークシート</span>
-      </button>
       <div
         className="survey-overlay activity-overlay"
         hidden={!open}

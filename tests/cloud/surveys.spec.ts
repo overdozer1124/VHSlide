@@ -17,7 +17,7 @@ async function signIn(page: Page, name: string) {
   expect(r.status()).toBe(200);
 }
 const launch = (page: Page) =>
-  page.getByRole("button", { name: "アンケート・ワークシート", exact: true });
+  page.getByRole("button", { name: "フォーム", exact: true });
 const dialog = (page: Page) =>
   page.getByRole("dialog", { name: "アンケート", exact: true });
 test("host creates both question types, guests answer privately and results become editable slides", async ({
@@ -386,6 +386,12 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     await expect(presentCard).toContainText("今日の気づき");
     await presentCard.locator("textarea,input").first().blur();
     await expect(presentCard).toContainText("回答は保存済みです。");
+    await guest.mouse.move(10, 10);
+    await launch(guest).click();
+    await expect(dialog(guest)).toBeVisible();
+    await guest
+      .getByRole("button", { name: "アンケートを閉じる", exact: true })
+      .click();
     // Following the host still allows only the embedded questionnaire, not background editing.
     await page
       .getByRole("button", { name: "全員の画面を同期", exact: true })
@@ -394,6 +400,8 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
       ".host-follow-overlay [data-slide-survey]",
     );
     await expect(followCard).toContainText("今日の気づき");
+    await guest.keyboard.press("Tab");
+    await expect(launch(guest)).toBeFocused();
     await guest.keyboard.press("Tab");
     await expect(
       followCard.getByRole("textbox", { name: "スライド内アンケートの回答" }),
@@ -406,10 +414,19 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     expect(
       (await list()).find((s: any) => s.id === ids.text).results.texts,
     ).toEqual(["集合中も記述して回答🌸"]);
+    await launch(guest).click();
+    await expect(dialog(guest)).toBeVisible();
+    await expect(guest.getByRole("dialog")).toHaveCount(1);
+    await dialog(guest).focus();
     await page
       .getByRole("button", { name: "全員の画面を同期", exact: true })
       .click();
     await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
+    await expect(dialog(guest)).toBeFocused();
+    await guest
+      .getByRole("button", { name: "アンケートを閉じる", exact: true })
+      .click();
+    await expect(launch(guest)).toBeFocused();
     await guest.reload();
     await expect(guest.locator(".slide-card")).toHaveCount(5);
     const remote = await (await page.request.get(`/api/decks/${id}`)).json();

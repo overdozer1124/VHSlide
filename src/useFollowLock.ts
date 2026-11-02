@@ -88,12 +88,13 @@ export function useFollowLock(active: boolean) {
       document.querySelector<HTMLElement>(".host-follow-overlay");
     const focusOverlay = () => overlay()?.focus({ preventScroll: true });
     if (!pending) focusOverlay();
+    const formTarget = (target: EventTarget | null) =>
+      target instanceof Element &&
+      !!target.closest(
+        ".host-follow-overlay [data-slide-survey],.host-follow-overlay .response-field-launch,.activity-overlay:not([hidden])",
+      );
     const block = (event: Event) => {
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".host-follow-overlay [data-slide-survey]")
-      )
-        return;
+      if (formTarget(event.target)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
@@ -104,7 +105,7 @@ export function useFollowLock(active: boolean) {
     const keys = (event: KeyboardEvent) => {
       if (event.key === "Tab" && event.target === overlay()) {
         const inputs = overlay()?.querySelectorAll<HTMLElement>(
-          "[data-slide-survey] input:not(:disabled),[data-slide-survey] textarea:not(:disabled),[data-slide-survey] button:not(:disabled)",
+          ".response-field-launch:not(:disabled),[data-slide-survey] input:not(:disabled),[data-slide-survey] textarea:not(:disabled),[data-slide-survey] button:not(:disabled)",
         );
         if (inputs?.length) {
           event.preventDefault();
@@ -151,7 +152,8 @@ export function useFollowLock(active: boolean) {
     const pointer = (event: Event) => {
       if (
         !(event.target instanceof Element) ||
-        !event.target.closest(".host-follow-overlay")
+        (!event.target.closest(".host-follow-overlay") &&
+          !formTarget(event.target))
       )
         block(event);
     };
@@ -159,7 +161,8 @@ export function useFollowLock(active: boolean) {
       if (
         !pending &&
         event.target instanceof Element &&
-        !event.target.closest(".host-follow-overlay")
+        !event.target.closest(".host-follow-overlay") &&
+        !formTarget(event.target)
       )
         focusOverlay();
     };
@@ -182,7 +185,13 @@ export function useFollowLock(active: boolean) {
         window.removeEventListener(name, block, true);
       for (const name of ["pointerdown", "pointermove", "click", "dblclick"])
         window.removeEventListener(name, pointer, true);
-      restore();
+      const form = document.querySelector<HTMLElement>(
+        ".activity-overlay:not([hidden])",
+      );
+      if (form) {
+        if (!form.contains(document.activeElement))
+          form.querySelector<HTMLElement>('[role="dialog"]')?.focus();
+      } else restore();
     };
   }, [active]);
 }

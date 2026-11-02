@@ -7,7 +7,7 @@ test("worksheet entry explains accounts and returns keyboard focus", async ({
   await page.goto("/");
   await expect(page.locator(".slide-card")).toHaveCount(5);
   const launch = page.getByRole("button", {
-    name: "アンケート・ワークシート",
+    name: "フォーム",
     exact: true,
   });
   await launch.click();
@@ -99,8 +99,15 @@ test("response fields have a visible toolbar entry and a centered accessible cre
 }) => {
   await page.goto("/");
   await expect(page.locator(".slide-card")).toHaveCount(5);
+  await expect(page.locator(".survey-launch")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "アンケート・ワークシート", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "フォーム", exact: true }),
+  ).toHaveCount(1);
   const mainLaunch = page.getByRole("button", {
-    name: "アンケート・ワークシート",
+    name: "フォーム",
     exact: true,
   });
   await mainLaunch.click();
@@ -118,7 +125,7 @@ test("response fields have a visible toolbar entry and a centered accessible cre
   await expect(mainLaunch).toBeFocused();
   await page.locator(".thumbnail").first().click();
   const launch = page.getByRole("button", {
-    name: "回答欄を追加",
+    name: "フォーム",
     exact: true,
   });
   await expect(launch).toBeVisible();

@@ -17,7 +17,7 @@ async function signIn(page: Page, name: string) {
   ).toBe(200);
 }
 const launcher = (page: Page) =>
-  page.getByRole("button", { name: "アンケート・ワークシート", exact: true });
+  page.getByRole("button", { name: "フォーム", exact: true });
 test("free input creation, blur/idle autosave, pending recovery, read-only anonymous slide sharing and live changes", async ({
   page,
   browser,
@@ -57,9 +57,8 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(guest.locator(".slide-card")).toHaveCount(1);
     await page.locator(".thumbnail").first().click();
     await guest.locator(".thumbnail").first().click();
-    await page
-      .getByRole("button", { name: "回答欄を追加", exact: true })
-      .click();
+    await page.getByRole("button", { name: "フォーム", exact: true }).click();
+    await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
     const tools = page.getByRole("region", {
       name: "回答欄の追加",
       exact: true,
@@ -105,11 +104,10 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await page.keyboard.press("Escape");
     await expect(creator).not.toBeVisible();
     await expect(
-      page.getByRole("button", { name: "回答欄を追加", exact: true }),
+      page.getByRole("button", { name: "フォーム", exact: true }),
     ).toBeFocused();
-    await page
-      .getByRole("button", { name: "回答欄を追加", exact: true })
-      .click();
+    await page.getByRole("button", { name: "フォーム", exact: true }).click();
+    await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
     await expect(
       tools.getByRole("textbox", { name: "新しい入力項目名" }),
     ).toHaveValue("観察から気づいたこと");
@@ -326,9 +324,8 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(
       guest.locator(".editor-workspace [data-response-field] textarea").nth(1),
     ).toHaveValue("");
-    await page
-      .getByRole("button", { name: "回答欄を追加", exact: true })
-      .click();
+    await page.getByRole("button", { name: "フォーム", exact: true }).click();
+    await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
     await tools.getByText("入力欄の配置ひな形", { exact: true }).click();
     await tools
       .getByRole("textbox", { name: "ひな形の名前" })

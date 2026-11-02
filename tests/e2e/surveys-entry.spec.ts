@@ -6,7 +6,7 @@ test("local survey entry explains sharing, traps focus and closes without changi
   await page.goto("/");
   await expect(page.locator(".slide-card")).toHaveCount(5);
   const launch = page.getByRole("button", {
-    name: "アンケート・ワークシート",
+    name: "フォーム",
     exact: true,
   });
   await expect(launch).toHaveCount(1);

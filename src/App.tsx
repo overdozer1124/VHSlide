@@ -2,7 +2,10 @@ import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
 import { AnswerProvider } from "./AnswerStore";
 import { linkSurveyResult, snapshotSurveyResults } from "./surveyResults";
 import { ActivitiesPanel, ActivityPanelProvider } from "./ActivitiesPanel";
-import { ResponseFieldCreator } from "./ResponseFieldLauncher";
+import {
+  ResponseFieldCreator,
+  ResponseFieldLauncher,
+} from "./ResponseFieldLauncher";
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
 import { parseWorksheetBinding } from "./worksheets";
@@ -2404,6 +2407,9 @@ export default function App() {
                     ページを編集
                   </button>
                 </div>
+                <ResponseFieldLauncher
+                  disabled={cloud.viewingRevoked || cloud.recoveryOnly}
+                />
                 <div className="map-toolbar-slot" ref={setMapToolbarHost} />
                 {historyActions}
               </nav>
@@ -2905,16 +2911,6 @@ export default function App() {
         }
         gallery={<ResponseGalleryPanel slide={slide} />}
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
-        blocked={cloud.viewingRevoked || cloud.recoveryOnly}
-        presenting={
-          view === "present" || (!cloud.isHost && cloud.follow.active)
-        }
-        surveyCount={
-          surveyData.deckId === cloud.active?.id &&
-          surveyData.userId === cloud.user?.id
-            ? surveyData.surveys.filter((s) => s.status === "open").length
-            : 0
-        }
         worksheet={
           <WorksheetPanel
             host={cloud.isHost}

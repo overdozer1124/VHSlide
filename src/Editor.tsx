@@ -430,7 +430,7 @@ export function Editor({
         </button>
         <ResponseFieldLauncher
           key={`${cloud?.active?.id}:${slide.id}`}
-          disabled={!editable}
+          disabled={!!cloud?.viewingRevoked || !!cloud?.recoveryOnly}
         />
         <button
           className="tool-button"
