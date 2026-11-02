@@ -1,4 +1,10 @@
 import {
+  surveySchema,
+  surveyList,
+  surveyCommand,
+  SurveyError,
+} from "../src/surveys.ts";
+import {
   joinSchema,
   requestJoin,
   joinState,
@@ -98,6 +104,7 @@ export class Directory extends DurableObject<Env> {
         "ALTER TABLE work_trash ADD COLUMN purging INTEGER NOT NULL DEFAULT 0",
       );
     this.sql.exec(joinSchema);
+    this.sql.exec(surveySchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
     this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
@@ -822,6 +829,45 @@ export class Directory extends DurableObject<Env> {
       404,
       "作品はごみ箱にあります。作品一覧に戻してから開いてください。",
     );
+    if (extra === "surveys" || extra?.startsWith("surveys/")) {
+      insist(
+        ["GET", "POST", "DELETE"].includes(method),
+        405,
+        "この操作には対応していません。",
+      );
+      const route =
+        /^surveys(?:\/([a-f0-9-]{36})(?:\/(status|answer))?)?$/.exec(extra);
+      insist(
+        route &&
+          (method === "GET"
+            ? extra === "surveys"
+            : method === "DELETE"
+              ? !!route[1] && !route[2]
+              : extra === "surveys" || !!route[2]),
+        404,
+        "アンケートの操作が見つかりません。",
+      );
+      const value = method === "POST" ? await input(request, 12000) : {};
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        if (method !== "GET") {
+          this.rate(`survey:${user.id}`, 120);
+          surveyCommand(
+            sql,
+            id,
+            user.id,
+            host,
+            method === "DELETE" ? "delete" : (route![2] ?? "create"),
+            route![1],
+            value,
+          );
+        }
+        return json({ surveys: surveyList(sql, id, user.id, host) });
+      });
+    }
     if (extra === "join-requests" && method === "GET") {
       this.access(id, user, true);
       return json({

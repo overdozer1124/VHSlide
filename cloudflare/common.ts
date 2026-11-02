@@ -1,3 +1,4 @@
+import { SurveyError } from "../src/surveys.ts";
 import { JoinRequestError } from "../src/joinRequests.ts";
 export interface Env {
   ASSETS: Fetcher;
@@ -54,7 +55,9 @@ export const json = (data: unknown, status = 200, headers?: HeadersInit) =>
   });
 export function failure(error: unknown) {
   const status =
-    error instanceof HttpError || error instanceof JoinRequestError
+    error instanceof HttpError ||
+    error instanceof JoinRequestError ||
+    error instanceof SurveyError
       ? error.status
       : error instanceof SyntaxError
         ? 400

@@ -1,3 +1,4 @@
+import { exerciseSurveys } from "../support/surveys.ts";
 import {
   exerciseHostFollow,
   measureHostFollow40,
@@ -1538,5 +1539,23 @@ test("host follow 40 live connections P95 target", async () => {
   await measureHostFollow40(
     { create, join: joinRoom, connect, owner: owner, guest: friend },
     "Cloudflare/workerd",
+  );
+});
+
+test("surveys enforce host-only results, private answers, validation, closing and durable restart", async () => {
+  const id = await create();
+  await joinRoom(id, friend);
+  const other = await create();
+  await exerciseSurveys(
+    request,
+    id,
+    other,
+    owner,
+    friend,
+    stranger,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
   );
 });

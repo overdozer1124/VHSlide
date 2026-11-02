@@ -6542,3 +6542,218 @@ h1 span {
 @media(max-width:760px) {
  .editing .editor-main[data-inspector-collapsed="true"] {height:calc(100dvh - 80px);min-height:0;flex:1;}
 }
+
+.survey-launch {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 150;
+  box-shadow: 0 3px 12px #173d3820;
+  background: #fff;
+}
+.survey-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #173d3866;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.survey-panel {
+  width: min(1040px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  background: #fff;
+  color: #173d38;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 80px #0003;
+}
+.survey-panel > header {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.survey-panel h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.survey-panel h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.survey-panel h4 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.survey-panel p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 10px 0;
+}
+.survey-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+}
+.survey-layout aside {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.survey-item {
+  text-align: left;
+  border: 1px solid #d4dfd7;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.survey-item.active {
+  background: #e8f1e8;
+  border-color: #587d59;
+}
+.survey-item strong,
+.survey-item span {
+  display: block;
+}
+.survey-item span {
+  font-size: 12px;
+  margin-top: 6px;
+}
+.survey-panel form > label {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.survey-panel textarea,
+.survey-panel select,
+.survey-option-edit input {
+  width: 100%;
+  border: 1px solid #a8b9ad;
+  border-radius: 7px;
+  padding: 9px;
+  font-size: 16px;
+  background: #fff;
+  color: #173d38;
+}
+.survey-panel textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+.survey-panel fieldset {
+  min-width: 0;
+  border: 1px solid #d4dfd7;
+  border-radius: 8px;
+  padding: 14px;
+  margin: 16px 0;
+}
+.survey-panel legend {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 6px;
+}
+.survey-option-edit {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.survey-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.survey-choice input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.survey-controls,
+.survey-delete {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.survey-delete {
+  background: #fff1ec;
+  padding: 12px;
+  border-radius: 8px;
+}
+.survey-results {
+  border-top: 1px solid #d4dfd7;
+  padding-top: 18px;
+  margin-top: 20px;
+}
+.survey-results ol {
+  list-style: decimal;
+  padding-left: 28px;
+}
+.survey-results li {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid #e4ece7;
+  padding: 10px 0;
+}
+.survey-result {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(60px, 1fr) 100px;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+.survey-result span {
+  overflow-wrap: anywhere;
+}
+.survey-result meter {
+  width: 100%;
+  height: 22px;
+  accent-color: #587d59;
+}
+.survey-result strong {
+  font-size: 13px;
+  text-align: right;
+}
+.survey-error {
+  color: #a63227;
+  background: #fff1ec;
+  border-radius: 8px;
+  padding: 10px;
+}
+.survey-storage-note {
+  border-top: 1px solid #d4dfd7;
+  padding-top: 12px;
+  color: #596f60;
+}
+@media (max-width: 650px) {
+  .survey-overlay {
+    padding: 8px;
+  }
+  .survey-panel {
+    padding: 16px;
+    max-height: calc(100dvh - 16px);
+  }
+  .survey-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .survey-layout aside {
+    max-height: 190px;
+    overflow: auto;
+  }
+  .survey-launch {
+    bottom: 12px;
+    right: 12px;
+  }
+}

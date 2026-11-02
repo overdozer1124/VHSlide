@@ -1,3 +1,5 @@
+import { SurveyPanel } from "./SurveyPanel";
+import { insertSurveyResults } from "./surveySlides";
 import { importPptx } from "./pptx";
 import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget } from "./hostFollow";
@@ -2782,6 +2784,32 @@ export default function App() {
           </div>
         )}
       </div>
+      <SurveyPanel
+        key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
+        deckId={cloud.active?.id}
+        userId={cloud.user?.id}
+        host={cloud.isHost}
+        blocked={cloud.viewingRevoked || cloud.recoveryOnly}
+        onInsert={(survey) => {
+          if (!cloud.active || !cloud.isHost)
+            throw new Error("挿入できるのは共有作品のホストだけです。");
+          const current = latestWorkbook.current;
+          const target = current.slides.find(
+            (s) => s.id === latestSlideId.current,
+          );
+          if (!target) throw new Error("挿入先のページを開いてください。");
+          const result = insertSurveyResults(current, target, survey);
+          if (!commitWorkbook(result.book, current, true))
+            throw new Error(
+              "スライドを挿入できませんでした。保存状況を確認してください。",
+            );
+          setActiveId(result.first);
+          setView("map");
+          notify(
+            "集計結果をスライドに挿入しました。挿入時点の結果を保存しています。",
+          );
+        }}
+      />
       {cloud.active && !cloud.isHost && cloud.follow.active && (
         <HostFollowView
           key={cloud.follow.sessionId}

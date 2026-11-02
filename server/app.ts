@@ -1,4 +1,10 @@
 import {
+  surveySchema,
+  surveyList,
+  surveyCommand,
+  SurveyError,
+} from "../src/surveys.ts";
+import {
   expireFollow,
   idleFollow,
   publicFollow,
@@ -302,6 +308,7 @@ export function createApplication(options: Options) {
   db.exec(pendingAssetSchema);
   db.exec(joinSchema);
   db.exec(historySchema);
+  db.exec(surveySchema);
   db.exec(
     "CREATE TABLE IF NOT EXISTS work_trash(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE, created INTEGER NOT NULL, purging INTEGER NOT NULL DEFAULT 0)",
   );
@@ -929,6 +936,50 @@ export function createApplication(options: Options) {
             409,
             "復元中の作品です。復元を完了するか削除してください。",
           );
+        if (extra === "surveys" || extra?.startsWith("surveys/")) {
+          insist(
+            ["GET", "POST", "DELETE"].includes(method),
+            405,
+            "この操作には対応していません。",
+          );
+          const route =
+            /^surveys(?:\/([a-f0-9-]{36})(?:\/(status|answer))?)?$/.exec(extra);
+          insist(
+            route &&
+              (method === "GET"
+                ? extra === "surveys"
+                : method === "DELETE"
+                  ? !!route[1] && !route[2]
+                  : extra === "surveys" || !!route[2]),
+            404,
+            "アンケートの操作が見つかりません。",
+          );
+          const value =
+            method === "POST"
+              ? JSON.parse((await body(req, 12000)).toString())
+              : {};
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            if (method !== "GET")
+              surveyCommand(
+                historySQL,
+                id,
+                u.id,
+                host,
+                method === "DELETE" ? "delete" : (route![2] ?? "create"),
+                route![1],
+                value,
+              );
+            const surveys = surveyList(historySQL, id, u.id, host);
+            db.exec("COMMIT");
+            return json(res, 200, { surveys });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
         if (extra === "join-requests" && method === "GET") {
           member(id, u, true);
           return json(res, 200, { requests: pendingJoins(historySQL, id) });
@@ -1687,7 +1738,9 @@ export function createApplication(options: Options) {
     } catch (error) {
       if (res.headersSent) return res.end();
       const status =
-        error instanceof HttpError || error instanceof JoinRequestError
+        error instanceof HttpError ||
+        error instanceof JoinRequestError ||
+        error instanceof SurveyError
           ? error.status
           : error instanceof SyntaxError
             ? 400
