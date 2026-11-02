@@ -1,0 +1,18 @@
+[WebServer] (node:63369) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+(node:63381) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-touch] › tests/cloud/free-response-fields.spec.ts:21:1 › free input creation, blur/idle autosave, pending recovery, read-only anonymous slide sharing and live changes (21.8s)
+  ✓  2 [cloud-touch] › tests/cloud/surveys.spec.ts:23:1 › host creates both question types, guests answer privately and results become editable slides (22.8s)
+  ✓  3 [cloud-touch] › tests/cloud/surveys.spec.ts:201:1 › embedded surveys accept private answers in viewer, presentation and host-follow pages (19.7s)
+  ✓  4 [cloud-touch] › tests/cloud/surveys.spec.ts:453:1 › existing result graphs link without new slides and refresh for guests while the host is offline (15.6s)
+  ✓  5 [cloud-touch] › tests/cloud/worksheets.spec.ts:29:1 › worksheet templates embed on slides, save per account, export named CSV and preserve privacy (17.4s)
+  ✓  6 [cloud-touch] › tests/cloud/worksheets.spec.ts:222:1 › every unmodified worksheet template creates a draft, including the initial reason template (4.1s)
+  ✓  7 [cloud-touch] › tests/cloud/worksheets.spec.ts:264:1 › draft validation and save failures remain visible and preserve the edited worksheet for retry (2.6s)
+  ✓  8 [cloud-touch] › tests/cloud/worksheets.spec.ts:312:1 › host reads long answers by person or question without squeezed identity columns, searches and exports everyone (6.0s)
+  ✓  9 [cloud-touch] › tests/cloud/worksheets.spec.ts:556:1 › survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs (6.8s)
+
+  9 passed (2.0m)

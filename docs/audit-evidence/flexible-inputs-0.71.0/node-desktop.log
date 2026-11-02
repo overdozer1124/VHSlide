@@ -1,0 +1,15 @@
+[WebServer] (node:61768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:61780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/free-response-fields.spec.ts:21:1 › free input creation, blur/idle autosave, pending recovery, read-only anonymous slide sharing and live changes (20.4s)
+  ✓  2 [cloud-desktop] › tests/cloud/worksheets.spec.ts:29:1 › worksheet templates embed on slides, save per account, export named CSV and preserve privacy (18.9s)
+  ✓  3 [cloud-desktop] › tests/cloud/worksheets.spec.ts:222:1 › every unmodified worksheet template creates a draft, including the initial reason template (4.6s)
+  ✓  4 [cloud-desktop] › tests/cloud/worksheets.spec.ts:264:1 › draft validation and save failures remain visible and preserve the edited worksheet for retry (2.8s)
+  ✓  5 [cloud-desktop] › tests/cloud/worksheets.spec.ts:312:1 › host reads long answers by person or question without squeezed identity columns, searches and exports everyone (7.7s)
+  ✓  6 [cloud-desktop] › tests/cloud/worksheets.spec.ts:556:1 › survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs (7.5s)
+
+  6 passed (1.1m)
