@@ -86,6 +86,28 @@ export async function exerciseSurveys(
   const own = (await list(guest))[0];
   assert.deepEqual(own.own, { choices: [1], text: "" });
   assert.equal("results" in own, false);
+  assert.equal(own.chartSummary, undefined);
+  await write(`/${single.id}/publish`, { enabled: true }, guest, 403);
+  await write(`/${single.id}/publish`, { enabled: true });
+  const published = (await list(guest)).find((s) => s.id === single.id)!;
+  assert.deepEqual(published.chartSummary, { count: 1, counts: [0, 1] });
+  assert.equal("results" in published, false);
+  assert.deepEqual(Object.keys(published.chartSummary!).sort(), [
+    "count",
+    "counts",
+  ]);
+  await write(`/${single.id}/answer`, { choices: [0], text: "" }, guest);
+  assert.deepEqual(
+    (await list(guest)).find((s) => s.id === single.id)!.chartSummary,
+    { count: 1, counts: [1, 0] },
+  );
+  await write(`/${single.id}/answer`, { choices: [1], text: "" }, guest);
+  await write(`/${single.id}/publish`, { enabled: false });
+  assert.equal(
+    (await list(guest)).find((s) => s.id === single.id)!.chartSummary,
+    undefined,
+  );
+  await write(`/${single.id}/publish`, { enabled: true });
   const foreign = await call(
     `/api/decks/${otherDeck}/surveys/${single.id}/answer`,
     "POST",
@@ -126,6 +148,7 @@ export async function exerciseSurveys(
     { choices: [], text: "<script>は文字として保存</script>\n気づき" },
     guest,
   );
+  await write(`/${free.id}/publish`, { enabled: true }, owner, 400);
   await restart();
   host = (await list()).find((s) => s.id === free.id)!;
   assert.deepEqual(host.results?.texts, [
@@ -135,6 +158,15 @@ export async function exerciseSurveys(
   assert.equal(host.results!.responses![0].name, identity.name);
   assert.equal(host.results!.responses![0].text, host.results!.texts[0]);
   const guestView = await list(guest);
+  assert.deepEqual(guestView.find((s) => s.id === single.id)!.chartSummary, {
+    count: 2,
+    counts: [1, 1],
+  });
+  assert.equal(
+    guestView.find((s) => s.id === free.id)!.chartSummary,
+    undefined,
+  );
+
   assert.ok(guestView.every((s) => !("results" in s)));
   assert.equal(
     (await list()).find((s) => s.id === multiple.id)!.results!.counts.join(),

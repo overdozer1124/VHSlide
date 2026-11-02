@@ -1,3 +1,4 @@
+import { linkSurveyResult, snapshotSurveyResults } from "./surveyResults";
 import { ActivitiesPanel } from "./ActivitiesPanel";
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
@@ -1529,7 +1530,18 @@ export default function App() {
             ),
           }
         : workbook;
-      const portable = cloud.active ? await portableDeck(source) : source;
+      const snapshot = cloud.active
+        ? snapshotSurveyResults(source, {
+            deckId: cloud.active.id,
+            enabled: !cloud.viewingRevoked && !cloud.recoveryOnly,
+            surveys:
+              surveyData.deckId === cloud.active.id &&
+              surveyData.userId === cloud.user?.id
+                ? surveyData.surveys
+                : [],
+          })
+        : source;
+      const portable = cloud.active ? await portableDeck(snapshot) : snapshot;
       const url = URL.createObjectURL(
         new Blob([serializeDeck(portable)], { type: "application/json" }),
       );
@@ -2901,6 +2913,9 @@ export default function App() {
             onData={setSurveyData}
             refreshToken={surveyRefresh}
             pollActive={
+              workbook.slides.some((s) =>
+                s.elements.some((e) => e.surveyResult),
+              ) ||
               (view !== "map" && slide.elements.some((e) => e.survey)) ||
               followLocked
             }
@@ -2964,6 +2979,28 @@ export default function App() {
             }}
             host={cloud.isHost}
             blocked={cloud.viewingRevoked || cloud.recoveryOnly}
+            onLink={(survey) => {
+              if (!cloud.active || !cloud.isHost)
+                throw new Error("ホストだけがグラフを連動できます。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target)
+                throw new Error("連動するグラフのページを開いてください。");
+              const next = linkSurveyResult(
+                current,
+                target,
+                survey,
+                cloud.active.id,
+                selected,
+              );
+              if (
+                !commitWorkbook(parseDeck(serializeDeck(next)), current, true)
+              )
+                throw new Error("グラフを連動できませんでした。");
+              notify("既存のグラフをアンケートに連動しました。");
+            }}
             onInsert={(survey) => {
               if (!cloud.active || !cloud.isHost)
                 throw new Error("挿入できるのは共有作品のホストだけです。");
@@ -2972,7 +3009,12 @@ export default function App() {
                 (s) => s.id === latestSlideId.current,
               );
               if (!target) throw new Error("挿入先のページを開いてください。");
-              const result = insertSurveyResults(current, target, survey);
+              const result = insertSurveyResults(
+                current,
+                target,
+                survey,
+                cloud.active.id,
+              );
               if (!commitWorkbook(result.book, current, true))
                 throw new Error(
                   "スライドを挿入できませんでした。保存状況を確認してください。",
@@ -2989,7 +3031,9 @@ export default function App() {
               setActiveId(result.first);
               setView("map");
               notify(
-                "集計結果をスライドに挿入しました。挿入時点の結果を保存しています。",
+                survey.kind === "text"
+                  ? "記述回答をスライドに挿入しました。挿入時点の内容を保存しています。"
+                  : "集計グラフを挿入しました。アンケートの回答変更と自動連動します。",
               );
             }}
           />

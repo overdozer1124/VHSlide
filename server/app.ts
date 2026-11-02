@@ -995,7 +995,9 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^surveys(?:\/([a-f0-9-]{36})(?:\/(status|answer))?)?$/.exec(extra);
+            /^surveys(?:\/([a-f0-9-]{36})(?:\/(status|answer|publish))?)?$/.exec(
+              extra,
+            );
           insist(
             route &&
               (method === "GET"

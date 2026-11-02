@@ -18,6 +18,8 @@ export type SurveyResponse = SurveyAnswer & {
 };
 export type SurveyView = Survey & {
   own?: SurveyAnswer;
+  chartPublished?: boolean;
+  chartSummary?: { count: number; counts: number[] };
   results?: {
     count: number;
     counts: number[];
@@ -38,6 +40,7 @@ const insist = (ok: unknown, status: number, message: string): void => {
 };
 export const surveySchema = `
 CREATE TABLE IF NOT EXISTS surveys(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, question TEXT NOT NULL, kind TEXT NOT NULL, options TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS survey_chart_publications(survey TEXT PRIMARY KEY REFERENCES surveys(id) ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS surveys_deck ON surveys(deck);
 CREATE TABLE IF NOT EXISTS survey_answers(survey TEXT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE, author TEXT NOT NULL, value TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY(survey,author));`;
 function read(row: Record<string, any>): Survey {
@@ -73,6 +76,25 @@ export function surveyList(
         ...survey,
         ...(own ? { own: JSON.parse(own.value) } : {}),
       };
+      const published =
+        [
+          ...sql(
+            "SELECT survey FROM survey_chart_publications WHERE survey=?",
+            survey.id,
+          ),
+        ].length > 0;
+      if (host) result.chartPublished = published;
+      if (published && survey.kind !== "text") {
+        const values = [
+          ...sql("SELECT value FROM survey_answers WHERE survey=?", survey.id),
+        ].map((a) => JSON.parse(a.value) as SurveyAnswer);
+        result.chartSummary = {
+          count: values.length,
+          counts: survey.options.map(
+            (_, i) => values.filter((a) => a.choices.includes(i)).length,
+          ),
+        };
+      }
       if (host) {
         const answers = [
           ...sql(
@@ -171,7 +193,22 @@ export function surveyCommand(
   ][0];
   insist(row, 404, "アンケートが見つかりません。");
   const survey = read(row);
-  if (action === "status") {
+  if (action === "publish") {
+    insist(host, 403, "集計の共有を変更できるのはホストだけです。");
+    insist(
+      survey.kind !== "text" &&
+        survey.status !== "draft" &&
+        typeof value.enabled === "boolean",
+      400,
+      "受付を開始済みの選択式アンケートを指定してください。",
+    );
+    if (value.enabled)
+      sql(
+        "INSERT OR IGNORE INTO survey_chart_publications VALUES(?)",
+        survey.id,
+      );
+    else sql("DELETE FROM survey_chart_publications WHERE survey=?", survey.id);
+  } else if (action === "status") {
     insist(host, 403, "受付を変更できるのはホストだけです。");
     insist(
       ["open", "closed"].includes(String(value.status)),

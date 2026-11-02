@@ -1,3 +1,5 @@
+import { parseSurveyResultBinding } from "./surveyResults.ts";
+import type { SurveyResultBinding } from "./surveyResults.ts";
 import { parseWorksheetBinding } from "./worksheets.ts";
 import type { WorksheetBinding } from "./worksheets.ts";
 import { parseSurveyBinding } from "./surveyBinding.ts";
@@ -29,6 +31,7 @@ export type Shape = ShapeKind;
 export interface Element {
   worksheet?: WorksheetBinding;
   survey?: SurveyBinding;
+  surveyResult?: SurveyResultBinding;
   id: string;
   type: "text" | "image" | "shape" | "table" | "line" | "chart";
   groupId?: string;
@@ -661,6 +664,16 @@ export function parseDeck(input: string): Deck {
           h: num(e.h, 20, H),
         };
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
+        if (e.surveyResult !== undefined) {
+          const binding = parseSurveyResultBinding(e.surveyResult);
+          if (
+            e.worksheet !== undefined ||
+            e.survey !== undefined ||
+            (binding.part === "chart" ? e.type !== "chart" : e.type !== "text")
+          )
+            fail();
+          base.surveyResult = binding;
+        }
         if (e.worksheet !== undefined) {
           if (e.type !== "shape" || e.survey !== undefined) fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);

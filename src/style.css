@@ -6913,3 +6913,5 @@ h1 span {
 .activity-content .survey-storage-note { font-size:12px;margin:10px 0 0; }
 .activity-content>p[role=alert],.activity-content>p[role=status] { margin:8px 0 0; }
 @media(max-width:600px) { .activity-panel>header h2 { font-size:20px; } .activity-tabs [role=tab] { padding-inline:14px;flex:1; } }
+.survey-live-actions { display:flex;flex-wrap:wrap;gap:10px;margin-top:12px; }
+.survey-live-actions p { flex-basis:100%;font-size:13px; }

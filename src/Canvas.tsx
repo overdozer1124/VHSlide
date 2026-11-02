@@ -1,3 +1,4 @@
+import { SurveyResultCaption } from "./SurveyResultCaption";
 import { SlideWorksheet } from "./SlideWorksheet";
 import { SlideSurvey } from "./SlideSurvey";
 import { InkObject } from "./InkObject";
@@ -34,6 +35,8 @@ export function ElementView({ element: e }: { element: Element }) {
   if (e.survey) return <SlideSurvey element={e} />;
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
+  if (e.type === "text" && e.surveyResult)
+    return <SurveyResultCaption element={e} />;
   if (e.type === "text") return <RichTextView element={e} />;
   if (e.type === "image")
     return e.drawing ? <InkObject element={e} /> : <ImageGraphic element={e} />;

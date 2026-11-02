@@ -1,3 +1,6 @@
+import { useContext } from "react";
+import { SurveySlideContext } from "./SurveySlideContext";
+import { resolveSurveyResult } from "./surveyResults";
 import { webLink } from "./webLink";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -354,7 +357,9 @@ export function ChartControls({
   element: Element;
   onChange: (p: Partial<Element>) => void;
 }) {
-  const c = e.chart!;
+  const surveyData = useContext(SurveySlideContext);
+  const c = resolveSurveyResult(e, surveyData).chart!;
+  const linked = !!e.surveyResult;
   const set = (patch: Partial<typeof c>) =>
     onChange({ chart: { ...c, ...patch } });
   return (
@@ -384,7 +389,9 @@ export function ChartControls({
         </select>
       </label>
       <p className="inspector-note">
-        項目の名前と値を入力すると、すぐにグラフへ反映します。円グラフには0以上の値を使います。
+        {linked
+          ? "アンケートの集計と連動しています。項目名と件数は回答から自動更新されます。種類・色・表示設定は変更できます。"
+          : "項目の名前と値を入力すると、すぐにグラフへ反映します。円グラフには0以上の値を使います。"}
       </p>
       <div className="chart-data-rows">
         {c.series.map((p, i) => (
@@ -393,6 +400,7 @@ export function ChartControls({
               項目{i + 1}
               <input
                 aria-label={`グラフ項目${i + 1}の名前`}
+                disabled={linked}
                 value={p.label}
                 maxLength={60}
                 onChange={(ev) =>
@@ -404,20 +412,24 @@ export function ChartControls({
                 }
               />
             </label>
-            <NumberField
-              label="値"
-              ariaLabel={`グラフ項目${i + 1}の値`}
-              value={p.value}
-              min={c.kind === "pie" ? 0 : -1e6}
-              max={1e6}
-              onCommit={(value) =>
-                set({
-                  series: c.series.map((t) =>
-                    t.id === p.id ? { ...t, value } : t,
-                  ),
-                })
-              }
-            />
+            {linked ? (
+              <output aria-label={`グラフ項目${i + 1}の値`}>{p.value}</output>
+            ) : (
+              <NumberField
+                label="値"
+                ariaLabel={`グラフ項目${i + 1}の値`}
+                value={p.value}
+                min={c.kind === "pie" ? 0 : -1e6}
+                max={1e6}
+                onCommit={(value) =>
+                  set({
+                    series: c.series.map((t) =>
+                      t.id === p.id ? { ...t, value } : t,
+                    ),
+                  })
+                }
+              />
+            )}
             <input
               type="color"
               aria-label={`グラフ項目${i + 1}の色`}
@@ -433,7 +445,7 @@ export function ChartControls({
             <button
               className="quiet"
               aria-label={`グラフ項目${i + 1}を削除`}
-              disabled={c.series.length <= 1}
+              disabled={linked || c.series.length <= 1}
               onClick={() =>
                 set({ series: c.series.filter((t) => t.id !== p.id) })
               }
@@ -445,7 +457,7 @@ export function ChartControls({
       </div>
       <button
         className="button"
-        disabled={c.series.length >= 12}
+        disabled={linked || c.series.length >= 12}
         onClick={() =>
           set({
             series: [

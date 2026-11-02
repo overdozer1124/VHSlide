@@ -1,8 +1,12 @@
-import { useEffect, useReducer } from "react";
+import { SurveySlideContext } from "./SurveySlideContext";
+import { resolveSurveyResult } from "./surveyResults";
+import { useContext, useEffect, useReducer } from "react";
 import type { Element } from "./model";
 import { chartLayout, chartNumber } from "./chartLayout";
 import { textMeasure, canvasFont } from "./contentFit";
-export function ChartGraphic({ element: e }: { element: Element }) {
+export function ChartGraphic({ element }: { element: Element }) {
+  const surveyData = useContext(SurveySlideContext);
+  const e = resolveSurveyResult(element, surveyData);
   const [, refresh] = useReducer((n) => n + 1, 0);
   useEffect(() => {
     const done = () => refresh();
@@ -23,6 +27,9 @@ export function ChartGraphic({ element: e }: { element: Element }) {
   return (
     <svg
       className="chart-graphic"
+      data-survey-result={
+        element.surveyResult ? (e !== element ? "live" : "snapshot") : undefined
+      }
       data-chart-numbered={l.numbered}
       data-chart-truncated={l.issues.length > 0}
       viewBox={`0 0 ${e.w} ${e.h}`}

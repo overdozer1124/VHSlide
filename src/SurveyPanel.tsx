@@ -14,6 +14,7 @@ type Props = {
   userId?: string;
   host: boolean;
   onInsert: (survey: SurveyView) => void;
+  onLink?: (survey: SurveyView) => void;
   onEmbed?: (survey: SurveyView) => void;
   onData?: (data: SurveySlideData) => void;
   refreshToken?: number;
@@ -25,6 +26,7 @@ export function SurveyPanel({
   userId,
   host,
   onInsert,
+  onLink,
   onEmbed,
   onData,
   refreshToken,
@@ -34,6 +36,10 @@ export function SurveyPanel({
   const activity = useActivityPanel();
   const open = activity.open && activity.active === "survey";
   const close = activity.close;
+  const activityEpoch = useRef(0);
+  useEffect(() => {
+    activityEpoch.current++;
+  }, [activity.open, activity.active]);
   const [surveys, setSurveys] = useState<SurveyView[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -153,11 +159,47 @@ export function SurveyPanel({
       else if (method === "DELETE") {
         setSelectedId("");
         setMessage("アンケートと回答を削除しました。");
-      } else setMessage("受付状態を更新しました。");
+      } else if (path.endsWith("/publish"))
+        setMessage("集計の共有設定を更新しました。");
+      else setMessage("受付状態を更新しました。");
     } catch (e) {
       if (currentScope.current === requestScope) setError((e as Error).message);
     } finally {
       if (currentScope.current === requestScope) setBusy(false);
+    }
+  }
+  async function placeResults(mode: "insert" | "link") {
+    if (!selected || busy || !host) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    const requestScope = scope;
+    let placed = false;
+    const requestEpoch = activityEpoch.current;
+    try {
+      if (mode === "link") onLink?.(selected);
+      else onInsert(selected);
+      placed = true;
+      if (selected.kind !== "text") {
+        const data = await api<{ surveys: SurveyView[] }>(
+          `/api/decks/${deckId}/surveys/${selected.id}/publish`,
+          { method: "POST", body: JSON.stringify({ enabled: true }) },
+        );
+        if (!alive.current || currentScope.current !== requestScope) return;
+        ++refreshVersion.current;
+        setSurveys(data.surveys);
+      }
+      if (activityEpoch.current === requestEpoch) close();
+    } catch (e) {
+      if (alive.current && currentScope.current === requestScope)
+        setError(
+          placed
+            ? `グラフの配置は完了しましたが、自動更新を開始できませんでした。「グラフの自動更新を有効にする」から再試行してください。${(e as Error).message}`
+            : (e as Error).message,
+        );
+    } finally {
+      if (alive.current && currentScope.current === requestScope)
+        setBusy(false);
     }
   }
   async function downloadResponses(surveyId: string) {
@@ -203,7 +245,7 @@ export function SurveyPanel({
     <>
       <p>
         {host
-          ? "回答と集計はホストだけが確認できます。"
+          ? "個別の回答と管理用の集計はホストだけが確認できます。連動グラフの人数・件数は参加者にも共有します。"
           : "回答者名・メールアドレスと回答内容はホストが確認します。"}
       </p>
       {!deckId ? (
@@ -588,22 +630,46 @@ export function SurveyPanel({
                         スライドに挿入する集計には、回答者名・メールアドレスを含めません。
                       </p>
                       <p>
-                        挿入すると、集計結果や記述回答がスライドとして参加者にも公開されます。現在のページの右に追加し、記述回答は複数ページに分けます。挿入後の結果は自動更新されません。
+                        挿入すると、集計結果や記述回答がスライドとして参加者にも公開されます。選択式のグラフは以後の回答変更を約3秒ごとに自動反映します。人数と選択肢ごとの件数だけを共有し、回答者情報は公開しません。記述回答は挿入時点の内容です。
                       </p>
                       <button
                         className="button primary"
                         disabled={busy || !selected.results.count}
-                        onClick={() => {
-                          try {
-                            onInsert(selected);
-                            close();
-                          } catch (e) {
-                            setError((e as Error).message);
-                          }
-                        }}
+                        onClick={() => void placeResults("insert")}
                       >
                         集計結果をスライドに挿入
                       </button>
+                      {selected.kind !== "text" && (
+                        <div className="survey-live-actions">
+                          {onLink && (
+                            <button
+                              className="button outline"
+                              disabled={busy || selected.status === "draft"}
+                              onClick={() => void placeResults("link")}
+                            >
+                              このページの既存グラフを連動
+                            </button>
+                          )}
+                          <button
+                            className="button outline"
+                            disabled={busy || selected.status === "draft"}
+                            onClick={() =>
+                              void command(`/${selected.id}/publish`, {
+                                enabled: !selected.chartPublished,
+                              })
+                            }
+                          >
+                            {selected.chartPublished
+                              ? "グラフの自動更新・集計共有を停止"
+                              : "グラフの自動更新を有効にする"}
+                          </button>
+                          <p>
+                            {selected.chartPublished
+                              ? "連動中：人数と選択肢別件数を作品の参加者へ共有しています。"
+                              : "連動を有効にすると、人数と選択肢別件数を作品の参加者へ共有します。以前挿入したグラフは、そのページで「既存グラフを連動」を一度実行してください。"}
+                          </p>
+                        </div>
+                      )}
                     </section>
                   )}
                 </>

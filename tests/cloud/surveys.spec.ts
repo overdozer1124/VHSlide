@@ -121,6 +121,19 @@ test("host creates both question types, guests answer privately and results beco
     await expect(page.locator(".slide-card")).toHaveCount(5);
     await page.getByRole("button", { name: "やり直す", exact: true }).click();
     await expect(page.locator(".slide-card")).toHaveCount(6);
+    await expect(
+      page.locator('.chart-graphic[data-survey-result="live"]'),
+    ).toHaveCount(1);
+    await guest.getByRole("radio", { name: "春", exact: true }).check();
+    await guest
+      .getByRole("button", { name: "回答を変更して保存", exact: true })
+      .click();
+    await expect(
+      page.locator('.chart-graphic[data-survey-result="live"] > title'),
+    ).toContainText("春 1");
+    await expect(
+      page.locator('.chart-graphic[data-survey-result="live"] > title'),
+    ).toContainText("夏 0");
     await launch(page).click();
     await page.getByRole("button", { name: "新しいアンケート" }).click();
     await page
@@ -442,6 +455,170 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
       path: info.outputPath("embedded-survey.png"),
       fullPage: true,
     });
+  } finally {
+    await guestContext.close();
+  }
+});
+
+test("existing result graphs link without new slides and refresh for guests while the host is offline", async ({
+  page,
+  browser,
+}, info) => {
+  const guestContext = await browser.newContext(info.project.use);
+  const guest = await guestContext.newPage();
+  try {
+    await signIn(page, "live-host");
+    await signIn(guest, "live-guest");
+    const headers = { Origin: "http://127.0.0.1:3187" };
+    const { insertSurveyResults } = await import("../../src/surveySlides");
+    const initial = sample();
+    const legacy = insertSurveyResults(initial, initial.slides[0], {
+      id: crypto.randomUUID(),
+      question: "好きな季節",
+      kind: "single",
+      options: ["春", "夏"],
+      status: "open",
+      created: 1,
+      results: { count: 1, counts: [1, 0], texts: [] },
+    });
+    const created = await page.request.post("/api/decks", {
+      headers,
+      data: legacy.book,
+    });
+    expect(created.status()).toBe(201);
+    const { id } = await created.json();
+    await page.request.post(`/api/decks/${id}/surveys`, {
+      headers,
+      data: { question: "好きな季節", kind: "single", options: ["春", "夏"] },
+    });
+    const survey = (
+      await (await page.request.get(`/api/decks/${id}/surveys`)).json()
+    ).surveys[0];
+    await page.request.post(`/api/decks/${id}/surveys/${survey.id}/status`, {
+      headers,
+      data: { status: "open" },
+    });
+    const invite = await page.request.post(`/api/decks/${id}/invite`, {
+      headers,
+    });
+    const token = new URL((await invite.json()).url).searchParams.get("join");
+    const pending = await (
+      await guest.request.post(`/api/invites/${token}/accept`, { headers })
+    ).json();
+    if (pending.status === "pending")
+      await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+        headers,
+        data: { requestIds: [pending.requestId] },
+      });
+    expect(
+      (
+        await guest.request.post(
+          `/api/decks/${id}/surveys/${survey.id}/answer`,
+          { headers, data: { choices: [0], text: "" } },
+        )
+      ).status(),
+    ).toBe(200);
+    await page.goto(`/?room=${id}`);
+    await guest.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(6);
+    await expect(guest.locator(".slide-card")).toHaveCount(6);
+    await page.locator(".slide-card:has(.chart-graphic) .thumbnail").click();
+    await expect(page.locator(".editor-workspace .chart-graphic")).toHaveCount(
+      1,
+    );
+    await launch(page).click();
+    await page
+      .getByRole("button", {
+        name: "このページの既存グラフを連動",
+        exact: true,
+      })
+      .click();
+    await expect(dialog(page)).toHaveCount(0);
+    const hostGraph = page.locator(
+      '.editor-workspace .chart-graphic[data-survey-result="live"]',
+    );
+    const guestGraph = guest.locator(
+      '.slide-card .chart-graphic[data-survey-result="live"]',
+    );
+    await expect(hostGraph).toHaveCount(1);
+    await expect(guestGraph).toHaveCount(1);
+    await expect(guestGraph.locator(":scope > title")).toContainText("春 1");
+    await page.goto("about:blank");
+    expect(
+      (
+        await guest.request.post(
+          `/api/decks/${id}/surveys/${survey.id}/answer`,
+          { headers, data: { choices: [1], text: "" } },
+        )
+      ).status(),
+    ).toBe(200);
+    await expect(guestGraph.locator(":scope > title")).toContainText("春 0");
+    await expect(guestGraph.locator(":scope > title")).toContainText("夏 1");
+    const published = (
+      await (await guest.request.get(`/api/decks/${id}/surveys`)).json()
+    ).surveys[0];
+    expect(published.results).toBeUndefined();
+    expect(published.chartSummary).toEqual({ count: 1, counts: [0, 1] });
+    expect(
+      (
+        await guest.request.post(
+          `/api/decks/${id}/surveys/${survey.id}/publish`,
+          { headers, data: { enabled: false } },
+        )
+      ).status(),
+    ).toBe(403);
+    await guest.locator(".slide-card:has(.chart-graphic) .thumbnail").click();
+    await guest.getByRole("button", { name: "発表する", exact: true }).click();
+    const presentGraph = guest.locator(
+      '.present-mode .chart-graphic[data-survey-result="live"]',
+    );
+    if ((await presentGraph.count()) === 0) {
+      await guest.mouse.move(10, 10);
+      await guest
+        .getByRole("button", { name: "次の話題", exact: true })
+        .click();
+    }
+    await expect(presentGraph.locator(":scope > title")).toContainText("夏 1");
+    expect(
+      (
+        await guest.request.post(
+          `/api/decks/${id}/surveys/${survey.id}/answer`,
+          { headers, data: { choices: [0], text: "" } },
+        )
+      ).status(),
+    ).toBe(200);
+    await expect(presentGraph.locator(":scope > title")).toContainText("春 1");
+    await expect(presentGraph.locator(":scope > title")).toContainText("夏 0");
+    await guest.screenshot({
+      path: info.outputPath("live-survey-graph.png"),
+      fullPage: true,
+    });
+    await page.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(6);
+    const remote = await (await page.request.get(`/api/decks/${id}`)).json();
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, fromBase64(remote.state));
+    const book = readSharedDeck(doc);
+    doc.destroy();
+    expect(book.slides).toHaveLength(6);
+    expect(JSON.stringify(book)).not.toContain("live-guest@example.test");
+    expect(
+      book.slides
+        .flatMap((s) => s.elements)
+        .some((e) => e.surveyResult?.surveyId === survey.id),
+    ).toBe(true);
+    await launch(page).click();
+    await page
+      .getByRole("button", {
+        name: "グラフの自動更新・集計共有を停止",
+        exact: true,
+      })
+      .click();
+    await expect(presentGraph).toHaveCount(0);
+    expect(
+      (await (await guest.request.get(`/api/decks/${id}/surveys`)).json())
+        .surveys[0].chartSummary,
+    ).toBeUndefined();
   } finally {
     await guestContext.close();
   }

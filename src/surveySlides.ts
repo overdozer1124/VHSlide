@@ -8,6 +8,7 @@ export function insertSurveyResults(
   book: Deck,
   at: Slide,
   survey: SurveyView,
+  deckId?: string,
 ): { book: Deck; first: string } {
   if (!survey.results)
     throw new Error("集計結果を取得してから挿入してください。");
@@ -37,6 +38,15 @@ export function insertSurveyResults(
       {
         id: uid(),
         type: "chart",
+        ...(deckId
+          ? {
+              surveyResult: {
+                deckId,
+                surveyId: survey.id,
+                part: "chart" as const,
+              },
+            }
+          : {}),
         x: 60,
         y: 160,
         w: W - 120,
@@ -106,14 +116,25 @@ export function insertSurveyResults(
             ? 20
             : 28,
       ),
-      text(
-        `${result.count}人が回答${survey.kind === "multiple" ? "・複数選択（各項目の件数）" : ""} ／ ${new Date().toLocaleString("ja-JP")} 時点`,
-        60,
-        120,
-        840,
-        30,
-        16,
-      ),
+      {
+        ...text(
+          `${result.count}人が回答${survey.kind === "multiple" ? "・複数選択（各項目の件数）" : ""} ／ ${new Date().toLocaleString("ja-JP")} 時点`,
+          60,
+          120,
+          840,
+          30,
+          16,
+        ),
+        ...(deckId && survey.kind !== "text"
+          ? {
+              surveyResult: {
+                deckId,
+                surveyId: survey.id,
+                part: "caption" as const,
+              },
+            }
+          : {}),
+      },
       ...elements,
     ],
   }));
