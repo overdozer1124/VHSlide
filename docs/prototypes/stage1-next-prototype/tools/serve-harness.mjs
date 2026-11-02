@@ -29,6 +29,8 @@ const mf = new Miniflare({
     BOOTSTRAP_SECRET: "test-bootstrap-secret",
     RECOVERY_KEY: "test-recovery-key",
     RESTART_KEY: "test-restart-key",
+    DIAG_KEY: "test-diag-key",
+    DEPLOYMENT_TIER: "local-mock",
     MOCK_AUTH: "1",
     ALLOW_TEST_HOOKS: "1",
     ENV_ID: "stage1-verification-only-20261101",

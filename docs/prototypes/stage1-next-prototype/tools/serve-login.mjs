@@ -1,6 +1,10 @@
 // ログイン画面を http://localhost:8787 で配信する小さなサーバー（ローカル模擬用）。
 //
-// - GET / → public/login.html を返す
+// !!! 模擬専用 !!! 実試験には使いません。実試験では PC 側の静的配信で
+// public/login-real.html を配信します。このサーバーが配信するのは
+// 模擬専用の public/login-mock.html です。
+//
+// - GET / → public/login-mock.html を返す
 // - それ以外 → ハーネス（HARNESS_URL、既定 http://127.0.0.1:8799）へ素通し中継する
 //   （Origin・Cookie を含むヘッダーを変更しない。変形Bの中継と同じ前提）
 //
@@ -19,11 +23,11 @@ import { fileURLToPath } from "node:url";
 const PORT = Number(process.env.PORT || "8787");
 const HARNESS = (process.env.HARNESS_URL || "http://127.0.0.1:8799").replace(/\/+$/, "");
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const loginHtml = await readFile(path.join(root, "public", "login.html"));
+const loginHtml = await readFile(path.join(root, "public", "login-mock.html"));
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.method === "GET" && (req.url === "/" || req.url === "/login.html")) {
+    if (req.method === "GET" && (req.url === "/" || req.url === "/login-mock.html")) {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(loginHtml);
       return;

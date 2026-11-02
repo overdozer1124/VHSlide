@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>段階①試作 実ログイン画面（検証用・実 GIS）</title>
+<!--
+  実試験用のログイン画面です。モック版（login-mock.html）とは別物です。
+
+  - Google Identity Services（GIS）で実 Google ログインを行い、ID トークンを
+    検証用 Worker（中継経由）へ送ります。
+  - 転送先は同一生成元（http://localhost:8787）の固定パスだけです。
+    URL を入力・変更できる欄はありません。
+  - シークレット類は password 型の入力欄に入れ、送信後に値を消去します。
+  - ID トークンや CSRF トークンの値は画面・ログに出しません
+    （成否と HTTP 状態だけを表示します）。
+  - ブラウザー配信と中継は PC 側で行います（tools/serve-login.mjs は
+    模擬専用なので実試験では使いません）。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  input[type="password"] { width: 32em; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<h1>段階①試作 実ログイン画面（検証用）</h1>
+<p class="note">検証用 Google アカウントでログインし、検証用 Worker へ ID トークンを送ります。
+通信の成否と HTTP 状態だけを表示し、トークンや秘密の値は表示しません。</p>
+
+<fieldset>
+  <legend>初回登録（/register）</legend>
+  <label>初回用シークレット
+    <input type="password" id="bootstrapSecret" autocomplete="off">
+  </label>
+  <button id="prepRegister" type="button">nonce を取得して Google ログインボタンを表示</button>
+  <div id="gisRegister"></div>
+</fieldset>
+
+<fieldset>
+  <legend>再ログイン（/login）</legend>
+  <button id="prepLogin" type="button">nonce を取得して Google ログインボタンを表示</button>
+  <div id="gisLogin"></div>
+</fieldset>
+
+<fieldset>
+  <legend>復旧（/recover）</legend>
+  <label>復旧キー
+    <input type="password" id="recoveryKey" autocomplete="off">
+  </label>
+  <button id="prepRecover" type="button">nonce を取得して Google ログインボタンを表示</button>
+  <div id="gisRecover"></div>
+</fieldset>
+
+<fieldset>
+  <legend>操作（/operate）</legend>
+  <button id="btnOperate" type="button">操作（セッション＋CSRF で照合）</button>
+  <p class="note">CSRF トークンは登録・再ログイン・復旧の応答からメモリー内にだけ保持し、画面には出しません。</p>
+</fieldset>
+
+<h2>結果</h2>
+<pre id="log"></pre>
+
+<script>
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （検証用に作成した Web クライアントの ID を、この定数へ PC 側で差し替える）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+
+// 転送先は同一生成元の固定パスだけを使う（変更できる欄は作らない）。
+const PATHS = {
+  nonce: "/nonce",
+  register: "/register",
+  login: "/login",
+  recover: "/recover",
+  operate: "/operate",
+};
+
+const logEl = document.getElementById("log");
+function log(...parts) {
+  // 成否と HTTP 状態だけを出す。トークン・秘密の値は出さない。
+  logEl.textContent += parts.join(" ") + "\n";
+}
+
+// CSRF トークンはメモリー内にだけ保持する（画面・ログには出さない）。
+let currentCsrf = null;
+
+async function fetchNonce() {
+  // credentials: "include" で、発行に結び付いた認証試行コンテキストの
+  // Cookie（mtrial_nonce_ctx）をブラウザーに保持させる。
+  const res = await fetch(PATHS.nonce, { credentials: "include" });
+  const data = await res.json().catch(() => null);
+  log("GET /nonce ->", res.status, data && data.ok ? "ok" : "ng");
+  if (!res.ok || !data || !data.nonce) throw new Error("nonce が取得できませんでした");
+  return data.nonce;
+}
+
+async function postJson(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => null);
+  log("POST", path, "->", res.status, data && data.ok ? "ok" : (data && data.error) || "ng");
+  if (data && data.csrf_token) currentCsrf = data.csrf_token;
+  return { status: res.status, data };
+}
+
+// action: "register" | "login" | "recover"
+// nonce を取得し、その nonce で GIS を初期化してボタンを描画する。
+// ユーザーがボタンを押すとコールバックで ID トークンを受け取り、
+// 対応する経路へ送る。
+async function prepare(action, containerId) {
+  const nonce = await fetchNonce();
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce,
+    callback: async (response) => {
+      try {
+        await submit(action, response.credential);
+      } catch (e) {
+        log("エラー:", e.message);
+      }
+    },
+  });
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  google.accounts.id.renderButton(container, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+}
+
+async function submit(action, idToken) {
+  if (action === "register") {
+    const input = document.getElementById("bootstrapSecret");
+    try {
+      await postJson(PATHS.register, {
+        id_token: idToken,
+        bootstrap_secret: input.value,
+      });
+    } finally {
+      input.value = ""; // 送信後に秘密の値を消去する
+    }
+  } else if (action === "login") {
+    await postJson(PATHS.login, { id_token: idToken });
+  } else if (action === "recover") {
+    const input = document.getElementById("recoveryKey");
+    try {
+      await postJson(PATHS.recover, {
+        id_token: idToken,
+        recovery_key: input.value,
+      });
+    } finally {
+      input.value = ""; // 送信後に秘密の値を消去する
+    }
+  }
+}
+
+document.getElementById("prepRegister").addEventListener("click", async () => {
+  try { await prepare("register", "gisRegister"); } catch (e) { log("エラー:", e.message); }
+});
+document.getElementById("prepLogin").addEventListener("click", async () => {
+  try { await prepare("login", "gisLogin"); } catch (e) { log("エラー:", e.message); }
+});
+document.getElementById("prepRecover").addEventListener("click", async () => {
+  try { await prepare("recover", "gisRecover"); } catch (e) { log("エラー:", e.message); }
+});
+document.getElementById("btnOperate").addEventListener("click", async () => {
+  try {
+    const headers = { "content-type": "application/json" };
+    if (currentCsrf) headers["X-CSRF"] = currentCsrf;
+    const res = await fetch(PATHS.operate, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: "{}",
+    });
+    const data = await res.json().catch(() => null);
+    log("POST /operate ->", res.status, data && data.ok ? "ok" : (data && data.error) || "ng");
+  } catch (e) { log("エラー:", e.message); }
+});
+</script>
+</body>
+</html>

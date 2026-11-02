@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>段階①試作 ログイン画面（ローカル模擬専用）</title>
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  input[type="text"] { width: 32em; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .warn { color: #a00; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>段階①試作 ログイン画面（ローカル模擬専用）</h1>
+<p class="warn">ローカル模擬専用です。実 Google アカウントには接続しません。
+ID トークンは <code>mock.&lt;sub&gt;.&lt;nonce&gt;</code> 形式の模擬値をこの画面で組み立てます。
+<b>実試験にはこの画面を使いません</b>（実ログインには <code>login-real.html</code> を使います）。</p>
+
+<label>API ベース URL（空欄 = 同一オリジン。tools/serve-login.mjs 経由なら空欄でよい）
+  <input type="text" id="apiBase" value="">
+</label>
+
+<fieldset>
+  <legend>登録 / 再ログイン</legend>
+  <label>アカウント（模擬 sub）
+    <select id="account">
+      <option value="mock-subject-alpha-001">アカウントA（初期登録・復旧元）: mock-subject-alpha-001</option>
+      <option value="mock-subject-beta-002">アカウントB（復旧先）: mock-subject-beta-002</option>
+    </select>
+  </label>
+  <label>初回用シークレット（ダミー）
+    <input type="text" id="bootstrapSecret" value="test-bootstrap-secret">
+  </label>
+  <button id="btnRegister">nonce 取得 → 登録（/register）</button>
+  <button id="btnLogin">nonce 取得 → 再ログイン（/login）</button>
+</fieldset>
+
+<fieldset>
+  <legend>操作（セッション＋CSRF）</legend>
+  <label>CSRF トークン（登録・復旧の応答で自動入力。書き換えると不一致の試験ができる）
+    <input type="text" id="csrf" value="">
+  </label>
+  <button id="btnOperate">操作（/operate）</button>
+  <p>セッション Cookie はブラウザーが保持します（HttpOnly のため画面からは読めません）。</p>
+</fieldset>
+
+<fieldset>
+  <legend>復旧</legend>
+  <label>新しいアカウント（模擬 sub）
+    <select id="newAccount">
+      <option value="mock-subject-beta-002">アカウントB: mock-subject-beta-002</option>
+      <option value="mock-subject-alpha-001">アカウントA: mock-subject-alpha-001</option>
+    </select>
+  </label>
+  <label>復旧キー（ダミー）
+    <input type="text" id="recoveryKey" value="test-recovery-key">
+  </label>
+  <button id="btnRecover">nonce 取得 → 復旧（/recover）</button>
+</fieldset>
+
+<h2>通信ログ</h2>
+<pre id="log"></pre>
+
+<script>
+const logEl = document.getElementById("log");
+function log(...parts) {
+  logEl.textContent += parts.join(" ") + "\n";
+}
+function apiBase() {
+  return document.getElementById("apiBase").value.replace(/\/+$/, "");
+}
+async function getNonce() {
+  const res = await fetch(apiBase() + "/nonce");
+  const data = await res.json();
+  log("GET /nonce ->", res.status, JSON.stringify(data));
+  if (!data.nonce) throw new Error("nonce が取得できませんでした");
+  return data.nonce;
+}
+function mockToken(sub, nonce) {
+  return "mock." + sub + "." + nonce;
+}
+async function post(path, body) {
+  const headers = { "content-type": "application/json" };
+  const res = await fetch(apiBase() + path, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* 応答が JSON でない場合 */ }
+  log("POST", path, "->", res.status, JSON.stringify(data));
+  return { status: res.status, data };
+}
+function adoptCsrf(data) {
+  if (data && data.csrf_token) {
+    document.getElementById("csrf").value = data.csrf_token;
+    log("CSRF トークンを保持しました");
+  }
+}
+document.getElementById("btnRegister").addEventListener("click", async () => {
+  try {
+    const sub = document.getElementById("account").value;
+    const nonce = await getNonce();
+    const r = await post("/register", {
+      id_token: mockToken(sub, nonce),
+      bootstrap_secret: document.getElementById("bootstrapSecret").value,
+    });
+    adoptCsrf(r.data);
+  } catch (e) { log("エラー:", e.message); }
+});
+document.getElementById("btnLogin").addEventListener("click", async () => {
+  try {
+    const sub = document.getElementById("account").value;
+    const nonce = await getNonce();
+    const r = await post("/login", { id_token: mockToken(sub, nonce) });
+    adoptCsrf(r.data);
+  } catch (e) { log("エラー:", e.message); }
+});
+document.getElementById("btnOperate").addEventListener("click", async () => {
+  try {
+    const csrf = document.getElementById("csrf").value;
+    const headers = { "content-type": "application/json" };
+    if (csrf) headers["X-CSRF"] = csrf;
+    const res = await fetch(apiBase() + "/operate", {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: "{}",
+    });
+    const data = await res.json();
+    log("POST /operate ->", res.status, JSON.stringify(data));
+  } catch (e) { log("エラー:", e.message); }
+});
+document.getElementById("btnRecover").addEventListener("click", async () => {
+  try {
+    const sub = document.getElementById("newAccount").value;
+    const nonce = await getNonce();
+    const r = await post("/recover", {
+      id_token: mockToken(sub, nonce),
+      recovery_key: document.getElementById("recoveryKey").value,
+    });
+    adoptCsrf(r.data);
+  } catch (e) { log("エラー:", e.message); }
+});
+</script>
+</body>
+</html>

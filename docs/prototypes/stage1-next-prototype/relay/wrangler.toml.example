@@ -4,11 +4,18 @@ main = "worker.js"
 compatibility_date = "2025-01-01"
 
 # --- 変形B（実環境）: 検証用 Worker への service binding ---
-# wrangler dev では remote 接続で実体の検証用 Worker に到達する（前回試作の形態）。
-# [[services]]
-# binding = "VERIFY"
-# service = "vhslide-stage1-verify-20261101-a"
+# wrangler dev からリモートの実体（検証用 Worker）に届かせるため、
+# services の項目に remote = true を付ける（これがないとローカルの
+# プレースホルダに接続され、実体へ届かない）。
+# 接続先が検証用 Worker（サービス名 vhslide-stage1-verify-20261101-a）で
+# あることの確認は、手順0の照合事項です（アカウント・Worker 名・
+# DO 名前空間 ID の照合とあわせて実施前に確認する）。
+[[services]]
+binding = "VERIFY"
+service = "vhslide-stage1-verify-20261101-a"
+remote = true
 
 # --- ローカル模擬: Miniflare ハーネスへ通常 fetch で転送する場合 ---
+# 上の [[services]] をコメントアウトし、こちらを使う。
 # [vars]
 # HARNESS_URL = "http://127.0.0.1:8799"
