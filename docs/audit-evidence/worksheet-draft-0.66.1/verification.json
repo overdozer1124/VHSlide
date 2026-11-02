@@ -1,0 +1,19 @@
+{
+  "version": "0.66.1",
+  "deployment": "b41c4876-692f-4544-bf8c-25e3981de117",
+  "sourceCommit": "1570ae423fb44ce6708835aae09a456af3fc045f",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-CCjEDzGW.js": "0ab68838c79acb5e0d66098d331563a9a2dc9961649ab1a43caf18e73f5aceda",
+    "assets/index-BHZxk9BC.css": "0824cf77ba12fcd3b702d32aea3ff5bd75e21b0c83c2f83a5c319ceb449f9066"
+  },
+  "unitTests": 189,
+  "nodeTests": 21,
+  "nodeBrowserTests": 6,
+  "cloudflareBrowserTests": 6,
+  "notes": "Reported transient draft creation failure was not reproduced as-is; user reported spontaneous recovery before deployment. Reproduced and fixed silent invalid-form submission and improved visible save/error feedback. Tests cover all unmodified templates and preservation/retry after 503. Authenticated tests used isolated local accounts, not production user works.",
+  "productionBrowserTests": 10
+}
