@@ -13,3 +13,5 @@ data/
 !.env.example
 
 test-results-preview/
+
+test-results-production-pptx/

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { zipSync, strToU8 } from "fflate";
+import { saveJSON } from "../support/file-save";
 
 function pptx() {
   const ns =
@@ -86,16 +87,16 @@ test("PPTX imports in presentation order, persists, exports and can be undone", 
   await page.reload();
   await expect(page.locator(".slide-card")).toHaveCount(2);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await saveJSON(page);
   const saved = await download;
   await input.setInputFiles((await saved.path())!);
-  await expect(page.getByRole("status")).toContainText("ファイルを開きました");
+  await expect(page.locator(".toast")).toContainText("ファイルを開きました");
   await input.setInputFiles({
     name: "broken.pptx",
     mimeType: "application/octet-stream",
     buffer: Buffer.from("broken"),
   });
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator(".toast")).toContainText(
     "PPTXを読み込めませんでした",
   );
   await expect(page.locator(".slide-card")).toHaveCount(2);
