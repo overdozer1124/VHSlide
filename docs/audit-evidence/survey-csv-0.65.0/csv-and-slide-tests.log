@@ -1,0 +1,11 @@
+
+ RUN  v3.2.7 /workspace/VHSlide-deploy
+
+ ✓ src/surveyCsv.test.ts (3 tests) 36ms
+ ✓ src/surveySlides.test.ts (4 tests) 110ms
+
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+   Start at  06:05:56
+   Duration  3.47s (transform 1.36s, setup 0ms, collect 1.79s, tests 146ms, environment 0ms, prepare 709ms)
+

@@ -1,0 +1,15 @@
+
+Running 6 tests using 1 worker
+
+(node:30161) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop] › tests/e2e/pptx.spec.ts:46:1 › PPTX imports in presentation order, persists, exports and can be undone (11.6s)
+  ✓  2 [desktop] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (2.0s)
+  ✓  3 [desktop] › tests/e2e/surveys-entry.spec.ts:29:1 › portable survey cards render inside a slide without accessing another work's answers (3.2s)
+(node:30364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [touch] › tests/e2e/pptx.spec.ts:46:1 › PPTX imports in presentation order, persists, exports and can be undone (2.5s)
+  ✓  5 [touch] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (1.5s)
+  ✓  6 [touch] › tests/e2e/surveys-entry.spec.ts:29:1 › portable survey cards render inside a slide without accessing another work's answers (2.6s)
+
+  6 passed (26.8s)

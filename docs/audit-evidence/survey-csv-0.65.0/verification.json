@@ -1,0 +1,21 @@
+{
+  "version": "0.65.0",
+  "deployment": "26124650-3f97-4b09-8328-2d482e6416db",
+  "sourceCommit": "19a9a13138269de6da0c2b1d0a8a54502cc704bf",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-BaZaPtmn.js": "5955a69d7a9b0d5aa9235e174095f6c8dcc3b32c962525f0042621a4b7337d76",
+    "assets/index-43j8rqHv.css": "9a34c1e1c3f380e89094674f79f9add5c00439a55f7d766dc5b48cefc571474a"
+  },
+  "anonymousSurveyStatus": 401,
+  "unitTests": 185,
+  "nodeTests": 20,
+  "cloudflareTests": 26,
+  "nodeBrowserTests": 4,
+  "cloudflareBrowserTests": 4,
+  "notes": "Authenticated survey tests used isolated local accounts; no production user work was accessed.",
+  "productionBrowserTests": 6
+}
