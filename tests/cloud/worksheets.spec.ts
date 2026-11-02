@@ -553,3 +553,134 @@ test("host reads long answers by person or question without squeezed identity co
     modal(page).getByRole("button", { name: "ワークシートを閉じる" }),
   ).toBeInViewport();
 });
+
+test("survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs", async ({
+  page,
+}, info) => {
+  await signIn(page, "activity-host");
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: sample(),
+  });
+  const { id } = await created.json();
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/surveys`, {
+        headers,
+        data: { question: "授業で分かったこと", kind: "text" },
+      })
+    ).status(),
+  ).toBe(200);
+  const { worksheetTemplate } = await import("../../src/worksheetTemplates");
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/worksheets`, {
+        headers,
+        data: worksheetTemplate("reason"),
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/worksheets`, {
+        headers,
+        data: { ...worksheetTemplate("blank"), title: "別のワークシート" },
+      })
+    ).status(),
+  ).toBe(200);
+  const sheets = (
+    await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+  ).worksheets;
+  const reasonToOpen = sheets.find((s: any) => s.title !== "別のワークシート");
+  expect(
+    (
+      await page.request.post(
+        `/api/decks/${id}/worksheets/${reasonToOpen.id}/status`,
+        { headers, data: { status: "open" } },
+      )
+    ).status(),
+  ).toBe(200);
+  // Open first, before selecting any list item.
+  await page.goto(`/?room=${id}`);
+  await expect(page.locator(".slide-card")).toHaveCount(5);
+  await launcher(page).click();
+  const window = page.locator(".activity-panel");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  const dialogId = await window.getAttribute("id");
+  await expect(
+    window.getByRole("tab", { name: "ワークシート", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  const worksheetPane = window.getByRole("tabpanel", {
+    name: "ワークシート",
+    exact: true,
+  });
+  await expect(worksheetPane.locator(".survey-item.active")).toContainText(
+    sheets[0].title,
+  );
+  const reason = sheets.find((s: any) => s.title !== "別のワークシート");
+  await worksheetPane
+    .locator("aside")
+    .getByRole("button", {
+      name: new RegExp(reason.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    })
+    .click();
+  await window.getByRole("button", { name: "自分で入力", exact: true }).click();
+  // This draft is deliberately not sent to the server.
+  const input = window.getByRole("textbox", {
+    name: "選んだ理由",
+    exact: true,
+  });
+  await input.fill("まだ保存していない自分の考え");
+  const width = (await window.boundingBox())!.width;
+  await window.getByRole("tab", { name: "アンケート", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  expect(await window.getAttribute("id")).toBe(dialogId);
+  expect((await window.boundingBox())!.width).toBe(width);
+  const surveyPane = window.getByRole("tabpanel", {
+    name: "アンケート",
+    exact: true,
+  });
+  await expect(surveyPane.locator(".survey-item.active")).toContainText(
+    "授業で分かったこと",
+  );
+  await window
+    .getByRole("button", { name: "新しいアンケート", exact: true })
+    .click();
+  await window
+    .getByRole("textbox", { name: "アンケートの質問", exact: true })
+    .fill("作成途中のアンケート");
+  await window.getByRole("tab", { name: "ワークシート", exact: true }).click();
+  await expect(worksheetPane.locator(".survey-item.active")).toContainText(
+    reason.title,
+  );
+  await expect(input).toHaveValue("まだ保存していない自分の考え");
+  await window.getByRole("tab", { name: "アンケート", exact: true }).click();
+  await expect(
+    window.getByRole("textbox", { name: "アンケートの質問", exact: true }),
+  ).toHaveValue("作成途中のアンケート");
+  const surveyTab = window.getByRole("tab", {
+    name: "アンケート",
+    exact: true,
+  });
+  await surveyTab.focus();
+  await page.keyboard.press("End");
+  await expect(
+    window.getByRole("tab", { name: "ワークシート", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(surveyTab).toHaveAttribute("aria-selected", "true");
+  await expect(surveyTab).toHaveCSS("background-color", "rgb(54, 93, 80)");
+  await page.screenshot({
+    path: info.outputPath("unified-activities.png"),
+    fullPage: true,
+  });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(launcher(page)).toBeFocused();
+  await launcher(page).click();
+  await expect(worksheetPane.locator(".survey-item.active")).toContainText(
+    reason.title,
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+});

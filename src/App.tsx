@@ -1,3 +1,5 @@
+import { ActivitiesPanel } from "./ActivitiesPanel";
+import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
 import { parseWorksheetBinding } from "./worksheets";
 import { createElement } from "react";
@@ -2873,105 +2875,125 @@ export default function App() {
           </div>
         )}
       </div>
-      <SurveyPanel
+      <ActivitiesPanel
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
-        deckId={cloud.active?.id}
-        userId={cloud.user?.id}
-        onData={setSurveyData}
-        refreshToken={surveyRefresh}
-        pollActive={
-          (view !== "map" && slide.elements.some((e) => e.survey)) ||
-          followLocked
-        }
-        onEmbed={(survey) => {
-          if (!cloud.active || !cloud.isHost || survey.status === "draft")
-            throw new Error("ホストが受付を開始してから配置してください。");
-          const current = latestWorkbook.current;
-          const target = current.slides.find(
-            (s) => s.id === latestSlideId.current,
-          );
-          if (!target || target.elements.length >= 200)
-            throw new Error(
-              "配置先のページを確認してください。1ページ200要素までです。",
-            );
-          const element: Element = {
-            id: uid(),
-            type: "shape",
-            shape: "rounded",
-            x: 60,
-            y: 50,
-            w: 840,
-            h: 440,
-            fill: "#ffffff",
-            stroke: "#587d59",
-            color: "#173d38",
-            fontSize: 24,
-            text: `アンケート：${survey.question}\n${survey.options.join(" / ")}`,
-            survey: parseSurveyBinding({
-              deckId: cloud.active.id,
-              surveyId: survey.id,
-              question: survey.question,
-              kind: survey.kind,
-              options: survey.options,
-            }),
-          };
-          const next = {
-            ...current,
-            slides: current.slides.map((s) =>
-              s.id === target.id
-                ? { ...s, elements: [...s.elements, element] }
-                : s,
-            ),
-          };
-          if (!commitWorkbook(parseDeck(serializeDeck(next)), current, true))
-            throw new Error("アンケートを配置できませんでした。");
-          if (view === "present") {
-            setSpeakerLaunch(undefined);
-            setPresentation(undefined);
-            setObjectTrail([]);
-            setPendingPresentationLink(undefined);
-            if (document.fullscreenElement)
-              void document.exitFullscreen().catch(() => {});
-          }
-          setSelected(element.id);
-          setView("editor");
-          notify(
-            "アンケートをスライドに配置しました。部品の「移動」で位置を変え、枠でサイズ変更でき、その場で回答できます。",
-          );
-        }}
-        host={cloud.isHost}
         blocked={cloud.viewingRevoked || cloud.recoveryOnly}
         presenting={
           view === "present" || (!cloud.isHost && cloud.follow.active)
         }
-        onInsert={(survey) => {
-          if (!cloud.active || !cloud.isHost)
-            throw new Error("挿入できるのは共有作品のホストだけです。");
-          const current = latestWorkbook.current;
-          const target = current.slides.find(
-            (s) => s.id === latestSlideId.current,
-          );
-          if (!target) throw new Error("挿入先のページを開いてください。");
-          const result = insertSurveyResults(current, target, survey);
-          if (!commitWorkbook(result.book, current, true))
-            throw new Error(
-              "スライドを挿入できませんでした。保存状況を確認してください。",
-            );
-          if (view === "present") {
-            setSpeakerLaunch(undefined);
-            setPresentation(undefined);
-            setObjectTrail([]);
-            setPendingPresentationLink(undefined);
-            if (document.fullscreenElement)
-              void document.exitFullscreen().catch(() => {});
-          }
-          setSelected(undefined);
-          setActiveId(result.first);
-          setView("map");
-          notify(
-            "集計結果をスライドに挿入しました。挿入時点の結果を保存しています。",
-          );
-        }}
+        surveyCount={
+          surveyData.deckId === cloud.active?.id &&
+          surveyData.userId === cloud.user?.id
+            ? surveyData.surveys.filter((s) => s.status === "open").length
+            : 0
+        }
+        worksheet={
+          <WorksheetPanel
+            host={cloud.isHost}
+            onEmbed={worksheetProps.onEmbed}
+          />
+        }
+        survey={
+          <SurveyPanel
+            key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
+            deckId={cloud.active?.id}
+            userId={cloud.user?.id}
+            onData={setSurveyData}
+            refreshToken={surveyRefresh}
+            pollActive={
+              (view !== "map" && slide.elements.some((e) => e.survey)) ||
+              followLocked
+            }
+            onEmbed={(survey) => {
+              if (!cloud.active || !cloud.isHost || survey.status === "draft")
+                throw new Error("ホストが受付を開始してから配置してください。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target || target.elements.length >= 200)
+                throw new Error(
+                  "配置先のページを確認してください。1ページ200要素までです。",
+                );
+              const element: Element = {
+                id: uid(),
+                type: "shape",
+                shape: "rounded",
+                x: 60,
+                y: 50,
+                w: 840,
+                h: 440,
+                fill: "#ffffff",
+                stroke: "#587d59",
+                color: "#173d38",
+                fontSize: 24,
+                text: `アンケート：${survey.question}\n${survey.options.join(" / ")}`,
+                survey: parseSurveyBinding({
+                  deckId: cloud.active.id,
+                  surveyId: survey.id,
+                  question: survey.question,
+                  kind: survey.kind,
+                  options: survey.options,
+                }),
+              };
+              const next = {
+                ...current,
+                slides: current.slides.map((s) =>
+                  s.id === target.id
+                    ? { ...s, elements: [...s.elements, element] }
+                    : s,
+                ),
+              };
+              if (
+                !commitWorkbook(parseDeck(serializeDeck(next)), current, true)
+              )
+                throw new Error("アンケートを配置できませんでした。");
+              if (view === "present") {
+                setSpeakerLaunch(undefined);
+                setPresentation(undefined);
+                setObjectTrail([]);
+                setPendingPresentationLink(undefined);
+                if (document.fullscreenElement)
+                  void document.exitFullscreen().catch(() => {});
+              }
+              setSelected(element.id);
+              setView("editor");
+              notify(
+                "アンケートをスライドに配置しました。部品の「移動」で位置を変え、枠でサイズ変更でき、その場で回答できます。",
+              );
+            }}
+            host={cloud.isHost}
+            blocked={cloud.viewingRevoked || cloud.recoveryOnly}
+            onInsert={(survey) => {
+              if (!cloud.active || !cloud.isHost)
+                throw new Error("挿入できるのは共有作品のホストだけです。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target) throw new Error("挿入先のページを開いてください。");
+              const result = insertSurveyResults(current, target, survey);
+              if (!commitWorkbook(result.book, current, true))
+                throw new Error(
+                  "スライドを挿入できませんでした。保存状況を確認してください。",
+                );
+              if (view === "present") {
+                setSpeakerLaunch(undefined);
+                setPresentation(undefined);
+                setObjectTrail([]);
+                setPendingPresentationLink(undefined);
+                if (document.fullscreenElement)
+                  void document.exitFullscreen().catch(() => {});
+              }
+              setSelected(undefined);
+              setActiveId(result.first);
+              setView("map");
+              notify(
+                "集計結果をスライドに挿入しました。挿入時点の結果を保存しています。",
+              );
+            }}
+          />
+        }
       />
       {cloud.active && !cloud.isHost && cloud.follow.active && (
         <HostFollowView

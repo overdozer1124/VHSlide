@@ -2,17 +2,18 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { WorksheetView } from "./worksheets";
 import { api } from "./cloud";
-import { WorksheetPanel } from "./WorksheetPanel";
 export type WorksheetContextValue = {
   deckId?: string;
   userId?: string;
   enabled: boolean;
+  error: string;
   sheets: WorksheetView[];
   refresh: () => Promise<WorksheetView[]>;
   update: (sheets: WorksheetView[]) => void;
 };
 const Context = createContext<WorksheetContextValue>({
   enabled: false,
+  error: "",
   sheets: [],
   refresh: async () => [],
   update: () => {},
@@ -23,24 +24,17 @@ export function WorksheetProvider({
   userId,
   host,
   blocked,
-  presenting,
-  onEmbed,
   children,
 }: {
   deckId?: string;
   userId?: string;
   host: boolean;
   blocked: boolean;
-  presenting: boolean;
-  onEmbed: (sheet: WorksheetView) => void;
   children?: ReactNode;
 }) {
   const scope = `${deckId}:${userId}:${host}:${blocked}`;
   return (
-    <WorksheetSession
-      key={scope}
-      {...{ deckId, userId, host, blocked, presenting, onEmbed }}
-    >
+    <WorksheetSession key={scope} {...{ deckId, userId, blocked }}>
       {children}
     </WorksheetSession>
   );
@@ -48,18 +42,12 @@ export function WorksheetProvider({
 function WorksheetSession({
   deckId,
   userId,
-  host,
   blocked,
-  presenting,
-  onEmbed,
   children,
 }: {
   deckId?: string;
   userId?: string;
-  host: boolean;
   blocked: boolean;
-  presenting: boolean;
-  onEmbed: (sheet: WorksheetView) => void;
   children?: ReactNode;
 }) {
   const [sheets, setSheets] = useState<WorksheetView[]>([]);
@@ -107,10 +95,9 @@ function WorksheetSession({
   }, [enabled, deckId, userId]);
   return (
     <Context.Provider
-      value={{ deckId, userId, enabled, sheets, refresh, update }}
+      value={{ deckId, userId, enabled, error, sheets, refresh, update }}
     >
       {children}
-      <WorksheetPanel {...{ host, presenting, onEmbed, error }} />
     </Context.Provider>
   );
 }

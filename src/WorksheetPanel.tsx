@@ -1,3 +1,4 @@
+import { useActivityPanel } from "./ActivitiesPanel";
 import { useEffect, useRef, useState } from "react";
 import { useWorksheets } from "./WorksheetContext";
 import { WorksheetAnswer, WorksheetInputs } from "./SlideWorksheet";
@@ -16,17 +17,16 @@ import { api } from "./cloud";
 import { parseWorksheet } from "./worksheets";
 export function WorksheetPanel({
   host,
-  presenting,
   onEmbed,
-  error: connectionError,
 }: {
   host: boolean;
-  presenting: boolean;
   onEmbed: (sheet: WorksheetView) => void;
-  error: string;
 }) {
   const ctx = useWorksheets();
-  const [open, setOpen] = useState(false);
+  const activity = useActivityPanel();
+  const open = activity.open && activity.active === "worksheet";
+  const connectionError = ctx.error;
+  const close = activity.close;
   const [creating, setCreating] = useState(false);
   const [hostView, setHostView] = useState<"results" | "input" | "settings">(
     "results",
@@ -43,8 +43,6 @@ export function WorksheetPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const modal = useRef<HTMLElement>(null);
-  const launch = useRef<HTMLButtonElement>(null);
   const feedback = useRef<HTMLDivElement>(null);
   const alive = useRef(true);
   useEffect(() => {
@@ -54,12 +52,25 @@ export function WorksheetPanel({
     };
   }, []);
   useEffect(() => {
-    if (open) modal.current?.focus();
-  }, [open]);
+    if (open && ctx.enabled)
+      void ctx.refresh().catch((e) => {
+        if (alive.current) setError((e as Error).message);
+      });
+  }, [open, ctx.enabled]);
   useEffect(() => {
     if (open && (error || connectionError || message))
       feedback.current?.scrollIntoView({ block: "nearest" });
   }, [open, error, connectionError, message]);
+  useEffect(() => {
+    if (
+      !creating &&
+      ctx.sheets.length &&
+      !ctx.sheets.some((s) => s.id === selectedId)
+    ) {
+      setSelectedId(ctx.sheets[0].id);
+      setHostView("results");
+    }
+  }, [creating, ctx.sheets, selectedId]);
   function createDraft() {
     if (busy) return;
     setError("");
@@ -87,10 +98,6 @@ export function WorksheetPanel({
     }
   }
   const selected = ctx.sheets.find((s) => s.id === selectedId);
-  function close() {
-    setOpen(false);
-    launch.current?.focus();
-  }
   async function command(path: string, value?: unknown, method = "POST") {
     if (busy || !ctx.enabled) return;
     setBusy(true);
@@ -160,495 +167,415 @@ export function WorksheetPanel({
       if (alive.current) setBusy(false);
     }
   }
+  if (!activity.open) return null;
   return (
     <>
-      <button
-        ref={launch}
-        className={`button outline worksheet-launch ${presenting ? "presenting" : ""}`}
-        onClick={() => {
-          setOpen(true);
-          if (ctx.enabled) void ctx.refresh().catch((e) => setError(e.message));
-        }}
-      >
-        ワークシート{ctx.sheets.length ? `（${ctx.sheets.length}）` : ""}
-      </button>
-      {open && (
+      {(error || connectionError || message) && (
         <div
-          className="survey-overlay"
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Escape") close();
-            if (e.key === "Tab") {
-              const items = Array.from(
-                modal.current?.querySelectorAll<HTMLElement>(
-                  'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),summary,[tabindex="0"]',
-                ) ?? [],
-              ).filter(
-                (el) =>
-                  el.getClientRects().length > 0 &&
-                  getComputedStyle(el).visibility !== "hidden" &&
-                  !el.closest("[hidden],[inert]") &&
-                  (!el.closest("details:not([open])") ||
-                    (el.tagName === "SUMMARY" &&
-                      el.parentElement === el.closest("details:not([open])"))),
-              );
-              if (items?.length) {
-                const first = items[0],
-                  last = items[items.length - 1];
-                if (
-                  e.shiftKey &&
-                  (document.activeElement === first ||
-                    document.activeElement === modal.current)
-                ) {
-                  e.preventDefault();
-                  last.focus();
-                } else if (!e.shiftKey && document.activeElement === last) {
-                  e.preventDefault();
-                  first.focus();
-                }
-              }
-            }
-          }}
+          ref={feedback}
+          className={`worksheet-feedback ${error || connectionError ? "has-error" : ""}`}
         >
-          <section
-            className="survey-panel worksheet-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="ワークシート"
-            tabIndex={-1}
-            ref={modal}
-          >
-            <header>
-              <h2>ワークシート</h2>
-              <button
-                className="button outline"
-                aria-label="ワークシートを閉じる"
-                onClick={close}
-              >
-                ×
-              </button>
-            </header>
-            {(error || connectionError || message) && (
-              <div
-                ref={feedback}
-                className={`worksheet-feedback ${error || connectionError ? "has-error" : ""}`}
-              >
-                {error || connectionError ? (
-                  <p role="alert">{error || connectionError}</p>
-                ) : (
-                  <p role="status">{message}</p>
-                )}
-              </div>
-            )}
-            {!ctx.enabled ? (
-              <p>
-                クラウドの共有作品で利用できます。作品を共有して開くと、ホストがワークシートを作成し、参加者が自分のアカウントで入力できます。
-              </p>
-            ) : (
-              <>
-                <p>
-                  名前・メールアドレスと入力結果はホストだけが確認できます。各自の最新の保存内容を集約します。
-                </p>
-                <div className="survey-layout">
-                  <aside>
-                    {host && (
-                      <button
-                        className="button primary"
-                        onClick={() => {
-                          setCreating(true);
-                          setDefinition(worksheetTemplate("reason"));
-                          setMessage("");
-                          setError("");
-                        }}
-                      >
-                        新しいワークシート
-                      </button>
-                    )}
-                    {ctx.sheets.map((s) => (
-                      <button
-                        key={s.id}
-                        className={`survey-item ${selectedId === s.id ? "active" : ""}`}
-                        onClick={() => {
-                          setSelectedId(s.id);
-                          setHostView("results");
-                          setCreating(false);
-                          setError("");
-                          setMessage("");
-                        }}
-                      >
-                        <strong>{s.title}</strong>
-                        <span>
-                          {s.status === "draft"
-                            ? "下書き"
-                            : s.status === "open"
-                              ? "入力受付中"
-                              : "受付終了"}
-                        </span>
-                      </button>
-                    ))}
-                    {!ctx.sheets.length && (
-                      <p>まだワークシートがありません。</p>
-                    )}
-                  </aside>
-                  <main ref={content}>
-                    {host && creating ? (
-                      <form
-                        noValidate
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          createDraft();
-                        }}
-                      >
-                        <h3>ワークシートを作成</h3>
+          {error || connectionError ? (
+            <p role="alert">{error || connectionError}</p>
+          ) : (
+            <p role="status">{message}</p>
+          )}
+        </div>
+      )}
+      {!ctx.enabled ? (
+        <p>
+          クラウドの共有作品で利用できます。作品を共有して開くと、ホストがワークシートを作成し、参加者が自分のアカウントで入力できます。
+        </p>
+      ) : (
+        <>
+          <p>
+            名前・メールアドレスと入力結果はホストだけが確認できます。各自の最新の保存内容を集約します。
+          </p>
+          <div className="survey-layout">
+            <aside>
+              {host && (
+                <button
+                  className="button primary"
+                  onClick={() => {
+                    setCreating(true);
+                    setDefinition(worksheetTemplate("reason"));
+                    setMessage("");
+                    setError("");
+                  }}
+                >
+                  新しいワークシート
+                </button>
+              )}
+              {ctx.sheets.map((s) => (
+                <button
+                  key={s.id}
+                  className={`survey-item ${selectedId === s.id ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedId(s.id);
+                    setHostView("results");
+                    setCreating(false);
+                    setError("");
+                    setMessage("");
+                  }}
+                >
+                  <strong>{s.title}</strong>
+                  <span>
+                    {s.status === "draft"
+                      ? "下書き"
+                      : s.status === "open"
+                        ? "入力受付中"
+                        : "受付終了"}
+                  </span>
+                </button>
+              ))}
+              {!ctx.sheets.length && <p>まだワークシートがありません。</p>}
+            </aside>
+            <main ref={content}>
+              {host && creating ? (
+                <form
+                  noValidate
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    createDraft();
+                  }}
+                >
+                  <h3>ワークシートを作成</h3>
+                  <label>
+                    ひな形
+                    <select
+                      aria-label="ワークシートのひな形"
+                      onChange={(e) =>
+                        setDefinition(
+                          worksheetTemplate(
+                            e.target
+                              .value as keyof typeof worksheetTemplateNames,
+                          ),
+                        )
+                      }
+                      defaultValue="reason"
+                    >
+                      {Object.entries(worksheetTemplateNames).map(([k, v]) => (
+                        <option value={k} key={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    タイトル
+                    <input
+                      required
+                      maxLength={200}
+                      aria-label="ワークシートのタイトル"
+                      value={definition.title}
+                      onChange={(e) =>
+                        setDefinition({
+                          ...definition,
+                          title: e.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    説明・資料・キーワード
+                    <textarea
+                      maxLength={1000}
+                      value={definition.description}
+                      onChange={(e) =>
+                        setDefinition({
+                          ...definition,
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <p>
+                    作成後は項目を固定します。項目を変える場合は新しいワークシートを作成してください。1〜40項目、1作品30件まで。
+                  </p>
+                  {definition.fields.map((f, i) => (
+                    <fieldset className="worksheet-field-editor" key={f.id}>
+                      <legend>入力欄 {i + 1}</legend>
+                      <label>
+                        項目名
+                        <input
+                          required
+                          aria-label={`項目名${i + 1}`}
+                          maxLength={200}
+                          value={f.label}
+                          onChange={(e) =>
+                            editField(f.id, { label: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        形式
+                        <select
+                          aria-label={`入力形式${i + 1}`}
+                          value={f.kind}
+                          onChange={(e) => {
+                            const kind = e.target
+                              .value as WorksheetField["kind"];
+                            editField(f.id, {
+                              kind,
+                              options:
+                                kind === "single" || kind === "multiple"
+                                  ? ["はい", "いいえ"]
+                                  : [],
+                            });
+                          }}
+                        >
+                          <option value="text">記述欄</option>
+                          <option value="checkbox">チェック欄</option>
+                          <option value="single">単一選択</option>
+                          <option value="multiple">複数選択</option>
+                        </select>
+                      </label>
+                      <label>
+                        セクション見出し
+                        <input
+                          maxLength={200}
+                          value={f.section}
+                          onChange={(e) =>
+                            editField(f.id, { section: e.target.value })
+                          }
+                        />
+                      </label>
+                      {f.kind === "text" && (
                         <label>
-                          ひな形
-                          <select
-                            aria-label="ワークシートのひな形"
-                            onChange={(e) =>
-                              setDefinition(
-                                worksheetTemplate(
-                                  e.target
-                                    .value as keyof typeof worksheetTemplateNames,
-                                ),
-                              )
-                            }
-                            defaultValue="reason"
-                          >
-                            {Object.entries(worksheetTemplateNames).map(
-                              ([k, v]) => (
-                                <option value={k} key={k}>
-                                  {v}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-                        <label>
-                          タイトル
+                          入力例
                           <input
-                            required
                             maxLength={200}
-                            aria-label="ワークシートのタイトル"
-                            value={definition.title}
+                            value={f.placeholder}
                             onChange={(e) =>
-                              setDefinition({
-                                ...definition,
-                                title: e.target.value,
+                              editField(f.id, {
+                                placeholder: e.target.value,
                               })
                             }
                           />
                         </label>
+                      )}
+                      {(f.kind === "single" || f.kind === "multiple") && (
                         <label>
-                          説明・資料・キーワード
+                          選択肢（1行1項目・2〜10項目）
                           <textarea
-                            maxLength={1000}
-                            value={definition.description}
+                            value={f.options.join("\n")}
                             onChange={(e) =>
-                              setDefinition({
-                                ...definition,
-                                description: e.target.value,
+                              editField(f.id, {
+                                options: e.target.value.split("\n"),
                               })
                             }
                           />
                         </label>
-                        <p>
-                          作成後は項目を固定します。項目を変える場合は新しいワークシートを作成してください。1〜40項目、1作品30件まで。
-                        </p>
-                        {definition.fields.map((f, i) => (
-                          <fieldset
-                            className="worksheet-field-editor"
-                            key={f.id}
-                          >
-                            <legend>入力欄 {i + 1}</legend>
-                            <label>
-                              項目名
-                              <input
-                                required
-                                aria-label={`項目名${i + 1}`}
-                                maxLength={200}
-                                value={f.label}
-                                onChange={(e) =>
-                                  editField(f.id, { label: e.target.value })
-                                }
-                              />
-                            </label>
-                            <label>
-                              形式
-                              <select
-                                aria-label={`入力形式${i + 1}`}
-                                value={f.kind}
-                                onChange={(e) => {
-                                  const kind = e.target
-                                    .value as WorksheetField["kind"];
-                                  editField(f.id, {
-                                    kind,
-                                    options:
-                                      kind === "single" || kind === "multiple"
-                                        ? ["はい", "いいえ"]
-                                        : [],
-                                  });
-                                }}
-                              >
-                                <option value="text">記述欄</option>
-                                <option value="checkbox">チェック欄</option>
-                                <option value="single">単一選択</option>
-                                <option value="multiple">複数選択</option>
-                              </select>
-                            </label>
-                            <label>
-                              セクション見出し
-                              <input
-                                maxLength={200}
-                                value={f.section}
-                                onChange={(e) =>
-                                  editField(f.id, { section: e.target.value })
-                                }
-                              />
-                            </label>
-                            {f.kind === "text" && (
-                              <label>
-                                入力例
-                                <input
-                                  maxLength={200}
-                                  value={f.placeholder}
-                                  onChange={(e) =>
-                                    editField(f.id, {
-                                      placeholder: e.target.value,
-                                    })
-                                  }
-                                />
-                              </label>
-                            )}
-                            {(f.kind === "single" || f.kind === "multiple") && (
-                              <label>
-                                選択肢（1行1項目・2〜10項目）
-                                <textarea
-                                  value={f.options.join("\n")}
-                                  onChange={(e) =>
-                                    editField(f.id, {
-                                      options: e.target.value.split("\n"),
-                                    })
-                                  }
-                                />
-                              </label>
-                            )}
-                            <label>
-                              <input
-                                type="checkbox"
-                                checked={f.wide}
-                                onChange={(e) =>
-                                  editField(f.id, { wide: e.target.checked })
-                                }
-                              />
-                              横幅いっぱいに配置
-                            </label>
-                            <div className="worksheet-editor-actions">
-                              <button
-                                type="button"
-                                disabled={i === 0}
-                                onClick={() =>
-                                  setDefinition((d) => {
-                                    const fields = [...d.fields];
-                                    [fields[i - 1], fields[i]] = [
-                                      fields[i],
-                                      fields[i - 1],
-                                    ];
-                                    return { ...d, fields };
-                                  })
-                                }
-                              >
-                                上へ
-                              </button>
-                              <button
-                                type="button"
-                                disabled={definition.fields.length === 1}
-                                onClick={() =>
-                                  setDefinition((d) => ({
-                                    ...d,
-                                    fields: d.fields.filter(
-                                      (x) => x.id !== f.id,
-                                    ),
-                                  }))
-                                }
-                              >
-                                項目を削除
-                              </button>
-                            </div>
-                          </fieldset>
-                        ))}
+                      )}
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={f.wide}
+                          onChange={(e) =>
+                            editField(f.id, { wide: e.target.checked })
+                          }
+                        />
+                        横幅いっぱいに配置
+                      </label>
+                      <div className="worksheet-editor-actions">
                         <button
                           type="button"
-                          disabled={definition.fields.length >= 40}
+                          disabled={i === 0}
+                          onClick={() =>
+                            setDefinition((d) => {
+                              const fields = [...d.fields];
+                              [fields[i - 1], fields[i]] = [
+                                fields[i],
+                                fields[i - 1],
+                              ];
+                              return { ...d, fields };
+                            })
+                          }
+                        >
+                          上へ
+                        </button>
+                        <button
+                          type="button"
+                          disabled={definition.fields.length === 1}
                           onClick={() =>
                             setDefinition((d) => ({
                               ...d,
-                              fields: [
-                                ...d.fields,
-                                ...worksheetTemplate("blank").fields,
-                              ],
+                              fields: d.fields.filter((x) => x.id !== f.id),
                             }))
                           }
                         >
-                          入力欄を追加
+                          項目を削除
                         </button>
-                        <details>
-                          <summary>レイアウトのプレビュー</summary>
-                          <div className="worksheet-preview">
-                            <h3>{definition.title}</h3>
-                            <p>{definition.description}</p>
-                            <WorksheetInputs
-                              sheet={definition}
-                              values={{}}
-                              onChange={() => {}}
-                              disabled
-                              preview
-                            />
-                          </div>
-                        </details>
-                        <button className="button primary" disabled={busy}>
-                          {busy ? "下書きを保存中…" : "下書きを作成"}
+                      </div>
+                    </fieldset>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={definition.fields.length >= 40}
+                    onClick={() =>
+                      setDefinition((d) => ({
+                        ...d,
+                        fields: [
+                          ...d.fields,
+                          ...worksheetTemplate("blank").fields,
+                        ],
+                      }))
+                    }
+                  >
+                    入力欄を追加
+                  </button>
+                  <details>
+                    <summary>レイアウトのプレビュー</summary>
+                    <div className="worksheet-preview">
+                      <h3>{definition.title}</h3>
+                      <p>{definition.description}</p>
+                      <WorksheetInputs
+                        sheet={definition}
+                        values={{}}
+                        onChange={() => {}}
+                        disabled
+                        preview
+                      />
+                    </div>
+                  </details>
+                  <button className="button primary" disabled={busy}>
+                    {busy ? "下書きを保存中…" : "下書きを作成"}
+                  </button>
+                </form>
+              ) : selected ? (
+                <>
+                  <h3>{selected.title}</h3>
+                  {host && (
+                    <div className="worksheet-admin">
+                      <button
+                        className="button primary"
+                        disabled={busy}
+                        onClick={() =>
+                          void command(`/${selected.id}/status`, {
+                            status:
+                              selected.status === "open" ? "closed" : "open",
+                          })
+                        }
+                      >
+                        {selected.status === "open"
+                          ? "受付を終了"
+                          : "受付を開始"}
+                      </button>
+                      <button
+                        className="button outline"
+                        disabled={selected.status === "draft" || busy}
+                        onClick={() => {
+                          try {
+                            onEmbed(selected);
+                            close();
+                          } catch (e) {
+                            setError((e as Error).message);
+                          }
+                        }}
+                      >
+                        このワークシートをスライドに配置
+                      </button>
+                    </div>
+                  )}
+                  {host && (
+                    <div
+                      className="worksheet-section-tabs"
+                      role="group"
+                      aria-label="ワークシートの表示内容"
+                    >
+                      <button
+                        type="button"
+                        aria-pressed={hostView === "results"}
+                        onClick={() => setHostView("results")}
+                      >
+                        回答結果（
+                        {selected.results?.responses.length ?? 0}人）
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={hostView === "input"}
+                        onClick={() => setHostView("input")}
+                      >
+                        自分で入力
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={hostView === "settings"}
+                        onClick={() => setHostView("settings")}
+                      >
+                        設定・内容の確認
+                      </button>
+                    </div>
+                  )}
+                  {host && hostView === "settings" && (
+                    <section
+                      className="worksheet-settings"
+                      aria-label="ワークシートの設定"
+                    >
+                      <h4>内容の確認</h4>
+                      <p>
+                        {selected.description || "説明は設定されていません。"}
+                      </p>
+                      <p>
+                        入力項目：{selected.fields.length}項目 ·{" "}
+                        {selected.status === "draft"
+                          ? "下書き（未公開）"
+                          : selected.status === "open"
+                            ? "入力受付中"
+                            : "受付終了"}
+                      </p>
+                      <WorksheetInputs
+                        sheet={selected}
+                        values={{}}
+                        onChange={() => {}}
+                        disabled
+                        preview
+                      />
+                      <p>
+                        作成済みの項目は固定されています。項目を変更する場合は、新しいワークシートを作成してください。
+                      </p>
+                      <details className="worksheet-delete">
+                        <summary>ワークシートの削除</summary>
+                        <p>全員の入力結果も削除され、元に戻せません。</p>
+                        <button
+                          className="button outline"
+                          disabled={busy}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "このワークシートと全員の入力結果を削除します。元に戻せません。",
+                              )
+                            )
+                              void command(
+                                `/${selected.id}`,
+                                undefined,
+                                "DELETE",
+                              );
+                          }}
+                        >
+                          ワークシートを削除
                         </button>
-                      </form>
-                    ) : selected ? (
-                      <>
-                        <h3>{selected.title}</h3>
-                        {host && (
-                          <div className="worksheet-admin">
-                            <button
-                              className="button primary"
-                              disabled={busy}
-                              onClick={() =>
-                                void command(`/${selected.id}/status`, {
-                                  status:
-                                    selected.status === "open"
-                                      ? "closed"
-                                      : "open",
-                                })
-                              }
-                            >
-                              {selected.status === "open"
-                                ? "受付を終了"
-                                : "受付を開始"}
-                            </button>
-                            <button
-                              className="button outline"
-                              disabled={selected.status === "draft" || busy}
-                              onClick={() => {
-                                try {
-                                  onEmbed(selected);
-                                  close();
-                                } catch (e) {
-                                  setError((e as Error).message);
-                                }
-                              }}
-                            >
-                              このワークシートをスライドに配置
-                            </button>
-                          </div>
-                        )}
-                        {host && (
-                          <div
-                            className="worksheet-section-tabs"
-                            role="group"
-                            aria-label="ワークシートの表示内容"
-                          >
-                            <button
-                              type="button"
-                              aria-pressed={hostView === "results"}
-                              onClick={() => setHostView("results")}
-                            >
-                              回答結果（
-                              {selected.results?.responses.length ?? 0}人）
-                            </button>
-                            <button
-                              type="button"
-                              aria-pressed={hostView === "input"}
-                              onClick={() => setHostView("input")}
-                            >
-                              自分で入力
-                            </button>
-                            <button
-                              type="button"
-                              aria-pressed={hostView === "settings"}
-                              onClick={() => setHostView("settings")}
-                            >
-                              設定・内容の確認
-                            </button>
-                          </div>
-                        )}
-                        {host && hostView === "settings" && (
-                          <section
-                            className="worksheet-settings"
-                            aria-label="ワークシートの設定"
-                          >
-                            <h4>内容の確認</h4>
-                            <p>
-                              {selected.description ||
-                                "説明は設定されていません。"}
-                            </p>
-                            <p>
-                              入力項目：{selected.fields.length}項目 ·{" "}
-                              {selected.status === "draft"
-                                ? "下書き（未公開）"
-                                : selected.status === "open"
-                                  ? "入力受付中"
-                                  : "受付終了"}
-                            </p>
-                            <WorksheetInputs
-                              sheet={selected}
-                              values={{}}
-                              onChange={() => {}}
-                              disabled
-                              preview
-                            />
-                            <p>
-                              作成済みの項目は固定されています。項目を変更する場合は、新しいワークシートを作成してください。
-                            </p>
-                            <details className="worksheet-delete">
-                              <summary>ワークシートの削除</summary>
-                              <p>全員の入力結果も削除され、元に戻せません。</p>
-                              <button
-                                className="button outline"
-                                disabled={busy}
-                                onClick={() => {
-                                  if (
-                                    window.confirm(
-                                      "このワークシートと全員の入力結果を削除します。元に戻せません。",
-                                    )
-                                  )
-                                    void command(
-                                      `/${selected.id}`,
-                                      undefined,
-                                      "DELETE",
-                                    );
-                                }}
-                              >
-                                ワークシートを削除
-                              </button>
-                            </details>
-                          </section>
-                        )}
-                        <div hidden={host && hostView !== "input"}>
-                          <WorksheetAnswer key={selected.id} sheet={selected} />
-                        </div>
-                        {host && hostView === "results" && selected.results && (
-                          <WorksheetResults
-                            key={selected.id}
-                            sheet={selected}
-                            busy={busy}
-                            onDownload={() => void download()}
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <p>ワークシートを選択してください。</p>
-                    )}
-                  </main>
-                </div>
-              </>
-            )}
-          </section>
-        </div>
+                      </details>
+                    </section>
+                  )}
+                  <div hidden={host && hostView !== "input"}>
+                    <WorksheetAnswer key={selected.id} sheet={selected} />
+                  </div>
+                  {host && hostView === "results" && selected.results && (
+                    <WorksheetResults
+                      key={selected.id}
+                      sheet={selected}
+                      busy={busy}
+                      onDownload={() => void download()}
+                    />
+                  )}
+                </>
+              ) : (
+                <p>ワークシートを選択してください。</p>
+              )}
+            </main>
+          </div>
+        </>
       )}
     </>
   );

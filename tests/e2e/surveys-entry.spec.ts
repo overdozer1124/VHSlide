@@ -18,7 +18,11 @@ test("local survey entry explains sharing, traps focus and closes without changi
   ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
-    page.getByRole("button", { name: "アンケートを閉じる" }),
+    dialog.getByRole("tab", { name: "アンケート", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    dialog.getByRole("button", { name: "アンケートを閉じる" }),
   ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);

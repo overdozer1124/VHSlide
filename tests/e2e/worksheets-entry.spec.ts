@@ -25,6 +25,10 @@ test("worksheet entry explains accounts and returns keyboard focus", async ({
   ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
+    dialog.getByRole("tab", { name: "ワークシート", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
     dialog.getByRole("button", { name: "ワークシートを閉じる" }),
   ).toBeFocused();
   await page.keyboard.press("Escape");
