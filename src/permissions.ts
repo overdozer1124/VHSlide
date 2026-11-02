@@ -94,6 +94,30 @@ export class AccessError extends Error {
     super(message);
   }
 }
+/** Yjs may reconstruct object keys in another order after multi-client edits.
+ * Compare document values, keeping array order and every defined field significant. */
+function sameData(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
+    for (let i = 0; i < a.length; i++) if (!sameData(a[i], b[i])) return false;
+    return true;
+  }
+  const left = a as Record<string, unknown>,
+    right = b as Record<string, unknown>;
+  const keys = Object.keys(left).filter((key) => left[key] !== undefined);
+  return (
+    keys.length ===
+      Object.keys(right).filter((key) => right[key] !== undefined).length &&
+    keys.every(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(right, key) &&
+        sameData(left[key], right[key]),
+    )
+  );
+}
 export function assertDeckAccess(
   before: Deck,
   after: Deck,
@@ -105,9 +129,8 @@ export function assertDeckAccess(
     before.title !== after.title ||
     before.guestPageCreation !== after.guestPageCreation ||
     !!before.restrictGuests !== !!after.restrictGuests ||
-    JSON.stringify(before.routes ?? []) !==
-      JSON.stringify(after.routes ?? []) ||
-    JSON.stringify(before.sheets) !== JSON.stringify(after.sheets)
+    !sameData(before.routes ?? [], after.routes ?? []) ||
+    !sameData(before.sheets, after.sheets)
   )
     throw new AccessError();
   const old = new Map(before.slides.map((s) => [s.id, s]));
@@ -154,7 +177,7 @@ export function assertDeckAccess(
   for (const id of new Set([...old.keys(), ...next.keys()])) {
     const a = old.get(id),
       b = next.get(id);
-    if (JSON.stringify(a) === JSON.stringify(b)) continue;
+    if (sameData(a, b)) continue;
     if ((a && !canEdit(access, a, before)) || (b && !canEdit(access, b, after)))
       throw new AccessError();
   }

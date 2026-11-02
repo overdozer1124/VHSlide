@@ -401,3 +401,69 @@ it("follow control state rejects guests and stale sessions while retaining stabl
   ).toThrow();
   expect(next.revision).toBe(3);
 });
+
+it("accepts scoped edits after another client adds fields in a different CRDT reconstruction order", () => {
+  const book = sample(),
+    server = new Y.Doc();
+  server.clientID = 1;
+  applyDeckChange(server, { version: 1, title: "", slides: [] }, book);
+  const host = new Y.Doc();
+  host.clientID = 2;
+  Y.applyUpdate(host, Y.encodeStateAsUpdate(server));
+  const protectedElements = host
+    .getMap<Y.Map<unknown>>("slides")
+    .get(book.slides[1].id)!
+    .get("elements") as Y.Map<Y.Map<unknown>>;
+  protectedElements
+    .get(book.slides[1].elements[0].id)!
+    .set("textAlign", "center");
+  Y.applyUpdate(server, Y.encodeStateAsUpdate(host));
+  const guest = new Y.Doc();
+  guest.clientID = 3;
+  Y.applyUpdate(guest, Y.encodeStateAsUpdate(server));
+  const candidate = new Y.Doc();
+  Y.applyUpdate(candidate, Y.encodeStateAsUpdate(server));
+  const before = readSharedDeck(server),
+    cloned = readSharedDeck(candidate);
+  expect(before.slides[1]).toEqual(cloned.slides[1]);
+  expect(JSON.stringify(before.slides[1])).not.toBe(
+    JSON.stringify(cloned.slides[1]),
+  );
+  const access = {
+    ...defaultAccess(),
+    mode: "scoped" as const,
+    slides: [book.slides[0].id],
+  };
+  sharedText(guest, book.slides[0].id, book.slides[0].elements[0].id)!.insert(
+    0,
+    "担当の編集",
+  );
+  expect(() =>
+    applyAuthorizedUpdate(
+      server,
+      candidate,
+      Y.encodeStateAsUpdate(guest, Y.encodeStateVector(server)),
+      access,
+      false,
+    ),
+  ).not.toThrow();
+  expect(readSharedDeck(candidate).slides[0].elements[0].text).toContain(
+    "担当の編集",
+  );
+  const forbidden = new Y.Doc();
+  Y.applyUpdate(forbidden, Y.encodeStateAsUpdate(server));
+  sharedText(guest, book.slides[1].id, book.slides[1].elements[0].id)!.insert(
+    0,
+    "範囲外",
+  );
+  expect(() =>
+    applyAuthorizedUpdate(
+      server,
+      forbidden,
+      Y.encodeStateAsUpdate(guest, Y.encodeStateVector(server)),
+      access,
+      false,
+    ),
+  ).toThrow();
+  for (const doc of [server, host, guest, candidate, forbidden]) doc.destroy();
+});

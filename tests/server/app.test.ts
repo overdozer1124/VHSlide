@@ -1,3 +1,4 @@
+import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import {
   exerciseHostFollow,
@@ -1578,4 +1579,10 @@ test("surveys enforce host-only results, private answers, validation, closing an
     await app.close();
     await start();
   });
+});
+
+test("scoped edits survive multi-client field order reconstruction and reconnect, while protected changes stay denied", async () => {
+  const id = await create();
+  await invite(id, bob);
+  await exercisePermissionOrder(request, connect, id, alice, bob);
 });

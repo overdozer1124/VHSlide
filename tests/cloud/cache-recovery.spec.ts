@@ -1,3 +1,4 @@
+import { WebSocket } from "ws";
 import { test, expect, type Page } from "@playwright/test";
 import * as Y from "yjs";
 import { readFile } from "node:fs/promises";
@@ -311,11 +312,67 @@ test("invalid server data is reported separately and never replaces either saved
   expect(session.user.id).toBe(f.user);
 });
 
+async function addRemoteFormattingHistory(page: Page, id: string) {
+  const cookies = await page.context().cookies();
+  const cookie = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const ws = new WebSocket(
+    `${origin.replace("http", "ws")}/api/decks/${id}/live`,
+    { headers: { Origin: origin, Cookie: cookie } },
+  );
+  const doc = new Y.Doc();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Formatting history ACK missing")),
+        8000,
+      );
+      ws.on("error", reject);
+      ws.on("message", (bytes, binary) => {
+        if (binary) {
+          Y.applyUpdate(doc, new Uint8Array(bytes as Buffer));
+          doc.clientID = Math.max(...doc.store.clients.keys()) + 1;
+          const page = readSharedDeck(doc).slides.find((s) => s.y === 1)!;
+          const vector = Y.encodeStateVector(doc);
+          const elements = doc
+            .getMap<Y.Map<unknown>>("slides")
+            .get(page.id)!
+            .get("elements") as Y.Map<Y.Map<unknown>>;
+          elements.get(page.elements[0].id)!.set("textAlign", "center");
+          ws.send(
+            JSON.stringify({
+              type: "update",
+              protocol: COLLABORATION_PROTOCOL,
+              id: "remote-format",
+              update: toBase64(Y.encodeStateAsUpdate(doc, vector)),
+            }),
+          );
+        } else {
+          const message = JSON.parse(bytes.toString());
+          if (message.type === "ack" && message.id === "remote-format") {
+            clearTimeout(timer);
+            resolve();
+          }
+          if (message.type === "error") {
+            clearTimeout(timer);
+            reject(new Error(message.message));
+          }
+        }
+      });
+    });
+  } finally {
+    ws.close();
+    doc.destroy();
+  }
+}
+
 test("scoped guest opens a 400-page work without replaying cached edits outside current permissions", async ({
   page,
   browser,
 }, info) => {
   const f = await fixture(page, `${info.project.name}-scope-owner`, true);
+  await addRemoteFormattingHistory(page, f.id);
+  f.result = await (await page.request.get(`/api/decks/${f.id}`)).json();
+  f.book = await serverBook(page, f.id);
   const context = await browser.newContext(info.project.use);
   const guest = await context.newPage();
   const headers = { Origin: origin };
