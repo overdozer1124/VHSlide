@@ -1,0 +1,21 @@
+{
+  "version": "0.70.0",
+  "deployment": "c02b442b-714a-4e31-a588-12b091685f77",
+  "sourceCommit": "92435713577b6e7bec37b38b5d37972264886ad6",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-CcUiC3Nl.js": "22a392f3836d3f2f62601e3117e08580fad901841adbd918967e45ad35f9ad91",
+    "assets/index-CeXOwjCz.css": "dafe2f5a264823f4432b68128d9b5edbbe583149b2be38e0622270814cdae816"
+  },
+  "anonymousSurveyStatus": 401,
+  "unitTests": 194,
+  "nodeTests": 21,
+  "cloudflareTests": 27,
+  "nodeBrowserTests": 6,
+  "cloudflareBrowserTests": 6,
+  "notes": "Host explicitly publishes only respondent count and option counts. Tests verify default privacy, host-only publication, changed answers, publication stop, restart persistence, scoped bindings, numeric snapshots, legacy graph linking without duplicate slides and live guest/presentation updates with the host page closed. Authenticated tests use isolated local accounts; no production user work was accessed.",
+  "productionBrowserTests": 10
+}

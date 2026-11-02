@@ -1,0 +1,70 @@
+
+> vhslide@0.70.0 test:cloudflare
+> npm run cf:check && node --test tests/cloudflare/*.test.ts
+
+
+> vhslide@0.70.0 cf:check
+> tsc -p tsconfig.cloudflare.json && wrangler deploy --dry-run --outdir .wrangler-build
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.151.3 (update available 4.156.1)
+───────────────────────────────────────────────
+✨ Read 9 files from the assets directory /workspace/VHSlide-deploy/dist
+Total Upload: 462.41 KiB / gzip: 98.75 KiB
+Your Worker has access to the following bindings:
+Binding                                                                       Resource                  
+env.DIRECTORY (Directory)                                                     Durable Object            
+env.ROOMS (SlideRoom)                                                         Durable Object            
+env.ASSETS                                                                    Assets                    
+env.GOOGLE_CLIENT_ID ("187339871113-2j074eot6i41e2ts1g3129ch...")             Environment Variable      
+env.GOOGLE_SCHOOL_CLIENT_ID ("142634110367-rongbdrtm1u416ch26orar13...")      Environment Variable      
+env.GOOGLE_SCHOOL_DOMAIN ("kaga.ed.jp")                                       Environment Variable      
+env.PUBLIC_ORIGIN ("https://vhslide.overdozer1124.workers...")                Environment Variable      
+
+--dry-run: exiting now.
+▶ isolated recovery faults: publication, replay, cancellation, lost response and capture races
+  ✔ permanent deletion interrupted after Room cleanup remains non-restorable and retries after restart (899.277466ms)
+  ✔ A1: Room committed, Directory failed; private; retry preserves one copy (5152.264398ms)
+  ✔ A2: queued cancellation cannot remove a finalized work (365.733818ms)
+  ✔ A3: cancellation after partial commit removes staging data and refuses replay (184.586149ms)
+  ✔ A4: a lost Room response leaves an uploading job but replay preserves the committed notes (1243.488074ms)
+  ✔ B: lost commit response is queryable and replay returns the same work (113.098443ms)
+AUDIT_CAPTURE slide status=409
+AUDIT_CAPTURE image status=409
+AUDIT_CAPTURE note status=409
+AUDIT_CAPTURE sharing status=409
+AUDIT_CAPTURE sharing-ABA status=409
+REGRESSION_MIXED status=409; inconsistent snapshot rejected
+  ✔ C: every slide, image, note and sharing change including ABA is rejected (566.773751ms)
+✔ isolated recovery faults: publication, replay, cancellation, lost response and capture races (10250.565066ms)
+✔ both configured Google clients identify the same account and reject other audiences (1952.079769ms)
+✔ checks real JWT signatures/audience, session cookies, origin and membership (24882.150333ms)
+✔ stores 1000 pages and private photos through a runtime restart and rejects page 1001 (3701.48231ms)
+✔ 40 authenticated WebSockets converge on simultaneous edits and persist acknowledgements (3959.197691ms)
+✔ refuses foreign assets and closes a signed-out connection (21562.602615ms)
+✔ reserves photo space atomically and stops uploading at the owner's limit (5508.341874ms)
+✔ host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes (404.25466ms)
+✔ pre-shared verified emails claim ordered row grants without an invite, preserve invite grants, update live and revoke without resurrection (1542.10183ms)
+✔ legacy row grants follow a host reorder, protected edits and obsolete clients are rejected (215.917724ms)
+✔ full backups restore only into private new works, preserve photos and notes, and require explicit sharing (845.797372ms)
+✔ revision checkpoints and durable idempotent restore jobs survive restart and cancellation races (6943.171753ms)
+✔ learning versions, deletion checkpoints and work trash enforce ownership and survive restart (4080.863858ms)
+✔ invitation approval gates private data, survives restart, supports checked batches and refuses revoked admission replay (3825.610185ms)
+✔ deleted media is private; live references and uploads work, forged resurrection is denied, host recovery survives restart (2228.898662ms)
+✔ host follow state validates host, initiator, target and session without editing the work (45562.29268ms)
+FOLLOW_40_METRICS {"backend":"Cloudflare/workerd","connections":40,"samples":20,"p95Ms":20.778076999995392,"maxMs":23.570959000004223,"allMs":[19.280623999991803,16.209392999997362,15.642296999998507,17.36846300000616,18.96980399999302,20.778076999995392,12.443157999994582,14.984695000006468,9.828852999999071,23.570959000004223,11.967570000007981,10.207861000002595,10.239413000002969,10.589341000013519,10.138013000003411,10.77490500001295,10.188944000008632,10.39946100000816,10.147233000010601,11.231901999999536]}
+✔ host follow 40 live connections P95 target (1212.560091ms)
+✔ surveys enforce host-only results, private answers, validation, closing and durable restart (1446.013615ms)
+✔ scoped edits survive multi-client field order reconstruction and reconnect, while protected changes stay denied (368.286696ms)
+✔ worksheets isolate accounts, enforce membership, validate fields and persist across restart (666.069988ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 144856.347075

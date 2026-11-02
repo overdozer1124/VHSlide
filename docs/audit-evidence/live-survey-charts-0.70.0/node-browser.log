@@ -1,0 +1,17 @@
+[WebServer] (node:54075) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:54087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/surveys.spec.ts:23:1 › host creates both question types, guests answer privately and results become editable slides (23.9s)
+  ✓  2 [cloud-desktop] › tests/cloud/surveys.spec.ts:203:1 › embedded surveys accept private answers in viewer, presentation and host-follow pages (19.2s)
+  ✓  3 [cloud-desktop] › tests/cloud/surveys.spec.ts:463:1 › existing result graphs link without new slides and refresh for guests while the host is offline (14.3s)
+(node:54534) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/surveys.spec.ts:23:1 › host creates both question types, guests answer privately and results become editable slides (27.8s)
+  ✓  5 [cloud-touch] › tests/cloud/surveys.spec.ts:203:1 › embedded surveys accept private answers in viewer, presentation and host-follow pages (16.8s)
+  ✓  6 [cloud-touch] › tests/cloud/surveys.spec.ts:463:1 › existing result graphs link without new slides and refresh for guests while the host is offline (14.1s)
+
+  6 passed (2.0m)
