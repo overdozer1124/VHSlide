@@ -13,6 +13,7 @@ import type {
 import { worksheetCsv, worksheetValueText } from "./worksheetCsv";
 import { surveyResponseTime } from "./surveyCsv";
 import { api } from "./cloud";
+import { parseWorksheet } from "./worksheets";
 export function WorksheetPanel({
   host,
   presenting,
@@ -36,6 +37,7 @@ export function WorksheetPanel({
   const [message, setMessage] = useState("");
   const modal = useRef<HTMLElement>(null);
   const launch = useRef<HTMLButtonElement>(null);
+  const feedback = useRef<HTMLDivElement>(null);
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -46,6 +48,36 @@ export function WorksheetPanel({
   useEffect(() => {
     if (open) modal.current?.focus();
   }, [open]);
+  useEffect(() => {
+    if (open && (error || connectionError || message))
+      feedback.current?.scrollIntoView({ block: "nearest" });
+  }, [open, error, connectionError, message]);
+  function createDraft() {
+    if (busy) return;
+    setError("");
+    setMessage("");
+    try {
+      if (!definition.title.trim())
+        throw new Error("ワークシートのタイトルを入力してください。");
+      definition.fields.forEach((field, index) => {
+        if (!field.label.trim())
+          throw new Error(`入力欄 ${index + 1} の項目名を入力してください。`);
+        if (
+          (field.kind === "single" || field.kind === "multiple") &&
+          (field.options.length < 2 ||
+            field.options.length > 10 ||
+            field.options.some((o) => !o.trim()) ||
+            new Set(field.options).size !== field.options.length)
+        )
+          throw new Error(
+            `入力欄 ${index + 1} の選択肢を、空行・重複のない2〜10項目で入力してください。`,
+          );
+      });
+      void command("", parseWorksheet(definition));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   const selected = ctx.sheets.find((s) => s.id === selectedId);
   function close() {
     setOpen(false);
@@ -55,7 +87,7 @@ export function WorksheetPanel({
     if (busy || !ctx.enabled) return;
     setBusy(true);
     setError("");
-    setMessage("");
+    setMessage(path === "" ? "下書きを保存しています…" : "");
     try {
       const data = await api<{ worksheets: WorksheetView[] }>(
         `/api/decks/${ctx.deckId}/worksheets${path}`,
@@ -71,9 +103,20 @@ export function WorksheetPanel({
         setSelectedId(data.worksheets[0]?.id ?? "");
       }
       if (method === "DELETE") setSelectedId("");
-      setMessage("保存しました。");
+      setMessage(
+        path === ""
+          ? "下書きを作成しました。クラウドに保存しました。「受付を開始」で公開できます。"
+          : "保存しました。",
+      );
     } catch (e) {
-      if (alive.current) setError((e as Error).message);
+      if (alive.current) {
+        setMessage("");
+        setError(
+          path === ""
+            ? `下書きを作成できませんでした。${(e as Error).message}`
+            : (e as Error).message,
+        );
+      }
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -166,6 +209,18 @@ export function WorksheetPanel({
                 ×
               </button>
             </header>
+            {(error || connectionError || message) && (
+              <div
+                ref={feedback}
+                className={`worksheet-feedback ${error || connectionError ? "has-error" : ""}`}
+              >
+                {error || connectionError ? (
+                  <p role="alert">{error || connectionError}</p>
+                ) : (
+                  <p role="status">{message}</p>
+                )}
+              </div>
+            )}
             {!ctx.enabled ? (
               <p>
                 クラウドの共有作品で利用できます。作品を共有して開くと、ホストがワークシートを作成し、参加者が自分のアカウントで入力できます。
@@ -218,9 +273,10 @@ export function WorksheetPanel({
                   <main>
                     {host && creating ? (
                       <form
+                        noValidate
                         onSubmit={(e) => {
                           e.preventDefault();
-                          void command("", definition);
+                          createDraft();
                         }}
                       >
                         <h3>ワークシートを作成</h3>
@@ -430,7 +486,7 @@ export function WorksheetPanel({
                           </div>
                         </details>
                         <button className="button primary" disabled={busy}>
-                          下書きを作成
+                          {busy ? "下書きを保存中…" : "下書きを作成"}
                         </button>
                       </form>
                     ) : selected ? (
@@ -555,10 +611,6 @@ export function WorksheetPanel({
                 </div>
               </>
             )}
-            {(error || connectionError) && (
-              <p role="alert">{error || connectionError}</p>
-            )}
-            {message && <p role="status">{message}</p>}
           </section>
         </div>
       )}

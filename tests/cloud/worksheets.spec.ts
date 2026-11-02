@@ -220,3 +220,93 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await guestContext.close();
   }
 });
+
+test("every unmodified worksheet template creates a draft, including the initial reason template", async ({
+  page,
+}) => {
+  await signIn(page, "draft-host");
+  const created = await page.request.post("/api/decks", {
+    headers: { Origin: "http://127.0.0.1:3187" },
+    data: sample(),
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await expect(page.locator(".slide-card")).toHaveCount(5);
+  await launcher(page).click();
+  for (const kind of ["initial", "check", "reflection", "plan", "blank"]) {
+    await modal(page)
+      .getByRole("button", { name: "新しいワークシート", exact: true })
+      .click();
+    if (kind !== "initial")
+      await page
+        .getByRole("combobox", { name: "ワークシートのひな形" })
+        .selectOption(kind);
+    const title = await page
+      .getByRole("textbox", { name: "ワークシートのタイトル" })
+      .inputValue();
+    const response = page.waitForResponse(
+      (r) =>
+        r.url().endsWith(`/api/decks/${id}/worksheets`) &&
+        r.request().method() === "POST",
+      { timeout: 10000 },
+    );
+    await page
+      .getByRole("button", { name: "下書きを作成", exact: true })
+      .click();
+    const saved = await response;
+    expect(saved.status(), await saved.text()).toBe(200);
+    await expect(
+      modal(page).getByRole("heading", { name: title, exact: true, level: 3 }),
+    ).toBeVisible();
+    await expect(modal(page)).toContainText("保存しました");
+  }
+});
+
+test("draft validation and save failures remain visible and preserve the edited worksheet for retry", async ({
+  page,
+}) => {
+  await signIn(page, "draft-error-host");
+  const created = await page.request.post("/api/decks", {
+    headers: { Origin: "http://127.0.0.1:3187" },
+    data: sample(),
+  });
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await expect(page.locator(".slide-card")).toHaveCount(5);
+  await launcher(page).click();
+  await modal(page)
+    .getByRole("button", { name: "新しいワークシート", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: "項目名2", exact: true }).fill("");
+  await page.getByRole("button", { name: "下書きを作成", exact: true }).click();
+  await expect(modal(page).getByRole("alert")).toContainText("入力欄 2");
+  await expect(modal(page).getByRole("alert")).toBeInViewport();
+  await page
+    .getByRole("textbox", { name: "項目名2", exact: true })
+    .fill("考えた工夫・編集済み");
+  await page.route(`**/api/decks/${id}/worksheets`, async (route) => {
+    if (route.request().method() === "POST")
+      await route.fulfill({
+        status: 503,
+        json: { error: "接続を確認して再試行してください。" },
+      });
+    else await route.continue();
+  });
+  await page.getByRole("button", { name: "下書きを作成", exact: true }).click();
+  await expect(modal(page).getByRole("alert")).toContainText("接続を確認");
+  await expect(modal(page).getByRole("alert")).toBeInViewport();
+  await expect(
+    page.getByRole("textbox", { name: "項目名2", exact: true }),
+  ).toHaveValue("考えた工夫・編集済み");
+  await page.unroute(`**/api/decks/${id}/worksheets`);
+  await page.getByRole("button", { name: "下書きを作成", exact: true }).click();
+  await expect(modal(page)).toContainText("下書きを作成しました");
+  await expect(
+    modal(page).getByRole("heading", {
+      name: "朝食を食べない理由に、どんな工夫ができる？",
+      level: 3,
+      exact: true,
+    }),
+  ).toBeVisible();
+});

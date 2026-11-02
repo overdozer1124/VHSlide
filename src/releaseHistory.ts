@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.66.1",
+    date: "2026-11-02",
+    title: "ワークシートの下書き作成時の案内を改善",
+    changes: [
+      "下書き作成が入力チェックで止まった場合に、該当する入力欄と理由を表示するようにしました。保存中・成功・通信エラーの案内は画面内に表示し、失敗時も編集内容を保って再試行できます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.66.0",
     date: "2026-11-02",
     title: "スライドで入力できるワークシート",

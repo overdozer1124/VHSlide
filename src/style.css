@@ -6826,3 +6826,6 @@ h1 span {
 .worksheet-group-fields { display:grid;grid-template-columns:minmax(0,1fr);gap:10px; }
 .worksheet-group-fields.two-columns { grid-template-columns:repeat(2,minmax(0,1fr)); }
 @media(max-width:600px) { .worksheet-panel .worksheet-group-fields.two-columns { grid-template-columns:1fr; } }
+.worksheet-feedback { position:sticky;top:0;z-index:3;padding:10px 14px;margin:0 0 16px;border:1px solid #9fbba2;border-radius:8px;background:#edf7ef;box-shadow:0 2px 6px #173d3810; }
+.worksheet-feedback.has-error { background:#fff2ec;border-color:#c87752;color:#8a3020; }
+.worksheet-feedback p { margin:0; }
