@@ -1,0 +1,21 @@
+
+Running 12 tests using 1 worker
+
+(node:74398) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [desktop] › tests/e2e/pptx.spec.ts:46:1 › PPTX imports in presentation order, persists, exports and can be undone (3.1s)
+  ✓   2 [desktop] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (1.7s)
+  ✓   3 [desktop] › tests/e2e/surveys-entry.spec.ts:40:1 › portable survey cards render inside a slide without accessing another work's answers (2.8s)
+  ✓   4 [desktop] › tests/e2e/worksheets-entry.spec.ts:4:1 › worksheet entry explains accounts and returns keyboard focus (1.9s)
+  ✓   5 [desktop] › tests/e2e/worksheets-entry.spec.ts:45:1 › portable worksheet definitions render without reading the source accounts (2.9s)
+  ✓   6 [desktop] › tests/e2e/worksheets-entry.spec.ts:97:1 › response fields have a visible toolbar entry and a centered accessible creation dialog (2.3s)
+(node:74705) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 [touch] › tests/e2e/pptx.spec.ts:46:1 › PPTX imports in presentation order, persists, exports and can be undone (2.7s)
+  ✓   8 [touch] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (1.7s)
+  ✓   9 [touch] › tests/e2e/surveys-entry.spec.ts:40:1 › portable survey cards render inside a slide without accessing another work's answers (2.8s)
+  ✓  10 [touch] › tests/e2e/worksheets-entry.spec.ts:4:1 › worksheet entry explains accounts and returns keyboard focus (1.9s)
+  ✓  11 [touch] › tests/e2e/worksheets-entry.spec.ts:45:1 › portable worksheet definitions render without reading the source accounts (3.0s)
+  ✓  12 [touch] › tests/e2e/worksheets-entry.spec.ts:97:1 › response fields have a visible toolbar entry and a centered accessible creation dialog (2.3s)
+
+  12 passed (32.1s)
