@@ -636,6 +636,11 @@ export function Canvas({
                     key={`${e.survey.deckId}:${e.survey.surveyId}`}
                     element={e}
                     interactive={surveyInteractive}
+                    onMoveStart={
+                      editable
+                        ? (event) => start(event, e, false, false)
+                        : undefined
+                    }
                   />
                 ) : e.drawing ? (
                   <InkObject

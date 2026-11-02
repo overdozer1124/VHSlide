@@ -1,4 +1,5 @@
 import { useContext, useId, useState } from "react";
+import type { PointerEvent } from "react";
 import type { Element } from "./model";
 import type { SurveyView } from "./surveys";
 import { SurveySlideContext } from "./SurveySlideContext";
@@ -7,6 +8,7 @@ import { api } from "./cloud";
 export function SlideSurvey(props: {
   element: Element;
   interactive?: boolean;
+  onMoveStart?: (event: PointerEvent) => void;
 }) {
   const context = useContext(SurveySlideContext);
   return (
@@ -19,9 +21,11 @@ export function SlideSurvey(props: {
 function SurveyCard({
   element,
   interactive = false,
+  onMoveStart,
 }: {
   element: Element;
   interactive?: boolean;
+  onMoveStart?: (event: PointerEvent) => void;
 }) {
   const context = useContext(SurveySlideContext);
   const binding = element.survey!;
@@ -74,6 +78,17 @@ function SurveyCard({
       onTouchEnd={interactive ? (e) => e.stopPropagation() : undefined}
     >
       <header>
+        {interactive && onMoveStart && (
+          <button
+            type="button"
+            className="survey-move-handle"
+            aria-label="アンケートを移動"
+            title="ドラッグしてアンケートを移動"
+            onPointerDown={onMoveStart}
+          >
+            移動
+          </button>
+        )}
         <span>
           アンケート ·{" "}
           {question.kind === "text"

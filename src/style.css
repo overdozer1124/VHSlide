@@ -6781,3 +6781,4 @@ h1 span {
 .slide-survey.is-interactive .slide-survey-inputs label { min-height:calc(40px / var(--canvas-zoom,1));font-size:max(20px,calc(14px / var(--canvas-zoom,1))); }
 .slide-survey.is-interactive button { min-height:calc(44px / var(--canvas-zoom,1));font-size:max(18px,calc(14px / var(--canvas-zoom,1))); }
 .slide-survey.is-interactive textarea { font-size:max(20px,calc(16px / var(--canvas-zoom,1))); }
+.slide-survey.is-interactive button.survey-move-handle { float:right;touch-action:none;user-select:none;background:#edf4e9;color:#315d4e;border:1px solid #a0b79a;font-size:14px;padding:5px 12px;cursor:grab; }

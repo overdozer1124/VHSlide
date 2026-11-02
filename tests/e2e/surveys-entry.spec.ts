@@ -92,6 +92,7 @@ test("portable survey cards render inside a slide without accessing another work
     ),
   ).toHaveCount(0);
   await page.locator(".thumbnail").first().click();
+  await expect(page.locator(".workspace-flight")).toHaveCount(0);
   await expect(page.locator(".editor-workspace .slide-survey")).toHaveCount(2);
   await expect(
     page.locator(".editor-workspace .slide-survey").first(),

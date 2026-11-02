@@ -234,20 +234,44 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
       ".editor-workspace .element:has([data-slide-survey])",
     );
     const originalBox = (await hostCard.boundingBox({ timeout: 5000 }))!;
-    const border = (await object
-      .locator(".border-n")
+    async function drag(
+      from: { x: number; y: number },
+      dx: number,
+      dy: number,
+    ) {
+      if (info.project.name.includes("touch")) {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchStart",
+          touchPoints: [{ id: 1, ...from }],
+        });
+        for (let i = 1; i <= 3; i++)
+          await cdp.send("Input.dispatchTouchEvent", {
+            type: "touchMove",
+            touchPoints: [
+              { id: 1, x: from.x + (dx * i) / 3, y: from.y + (dy * i) / 3 },
+            ],
+          });
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchEnd",
+          touchPoints: [],
+        });
+        await cdp.detach();
+      } else {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(from.x + dx, from.y + dy, { steps: 3 });
+        await page.mouse.up();
+      }
+    }
+    const move = (await hostCard
+      .getByRole("button", { name: "アンケートを移動", exact: true })
       .boundingBox({ timeout: 5000 }))!;
-    await page.mouse.move(
-      border.x + border.width / 2,
-      border.y + border.height / 2,
+    await drag(
+      { x: move.x + move.width / 2, y: move.y + move.height / 2 },
+      10,
+      8,
     );
-    await page.mouse.down();
-    await page.mouse.move(
-      border.x + border.width / 2 + 10,
-      border.y + border.height / 2 + 8,
-      { steps: 3 },
-    );
-    await page.mouse.up();
     await expect
       .poll(async () => (await hostCard.boundingBox({ timeout: 5000 }))!.x)
       .toBeGreaterThan(originalBox.x);
@@ -255,17 +279,11 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     const handle = (await object
       .locator(".resize-se")
       .boundingBox({ timeout: 5000 }))!;
-    await page.mouse.move(
-      handle.x + handle.width / 2,
-      handle.y + handle.height / 2,
+    await drag(
+      { x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 },
+      -20,
+      -12,
     );
-    await page.mouse.down();
-    await page.mouse.move(
-      handle.x + handle.width / 2 - 20,
-      handle.y + handle.height / 2 - 12,
-      { steps: 3 },
-    );
-    await page.mouse.up();
     await expect
       .poll(async () => (await hostCard.boundingBox({ timeout: 5000 }))!.width)
       .toBeLessThan(movedBox.width);
