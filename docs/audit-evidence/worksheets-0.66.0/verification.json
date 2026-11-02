@@ -1,0 +1,22 @@
+{
+  "version": "0.66.0",
+  "deployment": "58777b45-e932-44d2-9607-05b45321b0ec",
+  "sourceCommit": "af7287cd6e6c45d7477444cf1344b9ae97d49a30",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-DbEot9RR.js": "7654741ddc773be9d903033403a8119931921408fb1b7e2a3d9b38f233bf1374",
+    "assets/index-lmyLn3bZ.css": "1a3a02feac11d250797d089ee1fe372aced1a0b15c8d7f3cf0386ae036345d69"
+  },
+  "anonymousWorksheetStatus": 401,
+  "unitTests": 189,
+  "nodeTests": 21,
+  "cloudflareTests": 27,
+  "nodeBrowserTests": 6,
+  "cloudflareBrowserTests": 6,
+  "portablePreviewTests": 4,
+  "notes": "Authenticated worksheet and survey tests used isolated local accounts. Production smoke tests import synthetic files into disposable local browser contexts; no production user work was accessed.",
+  "productionBrowserTests": 10
+}
