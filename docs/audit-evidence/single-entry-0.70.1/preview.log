@@ -1,0 +1,43 @@
+[WebServer] (node:57531) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:57572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:34:50 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  1 [desktop] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (4.3s)
+[WebServer] 12:34:54 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  2 [desktop] › tests/e2e/surveys-entry.spec.ts:40:1 › portable survey cards render inside a slide without accessing another work's answers (4.7s)
+[WebServer] 12:34:59 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  3 [desktop] › tests/e2e/worksheets-entry.spec.ts:4:1 › worksheet entry explains accounts and returns keyboard focus (4.5s)
+[WebServer] 12:35:04 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  4 [desktop] › tests/e2e/worksheets-entry.spec.ts:45:1 › portable worksheet definitions render without reading the source accounts (8.8s)
+(node:58031) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:35:13 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  5 [touch] › tests/e2e/surveys-entry.spec.ts:3:1 › local survey entry explains sharing, traps focus and closes without changing the work (2.0s)
+[WebServer] 12:35:15 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  6 [touch] › tests/e2e/surveys-entry.spec.ts:40:1 › portable survey cards render inside a slide without accessing another work's answers (2.9s)
+[WebServer] 12:35:18 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  7 [touch] › tests/e2e/worksheets-entry.spec.ts:4:1 › worksheet entry explains accounts and returns keyboard focus (1.8s)
+[WebServer] 12:35:20 PM [vite] http proxy error: /api/config
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3000
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ✓  8 [touch] › tests/e2e/worksheets-entry.spec.ts:45:1 › portable worksheet definitions render without reading the source accounts (2.4s)
+
+  8 passed (37.9s)

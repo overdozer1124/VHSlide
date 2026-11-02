@@ -1,0 +1,18 @@
+{
+  "version": "0.70.1",
+  "deployment": "9d4bcd70-4af1-41ff-838e-f830f602004f",
+  "sourceCommit": "03a4c6db836fa50bc22e3840df7770162a6a64a7",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-Bb5Ybhn1.js": "90c468c6c8766c2f8819b9ff42d4187de396683d74ac0bdf481fda202b2e5452",
+    "assets/index-DyKA_yI3.css": "53c40cf38a22042da4b0ffaaba1b4069dfe07ad03a752f011117179b988f1879"
+  },
+  "versionTests": 1,
+  "previewTests": 8,
+  "nodeTabsTests": 2,
+  "notes": "One entry opens the combined activity modal and remembers the active tab. Local and browser tests verify one button, focus return and draft preservation. Flexible input placement is documented as a design proposal only and is not implemented or deployed.",
+  "productionBrowserTests": 10
+}
