@@ -35,14 +35,27 @@ function SurveyCard({
   const question = survey ?? binding;
   return (
     <section
-      className={`slide-survey ${interactive ? "is-interactive" : "is-preview"}`}
+      className={`slide-survey ${interactive ? "is-interactive" : "is-preview"} ${onMoveStart ? "is-movable" : ""}`}
       data-slide-survey={interactive || undefined}
       aria-label={`スライド内アンケート：${question.question}`}
       style={{
         background: element.fill === "none" ? "#ffffff" : element.fill,
         borderColor: element.stroke,
       }}
-      onPointerDown={interactive ? (e) => e.stopPropagation() : undefined}
+      onPointerDown={
+        interactive
+          ? (e) => {
+              if (
+                onMoveStart &&
+                !(e.target as HTMLElement).closest(
+                  "input,textarea,select,button,label",
+                )
+              )
+                onMoveStart(e);
+              else e.stopPropagation();
+            }
+          : undefined
+      }
       onClick={interactive ? (e) => e.stopPropagation() : undefined}
       onDoubleClick={interactive ? (e) => e.stopPropagation() : undefined}
       onKeyDown={interactive ? (e) => e.stopPropagation() : undefined}
@@ -50,17 +63,6 @@ function SurveyCard({
       onTouchEnd={interactive ? (e) => e.stopPropagation() : undefined}
     >
       <header>
-        {interactive && onMoveStart && (
-          <button
-            type="button"
-            className="survey-move-handle"
-            aria-label="アンケートを移動"
-            title="ドラッグしてアンケートを移動"
-            onPointerDown={onMoveStart}
-          >
-            移動
-          </button>
-        )}
         <span>
           アンケート ·{" "}
           {question.kind === "text"

@@ -49,7 +49,7 @@ export function ResponseField({
     field?.label ?? (binding.source === "survey" ? binding.question : "");
   return (
     <section
-      className={`response-field ${binding.showLabel ? "" : "hide-label"} ${interactive ? "interactive" : "preview"}`}
+      className={`response-field ${binding.showLabel ? "" : "hide-label"} ${interactive ? "interactive" : "preview"} ${onMoveStart ? "is-movable" : ""}`}
       data-slide-survey={interactive || undefined}
       data-response-field={binding.source}
       style={{
@@ -63,7 +63,20 @@ export function ResponseField({
         borderRadius: e.shape === "rect" ? 0 : 12,
         padding: 8,
       }}
-      onPointerDown={interactive ? (ev) => ev.stopPropagation() : undefined}
+      onPointerDown={
+        interactive
+          ? (ev) => {
+              if (
+                onMoveStart &&
+                !(ev.target as HTMLElement).closest(
+                  "input,textarea,select,button,label",
+                )
+              )
+                onMoveStart(ev);
+              else ev.stopPropagation();
+            }
+          : undefined
+      }
       onClick={interactive ? (ev) => ev.stopPropagation() : undefined}
       onDoubleClick={interactive ? (ev) => ev.stopPropagation() : undefined}
       onKeyDown={interactive ? (ev) => ev.stopPropagation() : undefined}
@@ -71,16 +84,6 @@ export function ResponseField({
       onTouchEnd={interactive ? (ev) => ev.stopPropagation() : undefined}
       aria-label={`入力欄：${label}`}
     >
-      {interactive && onMoveStart && (
-        <button
-          type="button"
-          className="response-field-move"
-          aria-label="入力欄を移動"
-          onPointerDown={onMoveStart}
-        >
-          移動
-        </button>
-      )}
       {field ? (
         <form
           onSubmit={(ev) => {

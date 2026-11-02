@@ -303,7 +303,7 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
       }
     }
     const move = (await hostCard
-      .getByRole("button", { name: "アンケートを移動", exact: true })
+      .locator("header h3")
       .boundingBox({ timeout: 5000 }))!;
     await drag(
       { x: move.x + move.width / 2, y: move.y + move.height / 2 },

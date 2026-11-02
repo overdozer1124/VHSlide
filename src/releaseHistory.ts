@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.71.4",
+    date: "2026-11-03",
+    title: "フォームを直接ドラッグして移動",
+    changes: [
+      "スライドに配置したワークシート・アンケート・回答欄は、入力欄以外の部分を直接ドラッグして移動できます。専用の移動ボタンは不要になりました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.71.3",
     date: "2026-11-03",
     title: "フォームの入口をツールバーへ一本化",

@@ -217,10 +217,23 @@ export function SlideWorksheet({
   const sheet = live ?? binding;
   return (
     <section
-      className={`slide-worksheet ${interactive ? "is-interactive" : "is-preview"}`}
+      className={`slide-worksheet ${interactive ? "is-interactive" : "is-preview"} ${onMoveStart ? "is-movable" : ""}`}
       data-slide-survey={interactive || undefined}
       aria-label={`ワークシート：${sheet.title}`}
-      onPointerDown={interactive ? (e) => e.stopPropagation() : undefined}
+      onPointerDown={
+        interactive
+          ? (e) => {
+              if (
+                onMoveStart &&
+                !(e.target as HTMLElement).closest(
+                  "input,textarea,select,button,label",
+                )
+              )
+                onMoveStart(e);
+              else e.stopPropagation();
+            }
+          : undefined
+      }
       onClick={interactive ? (e) => e.stopPropagation() : undefined}
       onDoubleClick={interactive ? (e) => e.stopPropagation() : undefined}
       onKeyDown={interactive ? (e) => e.stopPropagation() : undefined}
@@ -228,16 +241,6 @@ export function SlideWorksheet({
       onTouchEnd={interactive ? (e) => e.stopPropagation() : undefined}
     >
       <header>
-        {interactive && onMoveStart && (
-          <button
-            type="button"
-            className="worksheet-move"
-            aria-label="ワークシートを移動"
-            onPointerDown={onMoveStart}
-          >
-            移動
-          </button>
-        )}
         <h3>{sheet.title}</h3>
         {sheet.description && <p>{sheet.description}</p>}
       </header>

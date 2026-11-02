@@ -2989,7 +2989,7 @@ export default function App() {
               setSelected(element.id);
               setView("editor");
               notify(
-                "アンケートをスライドに配置しました。部品の「移動」で位置を変え、枠でサイズ変更でき、その場で回答できます。",
+                "アンケートをスライドに配置しました。部品の入力欄以外をドラッグして位置を変え、枠でサイズ変更でき、その場で回答できます。",
               );
             }}
             host={cloud.isHost}

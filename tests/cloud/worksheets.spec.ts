@@ -92,7 +92,16 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await expect(hostCard).toBeVisible();
     await expect(
       hostCard.getByRole("button", { name: "ワークシートを移動" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
+    const beforeMove = (await hostCard.boundingBox())!;
+    const header = (await hostCard.locator("header h3").boundingBox())!;
+    await page.mouse.move(header.x + 30, header.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(header.x + 45, header.y + 18, { steps: 3 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await hostCard.boundingBox())!.x)
+      .toBeGreaterThan(beforeMove.x);
     await guest.locator(".thumbnail").first().click();
     const card = guest.locator(".editor-workspace .slide-worksheet");
     await expect(card).toBeVisible();

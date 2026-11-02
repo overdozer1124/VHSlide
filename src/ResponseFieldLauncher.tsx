@@ -89,7 +89,7 @@ export function ResponseFieldCreator({
       {hint &&
         createPortal(
           <div className="response-placement-hint" role="status">
-            回答欄を追加しました。「移動」で位置を変え、四隅のハンドルで大きさを調整できます。
+            回答欄を追加しました。入力欄以外をドラッグして位置を変え、四隅のハンドルで大きさを調整できます。
             <button
               onClick={() => setHint(false)}
               aria-label="配置の案内を閉じる"
