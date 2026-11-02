@@ -1,0 +1,13 @@
+[WebServer] (node:48649) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:48704) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/worksheets.spec.ts:557:1 › survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs (15.1s)
+(node:48997) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [cloud-touch] › tests/cloud/worksheets.spec.ts:557:1 › survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs (9.3s)
+
+  2 passed (34.6s)

@@ -1,0 +1,25 @@
+[WebServer] (node:49470) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 1 worker
+
+(node:49501) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [cloud-desktop] › tests/cloud/surveys.spec.ts:23:1 › host creates both question types, guests answer privately and results become editable slides (17.5s)
+  ✓   2 [cloud-desktop] › tests/cloud/surveys.spec.ts:190:1 › embedded surveys accept private answers in viewer, presentation and host-follow pages (23.0s)
+  ✓   3 [cloud-desktop] › tests/cloud/worksheets.spec.ts:25:1 › worksheet templates embed on slides, save per account, export named CSV and preserve privacy (17.5s)
+  ✓   4 [cloud-desktop] › tests/cloud/worksheets.spec.ts:224:1 › every unmodified worksheet template creates a draft, including the initial reason template (3.6s)
+  ✓   5 [cloud-desktop] › tests/cloud/worksheets.spec.ts:266:1 › draft validation and save failures remain visible and preserve the edited worksheet for retry (2.4s)
+  ✓   6 [cloud-desktop] › tests/cloud/worksheets.spec.ts:314:1 › host reads long answers by person or question without squeezed identity columns, searches and exports everyone (5.2s)
+  ✓   7 [cloud-desktop] › tests/cloud/worksheets.spec.ts:557:1 › survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs (3.8s)
+(node:50115) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [cloud-touch] › tests/cloud/surveys.spec.ts:23:1 › host creates both question types, guests answer privately and results become editable slides (19.9s)
+  ✓   9 [cloud-touch] › tests/cloud/surveys.spec.ts:190:1 › embedded surveys accept private answers in viewer, presentation and host-follow pages (17.2s)
+  ✓  10 [cloud-touch] › tests/cloud/worksheets.spec.ts:25:1 › worksheet templates embed on slides, save per account, export named CSV and preserve privacy (16.7s)
+  ✓  11 [cloud-touch] › tests/cloud/worksheets.spec.ts:224:1 › every unmodified worksheet template creates a draft, including the initial reason template (3.5s)
+  ✓  12 [cloud-touch] › tests/cloud/worksheets.spec.ts:266:1 › draft validation and save failures remain visible and preserve the edited worksheet for retry (2.3s)
+  ✓  13 [cloud-touch] › tests/cloud/worksheets.spec.ts:314:1 › host reads long answers by person or question without squeezed identity columns, searches and exports everyone (5.5s)
+  ✓  14 [cloud-touch] › tests/cloud/worksheets.spec.ts:557:1 › survey and worksheet share one wide dialog, select defaults and preserve drafts across accessible tabs (4.0s)
+
+  14 passed (2.5m)

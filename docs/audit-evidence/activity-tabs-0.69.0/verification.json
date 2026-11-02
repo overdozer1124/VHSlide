@@ -1,0 +1,19 @@
+{
+  "version": "0.69.0",
+  "deployment": "0fcba725-bba3-48b0-b1b1-bccf227379e0",
+  "sourceCommit": "a07e41267aec349a9097581292395bc6bb06db79",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-BGkIXgnX.js": "3fa38f353e25855280b64d7cf201c7ca068f7855a0f4117bde9500b921eea77f",
+    "assets/index-DlIK8toK.css": "3abe3b8b650695d4e8e036bac693323b7ab20cb766c6b892ffabf67357be9508"
+  },
+  "unitTests": 12,
+  "nodeUnifiedDialogTests": 2,
+  "previewTests": 8,
+  "cloudflareBrowserTests": 14,
+  "notes": "One wide dialog contains accessible survey and worksheet tabs. Tests verify identical DOM identity and width between tabs, automatic selection, preserved worksheet answers and survey creation drafts, keyboard tab navigation, focus return, CSV export and embedding. Authenticated tests use isolated local accounts; no production user work was accessed.",
+  "productionBrowserTests": 10
+}
