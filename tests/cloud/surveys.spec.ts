@@ -125,10 +125,18 @@ test("host creates both question types, guests answer privately and results beco
     await expect(
       guest.getByRole("textbox", { name: "アンケートの回答", exact: true }),
     ).toBeDisabled();
+    await page.getByRole("button", { name: "アンケートを閉じる" }).click();
+    await page.getByRole("button", { name: "発表する", exact: true }).click();
+    await expect(page.locator(".present-mode")).toBeVisible();
+    await launch(page).click();
     await page
       .getByRole("button", { name: "集計結果をスライドに挿入" })
       .click();
     await expect(page.locator(".slide-card")).toHaveCount(7);
+    await expect(page.locator(".present-mode")).toHaveCount(0);
+    await expect
+      .poll(() => page.evaluate(() => !!document.fullscreenElement))
+      .toBe(false);
     await expect(guest.locator(".slide-card")).toHaveCount(7);
     await page.reload();
     await expect(page.locator(".slide-card")).toHaveCount(7);

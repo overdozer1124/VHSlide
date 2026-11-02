@@ -9,6 +9,7 @@ type Props = {
   host: boolean;
   onInsert: (survey: SurveyView) => void;
   blocked?: boolean;
+  presenting?: boolean;
 };
 export function SurveyPanel({
   deckId,
@@ -16,6 +17,7 @@ export function SurveyPanel({
   host,
   onInsert,
   blocked,
+  presenting,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [surveys, setSurveys] = useState<SurveyView[]>([]);
@@ -137,7 +139,7 @@ export function SurveyPanel({
     <>
       <button
         ref={launchRef}
-        className="button outline survey-launch"
+        className={`button outline survey-launch ${presenting ? "in-presentation" : ""}`}
         disabled={blocked}
         onClick={() => setOpen(true)}
         aria-label={`アンケート${active.length ? `（受付中${active.length}件）` : ""}`}

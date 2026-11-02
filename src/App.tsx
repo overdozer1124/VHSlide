@@ -2790,6 +2790,9 @@ export default function App() {
         userId={cloud.user?.id}
         host={cloud.isHost}
         blocked={cloud.viewingRevoked || cloud.recoveryOnly}
+        presenting={
+          view === "present" || (!cloud.isHost && cloud.follow.active)
+        }
         onInsert={(survey) => {
           if (!cloud.active || !cloud.isHost)
             throw new Error("挿入できるのは共有作品のホストだけです。");
@@ -2803,6 +2806,15 @@ export default function App() {
             throw new Error(
               "スライドを挿入できませんでした。保存状況を確認してください。",
             );
+          if (view === "present") {
+            setSpeakerLaunch(undefined);
+            setPresentation(undefined);
+            setObjectTrail([]);
+            setPendingPresentationLink(undefined);
+            if (document.fullscreenElement)
+              void document.exitFullscreen().catch(() => {});
+          }
+          setSelected(undefined);
           setActiveId(result.first);
           setView("map");
           notify(

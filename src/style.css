@@ -6757,3 +6757,5 @@ h1 span {
     right: 12px;
   }
 }
+
+.survey-launch.in-presentation { top: 90px; bottom: auto; }
