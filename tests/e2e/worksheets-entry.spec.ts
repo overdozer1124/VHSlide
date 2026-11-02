@@ -93,3 +93,36 @@ test("portable worksheet definitions render without reading the source accounts"
     fullPage: true,
   });
 });
+
+test("response fields have a visible toolbar entry and a centered accessible creation dialog", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator(".slide-card")).toHaveCount(5);
+  await page.locator(".thumbnail").first().click();
+  const launch = page.getByRole("button", {
+    name: "回答欄を追加",
+    exact: true,
+  });
+  await expect(launch).toBeVisible();
+  const image = page.getByRole("button", { name: "画像", exact: true });
+  expect((await launch.boundingBox())!.x).toBeLessThan(
+    (await image.boundingBox())!.x,
+  );
+  await launch.click();
+  const dialog = page.getByRole("dialog", {
+    name: "スライドに回答欄を追加",
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("クラウドの共有作品");
+  await expect(
+    dialog.getByRole("button", { name: "スライドに追加", exact: true }),
+  ).toHaveCount(0);
+  const box = (await dialog.boundingBox())!;
+  const width = await page.evaluate(() => innerWidth);
+  expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(launch).toBeFocused();
+});

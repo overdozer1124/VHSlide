@@ -1,4 +1,5 @@
-import { useContext, useState } from "react";
+import { ResponseField } from "./ResponseField";
+import { useContext, useState, useEffect } from "react";
 import { useWorksheets } from "./WorksheetContext";
 import { SurveySlideContext } from "./SurveySlideContext";
 import type { Element, Slide } from "./model";
@@ -29,16 +30,18 @@ export function makeResponseElement(binding: ResponseFieldBinding): Element {
 export function ResponseFieldTools({
   onPlace,
   slide,
+  onBusyChange,
 }: {
   onPlace: (elements: Element[]) => void;
   slide: Slide;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const ctx = useWorksheets();
   const surveys = useContext(SurveySlideContext);
   const [source, setSource] = useState<"worksheet" | "survey">("worksheet");
   const [record, setRecord] = useState("");
   const [fieldId, setFieldId] = useState("");
-  const [create, setCreate] = useState(false);
+  const [create, setCreate] = useState(true);
   const [label, setLabel] = useState("");
   const [kind, setKind] = useState<WorksheetField["kind"]>("text");
   const [options, setOptions] = useState("はい\nいいえ");
@@ -46,6 +49,7 @@ export function ResponseFieldTools({
   const [groupTitle, setGroupTitle] = useState("ワークシート");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
   const [templateName, setTemplateName] = useState("");
   const storageKey = `vhslide-input-layouts:${ctx.userId}`;
   const [templates, setTemplates] = useState<
@@ -162,6 +166,7 @@ export function ResponseFieldTools({
         };
       }
       onPlace([makeResponseElement(binding)]);
+      if (create) setLabel("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -265,197 +270,330 @@ export function ResponseFieldTools({
       setBusy(false);
     }
   }
+  const previewOptions = options
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const previewField: WorksheetField = create
+    ? {
+        id: "preview",
+        label: label || "質問・項目名",
+        kind,
+        options: previewOptions.length
+          ? previewOptions
+          : ["選択肢1", "選択肢2"],
+        placeholder,
+        section: "",
+        wide: true,
+      }
+    : (field ?? {
+        id: "preview",
+        label: "項目を選択してください",
+        kind: "text",
+        options: [],
+        placeholder: "ここに入力",
+        section: "",
+        wide: true,
+      });
+  const previewBinding: ResponseFieldBinding =
+    source === "worksheet"
+      ? {
+          source: "worksheet",
+          deckId: ctx.deckId ?? "",
+          worksheetId: sheet?.id ?? "",
+          field: previewField,
+          showLabel: true,
+        }
+      : {
+          source: "survey",
+          deckId: ctx.deckId ?? "",
+          surveyId: survey?.id ?? "",
+          question: create
+            ? label || "質問・項目名"
+            : (survey?.question ?? "アンケートを選択してください"),
+          kind: create
+            ? kind === "checkbox"
+              ? "multiple"
+              : kind
+            : (survey?.kind ?? "text"),
+          options: create
+            ? previewOptions.length
+              ? previewOptions
+              : ["選択肢1", "選択肢2"]
+            : (survey?.options ?? []),
+          showLabel: true,
+        };
+  const previewElement: Element = {
+    id: "preview",
+    type: "shape",
+    shape: "rounded",
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 200,
+    fill: "#ffffff",
+    stroke: "#a7c0ab",
+    strokeWidth: 1,
+    fontSize: 20,
+    color: "#173d38",
+    responseField: previewBinding,
+  };
   return (
-    <section className="response-field-tools" aria-label="回答欄の追加">
-      <h3>回答欄を追加</h3>
+    <section
+      className="response-field-tools response-field-creator"
+      aria-label="回答欄の追加"
+    >
       {!ctx.enabled || !ctx.host ? (
-        <p>共有作品のホストが入力欄を作成できます。</p>
+        <p>
+          回答欄はクラウドの共有作品で利用できます。「クラウド」から作品を開くと、ホストが作成できます。
+        </p>
       ) : (
         <>
-          <label>
-            保存先
-            <select
-              aria-label="入力欄の保存先"
-              value={source}
-              onChange={(e) => {
-                setSource(e.target.value as typeof source);
-                if (e.target.value === "survey" && kind === "checkbox")
-                  setKind("multiple");
-                setRecord("");
-              }}
+          <div className="response-field-form">
+            <div
+              className="response-field-mode"
+              role="group"
+              aria-label="回答欄の作り方"
             >
-              <option value="worksheet">ワークシート</option>
-              <option value="survey">アンケート</option>
-            </select>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={create}
-              onChange={(e) => setCreate(e.target.checked)}
-            />
-            新しい項目を作る
-          </label>
-          {source === "worksheet" ? (
-            <>
+              <button aria-pressed={create} onClick={() => setCreate(true)}>
+                新しく作る
+              </button>
+              <button aria-pressed={!create} onClick={() => setCreate(false)}>
+                作成済みの項目を使う
+              </button>
+            </div>
+            {!create && (source === "worksheet" ? !sheet : !survey) && (
+              <p>
+                作成済みの項目はありません。「新しく作る」を選んでください。
+              </p>
+            )}
+            <details
+              className="response-field-destination"
+              key={create ? "new-destination" : "existing-destination"}
+              open={!create}
+            >
+              <summary>
+                {create
+                  ? `保存先：${source === "survey" ? "アンケート" : record === "new" || !sheet ? "新しいワークシート" : sheet.title}（変更する）`
+                  : "使用する項目を選択"}
+              </summary>
               <label>
-                ワークシート
+                回答を集める機能
                 <select
-                  aria-label="配置するワークシート"
-                  value={record || sheet?.id || "new"}
+                  aria-label="入力欄の保存先"
+                  value={source}
                   onChange={(e) => {
-                    setRecord(e.target.value);
-                    setFieldId("");
+                    setSource(e.target.value as typeof source);
+                    if (e.target.value === "survey" && kind === "checkbox")
+                      setKind("multiple");
+                    setRecord("");
                   }}
                 >
-                  {ctx.sheets.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.title}
-                    </option>
-                  ))}
-                  {create && <option value="new">新しいワークシート</option>}
+                  <option value="worksheet">ワークシート</option>
+                  <option value="survey">アンケート</option>
                 </select>
               </label>
-              {!create && (
-                <label>
-                  入力項目
-                  <select
-                    aria-label="配置する入力項目"
-                    value={fieldId || field?.id || ""}
-                    onChange={(e) => setFieldId(e.target.value)}
-                  >
-                    {sheet?.fields.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {create && (record === "new" || !sheet) && (
-                <label>
-                  ワークシート名
-                  <input
-                    value={groupTitle}
-                    onChange={(e) => setGroupTitle(e.target.value)}
-                    maxLength={200}
-                  />
-                </label>
-              )}
-            </>
-          ) : (
-            !create && (
-              <label>
-                アンケート
-                <select
-                  aria-label="配置するアンケート"
-                  value={record || survey?.id || ""}
-                  onChange={(e) => setRecord(e.target.value)}
-                >
-                  {surveys.surveys.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.question}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )
-          )}
-          {create && (
-            <>
-              <label>
-                項目名
-                <input
-                  aria-label="新しい入力項目名"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  maxLength={200}
-                />
-              </label>
-              <label>
-                回答形式
-                <select
-                  aria-label="新しい入力欄の形式"
-                  value={kind}
-                  onChange={(e) => setKind(e.target.value as typeof kind)}
-                >
-                  <option value="text">記述欄</option>
-                  {source === "worksheet" && (
-                    <option value="checkbox">チェック欄</option>
-                  )}
-                  <option value="single">単一選択</option>
-                  <option value="multiple">複数選択</option>
-                </select>
-              </label>
-              {kind === "text" ? (
-                <label>
-                  入力例
-                  <input
-                    value={placeholder}
-                    maxLength={200}
-                    onChange={(e) => setPlaceholder(e.target.value)}
-                  />
-                </label>
-              ) : (
-                kind !== "checkbox" && (
+              {source === "worksheet" ? (
+                <>
                   <label>
-                    選択肢（1行1項目）
-                    <textarea
-                      value={options}
-                      onChange={(e) => setOptions(e.target.value)}
-                    />
+                    ワークシート
+                    <select
+                      aria-label="配置するワークシート"
+                      value={record || sheet?.id || "new"}
+                      onChange={(e) => {
+                        setRecord(e.target.value);
+                        setFieldId("");
+                      }}
+                    >
+                      {ctx.sheets.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.title}
+                        </option>
+                      ))}
+                      {create && (
+                        <option value="new">新しいワークシート</option>
+                      )}
+                    </select>
+                  </label>
+                  {!create && (
+                    <label>
+                      入力項目
+                      <select
+                        aria-label="配置する入力項目"
+                        value={fieldId || field?.id || ""}
+                        onChange={(e) => setFieldId(e.target.value)}
+                      >
+                        {sheet?.fields.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {create && (record === "new" || !sheet) && (
+                    <label>
+                      ワークシート名
+                      <input
+                        value={groupTitle}
+                        onChange={(e) => setGroupTitle(e.target.value)}
+                        maxLength={200}
+                      />
+                    </label>
+                  )}
+                </>
+              ) : (
+                !create && (
+                  <label>
+                    アンケート
+                    <select
+                      aria-label="配置するアンケート"
+                      value={record || survey?.id || ""}
+                      onChange={(e) => setRecord(e.target.value)}
+                    >
+                      {surveys.surveys.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.question}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                 )
               )}
-            </>
-          )}
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() => void add()}
-          >
-            受付を開始して配置
-          </button>
-          <p>
-            同じ項目を複数の場所に置くと、同じ回答を表示します。位置・サイズ・色・枠線は配置後に編集できます。
-          </p>
-          <details>
-            <summary>入力欄の配置ひな形</summary>
-            <label>
-              ひな形の名前
-              <input
-                maxLength={100}
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-              />
-            </label>
-            <button className="button outline" onClick={saveTemplate}>
-              このページの入力欄の配置を保存
+            </details>
+            {create && (
+              <>
+                <label>
+                  項目名（必須）
+                  <input
+                    autoFocus
+                    aria-label="新しい入力項目名"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    maxLength={200}
+                  />
+                </label>
+                <fieldset className="response-kind-picker">
+                  <legend>回答形式</legend>
+                  <div>
+                    {(
+                      [
+                        ["text", "記述", "自分の考えを文章で"],
+                        ["checkbox", "チェック", "あてはまるかを確認"],
+                        ["single", "単一選択", "選択肢から1つ"],
+                        ["multiple", "複数選択", "選択肢から複数"],
+                      ] as const
+                    )
+                      .filter(
+                        ([value]) =>
+                          source === "worksheet" || value !== "checkbox",
+                      )
+                      .map(([value, title, description]) => (
+                        <button
+                          type="button"
+                          key={value}
+                          aria-pressed={kind === value}
+                          onClick={() => setKind(value)}
+                        >
+                          <strong>{title}</strong>
+                          <small>{description}</small>
+                        </button>
+                      ))}
+                  </div>
+                </fieldset>
+                {kind === "text" ? (
+                  <label>
+                    入力例
+                    <input
+                      value={placeholder}
+                      maxLength={200}
+                      onChange={(e) => setPlaceholder(e.target.value)}
+                    />
+                  </label>
+                ) : (
+                  kind !== "checkbox" && (
+                    <label>
+                      選択肢（1行1項目）
+                      <textarea
+                        value={options}
+                        onChange={(e) => setOptions(e.target.value)}
+                      />
+                    </label>
+                  )
+                )}
+              </>
+            )}
+            {create && !label.trim() && (
+              <p>項目名を入力すると、スライドに追加できます。</p>
+            )}
+            <button
+              className="button primary"
+              disabled={
+                busy ||
+                (create
+                  ? !label.trim()
+                  : source === "worksheet"
+                    ? !field
+                    : !survey)
+              }
+              onClick={() => void add()}
+            >
+              {busy ? "追加しています…" : "スライドに追加"}
             </button>
-            {templates.map((t, i) => (
-              <div key={t.name}>
-                <span>{t.name}</span>
-                <button disabled={busy} onClick={() => void useTemplate(i)}>
-                  新しい項目として配置
-                </button>
-                <button
-                  onClick={() => {
-                    const next = templates.filter((_, n) => n !== i);
-                    localStorage.setItem(storageKey, JSON.stringify(next));
-                    setTemplates(next);
-                  }}
-                >
-                  ひな形を削除
-                </button>
-              </div>
-            ))}
             <p>
-              ひな形はこのアカウントの端末に保存します。回答内容は含みません。
+              同じ項目を複数の場所に置くと、同じ回答を表示します。位置・サイズ・色・枠線は配置後に編集できます。
             </p>
-          </details>
+            <details>
+              <summary>入力欄の配置ひな形</summary>
+              <label>
+                ひな形の名前
+                <input
+                  maxLength={100}
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                />
+              </label>
+              <button className="button outline" onClick={saveTemplate}>
+                このページの入力欄の配置を保存
+              </button>
+              {templates.map((t, i) => (
+                <div key={t.name}>
+                  <span>{t.name}</span>
+                  <button disabled={busy} onClick={() => void useTemplate(i)}>
+                    新しい項目として配置
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = templates.filter((_, n) => n !== i);
+                      localStorage.setItem(storageKey, JSON.stringify(next));
+                      setTemplates(next);
+                    }}
+                  >
+                    ひな形を削除
+                  </button>
+                </div>
+              ))}
+              <p>
+                ひな形はこのアカウントの端末に保存します。回答内容は含みません。
+              </p>
+            </details>
+            {error && <p role="alert">{error}</p>}
+          </div>
+          <aside className="response-field-preview">
+            <h3>配置する回答欄のプレビュー</h3>
+            <div className="response-preview-slide">
+              <ResponseField element={previewElement} />
+            </div>
+            <p>
+              追加後に、位置・大きさ・色・枠線・項目名の表示を変更できます。
+            </p>
+            <p>
+              参加者の回答はアカウントごとに自動保存されます。回答一覧とCSVは「アンケート・ワークシート」から確認できます。
+            </p>
+          </aside>
         </>
       )}
-      {error && <p role="alert">{error}</p>}
+      {!ctx.enabled && error && <p role="alert">{error}</p>}
     </section>
   );
 }

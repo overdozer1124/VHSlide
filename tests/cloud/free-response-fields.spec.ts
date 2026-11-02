@@ -57,16 +57,82 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(guest.locator(".slide-card")).toHaveCount(1);
     await page.locator(".thumbnail").first().click();
     await guest.locator(".thumbnail").first().click();
-    await page.getByText("回答欄を自由に配置", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "回答欄を追加", exact: true })
+      .click();
     const tools = page.getByRole("region", {
       name: "回答欄の追加",
       exact: true,
     });
-    await tools.getByRole("checkbox", { name: "新しい項目を作る" }).check();
+    const creator = page.getByRole("dialog", {
+      name: "スライドに回答欄を追加",
+      exact: true,
+    });
+    await expect(creator).toBeVisible();
+    await expect(
+      tools.getByRole("button", { name: "新しく作る", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      tools.getByRole("button", { name: "スライドに追加", exact: true }),
+    ).toBeDisabled();
+    await tools
+      .getByRole("button", { name: "作成済みの項目を使う", exact: true })
+      .click();
+    await expect(tools).toContainText("作成済みの項目はありません");
+    await tools
+      .getByRole("button", { name: "新しく作る", exact: true })
+      .click();
     await tools
       .getByRole("textbox", { name: "新しい入力項目名" })
       .fill("観察から気づいたこと");
-    await tools.getByRole("button", { name: "受付を開始して配置" }).click();
+    await expect(creator.locator(".response-field-preview")).toContainText(
+      "観察から気づいたこと",
+    );
+    await tools.getByRole("button", { name: /^単一選択/ }).click();
+    await expect(creator.locator(".response-field-preview")).toContainText(
+      "はい",
+    );
+    await tools.getByRole("button", { name: /^記述/ }).click();
+    await page.keyboard.press("Escape");
+    await expect(creator).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "回答欄を追加", exact: true }),
+    ).toBeFocused();
+    await page
+      .getByRole("button", { name: "回答欄を追加", exact: true })
+      .click();
+    await expect(
+      tools.getByRole("textbox", { name: "新しい入力項目名" }),
+    ).toHaveValue("観察から気づいたこと");
+    await page.screenshot({
+      path: info.outputPath("response-field-creator.png"),
+      fullPage: true,
+    });
+    let releaseCreate: (() => void) | undefined;
+    await page.route(`**/api/decks/${id}/worksheets`, async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        releaseCreate = resolve;
+      });
+      await route.continue();
+    });
+    await tools.getByRole("button", { name: "スライドに追加" }).click();
+    await expect(
+      creator.getByRole("button", { name: "回答欄の追加を閉じる" }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(creator).toBeVisible();
+    await expect.poll(() => !!releaseCreate).toBe(true);
+    releaseCreate!();
+    await expect(creator).not.toBeVisible();
+    await page.unroute(`**/api/decks/${id}/worksheets`);
+    await expect(
+      page.getByRole("status").filter({ hasText: "回答欄を追加しました" }),
+    ).toBeVisible();
+
     const appearance = page.getByRole("region", {
       name: "入力欄の設定",
       exact: true,
@@ -234,6 +300,9 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(
       guest.locator(".editor-workspace [data-response-field] textarea").nth(1),
     ).toHaveValue("");
+    await page
+      .getByRole("button", { name: "回答欄を追加", exact: true })
+      .click();
     await tools.getByText("入力欄の配置ひな形", { exact: true }).click();
     await tools
       .getByRole("textbox", { name: "ひな形の名前" })
