@@ -17,19 +17,19 @@ export function canDragForm(event: PointerEvent<HTMLElement>): boolean {
     const rect = node.getBoundingClientRect();
     if (
       node.scrollHeight > node.clientHeight &&
-      node.offsetWidth > node.clientWidth &&
+      node.offsetWidth > 0 &&
       event.clientX >=
         rect.right -
-          (node.offsetWidth - node.clientWidth) *
+          Math.max(16, node.offsetWidth - node.clientWidth) *
             (rect.width / node.offsetWidth)
     )
       return false;
     if (
       node.scrollWidth > node.clientWidth &&
-      node.offsetHeight > node.clientHeight &&
+      node.offsetHeight > 0 &&
       event.clientY >=
         rect.bottom -
-          (node.offsetHeight - node.clientHeight) *
+          Math.max(16, node.offsetHeight - node.clientHeight) *
             (rect.height / node.offsetHeight)
     )
       return false;

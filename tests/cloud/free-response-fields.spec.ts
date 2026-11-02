@@ -164,13 +164,18 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       hostField.getByRole("button", { name: "入力欄を移動" }),
     ).toHaveCount(0);
     const initial = (await hostField.boundingBox())!;
-    await page.mouse.move(initial.x + 4, initial.y + 4);
+    await page.mouse.move(initial.x + 4, initial.y + initial.height / 2);
     await page.mouse.down();
-    await page.mouse.move(initial.x + 19, initial.y + 12, { steps: 3 });
+    await page.mouse.move(initial.x + 19, initial.y + initial.height / 2 + 8, {
+      steps: 3,
+    });
     await page.mouse.up();
     await expect
       .poll(async () => (await hostField.boundingBox())!.x)
       .toBeGreaterThan(initial.x);
+    expect(
+      Math.abs((await hostField.boundingBox())!.width - initial.width),
+    ).toBeLessThan(0.5);
     const appearance = page.getByRole("region", {
       name: "入力欄の設定",
       exact: true,

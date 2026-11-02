@@ -106,26 +106,33 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       const scroll = await hostCard.evaluate((node) => {
         const el = node as HTMLElement;
         el.style.height = "180px";
-        const r = el.getBoundingClientRect();
+        const r = el.getBoundingClientRect(),
+          scale = r.width / el.offsetWidth;
         return {
           overflow: el.scrollHeight > el.clientHeight,
-          width: el.offsetWidth - el.clientWidth,
-          x:
-            r.right -
-            ((el.offsetWidth - el.clientWidth) * r.width) / el.offsetWidth / 2,
-          y: r.top + 12,
+          x: r.right - 7 * scale,
+          y: r.top + 25,
+          left: r.left + 4,
+          mid: r.top + r.height / 2,
         };
       });
-      if (scroll.overflow && scroll.width > 2) {
-        const xBefore = (await hostCard.boundingBox())!.x;
+      if (scroll.overflow) {
+        const positionBefore = (await hostCard.boundingBox())!;
+        await page.mouse.move(scroll.left, scroll.mid);
+        await page.mouse.wheel(0, 100);
+        await expect
+          .poll(() => hostCard.evaluate((el) => el.scrollTop))
+          .toBeGreaterThan(0);
+        await hostCard.evaluate((el) => {
+          el.scrollTop = 0;
+        });
         await page.mouse.move(scroll.x, scroll.y);
         await page.mouse.down();
         await page.mouse.move(scroll.x, scroll.y + 45, { steps: 3 });
         await page.mouse.up();
-        await expect
-          .poll(() => hostCard.evaluate((el) => el.scrollTop))
-          .toBeGreaterThan(0);
-        expect((await hostCard.boundingBox())!.x).toBe(xBefore);
+        const positionAfter = (await hostCard.boundingBox())!;
+        expect(positionAfter.x).toBe(positionBefore.x);
+        expect(positionAfter.y).toBe(positionBefore.y);
       }
       await hostCard.evaluate((node) => {
         (node as HTMLElement).style.height = "";
