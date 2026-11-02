@@ -129,11 +129,19 @@ export async function exercisePermissionOrder(
             ),
           true,
         );
-      guest.ws.close();
+      try {
+        guest.ws.close();
+      } catch {
+        /* The server closes denied sockets. */
+      }
     }
   } finally {
     for (const peer of peers) {
-      peer.ws.close();
+      try {
+        peer.ws.close();
+      } catch {
+        /* Already closed by a denial or the prior iteration. */
+      }
       peer.doc.destroy();
     }
   }
