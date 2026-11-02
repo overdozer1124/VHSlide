@@ -102,6 +102,36 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await expect
       .poll(async () => (await hostCard.boundingBox())!.x)
       .toBeGreaterThan(beforeMove.x);
+    if (!info.project.name.includes("touch")) {
+      const scroll = await hostCard.evaluate((node) => {
+        const el = node as HTMLElement;
+        el.style.height = "180px";
+        const r = el.getBoundingClientRect();
+        return {
+          overflow: el.scrollHeight > el.clientHeight,
+          width: el.offsetWidth - el.clientWidth,
+          x:
+            r.right -
+            ((el.offsetWidth - el.clientWidth) * r.width) / el.offsetWidth / 2,
+          y: r.top + 12,
+        };
+      });
+      if (scroll.overflow && scroll.width > 2) {
+        const xBefore = (await hostCard.boundingBox())!.x;
+        await page.mouse.move(scroll.x, scroll.y);
+        await page.mouse.down();
+        await page.mouse.move(scroll.x, scroll.y + 45, { steps: 3 });
+        await page.mouse.up();
+        await expect
+          .poll(() => hostCard.evaluate((el) => el.scrollTop))
+          .toBeGreaterThan(0);
+        expect((await hostCard.boundingBox())!.x).toBe(xBefore);
+      }
+      await hostCard.evaluate((node) => {
+        (node as HTMLElement).style.height = "";
+      });
+    }
+
     await guest.locator(".thumbnail").first().click();
     const card = guest.locator(".editor-workspace .slide-worksheet");
     await expect(card).toBeVisible();

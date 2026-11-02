@@ -1,3 +1,4 @@
+import { canDragForm } from "./formDrag";
 import { useContext } from "react";
 import type { PointerEvent } from "react";
 import type { Element } from "./model";
@@ -66,13 +67,7 @@ export function ResponseField({
       onPointerDown={
         interactive
           ? (ev) => {
-              if (
-                onMoveStart &&
-                !(ev.target as HTMLElement).closest(
-                  "input,textarea,select,button,label",
-                )
-              )
-                onMoveStart(ev);
+              if (onMoveStart && canDragForm(ev)) onMoveStart(ev);
               else ev.stopPropagation();
             }
           : undefined

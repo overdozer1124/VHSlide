@@ -1,3 +1,4 @@
+import { canDragForm } from "./formDrag";
 import { useContext } from "react";
 import type { PointerEvent } from "react";
 import type { Element } from "./model";
@@ -45,13 +46,7 @@ function SurveyCard({
       onPointerDown={
         interactive
           ? (e) => {
-              if (
-                onMoveStart &&
-                !(e.target as HTMLElement).closest(
-                  "input,textarea,select,button,label",
-                )
-              )
-                onMoveStart(e);
+              if (onMoveStart && canDragForm(e)) onMoveStart(e);
               else e.stopPropagation();
             }
           : undefined
