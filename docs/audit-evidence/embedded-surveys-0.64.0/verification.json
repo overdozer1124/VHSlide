@@ -1,0 +1,47 @@
+{
+  "version": "0.64.0",
+  "cloudflare_version_id": "9b01d353-ea4a-480c-9d97-b6cbb1283d4a",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "files": [
+    {
+      "path": "/index.html",
+      "bytes": 482,
+      "sha256": "a2abcd5aad8f22d585d377283629abb0fef17c98af58cec7ff990a08f05c55b1"
+    },
+    {
+      "path": "/assets/index-DocOpgWJ.js",
+      "bytes": 1048552,
+      "sha256": "2d79e9e08a14f7084ef1a64bdae7ac375b9573caf841d99b4b168e3bfbae5ace"
+    },
+    {
+      "path": "/assets/index-DmZZ_7g-.css",
+      "bytes": 151134,
+      "sha256": "018920576982ea1bb7a54a25d988f3bfdf978dee71b1c9906cc4975bee1c90fe"
+    }
+  ],
+  "source_commit": "5317399c2db7216b8c795f1c2fd58c5340ed12b4",
+  "anonymous_survey_api_status": 401,
+  "production_cloud_work_accessed": false,
+  "tests": {
+    "unit": 179,
+    "server": 19,
+    "cloudflare": 25,
+    "browser_regression_passed": 18,
+    "browser_regression_skipped": 2,
+    "survey_browser_node_passed": 4,
+    "embedded_survey_browser_cloudflare_passed": 2,
+    "host_follow_lock_browser_cloudflare_passed": 2,
+    "production_browser_passed": 6
+  },
+  "authenticated_workflow_verification": "Synthetic participants in isolated Node and Cloudflare/workerd. No real production work accessed.",
+  "production_checks": [
+    "Public assets match the tested build byte for byte",
+    "Anonymous survey API rejects access",
+    "Question cards render in slides without automatically accessing their source work",
+    "PPTX import, persistence and restoration remain functional"
+  ],
+  "proxy_trust": "Disposable browser with the managed proxy CA SPKI; assets independently verified with system CA trust."
+}
