@@ -1,3 +1,4 @@
+import { SlideWorksheet } from "./SlideWorksheet";
 import { SlideSurvey } from "./SlideSurvey";
 import { InkObject } from "./InkObject";
 import { ChartGraphic } from "./ChartGraphic";
@@ -29,6 +30,7 @@ import type { Element, Slide } from "./model";
 import { W, H } from "./model";
 import { InlineText } from "./InlineText";
 export function ElementView({ element: e }: { element: Element }) {
+  if (e.worksheet) return <SlideWorksheet element={e} />;
   if (e.survey) return <SlideSurvey element={e} />;
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
@@ -550,18 +552,21 @@ export function Canvas({
               className={`element ${editable && activeIds.includes(e.id) ? "selected-element" : ""} ${editingId === e.id ? "editing-element" : ""}`}
               tabIndex={editable ? 0 : undefined}
               aria-label={
-                e.survey
-                  ? "アンケートの部品"
-                  : editable && (e.type === "text" || e.type === "shape")
-                    ? "テキストボックス"
-                    : undefined
+                e.worksheet
+                  ? "ワークシートの部品"
+                  : e.survey
+                    ? "アンケートの部品"
+                    : editable && (e.type === "text" || e.type === "shape")
+                      ? "テキストボックス"
+                      : undefined
               }
               onDoubleClick={(event) => {
-                if (e.survey) return;
+                if (e.survey || e.worksheet) return;
                 if (event.shiftKey || event.ctrlKey || event.metaKey) return;
                 if (
                   editable &&
                   !e.survey &&
+                  !e.worksheet &&
                   (e.groupId || e.type === "text" || e.type === "shape")
                 ) {
                   event.stopPropagation();
@@ -575,6 +580,7 @@ export function Canvas({
                 if (
                   editable &&
                   !e.survey &&
+                  !e.worksheet &&
                   (e.groupId || e.type === "text" || e.type === "shape") &&
                   ["Enter", "F2"].includes(event.key)
                 ) {
@@ -606,7 +612,7 @@ export function Canvas({
                 start(event, e);
               }}
               onClickCapture={(event) => {
-                if (e.survey && surveyInteractive) return;
+                if ((e.survey || e.worksheet) && surveyInteractive) return;
                 if (
                   !e.link ||
                   !onOpenLink ||
@@ -631,7 +637,18 @@ export function Canvas({
                   opacity: e.opacity ?? 1,
                 }}
               >
-                {e.survey ? (
+                {e.worksheet ? (
+                  <SlideWorksheet
+                    key={`${e.worksheet.deckId}:${e.worksheet.worksheetId}`}
+                    element={e}
+                    interactive={surveyInteractive}
+                    onMoveStart={
+                      editable
+                        ? (event) => start(event, e, false, false)
+                        : undefined
+                    }
+                  />
+                ) : e.survey ? (
                   <SlideSurvey
                     key={`${e.survey.deckId}:${e.survey.surveyId}`}
                     element={e}

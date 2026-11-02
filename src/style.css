@@ -6792,3 +6792,37 @@ h1 span {
 .survey-response-table th[scope=row] { min-width:100px;max-width:180px; }
 .survey-response-table td { max-width:250px; }
 .survey-response-table .survey-response-answer { white-space:pre-wrap;min-width:160px;max-width:400px; }
+.worksheet-launch { position:fixed;right:16px;bottom:72px;z-index:45;background:#fff!important;box-shadow:0 2px 8px #173d3820; }
+.worksheet-launch.presenting { bottom:auto;top:142px; }
+.slide-worksheet,.worksheet-preview { height:100%;overflow:auto;background:#fff;color:#29323b;border:2px solid #e4a36e;border-radius:14px;padding:16px;box-sizing:border-box;text-align:left;font-size:18px;line-height:1.4; }
+.slide-worksheet h3,.worksheet-preview h3 { font-size:26px;margin:0 0 8px;border-left:7px solid #e58d47;padding-left:12px; }
+.slide-worksheet header>p { background:#fcf4e8;padding:8px 12px;border-radius:8px;margin:6px 0 12px; }
+.worksheet-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px; }
+.worksheet-field { min-width:0; }
+.worksheet-field.wide { grid-column:1/-1; }
+.worksheet-field h4 { margin:4px 0 6px;padding:5px 10px;background:#dc8945;color:#fff;border-radius:8px;font-size:19px; }
+.worksheet-field>label:not(.worksheet-check) { display:block;font-weight:700;margin-bottom:4px; }
+.worksheet-field textarea { display:block;width:100%;box-sizing:border-box;background:#fffdfa!important;color:#29323b;border:1px solid #e4a36e!important;border-radius:8px;padding:7px 10px;font:inherit;resize:none;min-height:38px; }
+.worksheet-field fieldset { display:flex;flex-wrap:wrap;gap:10px;border:1px solid #e4a36e;border-radius:8px;margin:0;padding:8px; }
+.worksheet-field fieldset label,.worksheet-check { display:flex;gap:10px;align-items:center; }
+.worksheet-check { min-height:42px;padding:8px;border:1px solid #e4a36e;border-radius:9px;background:#fffaf4; }
+.worksheet-fields input[type=checkbox],.worksheet-fields input[type=radio] { width:22px;height:22px;flex-shrink:0;accent-color:#dc8945; }
+.worksheet-score { background:#fff0d9;padding:10px;border-radius:9px;font-weight:700; }
+.worksheet-save,.worksheet-admin { display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0; }
+.worksheet-save button,.worksheet-editor-actions button { border:1px solid #a6662f;background:#fff3e5;color:#633811;border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer; }
+.worksheet-privacy { font-size:13px!important; }
+.worksheet-move { float:right;touch-action:none;cursor:grab;padding:6px 12px;border:1px solid #a6662f;border-radius:6px;background:#fff3e5; }
+.worksheet-panel input:not([type=checkbox]):not([type=radio]) { width:100%;box-sizing:border-box;border:1px solid #b8cabe;border-radius:7px;padding:9px;font:inherit; }
+.worksheet-field-editor label { display:block;margin:8px 0; }
+.worksheet-editor-actions { display:flex;gap:8px; }
+.worksheet-results { border-top:1px solid #d4dfd7;margin-top:20px;padding-top:16px; }
+.slide-worksheet.is-preview { pointer-events:none; }
+.slide-worksheet.is-interactive textarea { font-size:max(18px,calc(16px / var(--canvas-zoom,1))); }
+.slide-worksheet.is-interactive button { min-height:calc(44px / var(--canvas-zoom,1)); }
+@media(max-width:600px) { .worksheet-panel .worksheet-fields { grid-template-columns:1fr; } }
+.worksheet-group { min-width:0; }
+.worksheet-group.wide { grid-column:1/-1; }
+.worksheet-group>h4 { margin:0 0 8px;padding:6px 10px;background:#dc8945;color:#fff;border-radius:8px;font-size:19px; }
+.worksheet-group-fields { display:grid;grid-template-columns:minmax(0,1fr);gap:10px; }
+.worksheet-group-fields.two-columns { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:600px) { .worksheet-panel .worksheet-group-fields.two-columns { grid-template-columns:1fr; } }

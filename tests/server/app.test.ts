@@ -1,3 +1,4 @@
+import { exerciseWorksheets } from "../support/worksheets.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import {
@@ -1585,4 +1586,14 @@ test("scoped edits survive multi-client field order reconstruction and reconnect
   const id = await create();
   await invite(id, bob);
   await exercisePermissionOrder(request, connect, id, alice, bob);
+});
+
+test("worksheets isolate accounts, enforce membership, validate fields and persist across restart", async () => {
+  const id = await create();
+  await invite(id, bob);
+  const other = await create();
+  await exerciseWorksheets(request, id, other, alice, bob, eve, async () => {
+    await app.close();
+    await start();
+  });
 });

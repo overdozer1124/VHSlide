@@ -4,7 +4,11 @@ import config from "./playwright.config";
 // Fresh browser contexts import synthetic files locally; no cloud work is opened.
 export default defineConfig({
   ...config,
-  testMatch: ["pptx.spec.ts", "surveys-entry.spec.ts"],
+  testMatch: [
+    "pptx.spec.ts",
+    "surveys-entry.spec.ts",
+    "worksheets-entry.spec.ts",
+  ],
   outputDir: "test-results-production-pptx",
   webServer: undefined,
   use: {

@@ -1,3 +1,5 @@
+import { WorksheetProvider } from "./WorksheetContext";
+import { parseWorksheetBinding } from "./worksheets";
 import { createElement } from "react";
 import { SurveySlideContext } from "./SurveySlideContext";
 import type { SurveySlideData } from "./SurveySlideContext";
@@ -1914,7 +1916,58 @@ export default function App() {
         )}
       </CloudDocument.Provider>
     );
-  return createElement(
+  const worksheetProps = {
+    deckId: cloud.active?.id,
+    userId: cloud.user?.id,
+    host: cloud.isHost,
+    blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+    presenting: view === "present" || (!cloud.isHost && cloud.follow.active),
+    onEmbed: (worksheet: import("./worksheets").WorksheetView) => {
+      if (!cloud.active || !cloud.isHost || worksheet.status === "draft")
+        throw new Error("ホストが受付を開始してから配置してください。");
+      const current = latestWorkbook.current;
+      const target = current.slides.find((s) => s.id === latestSlideId.current);
+      if (!target || target.elements.length >= 200)
+        throw new Error("配置先のページを確認してください。");
+      const element: Element = {
+        id: uid(),
+        type: "shape",
+        shape: "rounded",
+        x: 20,
+        y: 15,
+        w: 920,
+        h: 510,
+        fill: "#ffffff",
+        stroke: "#dc8945",
+        text: `ワークシート：${worksheet.title}`,
+        worksheet: parseWorksheetBinding({
+          ...worksheet,
+          deckId: cloud.active.id,
+          worksheetId: worksheet.id,
+        }),
+      };
+      const next = {
+        ...current,
+        slides: current.slides.map((s) =>
+          s.id === target.id ? { ...s, elements: [...s.elements, element] } : s,
+        ),
+      };
+      if (!commitWorkbook(parseDeck(serializeDeck(next)), current, true))
+        throw new Error("配置できませんでした。");
+      if (document.fullscreenElement)
+        void document.exitFullscreen().catch(() => {});
+      setSpeakerLaunch(undefined);
+      setPresentation(undefined);
+      setObjectTrail([]);
+      setPendingPresentationLink(undefined);
+      setSelected(element.id);
+      setView("editor");
+      notify(
+        "ワークシートを配置しました。各自のアカウントで入力・保存できます。",
+      );
+    },
+  };
+  const content = createElement(
     SurveySlideContext.Provider,
     {
       value: {
@@ -2945,4 +2998,5 @@ export default function App() {
       )}
     </CloudDocument.Provider>,
   );
+  return createElement(WorksheetProvider, worksheetProps, content);
 }

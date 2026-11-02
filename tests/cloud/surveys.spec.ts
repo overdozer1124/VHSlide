@@ -368,6 +368,7 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     expect(
       (await list()).find((s: any) => s.id === ids.single).results,
     ).toMatchObject({ count: 1, counts: [0, 1] });
+    await guest.mouse.move(10, 10);
     await guest.getByRole("button", { name: "次の話題", exact: true }).click();
     await expect(presentCard).toContainText("今日の気づき");
     const answer = presentCard.getByRole("textbox", {

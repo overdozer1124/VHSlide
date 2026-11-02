@@ -1,4 +1,9 @@
 import {
+  worksheetSchema,
+  worksheetList,
+  worksheetCommand,
+} from "../src/worksheets.ts";
+import {
   surveySchema,
   surveyList,
   surveyCommand,
@@ -105,6 +110,7 @@ export class Directory extends DurableObject<Env> {
       );
     this.sql.exec(joinSchema);
     this.sql.exec(surveySchema);
+    this.sql.exec(worksheetSchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
     this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
@@ -829,6 +835,45 @@ export class Directory extends DurableObject<Env> {
       404,
       "作品はごみ箱にあります。作品一覧に戻してから開いてください。",
     );
+    if (extra === "worksheets" || extra?.startsWith("worksheets/")) {
+      insist(
+        ["GET", "POST", "DELETE"].includes(method),
+        405,
+        "この操作には対応していません。",
+      );
+      const route =
+        /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer))?)?$/.exec(extra);
+      insist(
+        route &&
+          (method === "GET"
+            ? extra === "worksheets"
+            : method === "DELETE"
+              ? !!route[1] && !route[2]
+              : extra === "worksheets" || !!route[2]),
+        404,
+        "ワークシートの操作が見つかりません。",
+      );
+      const value = method === "POST" ? await input(request, 300000) : {};
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        if (method !== "GET") {
+          this.rate(`worksheet:${user.id}`, 120);
+          worksheetCommand(
+            sql,
+            id,
+            user.id,
+            host,
+            method === "DELETE" ? "delete" : (route![2] ?? "create"),
+            route![1],
+            value,
+          );
+        }
+        return json({ worksheets: worksheetList(sql, id, user.id, host) });
+      });
+    }
     if (extra === "surveys" || extra?.startsWith("surveys/")) {
       insist(
         ["GET", "POST", "DELETE"].includes(method),
