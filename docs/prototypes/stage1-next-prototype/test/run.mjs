@@ -52,10 +52,17 @@ const SUB_W = "mock-subject-wrongsec-000"; // 誤シークレット用
 const sha256 = (s) => createHash("sha256").update(s, "utf8").digest("hex");
 
 // ---------- 結果集計 ----------
+// 結果は PASS / FAIL のほかに、状態変更要求で接続レベルの例外が起きて
+// サーバー側の確定有無が分からない場合の専用表記
+// 「UNKNOWN（結果不明・再送せず）」を持つ。FAIL とは数え分ける。
 const results = [];
 function check(name, cond, detail = "") {
-  results.push({ name, pass: !!cond, detail });
+  results.push({ name, pass: !!cond, unknown: false, detail });
   console.log(`${cond ? "PASS" : "FAIL"}  ${name}${cond ? "" : "  -- " + detail}`);
+}
+function checkUnknown(name, detail = "") {
+  results.push({ name, pass: false, unknown: true, detail });
+  console.log(`UNKNOWN（結果不明・再送せず）  ${name}${detail ? "  -- " + detail : ""}`);
 }
 function section(title) {
   console.log(`\n== ${title} ==`);
@@ -92,11 +99,42 @@ async function startHarness(persistName, extraBindings = {}) {
 }
 
 // ---------- HTTP ヘルパ ----------
-// 接続レベルの例外（fetch failed / ECONNRESET 等）だけを対象に、短い間隔で
-// 最大3回まで再試行する。環境によっては Miniflare（workerd）への接続が
-// 一時的に切れることがあるための措置で、HTTP 状態や応答内容の不一致は
-// 再試行しない（アサーションの失敗をごまかさない）。再試行は出力に残す。
-let connRetryTotal = 0;
+// 再試行ポリシー（Codex 再確認レビュー項目2への対応）:
+// - 再試行するのは冪等な読み取りだけ: 状態取得などの GET 読み取り。
+//   環境によっては Miniflare（workerd）への接続が一時的に切れることが
+//   あるための措置で、HTTP 状態や応答内容の不一致は再試行しない
+//   （アサーションの失敗をごまかさない）。再試行は回数・対象を出力と
+//   サマリに残す（記録オブジェクト: retries / breakdown / unknowns）。
+// - 状態変更を伴う要求は、応答前に接続が切れた場合にサーバー側で処理が
+//   確定している可能性があるため、無条件に再送しない。再送すると
+//   /register の 409 や /recover の重複副作用を招き、結果の解釈も
+//   できなくなる。該当する要求は「結果不明（再送せず）」として
+//   FAIL と区別して記録し（UnknownResultError）、原則としてその
+//   シナリオは打ち切る。
+// - /nonce の発行は GET だが状態を作る（未使用 nonce の記録が残る）
+//   ため、冪等な読み取りとは扱わず再試行しない。なお /nonce は同一
+//   コンテキストで複数発行しても未使用 nonce が残るだけであり、
+//   再送しても安全側に倒れる性質はある。それでもここでは一律に
+//   「状態を作る要求は再送しない」側へ倒し、根拠を単純に保つ
+//   （/register・/login・/recover・/operate の再送禁止と区別して
+//   /nonce だけ例外扱いにはしない。この判断は README にも明記する）。
+// - 例外: /admin/restart の「鍵一致で例外を投げる」確認だけは、接続が
+//   切れる形の例外伝播自体が期待する結果であり、呼び出し側が例外を
+//   捕まえて判定する。その呼び出し（expectConnThrow: true）では
+//   結果不明として記録せず、元の例外をそのまま呼び出し側へ渡す
+//   （再送はしない）。
+function newRetryRecord() {
+  return { total: 0, breakdown: [], unknowns: [] };
+}
+const mainRetryRecord = newRetryRecord();
+class UnknownResultError extends Error {
+  constructor(info, cause) {
+    super(`結果不明（再送せず）: ${info.method} ${info.path}: ${info.error}`);
+    this.name = "UnknownResultError";
+    this.unknownInfo = info;
+    this.cause = cause;
+  }
+}
 function connErrorLabel(e) {
   const parts = [e && e.message, e && e.cause && (e.cause.code || e.cause.message)]
     .filter(Boolean)
@@ -107,21 +145,46 @@ function isConnLevelError(e) {
   const label = connErrorLabel(e);
   return (
     (e instanceof TypeError && /fetch failed/.test(label)) ||
-    /ECONNRESET|ECONNREFUSED|EPIPE|socket hang up|UND_ERR_(CONNECT|CONN)/.test(label)
+    /ECONNRESET|ECONNREFUSED|EPIPE|socket hang up|other side closed|UND_ERR_(CONNECT|CONN|SOCKET)/.test(label)
   );
 }
-async function fetchWithRetry(url, init) {
+// 冪等な読み取りかどうか。GET でも /nonce（発行で状態を作る）は含めない。
+function isRetryableRead(method, pathname) {
+  return method === "GET" && pathname !== "/nonce";
+}
+async function fetchWithRetry(url, init, callOpts = {}) {
+  const record = callOpts.record || mainRetryRecord;
+  const method = String((init && init.method) || "GET").toUpperCase();
+  let pathname = url;
+  try {
+    pathname = new URL(url).pathname;
+  } catch { /* URL でなければそのまま表示用に使う */ }
   const delaysMs = [150, 400, 1000];
   for (let attempt = 0; ; attempt++) {
     try {
       return await fetch(url, init);
     } catch (e) {
-      if (!isConnLevelError(e) || attempt >= 3) throw e;
-      connRetryTotal++;
+      if (!isConnLevelError(e)) throw e;
+      // /admin/restart の期待される例外伝播など、呼び出し側が例外自体を
+      // 判定する場合は、記録せず元の例外を渡す（再送もしない）。
+      if (callOpts.expectConnThrow) throw e;
+      if (isRetryableRead(method, pathname)) {
+        if (attempt >= 3) throw e; // 読み取りの失敗は通常の失敗として扱う
+        record.total++;
+        record.breakdown.push({ method, path: pathname, attempt: attempt + 1 });
+        console.log(
+          `  [retry] 接続レベルの例外のため再試行します (${attempt + 1}/3): ${method} ${url} -- ${connErrorLabel(e)}`
+        );
+        await new Promise((r) => setTimeout(r, delaysMs[attempt]));
+        continue;
+      }
+      // 状態変更要求（POST 全般と GET /nonce）は再送しない。
+      const info = { method, path: pathname, error: connErrorLabel(e) };
+      record.unknowns.push(info);
       console.log(
-        `  [retry] 接続レベルの例外のため再試行します (${attempt + 1}/3): ${init.method || "GET"} ${url} -- ${connErrorLabel(e)}`
+        `  [unknown] 結果不明（再送せず）: ${method} ${url} -- ${connErrorLabel(e)}`
       );
-      await new Promise((r) => setTimeout(r, delaysMs[attempt]));
+      throw new UnknownResultError(info, e);
     }
   }
 }
@@ -140,7 +203,10 @@ async function call(base, method, p, opts = {}) {
   }
   if (opts.cookie) headers["Cookie"] = opts.cookie;
   if (opts.csrf !== undefined && opts.csrf !== null) headers["X-CSRF"] = opts.csrf;
-  const res = await fetchWithRetry(base + p, { method, headers, body });
+  const res = await fetchWithRetry(base + p, { method, headers, body }, {
+    record: opts.retryRecord,
+    expectConnThrow: opts.expectConnThrow,
+  });
   const text = await res.text();
   let json = null;
   try {
@@ -196,6 +262,56 @@ function coreOf(state) {
     recovery: state.recovery,
     sessions: state.counts.sessions,
   });
+}
+
+// ---------- serve-real 起動試験用ヘルパ ----------
+// serve-real を子プロセスとして起動し、終了コードと出力を確認する。
+function spawnServeReal(relayUrl, port) {
+  const child = spawn(process.execPath, [path.join(ROOT, "tools", "serve-real.mjs")], {
+    env: {
+      ...process.env,
+      GOOGLE_CLIENT_ID: REAL_CLIENT_ID,
+      RELAY_URL: relayUrl,
+      PORT: String(port),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let out = "";
+  child.stdout.on("data", (d) => { out += d; });
+  child.stderr.on("data", (d) => { out += d; });
+  return { child, getOut: () => out };
+}
+// 子プロセスの終了を待つ。timeoutMs 以内に終わらなければ null を返す。
+async function waitChildExit(child, timeoutMs = 5000) {
+  if (child.exitCode !== null) return child.exitCode;
+  return await Promise.race([
+    new Promise((resolve) => child.once("exit", (code) => resolve(code))),
+    new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+}
+// 起動完了（GET / が 200）まで短く繰り返して待つ。
+async function waitServeRealReady(base, child) {
+  for (let i = 0; i < 50; i++) {
+    if (child.exitCode !== null) return false;
+    try {
+      const rr = await fetch(base + "/");
+      if (rr.status === 200) {
+        await rr.text();
+        return true;
+      }
+    } catch {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+  return false;
+}
+function closeServer(srv) {
+  try {
+    if (typeof srv.closeAllConnections === "function") srv.closeAllConnections();
+  } catch { /* 接続がなければ何もしない */ }
+  try {
+    srv.close();
+  } catch { /* 閉鎖済みの場合がある */ }
 }
 
 // ---------- 偽 tokeninfo サーバー（実認証ロジックの試験用） ----------
@@ -667,6 +783,207 @@ try {
     }
   }
 
+  // ================= serve-real: RELAY_URL の起動時検証 =================
+  // 不許可な RELAY_URL では、子プロセスが理由を表示して終了コード 1 で
+  // 終わること（起動しないこと）を確認する。値はいずれもダミー。
+  section("serve-real: RELAY_URL の起動時検証");
+  {
+    const invalidCases = [
+      [
+        "外部 URL（https://example.com）",
+        "https://example.com",
+      ],
+      [
+        "非ループバック IP（http://192.168.0.10:8798）",
+        "http://192.168.0.10:8798",
+      ],
+      [
+        "ポート欠落（http://127.0.0.1）",
+        "http://127.0.0.1",
+      ],
+      [
+        "ユーザー情報つき URL",
+        "http://testuser:testpass@127.0.0.1:8798",
+      ],
+    ];
+    for (const [label, relayUrl] of invalidCases) {
+      const { child, getOut } = spawnServeReal(relayUrl, 18789);
+      const code = await waitChildExit(child);
+      if (code === null) child.kill();
+      const out = getOut();
+      check(
+        `serve-real は RELAY_URL に${label}を指定すると起動を拒否する`,
+        code === 1 && out.includes("RELAY_URL") && !out.includes("testpass"),
+        `exit=${code} out=${out.slice(0, 200)}`
+      );
+    }
+  }
+
+  // ================= serve-real: 中継の 3xx を追従しない =================
+  // 偽の中継先が 302 を返し、その Location 先（別サーバー）に到達
+  // しないことを確認する。到達回数は偽サーバー側のカウンタで見る。
+  section("serve-real: 中継リダイレクトの非追従");
+  {
+    let targetHits = 0;
+    let relayHits = 0;
+    const targetServer = http.createServer((req, res) => {
+      targetHits++;
+      res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      res.end("redirect-target-reached");
+    });
+    targetServer.on("clientError", () => {});
+    await new Promise((resolve) => targetServer.listen(0, "127.0.0.1", resolve));
+    const relayServer = http.createServer((req, res) => {
+      relayHits++;
+      res.writeHead(302, {
+        location: `http://127.0.0.1:${targetServer.address().port}/redirect-target`,
+      });
+      res.end("redirecting");
+    });
+    relayServer.on("clientError", () => {});
+    await new Promise((resolve) => relayServer.listen(0, "127.0.0.1", resolve));
+    const REDIRECT_PORT = "18788";
+    const REDIRECT_BASE = `http://127.0.0.1:${REDIRECT_PORT}`;
+    const { child } = spawnServeReal(
+      `http://127.0.0.1:${relayServer.address().port}`,
+      REDIRECT_PORT
+    );
+    try {
+      const ready = await waitServeRealReady(REDIRECT_BASE, child);
+      const resp = ready
+        ? await call(REDIRECT_BASE, "POST", "/register", {
+            body: { id_token: "dummy-token", bootstrap_secret: "dummy-secret" },
+          })
+        : { status: 0, text: "" };
+      check(
+        "serve-real は中継先の 3xx を追従せず、エラーとして返す（Location 先へ到達しない）",
+        ready &&
+          resp.status >= 400 &&
+          relayHits === 1 &&
+          targetHits === 0 &&
+          !String(resp.text || "").includes("redirect-target-reached"),
+        `ready=${ready} status=${resp.status} relayHits=${relayHits} targetHits=${targetHits}`
+      );
+    } finally {
+      child.kill();
+      closeServer(relayServer);
+      closeServer(targetServer);
+    }
+  }
+
+  // ================= 再試行ポリシー: 意図的な接続切断 =================
+  // 接続を意図的に切る偽サーバーで、再試行の対象範囲を確認する。
+  // 記録は項目専用のレコード（retryRecord）に分けるため、ハーネス本体の
+  // 試験結果（再試行・結果不明の集計）には混ざらない。
+  section("再試行ポリシー: 接続切断時の扱い");
+  {
+    // 読み取り: 1回目だけ接続を切り、2回目は 200 を返す
+    {
+      let hits = 0;
+      const srv = http.createServer((req, res) => {
+        hits++;
+        if (hits === 1) {
+          req.socket.destroy();
+          return;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+      srv.on("clientError", () => {});
+      await new Promise((resolve) => srv.listen(0, "127.0.0.1", resolve));
+      const localRecord = newRetryRecord();
+      try {
+        const r = await call(`http://127.0.0.1:${srv.address().port}`, "GET", "/test/state", {
+          origin: null,
+          retryRecord: localRecord,
+        });
+        check(
+          "読み取り（GET /test/state）は接続例外で再試行され復帰する（意図的な接続切断）",
+          r.status === 200 &&
+            hits === 2 &&
+            localRecord.total === 1 &&
+            localRecord.breakdown.length === 1 &&
+            localRecord.breakdown[0].method === "GET" &&
+            localRecord.breakdown[0].path === "/test/state" &&
+            localRecord.unknowns.length === 0,
+          `status=${r.status} hits=${hits} retries=${localRecord.total}`
+        );
+      } finally {
+        closeServer(srv);
+      }
+    }
+    // 状態変更（POST /register）: 常に接続を切り、再送されないことを確認
+    {
+      let hits = 0;
+      const srv = http.createServer((req, res) => {
+        hits++;
+        req.socket.destroy();
+      });
+      srv.on("clientError", () => {});
+      await new Promise((resolve) => srv.listen(0, "127.0.0.1", resolve));
+      const localRecord = newRetryRecord();
+      let unknownInfo = null;
+      try {
+        try {
+          await call(`http://127.0.0.1:${srv.address().port}`, "POST", "/register", {
+            body: { id_token: "dummy-token", bootstrap_secret: "dummy-secret" },
+            retryRecord: localRecord,
+          });
+        } catch (e) {
+          if (e && e.name === "UnknownResultError") unknownInfo = e.unknownInfo;
+          else throw e;
+        }
+        check(
+          "状態変更（POST /register）は接続例外で再送せず、結果不明（再送せず）として記録される（意図的な接続切断）",
+          unknownInfo !== null &&
+            unknownInfo.method === "POST" &&
+            unknownInfo.path === "/register" &&
+            hits === 1 &&
+            localRecord.total === 0 &&
+            localRecord.unknowns.length === 1,
+          `hits=${hits} retries=${localRecord.total} unknowns=${localRecord.unknowns.length} unknownInfo=${JSON.stringify(unknownInfo)}`
+        );
+      } finally {
+        closeServer(srv);
+      }
+    }
+    // /nonce 発行（GET だが状態を作る）: 常に接続を切り、再送されないことを確認
+    {
+      let hits = 0;
+      const srv = http.createServer((req, res) => {
+        hits++;
+        req.socket.destroy();
+      });
+      srv.on("clientError", () => {});
+      await new Promise((resolve) => srv.listen(0, "127.0.0.1", resolve));
+      const localRecord = newRetryRecord();
+      let unknownInfo = null;
+      try {
+        try {
+          await call(`http://127.0.0.1:${srv.address().port}`, "GET", "/nonce", {
+            origin: ORIGIN,
+            retryRecord: localRecord,
+          });
+        } catch (e) {
+          if (e && e.name === "UnknownResultError") unknownInfo = e.unknownInfo;
+          else throw e;
+        }
+        check(
+          "/nonce 発行（GET だが状態を作る）は接続例外で再送せず、結果不明（再送せず）として記録される（意図的な接続切断）",
+          unknownInfo !== null &&
+            unknownInfo.method === "GET" &&
+            unknownInfo.path === "/nonce" &&
+            hits === 1 &&
+            localRecord.total === 0 &&
+            localRecord.unknowns.length === 1,
+          `hits=${hits} retries=${localRecord.total} unknowns=${localRecord.unknowns.length} unknownInfo=${JSON.stringify(unknownInfo)}`
+        );
+      } finally {
+        closeServer(srv);
+      }
+    }
+  }
+
   // ================= 再起動（dispose → 同じ永続化先で再生成） =================
   section("再起動: dispose → 再生成");
   const bootBefore = (await getState(B)).boot_count;
@@ -717,6 +1034,9 @@ try {
       const r = await call(B2, "POST", "/admin/restart", {
         headers: { "X-Restart-Key": RESTART_KEY },
         body: {},
+        // この確認では接続が切れる形の例外伝播自体が期待する結果のため、
+        // 結果不明として記録せず例外をそのまま受け取る（再送はしない）。
+        expectConnThrow: true,
       });
       threw = r.status >= 500;
     } catch {
@@ -1147,7 +1467,16 @@ try {
     await h.mf.dispose();
   }
 } catch (e) {
-  check("ランナー実行が最後まで到達する", false, String(e && e.stack || e));
+  if (e && e.name === "UnknownResultError" && e.unknownInfo) {
+    // 状態変更要求の結果不明。以後の項目は前提を欠くため、ここで打ち切る
+    // （無理に続けない）。FAIL とは区別して記録する。
+    checkUnknown(
+      `結果不明（再送せず）: ${e.unknownInfo.method} ${e.unknownInfo.path}`,
+      e.unknownInfo.error
+    );
+  } else {
+    check("ランナー実行が最後まで到達する", false, String(e && e.stack || e));
+  }
 } finally {
   try {
     if (main) await main.mf.dispose();
@@ -1158,15 +1487,44 @@ try {
   fakeTokeninfo.close();
 }
 
-const failed = results.filter((r) => !r.pass);
+const failed = results.filter((r) => !r.pass && !r.unknown);
+const unknownResults = results.filter((r) => r.unknown);
+const passed = results.filter((r) => r.pass);
 console.log(`\n== 結果 ==`);
-console.log(`合計 ${results.length} 件: PASS ${results.length - failed.length} / FAIL ${failed.length}`);
-if (connRetryTotal > 0) {
+console.log(
+  `合計 ${results.length} 件: PASS ${passed.length} / FAIL ${failed.length} / 結果不明（再送せず） ${unknownResults.length}`
+);
+console.log(
+  "再試行ポリシー: 再試行は読み取りのみに限定し、状態変更要求は再送していません" +
+    "（GET でも状態を作る /nonce 発行は再送しません）"
+);
+if (mainRetryRecord.total > 0) {
+  const agg = new Map();
+  for (const b of mainRetryRecord.breakdown) {
+    const key = `${b.method} ${b.path}`;
+    agg.set(key, (agg.get(key) || 0) + 1);
+  }
+  const breakdownText = [...agg.entries()].map(([k, v]) => `${k} ×${v}`).join(", ");
   console.log(
-    `接続レベルの例外による再試行が ${connRetryTotal} 回発生しました（HTTP 応答の不一致は再試行していません）`
+    `接続レベルの例外による再試行が ${mainRetryRecord.total} 回発生しました（読み取りのみ。HTTP 応答の不一致は再試行していません）内訳: ${breakdownText}`
+  );
+} else {
+  console.log("接続レベルの例外による再試行は発生しませんでした");
+}
+if (mainRetryRecord.unknowns.length > 0) {
+  const targets = mainRetryRecord.unknowns
+    .map((u) => `${u.method} ${u.path}`)
+    .join(", ");
+  console.log(
+    `結果不明（再送せず） ${mainRetryRecord.unknowns.length} 件: 対象経路 ${targets}`
   );
 }
 if (failed.length) {
   for (const f of failed) console.log(`  FAIL: ${f.name} -- ${f.detail}`);
 }
-process.exit(failed.length ? 1 : 0);
+if (unknownResults.length) {
+  for (const f of unknownResults) {
+    console.log(`  UNKNOWN（結果不明・再送せず）: ${f.name} -- ${f.detail}`);
+  }
+}
+process.exit(failed.length || unknownResults.length || mainRetryRecord.unknowns.length ? 1 : 0);

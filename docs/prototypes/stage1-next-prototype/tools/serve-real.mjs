@@ -19,6 +19,17 @@
 //   ヘッダー・ボディを変更せずに転送する（Origin と Cookie を素通し
 //   する。中継と検証用 Worker の側で照合・拒否が行われる前提で、
 //   このサーバー自身はアプリケーションレベルの拒否をしない）
+// - RELAY_URL は起動時に検証し、許可条件を満たさなければ理由を表示
+//   して終了する（ID トークン・復旧キー・Cookie を外部へ転送しない
+//   ため）。許可条件: scheme は http のみ（同一マシン内のローカル
+//   中継が前提。https はループバックでも TLS 終端先が不明なため
+//   許可しない）、ホストは明示されたループバックアドレスのみ
+//   （127.0.0.1 / ::1 / localhost）、ポート番号の明示必須、
+//   ユーザー情報（user:pass@）なし、パスは空か "/" のみ、
+//   クエリ・フラグメントなし。
+// - 転送時はリダイレクトを追従しない（fetch の redirect: "manual"）。
+//   中継が 3xx を返した場合は追従せず、クライアントへ 502 エラー
+//   として返す（中継先の指示で別の宛先へ機密を送らないため）。
 // - ログにはメソッド・パス・応答状態だけを出す（ヘッダー・ボディ・
 //   クエリの値は出さない。秘密や ID トークンが残らないようにするため）
 // - それ以外のパスは 404
@@ -43,7 +54,72 @@ if (!CLIENT_ID) {
 }
 const PLACEHOLDER = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
 const PORT = Number(process.env.PORT || "8787");
-const RELAY = (process.env.RELAY_URL || "http://127.0.0.1:8798").replace(/\/+$/, "");
+
+// RELAY_URL の検証。不正なら理由（文字列）を返し、正しければ
+// 転送に使う正規化済みの基底 URL（末尾スラッシュなし）を返す。
+// 値自体は理由にもログにも含めない（ユーザー情報などの漏えい防止。
+// 試験用のダミー値でも同じ扱いにする）。
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+function validateRelayUrl(raw) {
+  if (typeof raw !== "string" || raw.trim() !== raw || /\s/.test(raw)) {
+    return { error: "URL として解釈できないか、空白を含んでいます" };
+  }
+  let u;
+  try {
+    u = new URL(raw);
+  } catch {
+    return { error: "URL として解釈できません" };
+  }
+  // scheme は http のみ。https はループバック宛てでも TLS の終端先が
+  // このサーバーからは確認できないため許可しない。
+  if (u.protocol !== "http:") {
+    return { error: `scheme は http のみ許可します（指定された scheme: ${u.protocol.replace(":", "")}）` };
+  }
+  if (u.username || u.password) {
+    return { error: "ユーザー情報（user:pass@）を含む URL は許可しません" };
+  }
+  if (u.search || u.hash) {
+    return { error: "クエリ・フラグメントを含む URL は許可しません" };
+  }
+  if (u.pathname !== "" && u.pathname !== "/") {
+    return { error: "パスは空か \"/\" のみ許可します" };
+  }
+  // IPv6 リテラルでは u.hostname が "[::1]" の形になるため括弧を外して比べる。
+  const hostOnly = u.hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  if (!LOOPBACK_HOSTS.has(hostOnly)) {
+    return {
+      error:
+        "ホストはループバックアドレス（127.0.0.1 / ::1 / localhost）のみ許可します",
+    };
+  }
+  // ポート番号の明示必須。URL パーサーは既定ポート（http の 80）を
+  // u.port から落としてしまうため、生の authority 部分で明示を確かめる。
+  const authority = raw.slice(raw.indexOf("://") + 3).split(/[/?#]/)[0];
+  const portMatch = authority.startsWith("[")
+    ? authority.match(/^\[[^\]]+\]:(\d+)$/)
+    : authority.match(/^[^:@]+:(\d+)$/);
+  if (!portMatch) {
+    return { error: "ポート番号の明示が必要です" };
+  }
+  const portNum = Number(portMatch[1]);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    return { error: "ポート番号が範囲外です（1〜65535）" };
+  }
+  return { relay: `http://${authority}` };
+}
+
+const relayValidation = validateRelayUrl(
+  process.env.RELAY_URL || "http://127.0.0.1:8798"
+);
+if (relayValidation.error) {
+  console.error(
+    `error: RELAY_URL が許可条件を満たしません: ${relayValidation.error}。` +
+      "RELAY_URL は同一マシン内のローカル中継だけを指定してください" +
+      "（例: http://127.0.0.1:8798）。値は表示していません"
+  );
+  process.exit(1);
+}
+const RELAY = relayValidation.relay;
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
@@ -74,8 +150,23 @@ const server = http.createServer(async (req, res) => {
       const up = await fetch(RELAY + req.url, {
         method: req.method,
         headers,
+        // リダイレクトは追従しない。中継の 3xx で外部へ誘導され、
+        // ID トークン・復旧キー・Cookie が別宛先へ送られるのを防ぐ。
+        redirect: "manual",
         body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
       });
+      if (up.status >= 300 && up.status < 400) {
+        // 3xx は追従せず、エラー（502）としてクライアントへ返す。
+        // 3xx 自体をそのまま返すとブラウザーが Location へ進み得るため、
+        // 状態はログにだけ残し、応答は 502 に変換する。
+        console.log(`${req.method} ${pathname} -> 502 (relay redirect ${up.status} not followed)`);
+        try {
+          if (up.body) await up.body.cancel();
+        } catch { /* 本文破棄の失敗は無視する */ }
+        res.writeHead(502, { "content-type": "text/plain; charset=utf-8" });
+        res.end("relay redirect not followed");
+        return;
+      }
       const outHeaders = {};
       up.headers.forEach((v, k) => {
         // fetch が復号済みの本文を返すため、符号化・長さのヘッダーは引き継がない。
