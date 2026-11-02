@@ -1,3 +1,5 @@
+import * as Y from "yjs";
+import { fromBase64, readSharedDeck } from "../../src/sharedDeck";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { sample } from "../../src/model";
@@ -153,6 +155,247 @@ test("host creates both question types, guests answer privately and results beco
       await guest.request.get(`/api/decks/${id}/surveys`)
     ).json();
     expect(guestData.surveys.every((s: any) => !s.results)).toBe(true);
+  } finally {
+    await guestContext.close();
+  }
+});
+
+test("embedded surveys accept private answers in viewer, presentation and host-follow pages", async ({
+  page,
+  browser,
+}, info) => {
+  const guestContext = await browser.newContext(info.project.use);
+  const guest = await guestContext.newPage();
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  try {
+    await signIn(page, "embedded-host");
+    await signIn(guest, "embedded-guest");
+    const created = await page.request.post("/api/decks", {
+      headers,
+      data: sample(),
+    });
+    const { id } = await created.json();
+    const invite = await page.request.post(`/api/decks/${id}/invite`, {
+      headers,
+    });
+    const token = new URL((await invite.json()).url).searchParams.get("join");
+    const pending = await (
+      await guest.request.post(`/api/invites/${token}/accept`, { headers })
+    ).json();
+    if (pending.status === "pending")
+      expect(
+        (
+          await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+            headers,
+            data: { requestIds: [pending.requestId] },
+          })
+        ).status(),
+      ).toBe(200);
+    const ids: Record<string, string> = {};
+    for (const [kind, question] of [
+      ["single", "好きな季節"],
+      ["text", "今日の気づき"],
+    ]) {
+      const r = await page.request.post(`/api/decks/${id}/surveys`, {
+        headers,
+        data: { kind, question, options: ["春", "夏"] },
+      });
+      expect(r.status()).toBe(200);
+      const survey = (await r.json()).surveys.find(
+        (s: any) => s.question === question,
+      );
+      ids[kind] = survey.id;
+      expect(
+        (
+          await page.request.post(
+            `/api/decks/${id}/surveys/${survey.id}/status`,
+            { headers, data: { status: "open" } },
+          )
+        ).status(),
+      ).toBe(200);
+    }
+    await page.goto(`/?room=${id}`);
+    await guest.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(5);
+    await launch(page).click();
+    await dialog(page)
+      .getByRole("button", { name: /好きな季節/ })
+      .click();
+    await page
+      .getByRole("button", { name: "このアンケートをスライドに配置" })
+      .click();
+    await expect(
+      page.locator(".editor-workspace [data-slide-survey]"),
+    ).toHaveCount(1);
+    const hostCard = page.locator(".editor-workspace [data-slide-survey]");
+    await expect(hostCard).toContainText("好きな季節");
+    await expect(page.locator(".workspace-flight")).toHaveCount(0);
+    const object = page.locator(
+      ".editor-workspace .element:has([data-slide-survey])",
+    );
+    const originalBox = (await hostCard.boundingBox({ timeout: 5000 }))!;
+    const border = (await object
+      .locator(".border-n")
+      .boundingBox({ timeout: 5000 }))!;
+    await page.mouse.move(
+      border.x + border.width / 2,
+      border.y + border.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      border.x + border.width / 2 + 10,
+      border.y + border.height / 2 + 8,
+      { steps: 3 },
+    );
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await hostCard.boundingBox({ timeout: 5000 }))!.x)
+      .toBeGreaterThan(originalBox.x);
+    const movedBox = (await hostCard.boundingBox({ timeout: 5000 }))!;
+    const handle = (await object
+      .locator(".resize-se")
+      .boundingBox({ timeout: 5000 }))!;
+    await page.mouse.move(
+      handle.x + handle.width / 2,
+      handle.y + handle.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      handle.x + handle.width / 2 - 20,
+      handle.y + handle.height / 2 - 12,
+      { steps: 3 },
+    );
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await hostCard.boundingBox({ timeout: 5000 }))!.width)
+      .toBeLessThan(movedBox.width);
+
+    await guest.locator(".thumbnail").first().click();
+    const guestCard = guest.locator(".editor-workspace [data-slide-survey]");
+    await expect(guestCard).toHaveCount(1);
+    await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+    await expect(guestCard).toBeVisible();
+    const before = await guestCard.boundingBox({ timeout: 5000 });
+    if (info.project.name.includes("touch"))
+      await guestCard.getByRole("radio", { name: "春", exact: true }).tap();
+    else
+      await guestCard.getByRole("radio", { name: "春", exact: true }).check();
+    await guestCard
+      .getByRole("button", { name: "回答を送信", exact: true })
+      .click();
+    await expect(guestCard).toContainText("回答を保存しました");
+    expect(await guestCard.boundingBox({ timeout: 5000 })).toEqual(before);
+    const list = async () =>
+      (await (await page.request.get(`/api/decks/${id}/surveys`)).json())
+        .surveys;
+    expect(
+      (await list()).find((s: any) => s.id === ids.single).results.counts,
+    ).toEqual([1, 0]);
+    expect(await guestCard.locator("meter,.survey-results").count()).toBe(0);
+    // Put the text question on the second topic; both references remain ordinary editable objects.
+    await page
+      .getByRole("button", { name: "全体マップへ", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "自然がいっぱいを編集", exact: true })
+      .click();
+    await launch(page).click();
+    await dialog(page)
+      .getByRole("button", { name: /今日の気づき/ })
+      .click();
+    await page
+      .getByRole("button", { name: "このアンケートをスライドに配置" })
+      .click();
+    await expect(
+      page.locator(".editor-workspace [data-slide-survey]"),
+    ).toContainText("今日の気づき");
+    await guest
+      .getByRole("button", { name: "全体マップへ", exact: true })
+      .click();
+    await guest.getByRole("button", { name: "発表する", exact: true }).click();
+    const presentCard = guest.locator(".present-mode [data-slide-survey]");
+    await expect(presentCard).toContainText("好きな季節");
+    await presentCard.getByRole("radio", { name: "夏", exact: true }).check();
+    await presentCard
+      .getByRole("button", { name: "回答を変更して保存" })
+      .click();
+    await expect(presentCard).toContainText("回答を保存しました");
+    expect(
+      (await list()).find((s: any) => s.id === ids.single).results,
+    ).toMatchObject({ count: 1, counts: [0, 1] });
+    await guest.getByRole("button", { name: "次の話題", exact: true }).click();
+    await expect(presentCard).toContainText("今日の気づき");
+    const answer = presentCard.getByRole("textbox", {
+      name: "スライド内アンケートの回答",
+    });
+    await answer.fill("スライドの中で回答できました🌸");
+    await answer.press("ArrowLeft");
+    await expect(presentCard).toContainText("今日の気づき");
+    await presentCard
+      .getByRole("button", { name: "回答を送信", exact: true })
+      .click();
+    await expect(presentCard).toContainText("回答を保存しました");
+    // Following the host still allows only the embedded questionnaire, not background editing.
+    await page
+      .getByRole("button", { name: "全員の画面を同期", exact: true })
+      .click();
+    const followCard = guest.locator(
+      ".host-follow-overlay [data-slide-survey]",
+    );
+    await expect(followCard).toContainText("今日の気づき");
+    await guest.keyboard.press("Tab");
+    await expect(
+      followCard.getByRole("textbox", { name: "スライド内アンケートの回答" }),
+    ).toBeFocused();
+    await followCard
+      .getByRole("textbox", { name: "スライド内アンケートの回答" })
+      .fill("集合中も記述して回答🌸");
+    await followCard
+      .getByRole("button", { name: "回答を変更して保存" })
+      .click();
+    await expect(followCard).toContainText("回答を保存しました");
+    expect(
+      (await list()).find((s: any) => s.id === ids.text).results.texts,
+    ).toEqual(["集合中も記述して回答🌸"]);
+    await page
+      .getByRole("button", { name: "全員の画面を同期", exact: true })
+      .click();
+    await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
+    await guest.reload();
+    await expect(guest.locator(".slide-card")).toHaveCount(5);
+    const remote = await (await page.request.get(`/api/decks/${id}`)).json();
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, fromBase64(remote.state));
+    const serialized = JSON.stringify(readSharedDeck(doc));
+    doc.destroy();
+    expect(serialized).toContain('"surveyId"');
+    expect(serialized).not.toContain("集合中も記述して回答");
+    await expect(
+      guest.locator(
+        ".slide-card .slide-survey input,.slide-card .slide-survey textarea",
+      ),
+    ).toHaveCount(0);
+    await guest.locator(".thumbnail").nth(1).click();
+    const reopened = guest.locator(".editor-workspace [data-slide-survey]");
+    await expect(
+      reopened.getByRole("textbox", { name: "スライド内アンケートの回答" }),
+    ).toHaveValue("集合中も記述して回答🌸");
+    await page.request.post(`/api/decks/${id}/surveys/${ids.text}/status`, {
+      headers,
+      data: { status: "closed" },
+    });
+    await expect(
+      reopened.getByRole("textbox", { name: "スライド内アンケートの回答" }),
+    ).toBeDisabled();
+    await page.request.delete(`/api/decks/${id}/surveys/${ids.text}`, {
+      headers,
+    });
+    await expect(reopened.locator("form")).toHaveCount(0);
+    await expect(reopened).toContainText("未公開・削除済み");
+    await page.screenshot({
+      path: info.outputPath("embedded-survey.png"),
+      fullPage: true,
+    });
   } finally {
     await guestContext.close();
   }

@@ -478,6 +478,9 @@
             },
             "richText": {
               "$ref": "#/$defs/richText"
+            },
+            "survey": {
+              "$ref": "#/$defs/surveyBinding"
             }
           }
         }
@@ -838,6 +841,38 @@
           }
         }
       ]
+    },
+    "surveyBinding": {
+      "type": "object",
+      "required": ["deckId", "surveyId", "question", "kind", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "deckId": {
+          "type": "string",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "surveyId": {
+          "type": "string",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "kind": {
+          "enum": ["single", "multiple", "text"]
+        },
+        "options": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          }
+        }
+      }
     }
   }
 }

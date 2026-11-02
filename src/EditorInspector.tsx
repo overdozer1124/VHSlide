@@ -81,18 +81,21 @@ export function EditorInspector({
     if (body.current)
       body.current.scrollTop = scroll.current.get(scrollKey) ?? 0;
   }, [scrollKey, pageKey]);
-  const title = multiple
-    ? `${count}個の要素`
-    : element
-      ? {
-          text: "文字",
-          image: "画像",
-          shape: "図形",
-          table: "表",
-          line: "線",
-          chart: "グラフ",
-        }[element.type]
-      : "ページのデザイン";
+  const title =
+    element?.survey && !multiple
+      ? "アンケート"
+      : multiple
+        ? `${count}個の要素`
+        : element
+          ? {
+              text: "文字",
+              image: "画像",
+              shape: "図形",
+              table: "表",
+              line: "線",
+              chart: "グラフ",
+            }[element.type]
+          : "ページのデザイン";
   const tabs = [
     { key: "appearance", name: "見た目", icon: Paintbrush },
     { key: "layout", name: "配置", icon: Move },
@@ -195,11 +198,25 @@ export function EditorInspector({
               element && !multiple ? `${id}-${current}-tab` : undefined
             }
           >
-            {current === "appearance"
-              ? appearance
-              : current === "layout"
-                ? layout
-                : links}
+            {current === "appearance" ? (
+              element?.survey ? (
+                <div>
+                  <h3>{element.survey.question}</h3>
+                  <p>
+                    アンケートの質問・受付・集計は右下の「アンケート」から管理します。枠の辺で移動、四隅でサイズ変更できます。
+                  </p>
+                  <p>
+                    同じアンケートを複数のページに配置しても、回答は参加者ごとに1件です。
+                  </p>
+                </div>
+              ) : (
+                appearance
+              )
+            ) : current === "layout" ? (
+              layout
+            ) : (
+              links
+            )}
           </div>
         </fieldset>
       </div>

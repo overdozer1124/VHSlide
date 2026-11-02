@@ -658,6 +658,7 @@ export function Editor({
             surface={workspaceRef}
           >
             <Canvas
+              surveyInteractive
               slide={slide}
               zoom={zoom}
               editable={editable}

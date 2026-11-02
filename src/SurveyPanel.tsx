@@ -1,3 +1,4 @@
+import type { SurveySlideData } from "./SurveySlideContext";
 import { useEffect, useRef, useState } from "react";
 import { X, ClipboardList } from "lucide-react";
 import { api } from "./cloud";
@@ -8,6 +9,10 @@ type Props = {
   userId?: string;
   host: boolean;
   onInsert: (survey: SurveyView) => void;
+  onEmbed?: (survey: SurveyView) => void;
+  onData?: (data: SurveySlideData) => void;
+  refreshToken?: number;
+  pollActive?: boolean;
   blocked?: boolean;
   presenting?: boolean;
 };
@@ -16,6 +21,10 @@ export function SurveyPanel({
   userId,
   host,
   onInsert,
+  onEmbed,
+  onData,
+  refreshToken,
+  pollActive,
   blocked,
   presenting,
 }: Props) {
@@ -77,7 +86,10 @@ export function SurveyPanel({
         }
       } finally {
         if (!stopped)
-          timer = setTimeout(() => void refresh(), open ? 3000 : 12000);
+          timer = setTimeout(
+            () => void refresh(),
+            open || pollActive ? 3000 : 12000,
+          );
       }
     }
     void refresh();
@@ -85,7 +97,7 @@ export function SurveyPanel({
       stopped = true;
       clearTimeout(timer);
     };
-  }, [deckId, scope, open, blocked]);
+  }, [deckId, scope, open, blocked, refreshToken, pollActive]);
   function select(survey: SurveyView) {
     setSelectedId(survey.id);
     setCreating(false);
@@ -134,6 +146,9 @@ export function SurveyPanel({
       if (currentScope.current === requestScope) setBusy(false);
     }
   }
+  useEffect(() => {
+    onData?.({ deckId, userId, surveys: blocked ? [] : surveys });
+  }, [deckId, userId, surveys, blocked, onData]);
   const active = surveys.filter((s) => s.status === "open");
   return (
     <>
@@ -380,10 +395,31 @@ export function SurveyPanel({
                             </button>
                           </div>
                         )}
+                        {host && onEmbed && (
+                          <div className="survey-embed-action">
+                            <button
+                              className="button primary"
+                              disabled={busy || selected.status === "draft"}
+                              onClick={() => {
+                                try {
+                                  onEmbed(selected);
+                                  setOpen(false);
+                                } catch (e) {
+                                  setError((e as Error).message);
+                                }
+                              }}
+                            >
+                              このアンケートをスライドに配置
+                            </button>
+                            <p>
+                              受付を開始したアンケートを、現在のページに配置します。質問と選択肢がスライドに表示され、参加者はその場で回答できます。
+                            </p>
+                          </div>
+                        )}
                         {deleteId === selected.id && (
                           <div className="survey-delete">
                             <p>
-                              このアンケートと全員の回答を削除します。元に戻せません。挿入済みの結果スライドは残ります。
+                              このアンケートと全員の回答を削除します。元に戻せません。配置済みの質問や、挿入済みの結果スライドは残ります。
                             </p>
                             <button
                               className="button danger"

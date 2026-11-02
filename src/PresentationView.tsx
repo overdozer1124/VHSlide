@@ -222,7 +222,7 @@ export function PresentationView({
         </div>
       </div>
       <div className={`present-slide enter-${direction}`} key={slide.id}>
-        <Canvas slide={slide} zoom={zoom} onOpenLink={onOpenLink} />
+        <Canvas surveyInteractive slide={slide} zoom={zoom} onOpenLink={onOpenLink} />
       </div>
       <div className="present-bottom">
         {external ? (

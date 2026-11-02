@@ -66,7 +66,7 @@ function FittedFollowPage({ page }: { page: Slide }) {
         {page.y + 1}.{page.x + 1}　{page.title}
       </p>
       <div ref={frame} className="host-follow-canvas">
-        <Canvas slide={page} zoom={zoom} />
+        <Canvas surveyInteractive slide={page} zoom={zoom} />
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { SlideSurvey } from "./SlideSurvey";
 import { InkObject } from "./InkObject";
 import { ChartGraphic } from "./ChartGraphic";
 import {
@@ -28,6 +29,7 @@ import type { Element, Slide } from "./model";
 import { W, H } from "./model";
 import { InlineText } from "./InlineText";
 export function ElementView({ element: e }: { element: Element }) {
+  if (e.survey) return <SlideSurvey element={e} />;
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
   if (e.type === "text") return <RichTextView element={e} />;
@@ -38,6 +40,7 @@ export function ElementView({ element: e }: { element: Element }) {
 }
 export function Canvas({
   slide,
+  surveyInteractive = false,
   selected,
   selectedIds,
   selectMultiple = false,
@@ -60,6 +63,7 @@ export function Canvas({
   onOpenLink,
 }: {
   slide: Slide;
+  surveyInteractive?: boolean;
   selected?: string;
   selectedIds?: string[];
   selectMultiple?: boolean;
@@ -424,6 +428,7 @@ export function Canvas({
           // Touch browsers can retarget a thin frame to a nearby textarea.
           // Use the physical hit point before that input handles the event.
           const hit = document.elementFromPoint(event.clientX, event.clientY);
+          if (hit?.closest("[data-slide-survey]")) return;
           const owner = hit?.closest<HTMLElement>(".element");
           // Chromium may adjust a touch inside an empty table cell onto a
           // nearby native resize button. Route that down through the actual
@@ -545,14 +550,18 @@ export function Canvas({
               className={`element ${editable && activeIds.includes(e.id) ? "selected-element" : ""} ${editingId === e.id ? "editing-element" : ""}`}
               tabIndex={editable ? 0 : undefined}
               aria-label={
-                editable && (e.type === "text" || e.type === "shape")
-                  ? "テキストボックス"
-                  : undefined
+                e.survey
+                  ? "アンケートの部品"
+                  : editable && (e.type === "text" || e.type === "shape")
+                    ? "テキストボックス"
+                    : undefined
               }
               onDoubleClick={(event) => {
+                if (e.survey) return;
                 if (event.shiftKey || event.ctrlKey || event.metaKey) return;
                 if (
                   editable &&
+                  !e.survey &&
                   (e.groupId || e.type === "text" || e.type === "shape")
                 ) {
                   event.stopPropagation();
@@ -565,6 +574,7 @@ export function Canvas({
               onKeyDown={(event) => {
                 if (
                   editable &&
+                  !e.survey &&
                   (e.groupId || e.type === "text" || e.type === "shape") &&
                   ["Enter", "F2"].includes(event.key)
                 ) {
@@ -596,6 +606,7 @@ export function Canvas({
                 start(event, e);
               }}
               onClickCapture={(event) => {
+                if (e.survey && surveyInteractive) return;
                 if (
                   !e.link ||
                   !onOpenLink ||
@@ -620,7 +631,13 @@ export function Canvas({
                   opacity: e.opacity ?? 1,
                 }}
               >
-                {e.drawing ? (
+                {e.survey ? (
+                  <SlideSurvey
+                    key={`${e.survey.deckId}:${e.survey.surveyId}`}
+                    element={e}
+                    interactive={surveyInteractive}
+                  />
+                ) : e.drawing ? (
                   <InkObject
                     element={e}
                     selectedIndex={

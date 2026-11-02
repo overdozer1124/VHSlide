@@ -89,6 +89,11 @@ export function useFollowLock(active: boolean) {
     const focusOverlay = () => overlay()?.focus({ preventScroll: true });
     if (!pending) focusOverlay();
     const block = (event: Event) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".host-follow-overlay [data-slide-survey]")
+      )
+        return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
@@ -97,6 +102,16 @@ export function useFollowLock(active: boolean) {
       target instanceof Node &&
       (pending === target || pending.contains(target));
     const keys = (event: KeyboardEvent) => {
+      if (event.key === "Tab" && event.target === overlay()) {
+        const inputs = overlay()?.querySelectorAll<HTMLElement>(
+          "[data-slide-survey] input:not(:disabled),[data-slide-survey] textarea:not(:disabled),[data-slide-survey] button:not(:disabled)",
+        );
+        if (inputs?.length) {
+          event.preventDefault();
+          inputs[event.shiftKey ? inputs.length - 1 : 0].focus();
+          return;
+        }
+      }
       if (
         event.key === "F5" ||
         ((event.ctrlKey || event.metaKey) &&

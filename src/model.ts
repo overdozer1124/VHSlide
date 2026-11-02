@@ -1,3 +1,5 @@
+import { parseSurveyBinding } from "./surveyBinding.ts";
+import type { SurveyBinding } from "./surveyBinding.ts";
 import { webLink } from "./webLink.ts";
 import { parseChart } from "./chartData.ts";
 import type { ChartData } from "./chartData.ts";
@@ -23,6 +25,7 @@ export interface GridMove {
 }
 export type Shape = ShapeKind;
 export interface Element {
+  survey?: SurveyBinding;
   id: string;
   type: "text" | "image" | "shape" | "table" | "line" | "chart";
   groupId?: string;
@@ -655,6 +658,10 @@ export function parseDeck(input: string): Deck {
           h: num(e.h, 20, H),
         };
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
+        if (e.survey !== undefined) {
+          if (e.type !== "shape") fail();
+          base.survey = parseSurveyBinding(e.survey);
+        }
         if (e.rotation !== undefined)
           base.rotation = [0, 90, 180, 270].includes(e.rotation)
             ? e.rotation

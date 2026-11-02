@@ -1,3 +1,7 @@
+import { createElement } from "react";
+import { SurveySlideContext } from "./SurveySlideContext";
+import type { SurveySlideData } from "./SurveySlideContext";
+import { parseSurveyBinding } from "./surveyBinding";
 import { SurveyPanel } from "./SurveyPanel";
 import { insertSurveyResults } from "./surveySlides";
 import { importPptx } from "./pptx";
@@ -129,6 +133,10 @@ function initial(): { deck: Deck; error?: string } {
 export default function App() {
   const [boot] = useState(initial);
   const [cloud] = useState(() => new CloudWorkspace());
+  const [surveyData, setSurveyData] = useState<SurveySlideData>({
+    surveys: [],
+  });
+  const [surveyRefresh, setSurveyRefresh] = useState(0);
   const [workbook, setWorkbookState] = useState(boot.deck);
   const latestWorkbook = useRef(workbook);
   latestWorkbook.current = workbook;
@@ -1906,7 +1914,29 @@ export default function App() {
         )}
       </CloudDocument.Provider>
     );
-  return (
+  return createElement(
+    SurveySlideContext.Provider,
+    {
+      value: {
+        deckId: cloud.active?.id,
+        userId: cloud.user?.id,
+        enabled: !!cloud.active && !cloud.viewingRevoked && !cloud.recoveryOnly,
+        surveys:
+          surveyData.deckId === cloud.active?.id &&
+          surveyData.userId === cloud.user?.id
+            ? surveyData.surveys
+            : [],
+        onUpdated: (surveys, deckId, userId) => {
+          if (deckId !== cloud.active?.id || userId !== cloud.user?.id) return;
+          setSurveyData({
+            deckId: cloud.active?.id,
+            userId: cloud.user?.id,
+            surveys,
+          });
+          setSurveyRefresh((n) => n + 1);
+        },
+      },
+    },
     <CloudDocument.Provider value={cloud.doc}>
       <div
         aria-hidden={followLocked ? true : undefined}
@@ -2009,7 +2039,10 @@ export default function App() {
                           );
                         },
                       },
-                      { label: "開く", action: () => jsonRef.current?.click() },
+                      {
+                        label: "開く",
+                        action: () => jsonRef.current?.click(),
+                      },
 
                       {
                         label: "JSONで保存",
@@ -2473,7 +2506,10 @@ export default function App() {
             }}
             zoomSteps={preferences.zoomSteps}
             onZoomSteps={(steps) => {
-              setPreferences((previous) => ({ ...previous, zoomSteps: steps }));
+              setPreferences((previous) => ({
+                ...previous,
+                zoomSteps: steps,
+              }));
               setMapScale((current) =>
                 current === 0 ? 0 : closestZoom(steps, current * 100) / 100,
               );
@@ -2788,6 +2824,68 @@ export default function App() {
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
         deckId={cloud.active?.id}
         userId={cloud.user?.id}
+        onData={setSurveyData}
+        refreshToken={surveyRefresh}
+        pollActive={
+          (view !== "map" && slide.elements.some((e) => e.survey)) ||
+          followLocked
+        }
+        onEmbed={(survey) => {
+          if (!cloud.active || !cloud.isHost || survey.status === "draft")
+            throw new Error("ホストが受付を開始してから配置してください。");
+          const current = latestWorkbook.current;
+          const target = current.slides.find(
+            (s) => s.id === latestSlideId.current,
+          );
+          if (!target || target.elements.length >= 200)
+            throw new Error(
+              "配置先のページを確認してください。1ページ200要素までです。",
+            );
+          const element: Element = {
+            id: uid(),
+            type: "shape",
+            shape: "rounded",
+            x: 60,
+            y: 50,
+            w: 840,
+            h: 440,
+            fill: "#ffffff",
+            stroke: "#587d59",
+            color: "#173d38",
+            fontSize: 24,
+            text: `アンケート：${survey.question}\n${survey.options.join(" / ")}`,
+            survey: parseSurveyBinding({
+              deckId: cloud.active.id,
+              surveyId: survey.id,
+              question: survey.question,
+              kind: survey.kind,
+              options: survey.options,
+            }),
+          };
+          const next = {
+            ...current,
+            slides: current.slides.map((s) =>
+              s.id === target.id
+                ? { ...s, elements: [...s.elements, element] }
+                : s,
+            ),
+          };
+          if (!commitWorkbook(parseDeck(serializeDeck(next)), current, true))
+            throw new Error("アンケートを配置できませんでした。");
+          if (view === "present") {
+            setSpeakerLaunch(undefined);
+            setPresentation(undefined);
+            setObjectTrail([]);
+            setPendingPresentationLink(undefined);
+            if (document.fullscreenElement)
+              void document.exitFullscreen().catch(() => {});
+          }
+          setSelected(element.id);
+          setView("editor");
+          notify(
+            "アンケートをスライドに配置しました。部品の枠で移動・サイズ変更でき、その場で回答できます。",
+          );
+        }}
         host={cloud.isHost}
         blocked={cloud.viewingRevoked || cloud.recoveryOnly}
         presenting={
@@ -2845,6 +2943,6 @@ export default function App() {
           <ReleaseHistory onClose={closeUpdates} />
         </Suspense>
       )}
-    </CloudDocument.Provider>
+    </CloudDocument.Provider>,
   );
 }
