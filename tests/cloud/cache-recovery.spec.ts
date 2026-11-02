@@ -310,3 +310,108 @@ test("invalid server data is reported separately and never replaces either saved
   const session = await (await page.request.get("/api/session")).json();
   expect(session.user.id).toBe(f.user);
 });
+
+test("scoped guest opens a 400-page work without replaying cached edits outside current permissions", async ({
+  page,
+  browser,
+}, info) => {
+  const f = await fixture(page, `${info.project.name}-scope-owner`, true);
+  const context = await browser.newContext(info.project.use);
+  const guest = await context.newPage();
+  const headers = { Origin: origin };
+  try {
+    const name = `${info.project.name}-scope-guest`;
+    const credential =
+      process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+        ? await (await guest.request.get(`/__test/token?name=${name}`)).text()
+        : name;
+    const login = await guest.request.post("/api/auth/google", {
+      headers,
+      data: { credential },
+    });
+    expect(login.status()).toBe(200);
+    const user = (await login.json()).user.id;
+    const invited = await page.request.post(`/api/decks/${f.id}/invite`, {
+      headers,
+    });
+    const token = new URL((await invited.json()).url).searchParams.get("join");
+    const request = await (
+      await guest.request.post(`/api/invites/${token}/accept`, { headers })
+    ).json();
+    if (request.status === "pending")
+      expect(
+        (
+          await page.request.post(`/api/decks/${f.id}/join-requests/approve`, {
+            headers,
+            data: { requestIds: [request.requestId] },
+          })
+        ).status(),
+      ).toBe(200);
+    expect(
+      (
+        await page.request.patch(
+          `/api/decks/${f.id}/members/${encodeURIComponent(user)}`,
+          {
+            headers,
+            data: {
+              mode: "scoped",
+              comment: true,
+              rows: [{ sheetId: "main", index: 0 }],
+              columns: [],
+              slides: [],
+            },
+          },
+        )
+      ).status(),
+    ).toBe(200);
+    const cached = new Y.Doc();
+    Y.applyUpdate(cached, fromBase64(f.result.state));
+    const protectedPage = cached
+      .getMap<Y.Map<unknown>>("slides")
+      .get(f.book.slides[10].id)!;
+    (protectedPage.get("title") as Y.Text).insert(0, "権限変更前の未送信 ");
+    const bytes = Array.from(Y.encodeStateAsUpdate(cached));
+    cached.destroy();
+    await guest.goto("/");
+    await seed(guest, `${user}/${f.id}`, bytes);
+    await guest.clock.install();
+    let connections = 0;
+    guest.on("websocket", () => connections++);
+    await guest.goto(`/?room=${f.id}`);
+    await expect(guest.locator(".cloud-presence")).toContainText(
+      "クラウドに保存済み",
+    );
+    await expect(
+      guest.getByRole("status", { name: "端末の一時保存の保護" }),
+    ).toContainText("退避しました");
+    const opened = connections;
+    await guest.clock.fastForward(90000);
+    expect(connections).toBe(opened);
+    await expect(guest.locator(".cloud-presence")).not.toContainText(
+      "共有停止",
+    );
+    expect(
+      (await caches(guest, `${user}/${f.id}`)).records[0].documents,
+    ).toEqual([bytes]);
+    expect((await serverBook(page, f.id)).slides).toEqual(f.book.slides);
+    await guest.locator(".thumbnail").first().click();
+    const title = guest.getByRole("textbox", {
+      name: "ページの名前",
+      exact: true,
+    });
+    await title.fill("担当範囲の編集は保存できる");
+    await guest.clock.runFor(300);
+    await expect
+      .poll(async () => (await serverBook(page, f.id)).slides[0].title)
+      .toBe("担当範囲の編集は保存できる");
+    await guest.reload();
+    await expect(guest.locator(".cloud-presence")).toContainText(
+      "クラウドに保存済み",
+    );
+    await expect(
+      guest.getByRole("status", { name: "クラウド接続の状態" }),
+    ).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});

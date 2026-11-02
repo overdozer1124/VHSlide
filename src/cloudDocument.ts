@@ -1,3 +1,5 @@
+import { applyAuthorizedUpdate } from "./authorizeUpdate.ts";
+import type { EditAccess } from "./permissions.ts";
 import * as Y from "yjs";
 import { parseDeck } from "./model.ts";
 import { fromBase64, readSharedDeck } from "./sharedDeck.ts";
@@ -16,11 +18,23 @@ export function serverDocument(state: string): Y.Doc {
   }
 }
 /** Never let a partial or invalid merge contaminate the authoritative document. */
-export function mergeCachedDocument(server: Y.Doc, data: Uint8Array): Y.Doc {
+export function mergeCachedDocument(
+  server: Y.Doc,
+  data: Uint8Array,
+  rights?: { access: EditAccess; host: boolean },
+): Y.Doc {
   const candidate = new Y.Doc();
   try {
     Y.applyUpdate(candidate, Y.encodeStateAsUpdate(server), "server");
-    Y.applyUpdate(candidate, data, "server");
+    if (rights)
+      applyAuthorizedUpdate(
+        server,
+        candidate,
+        data,
+        rights.access,
+        rights.host,
+      );
+    else Y.applyUpdate(candidate, data, "server");
     parseDeck(JSON.stringify(readSharedDeck(candidate)));
     return candidate;
   } catch (error) {

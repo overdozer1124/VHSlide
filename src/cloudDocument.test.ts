@@ -55,3 +55,35 @@ it("distinguishes invalid authoritative data and never silently trusts a cache i
   );
   bad.destroy();
 });
+
+it("checks restored guest edits against current scope without changing the server", () => {
+  const book = sample();
+  const source = createSharedDeck(book);
+  const access = {
+    mode: "scoped" as const,
+    comment: true,
+    rows: [],
+    columns: [],
+    slides: [book.slides[0].id],
+  };
+  const cached = new Y.Doc();
+  Y.applyUpdate(cached, Y.encodeStateAsUpdate(source));
+  const slides = cached.getMap<Y.Map<unknown>>("slides");
+  (slides.get(book.slides[0].id)!.get("title") as Y.Text).insert(0, "未送信 ");
+  const allowed = mergeCachedDocument(source, Y.encodeStateAsUpdate(cached), {
+    access,
+    host: false,
+  });
+  expect(readSharedDeck(allowed).slides[0].title).toContain("未送信");
+  allowed.destroy();
+  (slides.get(book.slides[1].id)!.get("title") as Y.Text).insert(0, "範囲外 ");
+  expect(() =>
+    mergeCachedDocument(source, Y.encodeStateAsUpdate(cached), {
+      access,
+      host: false,
+    }),
+  ).toThrow("編集範囲");
+  expect(readSharedDeck(source)).toEqual(book);
+  source.destroy();
+  cached.destroy();
+});

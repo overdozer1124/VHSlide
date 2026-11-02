@@ -72,6 +72,7 @@ for (const failure of [
   "silent-ack",
   "rate-limit",
   "rejected",
+  "forbidden",
 ] as const) {
   test(`host preserves edits and classifies ${failure} without reloading`, async ({
     page,
@@ -105,10 +106,12 @@ for (const failure of [
         if (
           armed &&
           !injected &&
-          ["before-save", "rate-limit", "rejected"].includes(failure)
+          ["before-save", "rate-limit", "rejected", "forbidden"].includes(
+            failure,
+          )
         ) {
           injected = true;
-          const retryable = failure !== "rejected";
+          const retryable = failure !== "rejected" && failure !== "forbidden";
           ws.send(
             JSON.stringify({
               type: "error",
@@ -118,13 +121,15 @@ for (const failure of [
                   ? "rate_limited"
                   : retryable
                     ? "temporarily_unavailable"
-                    : "rejected",
+                    : failure === "forbidden"
+                      ? "forbidden"
+                      : "rejected",
               retryable,
               retryAfterMs: failure === "rate-limit" ? 60000 : 1000,
             }),
           );
           ws.close({
-            code: retryable ? 1013 : 4002,
+            code: retryable ? 1013 : failure === "forbidden" ? 4004 : 4002,
             reason: "local recovery fixture",
           });
           return;
@@ -160,10 +165,13 @@ for (const failure of [
         path: info.outputPath("editor-reconnection.png"),
       });
     }
-    if (failure === "rejected") {
+    if (failure === "rejected" || failure === "forbidden") {
       await expect(page.locator(".cloud-presence")).toContainText("共有停止");
       const count = connections;
+      await expect(title).toHaveValue("first unsent change");
       await page.clock.fastForward(90000);
+      await expect(title).toHaveValue("first unsent change");
+      expect(await titleOnServer(page, id)).not.toBe("first unsent change");
       expect(connections).toBe(count);
       await expect(
         page.getByRole("button", { name: "接続を再試行", exact: true }),

@@ -915,7 +915,10 @@ export class CloudWorkspace {
         if (saved) {
           const originalLayout = layoutState(readSharedDeck(doc));
           try {
-            const merged = mergeCachedDocument(doc, saved.data);
+            const merged = mergeCachedDocument(doc, saved.data, {
+              access: result.access ?? defaultAccess(),
+              host: result.owner === this.user?.id,
+            });
             doc.destroy();
             doc = merged;
             legacyLayout =
@@ -1176,6 +1179,12 @@ export class CloudWorkspace {
       this.resetFollow();
       this.members = [];
       if (event.code === 4004 && this.active) {
+        // An explicit non-retryable error already stopped this socket. Keep the
+        // unsent document and its cache intact instead of reopening/discarding it.
+        if (this.stopped) {
+          this.updateStatus();
+          return;
+        }
         const id = this.active.id;
         this.error = "権限の変更に合わせて、クラウドの内容を読み直しています。";
         void this.open(id, true).catch(() => {
