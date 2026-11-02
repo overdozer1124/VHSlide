@@ -1,0 +1,40 @@
+{
+  "version": "0.63.0",
+  "cloudflare_version_id": "cd371cd8-c73b-4466-8094-8ed35be79a9a",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "files": [
+    {
+      "path": "/index.html",
+      "bytes": 482,
+      "sha256": "aa38ad5c49264b05f4a5a1f1c538c4f2f953cc3ed2a1aecbea552f35eb748ab3"
+    },
+    {
+      "path": "/assets/index-C3OlSW_d.js",
+      "bytes": 1040913,
+      "sha256": "c34e5ca1610f0e691609ddbf213113497e39958994b53347cba4dc206794bdbc"
+    },
+    {
+      "path": "/assets/index-CvF_T_Cs.css",
+      "bytes": 148577,
+      "sha256": "5403eee4699ecf751651001bd51b940ddb2e522bb05bc0417a25685f1a6aeb9c"
+    }
+  ],
+  "source_commit": "bb82ce73c97dd4826884e5a7fc1ee6a245b69e78",
+  "anonymous_survey_api_status": 401,
+  "production_cloud_work_accessed": false,
+  "tests": {
+    "unit": 176,
+    "server": 19,
+    "cloudflare": 25,
+    "browser_regression_passed": 16,
+    "browser_regression_skipped": 2,
+    "survey_browser_node": 2,
+    "survey_browser_cloudflare": 2,
+    "browser_production_passed": 4
+  },
+  "authenticated_survey_testing": "Synthetic users in isolated Node and Cloudflare/workerd test environments; no production work accessed.",
+  "production_browser_proxy_trust": "Disposable browser launch scoped to the managed proxy CA SPKI. Public asset hashes and health independently verified with system CA trust."
+}
