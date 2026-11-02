@@ -1,3 +1,4 @@
+import { importPptx } from "./pptx";
 import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget } from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
@@ -1454,7 +1455,11 @@ export default function App() {
     try {
       if (file.size > MAX_FILE_BYTES)
         throw new Error("ファイルは25MBまでです。");
-      const next = parseDeck(await file.text());
+      const isPptx = /\.pptx$/i.test(file.name);
+      const next = isPptx
+        ? await importPptx(file)
+        : parseDeck(await file.text());
+      serializeDeck(next);
       const previous = latestWorkbook.current,
         source = cloud.active?.id,
         doc = cloud.doc;
@@ -1485,11 +1490,15 @@ export default function App() {
       setActiveId(next.slides[0].id);
       setView("map");
       setMoving(undefined);
+      const opened = source
+        ? `${isPptx ? "PPTX" : "JSON"}を端末の作品として開きました。元のクラウド作品は作品一覧から開けます。`
+        : "ファイルを開きました。前の作品へは「もとに戻す」で戻れます。";
       notify(
-        source
-          ? "JSONを端末の作品として開きました。元のクラウド作品は作品一覧から開けます。"
-          : "ファイルを開きました。前の作品へは「もとに戻す」で戻れます。",
+        isPptx
+          ? `${opened} PPTXの文字・画像・基本図形を取り込みました。テーマ・グループ・表・グラフ・アニメーションなどは再現されない場合があります。`
+          : opened,
       );
+
       setNoticeLibrary(!!source);
     } catch (error) {
       notify(error instanceof Error ? error.message : "読み込めませんでした。");
@@ -1912,7 +1921,7 @@ export default function App() {
         <input
           ref={jsonRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.pptx,application/json,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           hidden
           onChange={(e) => {
             void openFile(e.target.files?.[0]);
