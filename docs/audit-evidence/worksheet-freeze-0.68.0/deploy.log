@@ -1,0 +1,36 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.151.3
+────────────────────
+🌀 Building list of assets...
+✨ Read 9 files from the assets directory /workspace/VHSlide-deploy/dist
+🌀 Starting asset upload...
+🌀 Found 5 new or modified static assets to upload. Proceeding with upload...
++ /index.html
++ /assets/index-CbeFWPIW.css
++ /assets/backupWorker-BO2wDYka.js
++ /assets/index-ZfayH7X9.js
++ /assets/ReleaseHistory-D3ug54lW.js
+Uploaded 1 of 5 assets
+Uploaded 3 of 5 assets
+Uploaded 5 of 5 assets
+✨ Success! Uploaded 5 files (2 already uploaded) (1.31 sec)
+
+Total Upload: 460.18 KiB / gzip: 98.38 KiB
+Worker Startup Time: 2 ms
+Your Worker has access to the following bindings:
+Binding                                                                       Resource                  
+env.DIRECTORY (Directory)                                                     Durable Object            
+env.ROOMS (SlideRoom)                                                         Durable Object            
+env.ASSETS                                                                    Assets                    
+env.GOOGLE_CLIENT_ID ("187339871113-2j074eot6i41e2ts1g3129ch...")             Environment Variable      
+env.GOOGLE_SCHOOL_CLIENT_ID ("142634110367-rongbdrtm1u416ch26orar13...")      Environment Variable      
+env.GOOGLE_SCHOOL_DOMAIN ("kaga.ed.jp")                                       Environment Variable      
+env.PUBLIC_ORIGIN ("https://vhslide.overdozer1124.workers...")                Environment Variable      
+
+Uploaded vhslide (4.46 sec)
+Deployed vhslide triggers (1.15 sec)
+  https://vhslide.overdozer1124.workers.dev
+Current Version ID: ed7cc306-b5aa-4dca-bd92-52d4e1714c89

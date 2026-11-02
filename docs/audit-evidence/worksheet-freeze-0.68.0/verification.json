@@ -1,0 +1,18 @@
+{
+  "version": "0.68.0",
+  "deployment": "ed7cc306-b5aa-4dca-bd92-52d4e1714c89",
+  "sourceCommit": "c5abcd21ac3c3579ecbf584b6bd7438d38b7b0d0",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "assetsMatchBuild": {
+    "assets/index-ZfayH7X9.js": "2b2fe3f189d9d6849ef2ff5f1d90896d2244f42fd6c2e7a1db4db864471c5906",
+    "assets/index-CbeFWPIW.css": "4b248c3a3da521fad41819059df57268aa262d0b9e4f451912e32040b5ac9b1e"
+  },
+  "unitTests": 8,
+  "nodeBrowserTests": 8,
+  "cloudflareBrowserTests": 8,
+  "notes": "All 40 worksheet fields render together with participant and timestamp columns frozen at opposite edges. Browser assertions verify positions at middle and end of horizontal scroll, moving answer cells, sticky headers under vertical scroll, duplicate names, email search, CSV scope and input preservation. Authenticated tests use isolated local accounts and synthetic stress data; production user work was not accessed.",
+  "productionBrowserTests": 10
+}
