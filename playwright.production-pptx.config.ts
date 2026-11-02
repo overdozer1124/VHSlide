@@ -9,6 +9,19 @@ export default defineConfig({
   webServer: undefined,
   use: {
     ...config.use,
+    // Scope trust to the managed proxy CA for this disposable test browser.
+    // curl verifies the production response against system trust separately.
+    launchOptions: {
+      ...config.use?.launchOptions,
+      args: [
+        ...(config.use?.launchOptions?.args ?? []),
+        ...(process.env.VHSLIDE_PROXY_CA_SPKI
+          ? [
+              `--ignore-certificate-errors-spki-list=${process.env.VHSLIDE_PROXY_CA_SPKI}`,
+            ]
+          : []),
+      ],
+    },
     baseURL: "https://vhslide.overdozer1124.workers.dev",
     ...(process.env.HTTPS_PROXY
       ? { proxy: { server: process.env.HTTPS_PROXY } }

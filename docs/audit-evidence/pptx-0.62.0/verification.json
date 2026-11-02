@@ -1,0 +1,42 @@
+{
+  "version": "0.62.0",
+  "cloudflare_version_id": "32d937e0-afe4-4aa0-9527-980fa47fc205",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "files": [
+    {
+      "path": "/index.html",
+      "bytes": 482,
+      "sha256": "eed4e628fd2f54299b6813402652de3ee6bedd874127eb808f4577afa1c3ce00"
+    },
+    {
+      "path": "/assets/index-JNACBWPu.js",
+      "bytes": 1028082,
+      "sha256": "649042ebdc0fdd59f59c4878888da17376a1f3bfc7de3261e650743c5702677b"
+    },
+    {
+      "path": "/assets/index-Dk_oGV4J.css",
+      "bytes": 145493,
+      "sha256": "af1d438d9d023c7922406ef290feac7d60a649e447ffcd286153d198980132ac"
+    }
+  ],
+  "source_commit": "e5fb7ec",
+  "production_cloud_work_accessed": false,
+  "tests": {
+    "unit": 173,
+    "node_server": 18,
+    "cloudflare": 24,
+    "browser_local_passed": 14,
+    "browser_local_skipped": 2,
+    "browser_production_passed": 2
+  },
+  "production_browser_checks": [
+    "PPTX presentation order and inherited placeholder geometry",
+    "Editable text and embedded image import",
+    "Undo, redo, reload and JSON export/import",
+    "Corrupt PPTX preserves current work"
+  ],
+  "production_browser_proxy_trust": "Ephemeral browser launch scoped to managed proxy CA SPKI; persistent trust store unchanged. HTTPS assets independently verified with curl and system CA trust."
+}
