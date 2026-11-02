@@ -95,10 +95,31 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     ).toHaveCount(0);
     const beforeMove = (await hostCard.boundingBox())!;
     const header = (await hostCard.locator("header h3").boundingBox())!;
-    await page.mouse.move(header.x + 30, header.y + 10);
-    await page.mouse.down();
-    await page.mouse.move(header.x + 45, header.y + 18, { steps: 3 });
-    await page.mouse.up();
+    const start = { x: header.x + 30, y: header.y + 10 };
+    if (info.project.name.includes("touch")) {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ id: 1, ...start }],
+      });
+      for (let i = 1; i <= 3; i++)
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [
+            { id: 1, x: start.x + (15 * i) / 3, y: start.y + (8 * i) / 3 },
+          ],
+        });
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await cdp.detach();
+    } else {
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x + 15, start.y + 8, { steps: 3 });
+      await page.mouse.up();
+    }
     await expect
       .poll(async () => (await hostCard.boundingBox())!.x)
       .toBeGreaterThan(beforeMove.x);

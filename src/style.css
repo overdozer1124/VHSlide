@@ -7146,3 +7146,4 @@ html[data-host-follow="active"] .app-shell .response-field-launch {visibility:hi
 .slide-worksheet.is-movable header,.slide-worksheet.is-movable header *,.slide-worksheet.is-movable .worksheet-group>h4,.slide-survey.is-movable header,.slide-survey.is-movable header * {touch-action:none;cursor:move;}
 .response-field.is-movable {touch-action:none;}
 .response-field.is-movable input,.response-field.is-movable textarea,.response-field.is-movable select,.response-field.is-movable button,.response-field.is-movable label {touch-action:pan-y;}
+.slide-worksheet.is-movable .worksheet-input-label,.response-field.is-movable .worksheet-input-label {touch-action:none;cursor:move;}

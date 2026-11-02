@@ -164,12 +164,38 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       hostField.getByRole("button", { name: "入力欄を移動" }),
     ).toHaveCount(0);
     const initial = (await hostField.boundingBox())!;
-    await page.mouse.move(initial.x + 4, initial.y + initial.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(initial.x + 19, initial.y + initial.height / 2 + 8, {
-      steps: 3,
-    });
-    await page.mouse.up();
+    const label = (await hostField
+      .locator(".worksheet-input-label")
+      .first()
+      .boundingBox())!;
+    const start = {
+      x: label.x + label.width / 2,
+      y: label.y + label.height / 2,
+    };
+    if (info.project.name.includes("touch")) {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ id: 1, ...start }],
+      });
+      for (let i = 1; i <= 3; i++)
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [
+            { id: 1, x: start.x + (15 * i) / 3, y: start.y + (8 * i) / 3 },
+          ],
+        });
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await cdp.detach();
+    } else {
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x + 15, start.y + 8, { steps: 3 });
+      await page.mouse.up();
+    }
     await expect
       .poll(async () => (await hostField.boundingBox())!.x)
       .toBeGreaterThan(initial.x);

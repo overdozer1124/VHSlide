@@ -80,7 +80,12 @@ export function WorksheetInputs({
                       </label>
                     ) : (
                       <>
-                        <label htmlFor={`${prefix}-${f.id}`}>{f.label}</label>
+                        <label
+                          className="worksheet-input-label"
+                          htmlFor={`${prefix}-${f.id}`}
+                        >
+                          {f.label}
+                        </label>
                         {f.kind === "text" ? (
                           <textarea
                             id={`${prefix}-${f.id}`}
