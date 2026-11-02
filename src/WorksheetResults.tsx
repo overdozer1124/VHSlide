@@ -13,10 +13,9 @@ export function WorksheetResults({
   busy: boolean;
   onDownload: () => void;
 }) {
-  const [view, setView] = useState<"person" | "question">("person");
+  const [view, setView] = useState<"person" | "table">("person");
   const [search, setSearch] = useState("");
   const [personId, setPersonId] = useState("");
-  const [fieldId, setFieldId] = useState(sheet.fields[0]?.id ?? "");
   const responses = sheet.results?.responses ?? [];
   useEffect(() => {
     if (!responses.some((r) => r.respondentId === personId))
@@ -28,7 +27,6 @@ export function WorksheetResults({
   );
   const person =
     filtered.find((r) => r.respondentId === personId) ?? filtered[0];
-  const field = sheet.fields.find((f) => f.id === fieldId) ?? sheet.fields[0];
   return (
     <section className="worksheet-results" aria-label="ワークシート入力結果">
       <div className="worksheet-results-heading">
@@ -70,10 +68,10 @@ export function WorksheetResults({
               </button>
               <button
                 type="button"
-                aria-pressed={view === "question"}
-                onClick={() => setView("question")}
+                aria-pressed={view === "table"}
+                onClick={() => setView("table")}
               >
-                項目ごとに比較
+                全項目を一覧
               </button>
             </div>
             <label className="worksheet-search">
@@ -145,55 +143,73 @@ export function WorksheetResults({
                 </dl>
               </article>
             </div>
-          ) : field ? (
-            <div className="worksheet-question-results">
-              <label className="worksheet-field-picker">
-                比較する項目
-                <select
-                  value={field.id}
-                  onChange={(e) => setFieldId(e.target.value)}
-                >
-                  {sheet.fields.map((f, i) => (
-                    <option key={f.id} value={f.id}>
-                      {i + 1}. {f.section ? f.section + "：" : ""}
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <h4>{field.label}</h4>
+          ) : (
+            <div className="worksheet-all-results">
+              <p className="worksheet-scroll-hint" id="worksheet-table-hint">
+                左の氏名・メールアドレスと右の最終保存日時は固定です。中央の回答欄を横にスクロールして、全項目を確認できます。
+              </p>
               <div
-                className="worksheet-comparison-wrap"
+                className="worksheet-comparison-wrap worksheet-frozen-wrap"
                 role="region"
-                aria-label="項目別の回答一覧"
+                aria-label="全項目の回答一覧"
+                aria-describedby="worksheet-table-hint"
                 tabIndex={0}
               >
-                <table className="worksheet-comparison">
+                <table
+                  className="worksheet-comparison worksheet-frozen-table"
+                  style={{
+                    width: `max(100%, calc(var(--worksheet-person-width) + var(--worksheet-time-width) + ${sheet.fields.length * 280}px))`,
+                  }}
+                >
+                  <caption className="sr-only">
+                    全参加者の全項目への回答。氏名・メールと最終保存日時は左右に固定表示します。
+                  </caption>
                   <colgroup>
                     <col className="worksheet-col-person" />
-                    <col />
+                    {sheet.fields.map((f) => (
+                      <col key={f.id} />
+                    ))}
                     <col className="worksheet-col-time" />
                   </colgroup>
                   <thead>
                     <tr>
-                      <th scope="col">参加者</th>
-                      <th scope="col">回答</th>
-                      <th scope="col">最終保存（日本時間）</th>
+                      <th scope="col" className="worksheet-pin-left">
+                        氏名・メールアドレス
+                      </th>
+                      {sheet.fields.map((f, i) => (
+                        <th
+                          scope="col"
+                          key={f.id}
+                          className="worksheet-field-heading"
+                        >
+                          {f.section && <span>{f.section}</span>}
+                          <strong>
+                            {i + 1}. {f.label}
+                          </strong>
+                        </th>
+                      ))}
+                      <th scope="col" className="worksheet-pin-right">
+                        最終保存<span>（日本時間）</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((r) => (
                       <tr key={r.respondentId}>
-                        <th scope="row">
+                        <th scope="row" className="worksheet-pin-left">
                           <strong>{r.name}</strong>
                           <span>{r.email || "メールアドレス未登録"}</span>
                         </th>
-                        <td>
-                          {worksheetValueText(field, r.values) || (
-                            <span className="worksheet-unanswered">未入力</span>
-                          )}
-                        </td>
-                        <td>
+                        {sheet.fields.map((f) => (
+                          <td key={f.id} className="worksheet-answer-cell">
+                            {worksheetValueText(f, r.values) || (
+                              <span className="worksheet-unanswered">
+                                未入力
+                              </span>
+                            )}
+                          </td>
+                        ))}
+                        <td className="worksheet-pin-right">
                           <time dateTime={new Date(r.updated).toISOString()}>
                             {surveyResponseTime(r.updated)}
                           </time>
@@ -203,11 +219,8 @@ export function WorksheetResults({
                   </tbody>
                 </table>
               </div>
-              <p className="worksheet-scroll-hint">
-                横にスクロールして確認できます。
-              </p>
             </div>
-          ) : null}
+          )}
         </>
       )}
     </section>

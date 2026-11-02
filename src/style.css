@@ -6867,20 +6867,28 @@ h1 span {
 .worksheet-answer-item dt strong { display:block;font-size:16px; }
 .worksheet-answer-item dd { margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;color:#263b32; }
 .worksheet-unanswered { color:#718076;font-size:14px; }
-.worksheet-field-picker { display:grid;gap:6px;margin:16px 0; }
-.worksheet-field-picker select { width:100%;min-width:0; }
-.worksheet-comparison-wrap { overflow:auto;max-height:560px;border:1px solid #d4dfd7;border-radius:10px; }
-.worksheet-comparison { width:100%;min-width:740px;table-layout:fixed;border-collapse:separate;border-spacing:0;text-align:left;font-size:14px; }
-.worksheet-comparison .worksheet-col-person { width:210px; }
-.worksheet-comparison .worksheet-col-time { width:185px; }
-.worksheet-comparison th,.worksheet-comparison td { padding:14px 16px;border-bottom:1px solid #dce5dc;vertical-align:top;line-height:1.7; }
-.worksheet-comparison thead th { position:sticky;top:0;z-index:1;background:#edf4e9;font-weight:700;white-space:nowrap; }
-.worksheet-comparison tbody th { background:#fbfcf9;overflow-wrap:anywhere; }
+.worksheet-comparison-wrap { overflow:auto;max-height:560px;border:1px solid #d4dfd7;border-radius:10px;overscroll-behavior:contain; }
+.worksheet-frozen-wrap { --worksheet-person-width:210px;--worksheet-time-width:185px;isolation:isolate; }
+.worksheet-comparison { table-layout:fixed;border-collapse:separate;border-spacing:0;text-align:left;font-size:14px; }
+.worksheet-comparison .worksheet-col-person { width:var(--worksheet-person-width); }
+.worksheet-comparison .worksheet-col-time { width:var(--worksheet-time-width); }
+.worksheet-comparison th,.worksheet-comparison td { box-sizing:border-box;padding:14px 16px;border-bottom:1px solid #dce5dc;border-right:1px solid #e2e9e2;vertical-align:top;line-height:1.7;background:#fff; }
+.worksheet-comparison thead th { position:sticky;top:0;z-index:3;background:#edf4e9;font-weight:700; }
+.worksheet-comparison tbody th { overflow-wrap:anywhere; }
 .worksheet-comparison tbody th strong,.worksheet-comparison tbody th span { display:block; }
 .worksheet-comparison tbody th span { font-weight:400;font-size:12px;color:#526b60;margin-top:4px; }
-.worksheet-comparison td:nth-child(2) { white-space:pre-wrap;overflow-wrap:anywhere; }
-.worksheet-comparison td:last-child { white-space:nowrap;font-size:13px; }
-.worksheet-scroll-hint { font-size:12px!important;color:#637569; }
+.worksheet-comparison .worksheet-answer-cell { white-space:pre-wrap;overflow-wrap:anywhere; }
+.worksheet-comparison .worksheet-pin-left { position:sticky;left:0;z-index:2;background:#f7faf5;box-shadow:3px 0 4px #173d3815; }
+.worksheet-comparison .worksheet-pin-right { position:sticky;right:0;z-index:2;background:#f7faf5;box-shadow:-3px 0 4px #173d3815;border-right:0; }
+.worksheet-comparison thead .worksheet-pin-left,.worksheet-comparison thead .worksheet-pin-right { z-index:5;background:#e7f0e4; }
+.worksheet-comparison .worksheet-pin-right time { display:block;white-space:normal;font-size:13px;overflow-wrap:normal; }
+.worksheet-comparison .worksheet-pin-right>span { display:block;white-space:nowrap;font-size:12px;font-weight:400; }
+.worksheet-field-heading { overflow-wrap:anywhere; }
+.worksheet-field-heading>span { display:block;color:#526b60;font-size:12px;font-weight:400;margin-bottom:4px; }
+.worksheet-field-heading>strong { display:block;font-size:14px; }
+.worksheet-scroll-hint { font-size:13px!important;color:#526b60;margin:16px 0 10px!important; }
+@media(max-width:760px) { .worksheet-frozen-wrap { --worksheet-person-width:140px;--worksheet-time-width:120px; } .worksheet-comparison .worksheet-pin-left,.worksheet-comparison .worksheet-pin-right { padding-inline:10px; } }
+@media(max-width:400px) { .worksheet-frozen-wrap { --worksheet-person-width:110px;--worksheet-time-width:100px; } }
 .worksheet-empty { margin-top:20px;padding:24px;background:#f5f7f2;border:1px dashed #bdcebd;border-radius:10px; }
 .worksheet-empty h4 { margin-top:0; }
 .worksheet-settings>h4 { margin-top:0; }

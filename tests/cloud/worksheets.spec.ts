@@ -409,26 +409,81 @@ test("host reads long answers by person or question without squeezed identity co
   await expect(results).toContainText("該当する参加者がいません");
   await search.fill("");
   await results
-    .getByRole("button", { name: "項目ごとに比較", exact: true })
+    .getByRole("button", { name: "全項目を一覧", exact: true })
     .click();
   await expect(results.locator("tbody tr")).toHaveCount(2);
-  await expect(results.locator("thead th")).toHaveCount(3);
+  await expect(results.locator("thead th")).toHaveCount(42);
   await expect(results.locator("tbody tr").first()).toContainText(long);
-  const timeStyle = await results
-    .locator("tbody tr td:last-child")
-    .first()
-    .evaluate((el) => getComputedStyle(el).whiteSpace);
-  expect(timeStyle).toBe("nowrap");
+  await expect(results.getByRole("combobox")).toHaveCount(0);
+  await expect(
+    results
+      .locator("tbody tr")
+      .first()
+      .locator(".worksheet-answer-cell")
+      .nth(1),
+  ).toHaveText("はい");
+  await expect(
+    results.locator("tbody tr").last().locator(".worksheet-answer-cell").nth(1),
+  ).toHaveText("いいえ");
+  const viewport = results.getByRole("region", { name: "全項目の回答一覧" });
+  await viewport.scrollIntoViewIfNeeded();
+  const left = results.locator("tbody .worksheet-pin-left").first();
+  const right = results.locator("tbody .worksheet-pin-right").first();
+  const leftHeader = results.locator("thead .worksheet-pin-left");
+  const rightHeader = results.locator("thead .worksheet-pin-right");
+  const answerCell = results.locator(".worksheet-answer-cell").first();
+  const box = async (locator: typeof left) => (await locator.boundingBox())!;
+  const initial = {
+    left: await box(left),
+    right: await box(right),
+    leftHeader: await box(leftHeader),
+    rightHeader: await box(rightHeader),
+    answer: await box(answerCell),
+    viewport: await box(viewport),
+  };
+  expect(initial.left.width).toBeGreaterThanOrEqual(200);
+  expect(initial.right.x + initial.right.width).toBeLessThanOrEqual(
+    initial.viewport.x + initial.viewport.width + 2,
+  );
+  await viewport.evaluate((el) => {
+    el.scrollLeft = 1200;
+  });
+  await expect
+    .poll(async () => Math.abs((await box(left)).x - initial.left.x))
+    .toBeLessThan(1);
+  expect(Math.abs((await box(right)).x - initial.right.x)).toBeLessThan(1);
   expect(
-    await results
-      .locator(".worksheet-col-person")
-      .evaluate((el) => el.getBoundingClientRect().width),
-  ).toBeGreaterThanOrEqual(200);
-  await results
-    .getByRole("combobox", { name: "比較する項目" })
-    .selectOption("field-1");
-  await expect(results.locator("tbody tr").first()).toContainText("はい");
-  await expect(results.locator("tbody tr").last()).toContainText("いいえ");
+    Math.abs((await box(leftHeader)).x - initial.leftHeader.x),
+  ).toBeLessThan(1);
+  expect(
+    Math.abs((await box(rightHeader)).x - initial.rightHeader.x),
+  ).toBeLessThan(1);
+  expect((await box(answerCell)).x).toBeLessThan(initial.answer.x - 1000);
+  await viewport.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth;
+  });
+  const lastField = await box(
+    results.locator("thead .worksheet-field-heading").last(),
+  );
+  expect(lastField.x + lastField.width).toBeLessThanOrEqual(
+    (await box(rightHeader)).x + 1,
+  );
+  expect(lastField.x + lastField.width).toBeGreaterThan(
+    (await box(leftHeader)).x + initial.leftHeader.width,
+  );
+  await expect(left).toContainText("student-a@example.test");
+  await expect(right.locator("time")).toContainText("2026/11/2");
+  const headerY = (await box(leftHeader)).y;
+  await viewport.evaluate((el) => {
+    el.scrollTop = 100;
+  });
+  expect(await viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(Math.abs((await box(leftHeader)).y - headerY)).toBeLessThan(1);
+  expect(Math.abs((await box(right)).x - initial.right.x)).toBeLessThan(1);
+  await viewport.evaluate((el) => {
+    el.scrollTop = 0;
+    el.scrollLeft = 18 * 280;
+  });
   expect(
     await modal(page).evaluate((el) => el.scrollWidth <= el.clientWidth + 2),
   ).toBe(true);
