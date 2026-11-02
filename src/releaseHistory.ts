@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.65.0",
+    date: "2026-11-02",
+    title: "アンケートの回答者表示とCSV保存",
+    changes: [
+      "ホストの集計画面で、回答者名・メールアドレスと最新の回答・回答日時を確認できます。",
+      "選択式・記述式の回答結果をCSVで保存できます。共有する集計スライドには回答者情報を含めません。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.64.2",
     date: "2026-11-02",
     title: "複数人の編集後に担当範囲の変更が拒否される問題を修正",

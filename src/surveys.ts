@@ -10,9 +10,20 @@ export type Survey = {
   created: number;
 };
 export type SurveyAnswer = { choices: number[]; text: string };
+export type SurveyResponse = SurveyAnswer & {
+  respondentId: string;
+  name: string;
+  email: string;
+  updated: number;
+};
 export type SurveyView = Survey & {
   own?: SurveyAnswer;
-  results?: { count: number; counts: number[]; texts: string[] };
+  results?: {
+    count: number;
+    counts: number[];
+    texts: string[];
+    responses?: SurveyResponse[];
+  };
 };
 export class SurveyError extends Error {
   status: number;
@@ -65,16 +76,23 @@ export function surveyList(
       if (host) {
         const answers = [
           ...sql(
-            "SELECT value FROM survey_answers WHERE survey=? ORDER BY updated,author",
+            "SELECT a.author,a.value,a.updated,u.name,u.email FROM survey_answers a LEFT JOIN users u ON u.id=a.author WHERE a.survey=? ORDER BY a.updated,a.author",
             survey.id,
           ),
-        ].map((row) => JSON.parse(row.value) as SurveyAnswer);
+        ].map((row): SurveyResponse => ({
+          ...(JSON.parse(row.value) as SurveyAnswer),
+          respondentId: row.author,
+          name: row.name || "名前未登録",
+          email: row.email || "",
+          updated: row.updated,
+        }));
         result.results = {
           count: answers.length,
           counts: survey.options.map(
             (_, i) => answers.filter((a) => a.choices.includes(i)).length,
           ),
           texts: survey.kind === "text" ? answers.map((a) => a.text) : [],
+          responses: answers,
         };
       }
       return result;

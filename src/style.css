@@ -6782,3 +6782,13 @@ h1 span {
 .slide-survey.is-interactive button { min-height:calc(44px / var(--canvas-zoom,1));font-size:max(18px,calc(14px / var(--canvas-zoom,1))); }
 .slide-survey.is-interactive textarea { font-size:max(20px,calc(16px / var(--canvas-zoom,1))); }
 .slide-survey.is-interactive button.survey-move-handle { float:right;touch-action:none;user-select:none;background:#edf4e9;color:#315d4e;border:1px solid #a0b79a;font-size:14px;padding:5px 12px;cursor:grab; }
+.survey-responses { margin:20px 0; padding-top:16px; border-top:1px solid #d4dfd7; }
+.survey-response-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.survey-response-heading h4 { margin:0; }
+.survey-response-table-wrap { overflow:auto;max-width:100%; }
+.survey-response-table { width:100%;min-width:600px;border-collapse:collapse;font-size:14px;text-align:left; }
+.survey-response-table th,.survey-response-table td { padding:10px;border:1px solid #d4dfd7;vertical-align:top;overflow-wrap:anywhere; }
+.survey-response-table thead th { background:#edf4e9; }
+.survey-response-table th[scope=row] { min-width:100px;max-width:180px; }
+.survey-response-table td { max-width:250px; }
+.survey-response-table .survey-response-answer { white-space:pre-wrap;min-width:160px;max-width:400px; }

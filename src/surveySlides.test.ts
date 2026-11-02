@@ -62,6 +62,25 @@ describe("survey result snapshots", () => {
     expect(added.map((s) => s.y)).toEqual(added.map((_, i) => i));
     expect(() => parseDeck(serializeDeck(next))).not.toThrow();
   });
+  it("keeps respondent identities out of shared result snapshots", () => {
+    const book = sample();
+    const identified = structuredClone(survey);
+    identified.results!.responses = [
+      {
+        respondentId: "private-id",
+        name: "private-name",
+        email: "private@example.test",
+        choices: [1],
+        text: "",
+        updated: 1,
+      },
+    ];
+    const result = insertSurveyResults(book, book.slides[0], identified);
+    const json = serializeDeck(result.book);
+    expect(json).not.toContain("private-id");
+    expect(json).not.toContain("private-name");
+    expect(json).not.toContain("private@example.test");
+  });
   it("refuses absent results, zero responses and a full grid without changing the work", () => {
     const book = sample(),
       before = serializeDeck(book);

@@ -1,3 +1,8 @@
+import {
+  surveyAnswerText,
+  surveyResponseTime,
+  surveyResponsesCsv,
+} from "./surveyCsv";
 import type { SurveySlideData } from "./SurveySlideContext";
 import { useEffect, useRef, useState } from "react";
 import { X, ClipboardList } from "lucide-react";
@@ -41,6 +46,13 @@ export function SurveyPanel({
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
   const [deleteId, setDeleteId] = useState("");
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const dialogRef = useRef<HTMLElement>(null);
   const launchRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -146,6 +158,41 @@ export function SurveyPanel({
       if (currentScope.current === requestScope) setBusy(false);
     }
   }
+  async function downloadResponses(surveyId: string) {
+    if (!deckId || !host || busy) return;
+    const requestScope = scope;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    ++refreshVersion.current;
+    try {
+      const data = await api<{ surveys: SurveyView[] }>(
+        `/api/decks/${deckId}/surveys`,
+      );
+      if (!alive.current || currentScope.current !== requestScope) return;
+      const survey = data.surveys.find((s) => s.id === surveyId);
+      if (!survey) throw new Error("アンケートが見つかりません。");
+      ++refreshVersion.current;
+      setSurveys(data.surveys);
+      const url = URL.createObjectURL(
+        new Blob([surveyResponsesCsv(survey)], {
+          type: "text/csv;charset=utf-8",
+        }),
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `アンケート_${survey.question.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").slice(0, 80)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage("最新の回答結果をCSVで保存しました。");
+    } catch (e) {
+      if (alive.current && currentScope.current === requestScope)
+        setError((e as Error).message);
+    } finally {
+      if (alive.current && currentScope.current === requestScope)
+        setBusy(false);
+    }
+  }
   useEffect(() => {
     onData?.({ deckId, userId, surveys: blocked ? [] : surveys });
   }, [deckId, userId, surveys, blocked, onData]);
@@ -208,7 +255,7 @@ export function SurveyPanel({
                 <p>
                   {host
                     ? "回答と集計はホストだけが確認できます。"
-                    : "受付中の質問に回答できます。集計はホストが確認します。"}
+                    : "回答者名・メールアドレスと回答内容はホストが確認します。"}
                 </p>
               </div>
               <button
@@ -560,6 +607,77 @@ export function SurveyPanel({
                                 ))}
                               </>
                             )}
+                            <section
+                              className="survey-responses"
+                              aria-label="回答者ごとの回答"
+                            >
+                              <div className="survey-response-heading">
+                                <h4>回答者ごとの回答</h4>
+                                <button
+                                  className="button outline"
+                                  disabled={busy || !selected.results.count}
+                                  onClick={() =>
+                                    void downloadResponses(selected.id)
+                                  }
+                                >
+                                  回答結果をCSV保存
+                                </button>
+                              </div>
+                              <p>
+                                回答者名・メールアドレス・回答はホストだけに表示します。CSVには各参加者の最新の回答と回答日時を保存します。
+                              </p>
+                              {!selected.results.count ? (
+                                <p>まだ回答がありません。</p>
+                              ) : (
+                                <div className="survey-response-table-wrap">
+                                  <table className="survey-response-table">
+                                    <thead>
+                                      <tr>
+                                        <th scope="col">回答者名</th>
+                                        <th scope="col">メールアドレス</th>
+                                        <th scope="col">回答</th>
+                                        <th scope="col">
+                                          最終回答（日本時間）
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(selected.results.responses ?? []).map(
+                                        (answer) => (
+                                          <tr key={answer.respondentId}>
+                                            <th scope="row">{answer.name}</th>
+                                            <td>
+                                              {answer.email ||
+                                                answer.respondentId}
+                                            </td>
+                                            <td className="survey-response-answer">
+                                              {surveyAnswerText(
+                                                selected,
+                                                answer,
+                                              )}
+                                            </td>
+                                            <td>
+                                              <time
+                                                dateTime={new Date(
+                                                  answer.updated,
+                                                ).toISOString()}
+                                              >
+                                                {surveyResponseTime(
+                                                  answer.updated,
+                                                )}
+                                              </time>
+                                            </td>
+                                          </tr>
+                                        ),
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </section>
+                            <p>
+                              スライドに挿入する集計には、回答者名・メールアドレスを含めません。
+                            </p>
                             <p>
                               挿入すると、集計結果や記述回答がスライドとして参加者にも公開されます。現在のページの右に追加し、記述回答は複数ページに分けます。挿入後の結果は自動更新されません。
                             </p>
@@ -587,7 +705,7 @@ export function SurveyPanel({
                   </main>
                 </div>
                 <p className="survey-storage-note">
-                  質問と回答はクラウドに保存されます。JSONや完全バックアップには含まれません。残したい集計結果はスライドへ挿入して保存してください。
+                  質問と回答はクラウドに保存されます。JSONや完全バックアップには含まれません。回答結果はCSVで保存でき、集計結果はスライドへ挿入して残せます。
                 </p>
               </>
             )}

@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { readFile } from "node:fs/promises";
 import { fromBase64, readSharedDeck } from "../../src/sharedDeck";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -93,6 +94,24 @@ test("host creates both question types, guests answer privately and results beco
     await expect(
       page.locator(".survey-result").filter({ hasText: "夏" }),
     ).toContainText("1件 (100%)");
+    await expect(page.locator(".survey-response-table tbody")).toContainText(
+      "survey-guest",
+    );
+    await expect(page.locator(".survey-response-table tbody")).toContainText(
+      "夏",
+    );
+    await expect(guest.locator(".survey-responses")).toHaveCount(0);
+    await expect(
+      guest.getByRole("button", { name: "回答結果をCSV保存" }),
+    ).toHaveCount(0);
+    const downloading = page.waitForEvent("download");
+    await page.getByRole("button", { name: "回答結果をCSV保存" }).click();
+    const download = await downloading;
+    const csv = await readFile((await download.path())!, "utf8");
+    expect(csv.startsWith("\ufeff")).toBe(true);
+    expect(csv).toContain("survey-guest");
+    expect(csv).toContain('"夏"');
+    expect(csv.split("\r\n")).toHaveLength(3);
     await page
       .getByRole("button", { name: "集計結果をスライドに挿入" })
       .click();
@@ -123,6 +142,14 @@ test("host creates both question types, guests answer privately and results beco
     await guest.getByRole("button", { name: "回答を送信" }).click();
     await expect(dialog(guest)).toContainText("回答を保存しました");
     await expect(page.locator(".survey-results li")).toHaveText(answer);
+    await expect(page.locator(".survey-response-answer")).toHaveText(answer);
+    const textDownloading = page.waitForEvent("download");
+    await page.getByRole("button", { name: "回答結果をCSV保存" }).click();
+    const textDownload = await textDownloading;
+    const textCsv = await readFile((await textDownload.path())!, "utf8");
+    expect(textCsv).toContain('"' + answer + '"');
+    expect(textCsv).toContain("survey-guest");
+
     await page.getByRole("button", { name: "受付を終了", exact: true }).click();
     await expect(
       guest.getByRole("textbox", { name: "アンケートの回答", exact: true }),

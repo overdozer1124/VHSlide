@@ -71,7 +71,18 @@ export async function exerciseSurveys(
     guest,
   );
   let host = (await list()).find((s) => s.id === single.id)!;
-  assert.deepEqual(host.results, { count: 1, counts: [0, 1], texts: [] });
+  assert.equal(host.results?.count, 1);
+  assert.deepEqual(host.results?.counts, [0, 1]);
+  const identity = (
+    await (await call("/api/session", "GET", undefined, guest)).json()
+  ).user;
+  const response = host.results!.responses![0];
+  assert.equal(host.results!.responses!.length, 1);
+  assert.equal(response.respondentId, identity.id);
+  assert.equal(response.name, identity.name);
+  assert.equal(response.email, identity.email);
+  assert.deepEqual(response.choices, [1]);
+  assert.ok(Number.isFinite(response.updated));
   const own = (await list(guest))[0];
   assert.deepEqual(own.own, { choices: [1], text: "" });
   assert.equal("results" in own, false);
@@ -121,6 +132,8 @@ export async function exerciseSurveys(
     "<script>は文字として保存</script>\n気づき",
   ]);
   assert.equal(host.results?.count, 1);
+  assert.equal(host.results!.responses![0].name, identity.name);
+  assert.equal(host.results!.responses![0].text, host.results!.texts[0]);
   const guestView = await list(guest);
   assert.ok(guestView.every((s) => !("results" in s)));
   assert.equal(
