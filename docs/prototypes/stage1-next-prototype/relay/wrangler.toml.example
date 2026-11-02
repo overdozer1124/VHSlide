@@ -1,0 +1,14 @@
+# PC 側中継（変形B）の設定例。使う側で wrangler.toml にコピーして調整する。
+name = "stage1-relay-local"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# --- 変形B（実環境）: 検証用 Worker への service binding ---
+# wrangler dev では remote 接続で実体の検証用 Worker に到達する（前回試作の形態）。
+# [[services]]
+# binding = "VERIFY"
+# service = "vhslide-stage1-verify-20261101-a"
+
+# --- ローカル模擬: Miniflare ハーネスへ通常 fetch で転送する場合 ---
+# [vars]
+# HARNESS_URL = "http://127.0.0.1:8799"
