@@ -17,7 +17,7 @@ async function signIn(page: Page, name: string) {
   expect(r.status()).toBe(200);
 }
 const launch = (page: Page) =>
-  page.getByRole("button", { name: /^アンケート(?:（|$)/ });
+  page.getByRole("button", { name: "アンケート・ワークシート", exact: true });
 const dialog = (page: Page) =>
   page.getByRole("dialog", { name: "アンケート", exact: true });
 test("host creates both question types, guests answer privately and results become editable slides", async ({

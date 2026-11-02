@@ -6792,8 +6792,6 @@ h1 span {
 .survey-response-table th[scope=row] { min-width:100px;max-width:180px; }
 .survey-response-table td { max-width:250px; }
 .survey-response-table .survey-response-answer { white-space:pre-wrap;min-width:160px;max-width:400px; }
-.worksheet-launch { position:fixed;right:16px;bottom:72px;z-index:45;background:#fff!important;box-shadow:0 2px 8px #173d3820; }
-.worksheet-launch.presenting { bottom:auto;top:142px; }
 .slide-worksheet,.worksheet-preview { height:100%;overflow:auto;background:#fff;color:#29323b;border:2px solid #e4a36e;border-radius:14px;padding:16px;box-sizing:border-box;text-align:left;font-size:18px;line-height:1.4; }
 .slide-worksheet h3,.worksheet-preview h3 { font-size:26px;margin:0 0 8px;border-left:7px solid #e58d47;padding-left:12px; }
 .slide-worksheet header>p { background:#fcf4e8;padding:8px 12px;border-radius:8px;margin:6px 0 12px; }

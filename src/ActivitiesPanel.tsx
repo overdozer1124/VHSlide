@@ -53,18 +53,12 @@ export function ActivitiesPanel({
       <button
         className={`button outline survey-launch ${presenting ? "in-presentation" : ""}`}
         disabled={blocked}
-        aria-label={`アンケート${surveyCount ? `（受付中${surveyCount}件）` : ""}`}
-        onClick={(e) => launch("survey", e.currentTarget)}
+        aria-label="アンケート・ワークシート"
+        title={`アンケート受付中${surveyCount}件・ワークシート${ctx.sheets.length}件`}
+        onClick={(e) => launch(active, e.currentTarget)}
       >
         <ClipboardList size={17} />
-        <span>アンケート{surveyCount ? ` (${surveyCount})` : ""}</span>
-      </button>
-      <button
-        className={`button outline worksheet-launch ${presenting ? "presenting" : ""}`}
-        disabled={blocked}
-        onClick={(e) => launch("worksheet", e.currentTarget)}
-      >
-        ワークシート{ctx.sheets.length ? `（${ctx.sheets.length}）` : ""}
+        <span>アンケート・ワークシート</span>
       </button>
       <div
         className="survey-overlay activity-overlay"

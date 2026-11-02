@@ -19,7 +19,11 @@ async function signIn(page: Page, name: string) {
   ).toBe(200);
 }
 const launcher = (page: Page) =>
-  page.getByRole("button", { name: /^ワークシート(?:（|$)/ });
+  page.getByRole("button", { name: "アンケート・ワークシート", exact: true });
+async function openWorksheets(page: Page) {
+  await launcher(page).click();
+  await page.getByRole("tab", { name: "ワークシート", exact: true }).click();
+}
 const modal = (page: Page) =>
   page.getByRole("dialog", { name: "ワークシート", exact: true });
 test("worksheet templates embed on slides, save per account, export named CSV and preserve privacy", async ({
@@ -58,7 +62,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await guest.goto(`/?room=${id}`);
     await expect(page.locator(".slide-card")).toHaveCount(5);
     await expect(guest.locator(".slide-card")).toHaveCount(5);
-    await launcher(page).click();
+    await openWorksheets(page);
     await modal(page)
       .getByRole("button", { name: "新しいワークシート" })
       .click();
@@ -152,7 +156,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .getByRole("button", { name: "全員の画面を同期", exact: true })
       .click();
     await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
-    await launcher(page).click();
+    await openWorksheets(page);
     await modal(page)
       .getByRole("button", { name: /朝食の理由と工夫/ })
       .click();
@@ -191,7 +195,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       reloaded.getByRole("textbox", { name: "選んだ理由", exact: true }),
     ).toBeDisabled();
     // A second template provides an independently saved checklist with a live count.
-    await launcher(page).click();
+    await openWorksheets(page);
     await page.getByRole("button", { name: "新しいワークシート" }).click();
     await page
       .getByRole("combobox", { name: "ワークシートのひな形" })
@@ -199,7 +203,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     await page.getByRole("button", { name: "下書きを作成" }).click();
     await expect(modal(page)).toContainText("保存しました");
     await page.getByRole("button", { name: "受付を開始", exact: true }).click();
-    await launcher(guest).click();
+    await openWorksheets(guest);
     await modal(guest)
       .getByRole("button", { name: /食生活セルフチェック/ })
       .click();
@@ -233,7 +237,7 @@ test("every unmodified worksheet template creates a draft, including the initial
   const { id } = await created.json();
   await page.goto(`/?room=${id}`);
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  await launcher(page).click();
+  await openWorksheets(page);
   for (const kind of ["initial", "check", "reflection", "plan", "blank"]) {
     await modal(page)
       .getByRole("button", { name: "新しいワークシート", exact: true })
@@ -274,7 +278,7 @@ test("draft validation and save failures remain visible and preserve the edited 
   const { id } = await created.json();
   await page.goto(`/?room=${id}`);
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  await launcher(page).click();
+  await openWorksheets(page);
   await modal(page)
     .getByRole("button", { name: "新しいワークシート", exact: true })
     .click();
@@ -374,7 +378,7 @@ test("host reads long answers by person or question without squeezed identity co
   );
   await page.goto(`/?room=${id}`);
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  await launcher(page).click();
+  await openWorksheets(page);
   await modal(page)
     .getByRole("button", { name: /授業のふり返り/ })
     .click();
@@ -604,7 +608,7 @@ test("survey and worksheet share one wide dialog, select defaults and preserve d
   // Open first, before selecting any list item.
   await page.goto(`/?room=${id}`);
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  await launcher(page).click();
+  await openWorksheets(page);
   const window = page.locator(".activity-panel");
   await expect(page.getByRole("dialog")).toHaveCount(1);
   const dialogId = await window.getAttribute("id");
@@ -678,7 +682,7 @@ test("survey and worksheet share one wide dialog, select defaults and preserve d
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(launcher(page)).toBeFocused();
-  await launcher(page).click();
+  await openWorksheets(page);
   await expect(worksheetPane.locator(".survey-item.active")).toContainText(
     reason.title,
   );

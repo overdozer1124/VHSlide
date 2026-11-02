@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.70.1",
+    date: "2026-11-02",
+    title: "アンケート・ワークシートの入口を一本化",
+    changes: [
+      "右下の入口を「アンケート・ワークシート」ボタン1つにまとめました。前回使っていたタブを開き、同じ画面内で切り替えられます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.70.0",
     date: "2026-11-02",
     title: "アンケートの集計グラフを自動更新",

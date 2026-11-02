@@ -5,7 +5,14 @@ test("local survey entry explains sharing, traps focus and closes without changi
 }) => {
   await page.goto("/");
   await expect(page.locator(".slide-card")).toHaveCount(5);
-  const launch = page.getByRole("button", { name: "アンケート", exact: true });
+  const launch = page.getByRole("button", {
+    name: "アンケート・ワークシート",
+    exact: true,
+  });
+  await expect(launch).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "ワークシート", exact: true }),
+  ).toHaveCount(0);
   await launch.click();
   const dialog = page.getByRole("dialog", { name: "アンケート", exact: true });
   await expect(dialog).toContainText("アンケートはクラウドの作品で使えます");

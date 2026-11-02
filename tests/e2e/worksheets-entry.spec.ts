@@ -7,10 +7,11 @@ test("worksheet entry explains accounts and returns keyboard focus", async ({
   await page.goto("/");
   await expect(page.locator(".slide-card")).toHaveCount(5);
   const launch = page.getByRole("button", {
-    name: "ワークシート",
+    name: "アンケート・ワークシート",
     exact: true,
   });
   await launch.click();
+  await page.getByRole("tab", { name: "ワークシート", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: "ワークシート",
     exact: true,
@@ -19,6 +20,7 @@ test("worksheet entry explains accounts and returns keyboard focus", async ({
   await expect(
     dialog.getByRole("button", { name: "新しいワークシート" }),
   ).toHaveCount(0);
+  await dialog.focus();
   await page.keyboard.press("Tab");
   await expect(
     dialog.getByRole("button", { name: "ワークシートを閉じる" }),
@@ -34,6 +36,11 @@ test("worksheet entry explains accounts and returns keyboard focus", async ({
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(launch).toBeFocused();
+  await launch.click();
+  await expect(
+    page.getByRole("tab", { name: "ワークシート", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
 });
 test("portable worksheet definitions render without reading the source accounts", async ({
   page,
