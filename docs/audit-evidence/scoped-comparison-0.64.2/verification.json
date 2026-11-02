@@ -1,0 +1,37 @@
+{
+  "version": "0.64.2",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "cloudflare_version_id": "7800d47a-72d6-46c4-8475-9ea456a25e67",
+  "source_commit": "211eea25ee2184a619f7389d646a3bf9fb5fdaa1",
+  "health": {
+    "ok": true
+  },
+  "files": [
+    {
+      "path": "/index.html",
+      "bytes": 482,
+      "sha256": "3ca808ecf33fedf1e4c09fabc921053b256024a1600930efc05477ce5061aec6"
+    },
+    {
+      "path": "/assets/index-BptvaZW5.js",
+      "bytes": 1049796,
+      "sha256": "1432869313b16db9bda9cc76e9ab7c402518122d25d68ca8ebfb3cc3301985cf"
+    },
+    {
+      "path": "/assets/index-DmZZ_7g-.css",
+      "bytes": 151134,
+      "sha256": "018920576982ea1bb7a54a25d988f3bfdf978dee71b1c9906cc4975bee1c90fe"
+    }
+  ],
+  "tests": {
+    "unit": 181,
+    "node_server": 20,
+    "cloudflare_cases": 26,
+    "cloudflare_browser_permission_and_400_page_regressions": 4,
+    "production_browser": 6
+  },
+  "production_user_data_accessed": false,
+  "cause": "Yjs snapshot reconstruction changes object key order after multi-client field insertion; JSON.stringify incorrectly treated unchanged protected content as modified.",
+  "test_notes": "The 25 existing workerd cases passed in the full run; the new field-order regression passed in a focused rerun after fixing test-only already-closed WebSocket cleanup.",
+  "reproduction": "A second client adds textAlign to a protected page using a greater CRDT client ID. Snapshot reconstruction changes key order without changing values. A scoped guest edits its own row, reconnects, edits again and persists. Actual edits to the protected page remain rejected."
+}
