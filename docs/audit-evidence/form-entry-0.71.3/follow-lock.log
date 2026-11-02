@@ -1,0 +1,17 @@
+[WebServer] (node:78189) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:78206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [cloud-desktop] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (21.0s)
+  ✓  2 [cloud-desktop] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (7.2s)
+  ✓  3 [cloud-desktop] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (7.8s)
+(node:78560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [cloud-touch] › tests/cloud/host-follow.spec.ts:157:1 › step 3 host toggles once and guests cannot navigate, edit or leave following (20.7s)
+  ✓  5 [cloud-touch] › tests/cloud/host-follow.spec.ts:250:1 › step 4 preserves the live text editor, selected text and caret across interruption (6.2s)
+  ✓  6 [cloud-touch] › tests/cloud/host-follow.spec.ts:353:1 › step 4 Chromium IME composition begun before following can commit without losing text (5.7s)
+
+  6 passed (1.2m)

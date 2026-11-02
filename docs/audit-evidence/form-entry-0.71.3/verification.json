@@ -1,0 +1,22 @@
+{
+  "version": "0.71.3",
+  "deployment": "fa6f8964-5907-4d9d-885d-b4fc90efabf1",
+  "sourceCommit": "64625d5314d09932443ab5b79275897d1fe23df5",
+  "url": "https://vhslide.overdozer1124.workers.dev",
+  "health": {
+    "ok": true
+  },
+  "htmlMatchesBuild": true,
+  "assetsMatchBuild": {
+    "/assets/ReleaseHistory-zryDRBNl.js": "32307f6b5693330902efeea89e4b75ae9c83d98a53975d48b5407df960f172e1",
+    "/assets/backup.worker-XzZMPf-o.js": "16f9268bb3019c382a3ce1861c5226b705962ce017d813dd26d2e8a0517039a3",
+    "/assets/backupWorker-BMoefbCN.js": "81f2d10f8b146ea0117e47a6ca343b7fb3f95eeb3b84bbbe8d85345e4630c9c5",
+    "/assets/index-BRV-euV3.js": "a8131b089a46bf7deeb74d34882bdc849d3db103df28306b3de282840db3b3fa",
+    "/assets/index-C30DgsBj.css": "80862d98a7d1b28a20312e915af3814e4d5d499f2f96194ccfab1f7f68d67b11"
+  },
+  "unitTests": 52,
+  "cloudflareBrowserTests": 18,
+  "followLockTests": 6,
+  "previewTests": 10,
+  "productionBrowserTests": 12
+}
