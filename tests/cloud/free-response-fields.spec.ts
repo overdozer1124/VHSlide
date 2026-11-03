@@ -30,7 +30,11 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await signIn(guest, "free-guest");
     const created = await page.request.post("/api/decks", {
       headers,
-      data: { version: 1, title: "自由な回答欄", slides: [blank(0, 0)] },
+      data: {
+        version: 1,
+        title: "自由な回答欄",
+        slides: [blank(0, 0), blank(0, 1)],
+      },
     });
     expect(created.status()).toBe(201);
     const { id } = await created.json();
@@ -53,8 +57,8 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       ).toBe(200);
     await page.goto(`/?room=${id}`);
     await guest.goto(`/?room=${id}`);
-    await expect(page.locator(".slide-card")).toHaveCount(1);
-    await expect(guest.locator(".slide-card")).toHaveCount(1);
+    await expect(page.locator(".slide-card")).toHaveCount(2);
+    await expect(guest.locator(".slide-card")).toHaveCount(2);
     await page.locator(".thumbnail").first().click();
     await guest.locator(".thumbnail").first().click();
     await page.getByRole("button", { name: "フォーム", exact: true }).click();
@@ -241,7 +245,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await input.blur();
     await expect(guest.getByLabel("回答の保存状態")).toContainText("未保存");
     await guest.reload();
-    await expect(guest.locator(".slide-card")).toHaveCount(1);
+    await expect(guest.locator(".slide-card")).toHaveCount(2);
     await guest.locator(".thumbnail").first().click();
     await expect(input).toHaveValue("通信復帰後の回答");
     await guest.unroute("**/worksheets/*/answer");
@@ -249,11 +253,15 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(guest.getByLabel("回答の保存状態")).toHaveText(
       "回答は保存済みです",
     );
+    // Open the gallery from a different, empty page.
+    await page.locator(".rail-trigger").nth(1).click();
+    await expect(page.locator(".rail-trigger").nth(1)).toHaveClass(
+      /rail-active/,
+    );
     await launcher(page).click();
     await page.getByRole("tab", { name: "回答スライド", exact: true }).click();
-    await page
-      .getByRole("button", { name: "現在のページの回答をプレビュー" })
-      .click();
+    await expect(page.locator(".gallery-slide-choice")).toHaveCount(1);
+    await page.locator(".gallery-slide-choice").first().click();
     await expect(page.locator(".gallery-card")).toHaveCount(1);
     await expect(page.locator(".gallery-card textarea")).toHaveValue(
       "通信復帰後の回答",
@@ -264,7 +272,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
         .gallery,
     ).toBe(null);
     await page
-      .getByRole("button", { name: "このページの回答を全員に共有" })
+      .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
       .click();
     await launcher(guest).click();
     await guest.getByRole("tab", { name: "回答スライド", exact: true }).click();
@@ -277,7 +285,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       .getByRole("checkbox", { name: "保存された回答を自動更新" })
       .check();
     await page
-      .getByRole("button", { name: "このページの回答を全員に共有" })
+      .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
       .click();
     await guest.getByRole("button", { name: "回答スライドを閉じる" }).click();
     await input.fill("みんなへの最新の回答");
@@ -312,9 +320,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
         )
       ).status(),
     ).toBe(200);
-    await page
-      .getByRole("button", { name: "現在のページの回答をプレビュー" })
-      .click();
+    await page.locator(".gallery-slide-choice").first().click();
     await expect(page.locator(".gallery-card")).toHaveCount(2);
     const comparisons = page.getByRole("checkbox", {
       name: "比較",
@@ -340,9 +346,12 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     ).toBeVisible();
     await page.getByRole("button", { name: "比較を解除" }).click();
     await page.getByRole("button", { name: "回答スライドを閉じる" }).click();
+    await page.getByRole("button", { name: "全体マップへ" }).click();
+    await page.locator(".thumbnail").first().click();
+    await page.locator(".editor-workspace .element-drag-border.border-left").first().click({ timeout: 10_000 });
     await appearance
       .getByRole("button", { name: "別の回答項目として複製" })
-      .click();
+      .click({ timeout: 10_000 });
     await expect(
       guest.locator(".editor-workspace [data-response-field]"),
     ).toHaveCount(2);

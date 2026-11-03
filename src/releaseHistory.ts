@@ -8,10 +8,21 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.72.0",
+    date: "2026-11-03",
+    title: "回答スライドをサムネイルから選択",
+    changes: [
+      "フォームを配置したスライドを一覧から選び、現在開いているページに関係なく回答をプレビュー・共有できます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.71.5",
     date: "2026-11-03",
     title: "フォーム画面の名称を変更",
-    changes: ["フォームを開いた画面の見出しを『ユーザーフォーム』に変更しました。"],
+    changes: [
+      "フォームを開いた画面の見出しを『ユーザーフォーム』に変更しました。",
+    ],
     retrospective: false,
   },
   {

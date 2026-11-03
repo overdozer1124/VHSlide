@@ -2909,7 +2909,7 @@ export default function App() {
             }}
           />
         }
-        gallery={<ResponseGalleryPanel slide={slide} />}
+        gallery={<ResponseGalleryPanel deck={workbook} />}
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
         worksheet={
           <WorksheetPanel

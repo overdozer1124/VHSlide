@@ -2,7 +2,8 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { useActivityPanel } from "./ActivitiesPanel";
 import { WorksheetContext, useWorksheets } from "./WorksheetContext";
 import { SurveySlideContext } from "./SurveySlideContext";
-import type { Slide } from "./model";
+import type { Deck, Slide } from "./model";
+import { sheetList } from "./workbook";
 import { Canvas } from "./Canvas";
 import { api } from "./cloud";
 import type { GalleryCard, ResponseGallery } from "./responseGallery";
@@ -32,7 +33,7 @@ function Card({ card, slide }: { card: GalleryCard; slide: Slide }) {
     </WorksheetContext.Provider>
   );
 }
-export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
+export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
   const activity = useActivityPanel(),
     ctx = useWorksheets();
   const active = activity.open && activity.active === "gallery";
@@ -46,7 +47,8 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
     [compare, setCompare] = useState<string[]>([]),
     [enlarged, setEnlarged] = useState<string>(),
     [busy, setBusy] = useState(false),
-    [columns, setColumns] = useState(2);
+    [columns, setColumns] = useState(2),
+    [selectedSlideId, setSelectedSlideId] = useState<string>();
   const [page, setPage] = useState(0);
   const generation = useRef(0);
   const [compareOnly, setCompareOnly] = useState(false);
@@ -77,12 +79,37 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
       clearTimeout(timer);
     };
   }, [active, ctx.enabled, endpoint]);
-  useEffect(() => {
-    setPreview(null);
-    setCompare([]);
-    setSelected([]);
-  }, [slide.id]);
-  async function action(command: "preview" | "publish" | "stop") {
+  const sheets = sheetList(deck);
+  const candidates = deck.slides
+    .filter((slide) =>
+      slide.elements.some((element) =>
+        [element.responseField, element.worksheet, element.survey].some(
+          (binding) => !!binding && binding.deckId === ctx.deckId,
+        ),
+      ),
+    )
+    .sort(
+      (a, b) =>
+        sheets.findIndex((sheet) => sheet.id === (a.sheetId ?? "main")) -
+          sheets.findIndex((sheet) => sheet.id === (b.sheetId ?? "main")) ||
+        a.y - b.y ||
+        a.x - b.x,
+    );
+  const chosen = candidates.find((slide) => slide.id === selectedSlideId);
+  async function action(
+    command: "preview" | "publish" | "stop",
+    target?: Slide,
+  ) {
+    if (command !== "stop" && !target) return;
+    if (command === "preview") {
+      setSelectedSlideId(target!.id);
+      setPreview(null);
+      setSelected([]);
+      setCompare([]);
+      setCompareOnly(false);
+      setPage(0);
+      setEnlarged(undefined);
+    }
     setBusy(true);
     setError("");
     const version = ++generation.current;
@@ -92,7 +119,7 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
         {
           method: "POST",
           body: JSON.stringify({
-            slide,
+            slide: target,
             participants: command === "preview" || all ? null : selected,
             names,
             live,
@@ -127,16 +154,42 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
       {ctx.host ? (
         <>
           <p>
-            現在のページのレイアウトに、各参加者が保存した回答を表示します。プレビューはホストだけに見えます。
+            フォームがあるスライドを選ぶと、各参加者の保存した回答をプレビューできます。プレビューはホストだけに見えます。
           </p>
-          <div className="gallery-controls">
-            <button
-              className="button outline"
-              disabled={busy || !ctx.enabled}
-              onClick={() => void action("preview")}
+          {candidates.length ? (
+            <div
+              className="gallery-slide-picker"
+              aria-label="回答を表示するスライド"
             >
-              現在のページの回答をプレビュー
-            </button>
+              {candidates.map((candidate) => {
+                const sheet = sheets.find(
+                  (item) => item.id === (candidate.sheetId ?? "main"),
+                );
+                const label = `${sheet?.name ?? "シート"}・${candidate.y + 1}.${candidate.x + 1} ${candidate.title || "無題"}`;
+                return (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    className="gallery-slide-choice"
+                    aria-label={`${label} の回答をプレビュー`}
+                    aria-pressed={candidate.id === selectedSlideId}
+                    disabled={busy || !ctx.enabled}
+                    onClick={() => void action("preview", candidate)}
+                  >
+                    <span className="gallery-slide-thumb" aria-hidden="true">
+                      <Canvas slide={candidate} zoom={192 / 960} />
+                    </span>
+                    <span className="gallery-slide-label">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p>
+              回答をプレビューするには、スライドにフォームを配置してください。
+            </p>
+          )}
+          <div className="gallery-controls">
             <label>
               <input
                 type="checkbox"
@@ -163,10 +216,12 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
             </label>
             <button
               className="button primary"
-              disabled={busy || !preview || (!all && !selected.length)}
-              onClick={() => void action("publish")}
+              disabled={
+                busy || !preview || !chosen || (!all && !selected.length)
+              }
+              onClick={() => void action("publish", preview?.slide)}
             >
-              このページの回答を全員に共有
+              選択したスライドの回答を全員に共有
             </button>
             <button
               className="button outline"
@@ -184,7 +239,7 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
           </p>
           {preview && (
             <p>
-              プレビュー：{preview.cards.length}
+              選択したスライドのプレビュー：{preview.cards.length}
               人。公開後のレイアウトは共有時点の状態です。ページを変更した場合は再度共有してください。
             </p>
           )}
@@ -298,7 +353,7 @@ export function ResponseGalleryPanel({ slide }: { slide: Slide }) {
             </nav>
           )}
           {!cards.length && (
-            <p>このページの入力欄への保存済み回答はありません。</p>
+            <p>選択したスライドの入力欄への保存済み回答はありません。</p>
           )}
         </>
       )}
