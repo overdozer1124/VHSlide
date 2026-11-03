@@ -1,0 +1,14 @@
+--- src/worker.js	2026-11-03 07:58:14.473692851 +0900
++++ fault-builds/recover/worker.js	2026-11-03 18:54:45.610590880 +0900
+@@ -581,9 +581,8 @@
+       const oldSubjectHash = creds[0].subject_hash;
+       this.consumeNonce(claims.nonce, ctxHash, nowMs);
+       this.sql.exec("DELETE FROM mtrial_credentials WHERE subject_hash = ?", oldSubjectHash);
+-      if (this.failMode(request) === "recover-mid") {
+-        throw new Error("injected_recover_mid");
+-      }
++      // FAULT BUILD V (verification only): unconditional mid-recovery failure.
++      throw new Error("injected_recover_mid");
+       this.sql.exec(
+         "INSERT INTO mtrial_credentials (subject_hash, created_at) VALUES (?, ?)",
+         newSubjectHash,
