@@ -45,7 +45,7 @@ test("read-only guests retain notes, display access and commenting without gaini
       "表を追加",
       "図形を追加",
       "線を追加",
-      "もっと見る（図解・グラフ）",
+      "図解・グラフを追加",
     ])
       await expect(
         guest.getByRole("button", { name: label, exact: true }),

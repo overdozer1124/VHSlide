@@ -65,7 +65,7 @@ test("insertion palettes open directly and retain visible labels in compact layo
       "表を追加",
       "図形を追加",
       "線を追加",
-      "もっと見る（図解・グラフ）",
+      "図解・グラフを追加",
       "スピーカーノート",
       "表示の設定",
     ]) {
@@ -77,7 +77,7 @@ test("insertion palettes open directly and retain visible labels in compact layo
       (await page.locator(".editor-layout").boundingBox())!.y,
     ).toBeLessThanOrEqual(104);
     await page
-      .getByRole("button", { name: "もっと見る（図解・グラフ）", exact: true })
+      .getByRole("button", { name: "図解・グラフを追加", exact: true })
       .click();
     const palette = page.getByRole("dialog", {
       name: "図解・グラフを追加",
@@ -92,7 +92,7 @@ test("insertion palettes open directly and retain visible labels in compact layo
     await page.keyboard.press("Escape");
     await expect(
       page.getByRole("button", {
-        name: "もっと見る（図解・グラフ）",
+        name: "図解・グラフを追加",
         exact: true,
       }),
     ).toBeFocused();

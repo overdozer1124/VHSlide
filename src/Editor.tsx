@@ -1,3 +1,4 @@
+import { ToolbarScroller } from "./ToolbarScroller";
 import { ResponseFieldLauncher } from "./ResponseFieldLauncher";
 import { ResponseFieldAppearance } from "./ResponseFieldTools";
 import { InkControls } from "./InkControls";
@@ -414,158 +415,175 @@ export function Editor({
       data-inspector-collapsed={inspectorCollapsed}
       data-focused={focused}
     >
-      <div className="editor-toolbar">
-        <button className="quiet back-map" onClick={() => onBack()}>
-          <ArrowLeft size={17} />
-          全体マップへ
-        </button>
-        <span className="small-divider" />
-        <button
-          className="tool-button"
-          disabled={!editable}
-          onClick={() => addElement("text")}
-        >
-          <Type size={20} />
-          文字
-        </button>
-        <ResponseFieldLauncher
-          key={`${cloud?.active?.id}:${slide.id}`}
-          disabled={!!cloud?.viewingRevoked || !!cloud?.recoveryOnly}
-        />
-        <button
-          className="tool-button"
-          disabled={!editable}
-          onClick={onImagePicker}
-        >
-          <ImagePlus size={20} />
-          画像
-        </button>
-        <button
-          className="tool-button"
-          disabled={!editable}
-          onClick={() =>
-            onInsertStructure([
-              {
-                id: crypto.randomUUID(),
-                type: "image",
-                src: emptyInkImage,
-                drawing: [],
-                x: 100,
-                y: 100,
-                w: 480,
-                h: 270,
-                stroke: "#173d38",
-                strokeWidth: 5,
-              },
-            ])
-          }
-        >
-          <Pencil size={20} aria-hidden="true" />
-          手描き
-        </button>
-
-        {cloud && (
-          <button
-            className="tool-button"
-            aria-label="付箋を追加"
-            title={
-              cloud.access.comment
-                ? "付箋を追加して、そのまま入力"
-                : "コメントの投稿は許可されていません。"
-            }
-            disabled={!cloud.access.comment}
-            onClick={() => setNoteRequest((n) => n + 1)}
+      <ToolbarScroller label="編集ツールバー">
+        {(toolbarRef) => (
+          <div
+            className="editor-toolbar"
+            ref={toolbarRef as React.RefObject<HTMLDivElement | null>}
           >
-            <StickyNote size={20} />
-            付箋
-          </button>
-        )}
-        <TableInsert disabled={!editable} onInsert={addTable} />
-        <ObjectPalette disabled={!editable} onAdd={addElement} />
-        <StructureInsert disabled={!editable} onInsert={onInsertStructure} />
-        <button
-          className="tool-button touch-multiselect"
-          aria-label="まとめて選択"
-          aria-pressed={multiMode}
-          disabled={!editable}
-          onClick={() => setMultiMode(!multiMode)}
-        >
-          <span aria-hidden="true">▧</span>{" "}
-          {multiMode ? "選択を完了" : "まとめて選択"}
-        </button>
-        <button
-          className="tool-button"
-          aria-label="スピーカーノート"
-          aria-expanded={notesOpen}
-          aria-controls="speaker-notes-editor"
-          onClick={() => setNotesOpen((v) => !v)}
-        >
-          <NotebookPen size={18} />
-          ノート
-        </button>
-        <div
-          className="editor-panel-toggles"
-          role="group"
-          aria-label="編集画面の表示"
-        >
-          <Palette
-            label="表示の設定"
-            text="表示"
-            icon={<PanelRightOpen size={18} />}
-            disabled={false}
-            heading="作品の表示設定"
-          >
-            {() => (
-              <div className="editor-view-settings">
-                <p>ページの内容ではなく、行ごとの移動方法の設定です。</p>
-                <button
-                  className="tool-button row-link-toggle"
-                  role="switch"
-                  aria-label="縦の連動"
-                  aria-checked={!!deck.linkedRows}
-                  title={
-                    deck.linkedRows
-                      ? "同じ話題で縦のページをそろえています"
-                      : "段ごとに表示するページを選べます"
-                  }
-                  onClick={onToggleLinkedRows}
-                >
-                  <Link2 size={17} />
-                  縦の連動 <span>{deck.linkedRows ? "オン" : "オフ"}</span>
-                </button>
+            <button
+              className="quiet back-map"
+              aria-label="全体マップへ"
+              onClick={() => onBack()}
+            >
+              <ArrowLeft size={17} />
+              <span className="back-map-full">全体マップへ</span>
+              <span className="back-map-short" aria-hidden="true">
+                マップ
+              </span>
+            </button>
+            <span className="small-divider" />
+            <button
+              className="tool-button"
+              disabled={!editable}
+              onClick={() => addElement("text")}
+            >
+              <Type size={20} />
+              文字
+            </button>
+            <ResponseFieldLauncher
+              key={`${cloud?.active?.id}:${slide.id}`}
+              disabled={!!cloud?.viewingRevoked || !!cloud?.recoveryOnly}
+            />
+            <button
+              className="tool-button"
+              disabled={!editable}
+              onClick={onImagePicker}
+            >
+              <ImagePlus size={20} />
+              画像
+            </button>
+            <button
+              className="tool-button"
+              disabled={!editable}
+              onClick={() =>
+                onInsertStructure([
+                  {
+                    id: crypto.randomUUID(),
+                    type: "image",
+                    src: emptyInkImage,
+                    drawing: [],
+                    x: 100,
+                    y: 100,
+                    w: 480,
+                    h: 270,
+                    stroke: "#173d38",
+                    strokeWidth: 5,
+                  },
+                ])
+              }
+            >
+              <Pencil size={20} aria-hidden="true" />
+              手描き
+            </button>
 
-                <p>
-                  {cloud?.active
-                    ? "この端末の表示設定として保存されます。ほかの参加者の表示は変わりません。"
-                    : "この作品の表示設定として保存されます。"}
-                </p>
-                <p>
-                  オン：同じ話題で縦のページをそろえます。
-                  <br />
-                  オフ：段ごとに表示するページを選べます。
-                </p>
-              </div>
+            {cloud && (
+              <button
+                className="tool-button"
+                aria-label="付箋を追加"
+                title={
+                  cloud.access.comment
+                    ? "付箋を追加して、そのまま入力"
+                    : "コメントの投稿は許可されていません。"
+                }
+                disabled={!cloud.access.comment}
+                onClick={() => setNoteRequest((n) => n + 1)}
+              >
+                <StickyNote size={20} />
+                付箋
+              </button>
             )}
-          </Palette>
-        </div>
-        {filterAvailable && (
-          <button
-            className="tool-button editor-filter-toggle"
-            aria-label="編集画面にもフィルタを適用"
-            aria-pressed={filtered}
-            title={
-              filtered
-                ? `${navigationDeck.slides.length}ページに絞り込み中（押すと解除）`
-                : "押すと選択したページだけを編集"
-            }
-            onClick={onToggleFilter}
-          >
-            <Filter size={18} />
-            <span>編集も絞り込み</span>
-          </button>
+            <TableInsert disabled={!editable} onInsert={addTable} />
+            <ObjectPalette disabled={!editable} onAdd={addElement} />
+            <StructureInsert
+              disabled={!editable}
+              onInsert={onInsertStructure}
+            />
+            <button
+              className="tool-button touch-multiselect"
+              aria-label="まとめて選択"
+              aria-pressed={multiMode}
+              disabled={!editable}
+              onClick={() => setMultiMode(!multiMode)}
+            >
+              <span aria-hidden="true">▧</span>{" "}
+              {multiMode ? "選択を完了" : "まとめて選択"}
+            </button>
+            <button
+              className="tool-button"
+              aria-label="スピーカーノート"
+              aria-expanded={notesOpen}
+              aria-controls="speaker-notes-editor"
+              onClick={() => setNotesOpen((v) => !v)}
+            >
+              <NotebookPen size={18} />
+              ノート
+            </button>
+            <div
+              className="editor-panel-toggles"
+              role="group"
+              aria-label="編集画面の表示"
+            >
+              <Palette
+                label="表示の設定"
+                text="移動設定"
+                icon={<PanelRightOpen size={18} />}
+                disabled={false}
+                heading="ページ移動の設定"
+              >
+                {() => (
+                  <div className="editor-view-settings">
+                    <p>ページの内容ではなく、行ごとの移動方法の設定です。</p>
+                    <button
+                      className="tool-button row-link-toggle"
+                      role="switch"
+                      aria-label="縦の連動"
+                      aria-checked={!!deck.linkedRows}
+                      title={
+                        deck.linkedRows
+                          ? "同じ話題で縦のページをそろえています"
+                          : "段ごとに表示するページを選べます"
+                      }
+                      onClick={onToggleLinkedRows}
+                    >
+                      <Link2 size={17} />
+                      縦の連動 <span>{deck.linkedRows ? "オン" : "オフ"}</span>
+                    </button>
+
+                    <p>
+                      {cloud?.active
+                        ? "この端末の表示設定として保存されます。ほかの参加者の表示は変わりません。"
+                        : "この作品の表示設定として保存されます。"}
+                    </p>
+                    <p>
+                      オン：同じ話題で縦のページをそろえます。
+                      <br />
+                      オフ：段ごとに表示するページを選べます。
+                    </p>
+                  </div>
+                )}
+              </Palette>
+            </div>
+            {filterAvailable && (
+              <button
+                className="tool-button editor-filter-toggle"
+                aria-label="編集画面にもフィルタを適用"
+                aria-pressed={filtered}
+                title={
+                  filtered
+                    ? `${navigationDeck.slides.length}ページに絞り込み中（押すと解除）`
+                    : "押すと選択したページだけを編集"
+                }
+                onClick={onToggleFilter}
+              >
+                <Filter size={18} />
+                <span>編集も絞り込み</span>
+              </button>
+            )}
+            {historyActions}
+          </div>
         )}
-        {historyActions}
-      </div>
+      </ToolbarScroller>
       <div
         className="editor-layout"
         data-rail-collapsed={railCollapsed}

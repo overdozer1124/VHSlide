@@ -130,7 +130,7 @@ test("structured objects sync, own undo preserves remote data, scoped rights and
     ).toBe(200);
     await expect(
       other.getByRole("button", {
-        name: "もっと見る（図解・グラフ）",
+        name: "図解・グラフを追加",
         exact: true,
       }),
     ).toBeDisabled();

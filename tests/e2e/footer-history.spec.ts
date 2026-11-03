@@ -48,7 +48,7 @@ test("the versioned history opens as a page, supports direct links and returns w
   const before = await page.evaluate(() =>
     localStorage.getItem("vhslide-deck-v1"),
   );
-  await page.getByRole("button", { name: "その他", exact: true }).click();
+  await page.getByRole("button", { name: "ヘルプ", exact: true }).click();
   await page.getByRole("menuitem", { name: "更新履歴", exact: true }).click();
   const history = page.getByRole("region", { name: "更新履歴", exact: true });
   await expect(
@@ -78,7 +78,7 @@ test("the versioned history opens as a page, supports direct links and returns w
     .getByRole("button", { name: "アプリに戻る", exact: true })
     .click();
   await expect(history).toHaveCount(0);
-  await page.getByRole("button", { name: "その他", exact: true }).click();
+  await page.getByRole("button", { name: "ヘルプ", exact: true }).click();
   await page.getByRole("menuitem", { name: "更新履歴", exact: true }).click();
   await page.goBack();
   await expect(history).toHaveCount(0);

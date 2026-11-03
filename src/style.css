@@ -7182,3 +7182,34 @@ html[data-host-follow="active"] .app-shell .response-field-launch {visibility:hi
 .response-workspace-rail-card .gallery-slide { pointer-events:none; }
 .response-workspace-rail-card strong { display:block; padding:6px 8px; }
 @media(max-width:700px) { .response-workspace-rail { flex-basis:115px; padding:6px; } }
+/* Keep overflowing toolbar actions discoverable without adding a second row. */
+.toolbar-scroll-shell { display:flex; min-width:0; width:100%; flex-shrink:0; background:#fff; border-bottom:1px solid #e2e8e1; }
+.toolbar-scroll-shell > .editor-toolbar,.toolbar-scroll-shell > .map-workspace-bar { flex:1 1 auto; min-width:0; border-bottom:0; }
+.toolbar-scroll-controls { display:flex; align-items:center; flex:none; gap:2px; padding:0 4px; border-left:1px solid #d9e2da; background:#f7faf7; }
+.toolbar-scroll-controls button { display:grid; place-items:center; width:32px; min-height:36px; border:1px solid #d3e0d5; border-radius:6px; color:#315d4e; background:white; cursor:pointer; }
+.toolbar-scroll-controls button:disabled { opacity:.38; cursor:default; }
+.toolbar-scroll-controls button:focus-visible { outline:2px solid #315d4e; outline-offset:-2px; }
+.back-map-short { display:none; }
+.mapping .map-workspace-bar > .response-field-launch { flex-shrink:0; white-space:nowrap; }
+@media(max-width:760px) {
+ .editing .editor-toolbar { flex-wrap:nowrap; }
+ .editing .back-map { font-size:14px; }
+ .back-map-full { display:none; }
+ .back-map-short { display:inline; }
+ .mapping .map-workspace-bar { gap:6px; }
+ .mapping .map-workspace-bar .view-tabs { gap:4px; }
+ .mapping .map-workspace-bar .view-tabs button { padding-inline:4px; font-size:12px; }
+}
+@media(pointer:coarse) {
+ .editing .editor-toolbar > button,.editing .editor-toolbar .tool-button,.editing .editor-toolbar .history button,.mapping .map-workspace-bar button { min-height:40px; }
+ .toolbar-scroll-controls button { width:40px; min-height:40px; }
+}
+@media(max-width:480px) {
+ .mapping .map-workspace-bar .map-zoom { flex-basis:auto; order:0; }
+}
+@media(max-width:760px) {
+ .mapping .view-bar.map-workspace-bar { padding-inline:4px; }
+}
+@media(max-width:760px) {
+ .mapping .view-bar.map-workspace-bar { gap:4px; }
+}

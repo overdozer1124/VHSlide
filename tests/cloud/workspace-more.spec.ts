@@ -48,11 +48,11 @@ test("guest secondary menu preserves restricted slides and exposes no host contr
       (await guest.getByLabel("作品のタイトル").boundingBox())!.y,
     ).toBeGreaterThanOrEqual(0);
     await guest.screenshot({ path: info.outputPath("guest-header-810.png") });
-    const more = guest.getByRole("button", { name: "その他", exact: true });
+    const more = guest.getByRole("button", { name: "ヘルプ", exact: true });
     await more.click();
     await expect(
       guest
-        .getByRole("menu", { name: "その他", exact: true })
+        .getByRole("menu", { name: "ヘルプ", exact: true })
         .getByRole("menuitem"),
     ).toHaveCount(2);
     await guest

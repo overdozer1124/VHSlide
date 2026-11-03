@@ -93,7 +93,7 @@ export function StructureInsert({
       <button
         ref={button}
         className="tool-button"
-        aria-label="もっと見る（図解・グラフ）"
+        aria-label="図解・グラフを追加"
         title="図解・グラフを追加"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -101,7 +101,7 @@ export function StructureInsert({
         onClick={() => setOpen(!open)}
       >
         <BarChart3 size={20} />
-        もっと見る
+        図解・グラフ
       </button>
       {open &&
         !disabled &&

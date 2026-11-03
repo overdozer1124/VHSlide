@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 const more = (p: Page) =>
-  p.getByRole("button", { name: "その他", exact: true });
-const menu = (p: Page) => p.getByRole("menu", { name: "その他", exact: true });
+  p.getByRole("button", { name: "ヘルプ", exact: true });
+const menu = (p: Page) => p.getByRole("menu", { name: "ヘルプ", exact: true });
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
@@ -11,7 +11,7 @@ test("map keeps primary actions, exposes labeled secondary actions and restores 
   const before = await page.evaluate(() =>
     localStorage.getItem("vhslide-deck-v1"),
   );
-  await expect(more(page)).toContainText("その他");
+  await expect(more(page)).toContainText("ヘルプ");
   await expect(
     page.getByRole("button", { name: "更新履歴", exact: true }),
   ).toHaveCount(0);
@@ -67,7 +67,7 @@ test("menu keyboard navigation, outside dismissal and history browser-back prese
     ),
   ).toBe(true);
   await more(page).click();
-  await page.locator(".map-summary h1").click();
+  await page.locator(".map-summary").click();
   await expect(menu(page)).toHaveCount(0);
   await more(page).click();
   await page.getByRole("menuitem", { name: "更新履歴", exact: true }).click();

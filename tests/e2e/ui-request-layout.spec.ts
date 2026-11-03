@@ -24,7 +24,7 @@ test("file/cloud are distinct, presentation is last, and the map toolbar stays o
     page.getByRole("button", { name: "作品", exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "その他", exact: true }),
+    page.getByRole("button", { name: "ヘルプ", exact: true }),
   ).toHaveCount(1);
   await expect(
     page.getByRole("button", { name: "マップのその他", exact: true }),

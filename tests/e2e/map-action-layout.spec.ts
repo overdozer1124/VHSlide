@@ -53,7 +53,7 @@ test("comparison is contextual, inherits exact selected IDs and never silently t
     page.getByRole("group", { name: "マップの表示サイズ", exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: info.outputPath("five-selected.png") });
-  await page.getByRole("button", { name: "その他", exact: true }).click();
+  await page.getByRole("button", { name: "ヘルプ", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(page.locator('[data-multi-selected="true"]')).toHaveCount(5);
   await card(page, ids[4]).click({ modifiers: ["Control"] });

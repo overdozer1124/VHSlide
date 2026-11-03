@@ -23,7 +23,7 @@ export function MapDisplaySettings({
   return (
     <Palette
       label="マップの表示設定"
-      text="表示"
+      text="マップ表示"
       heading="マップの表示"
       icon={<SlidersHorizontal size={17} />}
       disabled={false}

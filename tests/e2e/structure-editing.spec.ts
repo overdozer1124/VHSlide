@@ -220,7 +220,7 @@ test("chart data and type persist, render in presentation and print", async ({
   page,
 }) => {
   await page
-    .getByRole("button", { name: "もっと見る（図解・グラフ）", exact: true })
+    .getByRole("button", { name: "図解・グラフを追加", exact: true })
     .click();
   await page.getByRole("button", { name: "グラフ", exact: true }).click();
   await page
@@ -358,7 +358,7 @@ test("structure palette remains usable in Chromebook and narrow layouts", async 
   ]) {
     await page.setViewportSize(viewport);
     const b = page.getByRole("button", {
-      name: "もっと見る（図解・グラフ）",
+      name: "図解・グラフを追加",
       exact: true,
     });
     await b.scrollIntoViewIfNeeded();

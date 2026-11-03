@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.73.1",
+    date: "2026-11-03",
+    title: "ツールバーを使いやすく改善",
+    changes: [
+      "画面に収まらないツールバーの操作を矢印から探せるようにし、小さい画面でも１段で表示します。図解・グラフやヘルプ、表示設定の名前を分かりやすくし、タッチ操作の押しやすさを改善しました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.73.0",
     date: "2026-11-03",
     title: "複数の回答スライドを共有",

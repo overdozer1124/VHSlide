@@ -1,3 +1,4 @@
+import { ToolbarScroller } from "./ToolbarScroller";
 import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
 import { ResponseGalleryView } from "./ResponseGalleryView";
 import { AnswerProvider } from "./AnswerStore";
@@ -383,7 +384,7 @@ export default function App() {
       const target = source?.isConnected
         ? source
         : document.querySelector<HTMLElement>(
-            '.action-menu-trigger[aria-label="その他"]',
+            '.action-menu-trigger[aria-label="ヘルプ"]',
           );
       target?.focus({ preventScroll: true });
     });
@@ -1891,7 +1892,7 @@ export default function App() {
       </button>
       <span className="small-divider" />
       <ActionMenu
-        label="その他"
+        label="ヘルプ"
         showLabel
         portal
         items={[
@@ -2388,33 +2389,38 @@ export default function App() {
               />
             )}
             {view !== "editor" && (
-              <nav
-                className="view-bar map-workspace-bar"
-                aria-label="全体マップと編集の操作"
-              >
-                <div className="view-tabs">
-                  <button
-                    className={view === "map" ? "active" : ""}
-                    onClick={() => switchWorkspace("map")}
+              <ToolbarScroller label="全体マップのツールバー">
+                {(toolbarRef) => (
+                  <nav
+                    className="view-bar map-workspace-bar"
+                    aria-label="全体マップと編集の操作"
+                    ref={toolbarRef as React.RefObject<HTMLElement | null>}
                   >
-                    <LayoutGrid size={16} />
-                    全体マップ
-                  </button>
-                  <button
-                    onClick={() => {
-                      switchWorkspace("editor");
-                    }}
-                  >
-                    <Type size={16} />
-                    ページを編集
-                  </button>
-                </div>
-                <ResponseFieldLauncher
-                  disabled={cloud.viewingRevoked || cloud.recoveryOnly}
-                />
-                <div className="map-toolbar-slot" ref={setMapToolbarHost} />
-                {historyActions}
-              </nav>
+                    <div className="view-tabs">
+                      <button
+                        className={view === "map" ? "active" : ""}
+                        onClick={() => switchWorkspace("map")}
+                      >
+                        <LayoutGrid size={16} />
+                        全体マップ
+                      </button>
+                      <button
+                        onClick={() => {
+                          switchWorkspace("editor");
+                        }}
+                      >
+                        <Type size={16} />
+                        ページを編集
+                      </button>
+                    </div>
+                    <ResponseFieldLauncher
+                      disabled={cloud.viewingRevoked || cloud.recoveryOnly}
+                    />
+                    <div className="map-toolbar-slot" ref={setMapToolbarHost} />
+                    {historyActions}
+                  </nav>
+                )}
+              </ToolbarScroller>
             )}
           </>
         )}
