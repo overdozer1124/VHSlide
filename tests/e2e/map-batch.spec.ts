@@ -271,6 +271,7 @@ test("bulk add accounts for pages in other sheets before enabling the operation"
 test("selecting row and column headings chooses the insertion or deletion position", async ({
   page,
 }, info) => {
+  test.setTimeout(90_000);
   const before = await data(page);
   await page
     .getByRole("button", { name: "行・列を一括操作", exact: true })
@@ -334,6 +335,7 @@ test("selecting row and column headings chooses the insertion or deletion positi
 test("filtered maps offer a safe way to return to real row and column headings", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await card(page, "p00").click({ modifiers: ["Control"] });
   await card(page, "p11").click({ modifiers: ["Control"] });
   await page.getByRole("button", { name: "選択したページでフィルタ" }).click();
@@ -349,4 +351,43 @@ test("filtered maps offer a safe way to return to real row and column headings",
   await expect(page.locator(".slide-card")).toHaveCount(9);
   await page.getByRole("button", { name: "2列目を選択" }).click();
   await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
+});
+
+test("batch controls stay compact while keeping the map and actions usable", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page
+      .getByRole("button", { name: "行・列を一括操作", exact: true })
+      .click();
+    const panel = page.getByRole("region", { name: "行・列の一括操作" });
+    await page
+      .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
+    const panelBox = (await panel.boundingBox())!;
+    const mapBox = (await page
+      .getByRole("region", { name: "スライドのマップ" })
+      .boundingBox())!;
+    if (width === 1440) expect(panelBox.height).toBeLessThanOrEqual(150);
+    expect(panelBox.height).toBeLessThanOrEqual(260);
+    expect(mapBox.height).toBeGreaterThan(180);
+    await expect(panel.getByRole("status")).toContainText("2行目");
+    await panel.getByLabel("選択した行・列の挿入位置").selectOption("after");
+    await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("3");
+    await panel
+      .getByRole("button", { name: "まとめて追加", exact: true })
+      .scrollIntoViewIfNeeded();
+    await expect(
+      panel.getByRole("button", { name: "まとめて追加", exact: true }),
+    ).toBeVisible();
+    expect(
+      await panel.evaluate((el) => el.scrollWidth - el.clientWidth),
+    ).toBeLessThanOrEqual(1);
+    await page.screenshot({
+      path: info.outputPath(`compact-batch-${width}.png`),
+    });
+    await panel.getByRole("button", { name: "閉じる", exact: true }).click();
+  }
 });

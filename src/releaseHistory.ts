@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.74.1",
+    date: "2026-11-04",
+    title: "行・列の操作パネルをコンパクトに",
+    changes: [
+      "行・列の一括操作の説明とボタンを整理し、パネルの高さを抑えてマップを広く表示します。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.74.0",
     date: "2026-11-03",
     title: "行・列を選んで追加・削除",
