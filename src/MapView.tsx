@@ -1,7 +1,7 @@
 import { useMapSelection } from "./useMapSelection";
 import { MapBatchPanel } from "./MapBatchPanel";
 import type { BatchAxis } from "./mapBatch";
-import { axisId } from "./axes";
+import { axisId, axisIndex } from "./axes";
 import {
   useEffect,
   useId,
@@ -266,6 +266,61 @@ function MapViewComponent({
         ? "比較するページを2〜4枚選んでください。"
         : "";
   const [batchOpen, setBatchOpen] = useState(false);
+  const [batchSelection, setBatchSelection] = useState<{
+    axis: BatchAxis;
+    index: number;
+    id: string;
+    serial: number;
+  }>();
+  const [batchSelectionLost, setBatchSelectionLost] = useState(false);
+  const [batchRange, setBatchRange] = useState<{
+    axis: BatchAxis;
+    start: number;
+    count: number;
+  }>();
+  const batchContains = (axis: BatchAxis, index: number) => {
+    if (!batchSelection || batchSelection.axis !== axis) return false;
+    if (batchRange && batchRange.axis === axis)
+      return (
+        index >= batchRange.start && index < batchRange.start + batchRange.count
+      );
+    return index === batchSelection.index;
+  };
+  function selectBatchAxis(axis: BatchAxis, index: number) {
+    setBatchSelectionLost(false);
+    setBatchSelection((previous) => ({
+      axis,
+      index,
+      id: axisId(deck, sheet.id, axis, index),
+      serial: (previous?.serial ?? 0) + 1,
+    }));
+    onMove(undefined);
+  }
+  useEffect(() => {
+    if (!batchSelection) return;
+    const next = axisIndex(deck, batchSelection.axis, {
+      sheetId: sheet.id,
+      index: batchSelection.index,
+      axisId: batchSelection.id,
+    });
+    const length =
+      batchSelection.axis === "rows" ? bounds(deck).rows : bounds(deck).cols;
+    if (next === undefined || next >= length) {
+      setBatchSelection(undefined);
+      setBatchSelectionLost(true);
+    } else if (next !== batchSelection.index)
+      setBatchSelection(
+        (current) =>
+          current && { ...current, index: next, serial: current.serial + 1 },
+      );
+  }, [deck, sheet.id, batchSelection]);
+  useEffect(() => {
+    if (!headingEditable) {
+      setBatchOpen(false);
+      setBatchSelection(undefined);
+      setBatchSelectionLost(false);
+    }
+  }, [headingEditable]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -1347,6 +1402,8 @@ function MapViewComponent({
                 <button
                   className="quiet map-batch-trigger"
                   onClick={() => {
+                    setBatchSelection(undefined);
+                    setBatchSelectionLost(false);
                     setBatchOpen(true);
                     selection.close();
                     setFilterOpen(false);
@@ -1499,7 +1556,24 @@ function MapViewComponent({
             remainingPages={remainingPages}
             deck={deck}
             onApply={onBatchAxes}
-            onClose={() => setBatchOpen(false)}
+            selection={batchSelection}
+            selectionLost={batchSelectionLost}
+            onRangeChange={setBatchRange}
+            onClearSelection={() => {
+              setBatchSelection(undefined);
+              setBatchSelectionLost(false);
+            }}
+            filtered={filtered}
+            onClearFilter={() => {
+              setFilter(undefined);
+              setBatchSelection(undefined);
+              setBatchSelectionLost(false);
+            }}
+            onClose={() => {
+              setBatchOpen(false);
+              setBatchSelection(undefined);
+              setBatchSelectionLost(false);
+            }}
           />
         )}
         {selection.active && (
@@ -1731,6 +1805,26 @@ function MapViewComponent({
                         {sheet.columnLabels?.[x] ||
                           (x === 0 ? "はじまり" : `話題 ${x + 1}`)}
                       </button>
+                    ) : batchOpen ? (
+                      <button
+                        className="batch-column-select"
+                        data-batch-range={batchContains("columns", x)}
+                        aria-label={`${x + 1}列目を選択`}
+                        aria-pressed={
+                          batchSelection?.axis === "columns" &&
+                          batchSelection.index === x
+                        }
+                        disabled={x >= size.cols}
+                        onClick={() => selectBatchAxis("columns", x)}
+                      >
+                        <span className="column-num">
+                          {String(x + 1).padStart(2, "0")}
+                        </span>
+                        <span>
+                          {sheet.columnLabels?.[x] ||
+                            (x === 0 ? "はじまり" : `話題 ${x + 1}`)}
+                        </span>
+                      </button>
                     ) : (
                       <>
                         <span className="column-num">
@@ -1794,82 +1888,109 @@ function MapViewComponent({
                   data-pinch-y={y}
                   style={filtered ? { visibility: "hidden" } : undefined}
                 >
-                  <button
-                    className="row-move"
-                    draggable={!readOnly && !filterOpen}
-                    data-map-drag-source={
-                      filterOpen || readOnly ? undefined : "row"
-                    }
-                    data-x={0}
-                    data-y={y}
-                    data-map-drag-handle
-                    onDragStart={(e) => {
-                      if (filterOpen || readOnly) {
-                        e.preventDefault();
-                        return;
+                  {batchOpen && !filtered && !filterOpen ? (
+                    <button
+                      className="batch-row-select"
+                      data-batch-range={batchContains("rows", y)}
+                      aria-label={`${y + 1}行目を選択`}
+                      aria-pressed={
+                        batchSelection?.axis === "rows" &&
+                        batchSelection.index === y
                       }
-                      onMove({ mode: "row", x: 0, y });
-                    }}
-                    onDragEnd={() => {
-                      onMove(undefined);
-                      hint();
-                    }}
-                    onClick={() =>
-                      filterOpen
-                        ? setDraftFilter(
-                            toggleFilterGroup(
-                              draftFilter,
-                              deck.slides.filter((s) => s.y === y),
-                              "rows",
-                              y,
-                            ),
-                          )
-                        : onMove({ mode: "row", x: 0, y })
-                    }
-                    aria-label={
-                      filterOpen
-                        ? `フィルタする行${y + 1}`
-                        : `高さ${y + 1}のページをまとめて移動`
-                    }
-                    aria-pressed={
-                      filterOpen
-                        ? groupSelection(
-                            deck.slides.filter((s) => s.y === y),
-                            draftFilter,
-                          )
-                        : undefined
-                    }
-                    disabled={
-                      filterOpen
-                        ? !deck.slides.some((s) => s.y === y)
-                        : readOnly
-                    }
-                    title="同じ高さのページを移動"
-                  >
-                    {String(y + 1).padStart(2, "0")}
-                  </button>
-                  {!filterOpen && !numbers && (
-                    <MapHeading
-                      vertical
-                      label={`行${y + 1}の見出し`}
-                      value={
-                        sheet.rowLabels?.[y] ||
-                        (sheet.showRowAccounts
-                          ? rowAccounts?.[
-                              axisId(deck, sheet.id, "rows", y)
-                            ]?.join("・")
-                          : "") ||
-                        ""
-                      }
-                      placeholder={headingEditable ? "見出し" : ""}
-                      editable={headingEditable}
-                      onChange={(text) => {
-                        const labels = { ...sheet.rowLabels };
-                        if (text) labels[y] = text;
-                        else delete labels[y];
-                        onHeadingChange({ rowLabels: labels });
-                      }}
-                    />
+                      disabled={y >= size.rows}
+                      onClick={() => selectBatchAxis("rows", y)}
+                    >
+                      <span>{String(y + 1).padStart(2, "0")}</span>
+                      <span className="batch-row-heading">
+                        {sheet.rowLabels?.[y] ||
+                          (sheet.showRowAccounts
+                            ? rowAccounts?.[
+                                axisId(deck, sheet.id, "rows", y)
+                              ]?.join("・")
+                            : "") ||
+                          ""}
+                      </span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        className="row-move"
+                        draggable={!readOnly && !filterOpen}
+                        data-map-drag-source={
+                          filterOpen || readOnly ? undefined : "row"
+                        }
+                        data-x={0}
+                        data-y={y}
+                        data-map-drag-handle
+                        onDragStart={(e) => {
+                          if (filterOpen || readOnly) {
+                            e.preventDefault();
+                            return;
+                          }
+                          onMove({ mode: "row", x: 0, y });
+                        }}
+                        onDragEnd={() => {
+                          onMove(undefined);
+                          hint();
+                        }}
+                        onClick={() =>
+                          filterOpen
+                            ? setDraftFilter(
+                                toggleFilterGroup(
+                                  draftFilter,
+                                  deck.slides.filter((s) => s.y === y),
+                                  "rows",
+                                  y,
+                                ),
+                              )
+                            : onMove({ mode: "row", x: 0, y })
+                        }
+                        aria-label={
+                          filterOpen
+                            ? `フィルタする行${y + 1}`
+                            : `高さ${y + 1}のページをまとめて移動`
+                        }
+                        aria-pressed={
+                          filterOpen
+                            ? groupSelection(
+                                deck.slides.filter((s) => s.y === y),
+                                draftFilter,
+                              )
+                            : undefined
+                        }
+                        disabled={
+                          filterOpen
+                            ? !deck.slides.some((s) => s.y === y)
+                            : readOnly
+                        }
+                        title="同じ高さのページを移動"
+                      >
+                        {String(y + 1).padStart(2, "0")}
+                      </button>
+                      {!filterOpen && !numbers && (
+                        <MapHeading
+                          vertical
+                          label={`行${y + 1}の見出し`}
+                          value={
+                            sheet.rowLabels?.[y] ||
+                            (sheet.showRowAccounts
+                              ? rowAccounts?.[
+                                  axisId(deck, sheet.id, "rows", y)
+                                ]?.join("・")
+                              : "") ||
+                            ""
+                          }
+                          placeholder={headingEditable ? "見出し" : ""}
+                          editable={headingEditable}
+                          onChange={(text) => {
+                            const labels = { ...sheet.rowLabels };
+                            if (text) labels[y] = text;
+                            else delete labels[y];
+                            onHeadingChange({ rowLabels: labels });
+                          }}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
                 {Array.from({ length: cols }, (_, x) => {
@@ -1884,6 +2005,13 @@ function MapViewComponent({
                     <div
                       className={`grid-cell ${moving ? "drop-ready" : ""}`}
                       data-map-cell={`${x},${y}`}
+                      data-batch-selected={
+                        batchOpen &&
+                        !filtered &&
+                        !!batchSelection &&
+                        (batchContains("rows", y) ||
+                          batchContains("columns", x))
+                      }
                       data-insert-shift={
                         dropHint?.insert && dropHint.y === y && x >= dropHint.x
                       }

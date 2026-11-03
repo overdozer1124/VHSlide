@@ -51,7 +51,13 @@ test("host bulk axes synchronize and scoped participants keep their original row
       name: "行・列の一括操作",
       exact: true,
     });
-    await panel.getByLabel("一括操作の開始番号").fill("2");
+    await expect(
+      other.getByRole("button", { name: "2行目を選択", exact: true }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
+    await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
     await panel.getByLabel("一括操作の数").fill("2");
     await panel
       .getByRole("button", { name: "まとめて追加", exact: true })
@@ -98,8 +104,11 @@ test("host bulk axes synchronize and scoped participants keep their original row
     await page
       .getByRole("button", { name: "行・列を一括操作", exact: true })
       .click();
+    await page
+      .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
     await panel.getByLabel("一括操作", { exact: true }).selectOption("delete");
-    await panel.getByLabel("一括操作の開始番号").fill("2");
+    await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
     await panel.getByLabel("一括操作の数").fill("2");
     await panel
       .getByRole("button", { name: "この範囲を削除", exact: true })
@@ -120,5 +129,88 @@ test("host bulk axes synchronize and scoped participants keep their original row
     ).toBeEditable();
   } finally {
     await context.close();
+  }
+});
+
+test("a selected row keeps its identity when another host window inserts a row", async ({
+  page,
+}) => {
+  const id = await scopeFixture(page, "batch-rebase-host");
+  const second = await page.context().newPage();
+  try {
+    await second.goto(`/?room=${id}`);
+    await expect(second.locator(".cloud-presence")).toContainText(
+      "クラウドに保存済み",
+    );
+    await page
+      .getByRole("button", { name: "行・列を一括操作", exact: true })
+      .click();
+    const panel = page.getByRole("region", { name: "行・列の一括操作" });
+    await page
+      .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
+    await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
+    await second
+      .getByRole("button", { name: "行・列を一括操作", exact: true })
+      .click();
+    await second
+      .getByRole("button", { name: "1行目を選択", exact: true })
+      .click();
+    await second
+      .getByRole("button", { name: "まとめて追加", exact: true })
+      .click();
+    await expect(
+      page.locator('.slide-card[data-page-id="p01"] .page-number'),
+    ).toHaveText("3.1");
+    await expect(
+      page.getByRole("button", { name: "3行目を選択", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("3");
+    await panel.getByLabel("一括操作", { exact: true }).selectOption("delete");
+    await panel
+      .getByRole("button", { name: "この範囲を削除", exact: true })
+      .click();
+    await expect(page.locator('.slide-card[data-page-id="p01"]')).toHaveCount(
+      0,
+    );
+    await expect(page.locator('.slide-card[data-page-id="p00"]')).toHaveCount(
+      1,
+    );
+    await expect(second.locator('.slide-card[data-page-id="p01"]')).toHaveCount(
+      0,
+    );
+    await page
+      .getByRole("button", { name: "行・列を一括操作", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
+    await second
+      .getByRole("button", { name: "行・列を一括操作", exact: true })
+      .click();
+    await second
+      .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
+    const otherPanel = second.getByRole("region", { name: "行・列の一括操作" });
+    await otherPanel
+      .getByLabel("一括操作", { exact: true })
+      .selectOption("delete");
+    await otherPanel
+      .getByRole("button", { name: "この範囲を削除", exact: true })
+      .click();
+    await expect(panel.getByRole("alert")).toContainText(
+      "もう一度選んでください",
+    );
+    await expect(
+      panel.getByRole("button", { name: "まとめて追加", exact: true }),
+    ).toBeDisabled();
+    await page
+      .getByRole("button", { name: "1行目を選択", exact: true })
+      .click();
+    await expect(
+      panel.getByRole("button", { name: "まとめて追加", exact: true }),
+    ).toBeEnabled();
+  } finally {
+    await second.close();
   }
 });

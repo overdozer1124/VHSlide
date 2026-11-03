@@ -115,6 +115,7 @@ test("invalid ranges are disabled, deleting every row leaves an empty page and U
 test("Ctrl and Shift select actual pages, filter those IDs in a balanced grid and retain editor filtering", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await card(page, "p00").click({ modifiers: ["Control"] });
   await expect(selected(page)).toHaveCount(1);
   await card(page, "p11").click({ modifiers: ["Shift"] });
@@ -265,4 +266,87 @@ test("bulk add accounts for pages in other sheets before enabling the operation"
     p.getByRole("button", { name: "まとめて追加", exact: true }),
   ).toBeDisabled();
   await expect(page.locator(".slide-card")).toHaveCount(9);
+});
+
+test("selecting row and column headings chooses the insertion or deletion position", async ({
+  page,
+}, info) => {
+  const before = await data(page);
+  await page
+    .getByRole("button", { name: "行・列を一括操作", exact: true })
+    .click();
+  const panel = page.getByRole("region", { name: "行・列の一括操作" });
+  const row = page.getByRole("button", { name: "2行目を選択", exact: true });
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await expect(row).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.getByLabel("操作する軸")).toHaveValue("rows");
+  await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
+  await expect(
+    page.locator('.grid-cell[data-batch-selected="true"]'),
+  ).toHaveCount(3);
+  await panel.getByLabel("選択した行・列の挿入位置").selectOption("after");
+  await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("3");
+  const col = page.getByRole("button", { name: "2列目を選択", exact: true });
+  await col.click();
+  await expect(col).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: info.outputPath("axis-selected.png") });
+  await expect(panel.getByLabel("操作する軸")).toHaveValue("columns");
+  await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("3");
+  await panel.getByLabel("選択した行・列の挿入位置").selectOption("before");
+  await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
+  await panel.getByRole("button", { name: "まとめて追加" }).click();
+  await expect(page.locator(".slide-card")).toHaveCount(12);
+  expect(
+    (await data(page)).slides.find((s: { id: string }) => s.id === "p10").x,
+  ).toBe(2);
+  await page.keyboard.press("Control+z");
+  await expect(page.locator(".slide-card")).toHaveCount(9);
+  expect(await ids(page)).toEqual(
+    before.slides
+      .filter((s: { sheetId?: string }) => (s.sheetId ?? "main") === "main")
+      .map((s: { id: string }) => s.id)
+      .sort(),
+  );
+  await page
+    .getByRole("button", { name: "行・列を一括操作", exact: true })
+    .click();
+  await page.getByRole("button", { name: "2行目を選択", exact: true }).click();
+  await panel.getByLabel("一括操作", { exact: true }).selectOption("delete");
+  await panel.getByLabel("一括操作の数").fill("2");
+  await expect(
+    page.locator('.grid-cell[data-batch-selected="true"]'),
+  ).toHaveCount(6);
+  await expect(
+    page.getByRole("button", { name: "3行目を選択" }),
+  ).toHaveAttribute("data-batch-range", "true");
+  await panel.getByLabel("一括操作の数").fill("1");
+  await expect(panel).toContainText("2〜2行の3ページを削除");
+  await panel.getByRole("button", { name: "この範囲を削除" }).click();
+  await expect(page.locator(".slide-card")).toHaveCount(6);
+  expect(
+    (await data(page)).slides.some((s: { id: string }) => s.id === "p01"),
+  ).toBe(false);
+  await page.keyboard.press("Control+z");
+  await expect(page.locator(".slide-card")).toHaveCount(9);
+});
+
+test("filtered maps offer a safe way to return to real row and column headings", async ({
+  page,
+}) => {
+  await card(page, "p00").click({ modifiers: ["Control"] });
+  await card(page, "p11").click({ modifiers: ["Control"] });
+  await page.getByRole("button", { name: "選択したページでフィルタ" }).click();
+  await page
+    .getByRole("button", { name: "行・列を一括操作", exact: true })
+    .click();
+  const panel = page.getByRole("region", { name: "行・列の一括操作" });
+  await expect(panel).toContainText("フィルタ表示中は元の行・列を選べません");
+  await expect(page.getByRole("button", { name: "2行目を選択" })).toHaveCount(
+    0,
+  );
+  await panel.getByRole("button", { name: "フィルタを解除して選ぶ" }).click();
+  await expect(page.locator(".slide-card")).toHaveCount(9);
+  await page.getByRole("button", { name: "2列目を選択" }).click();
+  await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
 });

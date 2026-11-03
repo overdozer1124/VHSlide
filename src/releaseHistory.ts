@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.74.0",
+    date: "2026-11-03",
+    title: "行・列を選んで追加・削除",
+    changes: [
+      "行・列の一括操作でマップ上の行番号や列見出しを選び、選んだ位置の前後への追加や削除ができます。対象を強調表示し、フィルタ中は解除して元の位置を選べます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.73.1",
     date: "2026-11-03",
     title: "ツールバーを使いやすく改善",
