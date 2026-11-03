@@ -116,7 +116,7 @@ test("response fields have a visible toolbar entry and a centered accessible cre
   const sharedId = await first.getAttribute("id");
   await expect(
     first.getByRole("heading", {
-      name: "アンケート・ワークシート",
+      name: "ユーザーフォーム",
       exact: true,
     }),
   ).toBeVisible();

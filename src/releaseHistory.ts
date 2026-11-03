@@ -8,6 +8,13 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.71.5",
+    date: "2026-11-03",
+    title: "フォーム画面の名称を変更",
+    changes: ["フォームを開いた画面の見出しを『ユーザーフォーム』に変更しました。"],
+    retrospective: false,
+  },
+  {
     version: "0.71.4",
     date: "2026-11-03",
     title: "フォームを直接ドラッグして移動",

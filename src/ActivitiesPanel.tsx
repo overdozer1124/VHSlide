@@ -145,7 +145,7 @@ export function ActivitiesPanel({
           ref={modal}
         >
           <header>
-            <h2>アンケート・ワークシート</h2>
+            <h2>ユーザーフォーム</h2>
             <button
               className="button outline"
               aria-label={`${title}を閉じる`}

@@ -71,7 +71,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(page.getByRole("dialog")).toHaveCount(1);
     await expect(
       creator.getByRole("heading", {
-        name: "アンケート・ワークシート",
+        name: "ユーザーフォーム",
         exact: true,
       }),
     ).toBeVisible();
