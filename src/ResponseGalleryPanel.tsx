@@ -160,6 +160,8 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
             <div
               className="gallery-slide-picker"
               aria-label="回答を表示するスライド"
+              role="region"
+              tabIndex={0}
             >
               {candidates.map((candidate) => {
                 const sheet = sheets.find(

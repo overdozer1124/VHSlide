@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.72.1",
+    date: "2026-11-03",
+    title: "回答スライド画面のスクロールを修正",
+    changes: [
+      "回答スライドの画面を上下にスクロールして、すべてのプレビューや操作を確認できるようにしました。スライドの候補も一覧で選べます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.72.0",
     date: "2026-11-03",
     title: "回答スライドをサムネイルから選択",

@@ -267,6 +267,12 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       "通信復帰後の回答",
     );
     await expect(page.locator(".gallery-card textarea")).toBeDisabled();
+    const galleryPane = page.getByRole("tabpanel", { name: "回答スライド" });
+    const paneBox = (await galleryPane.boundingBox())!;
+    await page.mouse.move(paneBox.x + paneBox.width - 20, paneBox.y + paneBox.height / 2);
+    await page.mouse.wheel(0, 600);
+    await expect.poll(() => galleryPane.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await page.locator(".gallery-card footer").first().scrollIntoViewIfNeeded();
     expect(
       (await (await guest.request.get(`/api/decks/${id}/gallery`)).json())
         .gallery,
@@ -348,7 +354,10 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await page.getByRole("button", { name: "回答スライドを閉じる" }).click();
     await page.getByRole("button", { name: "全体マップへ" }).click();
     await page.locator(".thumbnail").first().click();
-    await page.locator(".editor-workspace .element-drag-border.border-left").first().click({ timeout: 10_000 });
+    await page
+      .locator(".editor-workspace .element-drag-border.border-left")
+      .first()
+      .click({ timeout: 10_000 });
     await appearance
       .getByRole("button", { name: "別の回答項目として複製" })
       .click({ timeout: 10_000 });

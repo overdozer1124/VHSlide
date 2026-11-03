@@ -7148,8 +7148,9 @@ html[data-host-follow="active"] .app-shell .response-field-launch {visibility:hi
 .response-field.is-movable input,.response-field.is-movable textarea,.response-field.is-movable select,.response-field.is-movable button,.response-field.is-movable label {touch-action:pan-y;}
 .slide-worksheet.is-movable .worksheet-input-label,.response-field.is-movable .worksheet-input-label {touch-action:none;cursor:move;}
 
-.gallery-slide-picker { display:flex; gap:12px; overflow:auto; padding:4px 4px 12px; max-width:100%; }
-.gallery-slide-choice { flex:0 0 210px; padding:8px; border:1px solid #cbd9cf; border-radius:10px; background:#fff; color:#173d38; text-align:left; cursor:pointer; }
+.activity-gallery-content { overflow-y:auto; overscroll-behavior:contain; }
+.gallery-slide-picker { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; overflow-y:auto; max-height:300px; padding:4px 4px 12px; max-width:100%; overscroll-behavior:contain; }
+.gallery-slide-choice { min-width:0; padding:8px; border:1px solid #cbd9cf; border-radius:10px; background:#fff; color:#173d38; text-align:left; cursor:pointer; }
 .gallery-slide-choice[aria-pressed="true"] { border-color:#365d50; box-shadow:0 0 0 2px #365d50; background:#edf4ee; }
 .gallery-slide-choice:focus-visible { outline:3px solid #5b8f78; outline-offset:2px; }
 .gallery-slide-choice:disabled { cursor:wait; opacity:.65; }

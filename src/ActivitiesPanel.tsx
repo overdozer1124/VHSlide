@@ -224,7 +224,7 @@ export function ActivitiesPanel({
             {fields}
           </div>
           <div
-            className="activity-content"
+            className="activity-content activity-gallery-content"
             role="tabpanel"
             id={`${id}-gallery-pane`}
             aria-labelledby={`${id}-gallery-tab`}
