@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.73.0",
+    date: "2026-11-03",
+    title: "複数の回答スライドを共有",
+    changes: [
+      "複数のスライドの回答を個別に共有・停止できます。参加者は共有されたスライドを選び、倍率を変えられる一覧と閲覧専用画面で回答を確認できます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.72.1",
     date: "2026-11-03",
     title: "回答スライド画面のスクロールを修正",

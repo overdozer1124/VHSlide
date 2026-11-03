@@ -1,4 +1,5 @@
 import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
+import { ResponseGalleryView } from "./ResponseGalleryView";
 import { AnswerProvider } from "./AnswerStore";
 import { linkSurveyResult, snapshotSurveyResults } from "./surveyResults";
 import { ActivitiesPanel, ActivityPanelProvider } from "./ActivitiesPanel";
@@ -143,6 +144,7 @@ function initial(): { deck: Deck; error?: string } {
 }
 export default function App() {
   const [boot] = useState(initial);
+  const [responseGalleryOpen, setResponseGalleryOpen] = useState(false);
   const [cloud] = useState(() => new CloudWorkspace());
   const [surveyData, setSurveyData] = useState<SurveySlideData>({
     surveys: [],
@@ -2896,6 +2898,21 @@ export default function App() {
           </div>
         )}
       </div>
+      {responseGalleryOpen && (
+        <ResponseGalleryView
+          key={cloud.active?.id}
+          onClose={() => {
+            setResponseGalleryOpen(false);
+            requestAnimationFrame(() =>
+              document
+                .querySelector<HTMLButtonElement>(
+                  ".response-field-launch:not(:disabled)",
+                )
+                ?.focus(),
+            );
+          }}
+        />
+      )}
       <ActivitiesPanel
         fields={
           <ResponseFieldCreator
@@ -2909,7 +2926,14 @@ export default function App() {
             }}
           />
         }
-        gallery={<ResponseGalleryPanel deck={workbook} />}
+        gallery={
+          <ResponseGalleryPanel
+            deck={workbook}
+            onOpenGallery={() =>
+              requestAnimationFrame(() => setResponseGalleryOpen(true))
+            }
+          />
+        }
         key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
         worksheet={
           <WorksheetPanel

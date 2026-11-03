@@ -7,7 +7,13 @@ import { sheetList } from "./workbook";
 import { Canvas } from "./Canvas";
 import { api } from "./cloud";
 import type { GalleryCard, ResponseGallery } from "./responseGallery";
-function Card({ card, slide }: { card: GalleryCard; slide: Slide }) {
+export function ResponseGalleryCard({
+  card,
+  slide,
+}: {
+  card: GalleryCard;
+  slide: Slide;
+}) {
   const ctx = useWorksheets(),
     survey = useContext(SurveySlideContext);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,12 +39,19 @@ function Card({ card, slide }: { card: GalleryCard; slide: Slide }) {
     </WorksheetContext.Provider>
   );
 }
-export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
+export function ResponseGalleryPanel({
+  deck,
+  onOpenGallery,
+}: {
+  deck: Deck;
+  onOpenGallery: () => void;
+}) {
   const activity = useActivityPanel(),
     ctx = useWorksheets();
   const active = activity.open && activity.active === "gallery";
   const [preview, setPreview] = useState<ResponseGallery | null>(null),
     [published, setPublished] = useState<ResponseGallery | null>(null),
+    [publishedList, setPublishedList] = useState<ResponseGallery[]>([]),
     [error, setError] = useState(""),
     [names, setNames] = useState(false),
     [live, setLive] = useState(false),
@@ -60,14 +73,21 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
     async function tick() {
       const version = generation.current;
       try {
-        const data = await api<{ gallery: ResponseGallery | null }>(endpoint);
+        const data = await api<{
+          gallery: ResponseGallery | null;
+          galleries?: ResponseGallery[];
+        }>(endpoint);
         if (!stopped && version === generation.current) {
           setPublished(data.gallery);
+          setPublishedList(
+            data.galleries ?? (data.gallery ? [data.gallery] : []),
+          );
           setError("");
         }
       } catch (e) {
         if (!stopped && version === generation.current) {
           setPublished(null);
+          setPublishedList([]);
           setError((e as Error).message);
         }
       }
@@ -114,23 +134,30 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
     setError("");
     const version = ++generation.current;
     try {
-      const data = await api<{ gallery: ResponseGallery | null }>(
-        `${endpoint}/${command}`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            slide: target,
-            participants: command === "preview" || all ? null : selected,
-            names,
-            live,
-          }),
-        },
-      );
+      const data = await api<{
+        gallery: ResponseGallery | null;
+        galleries?: ResponseGallery[];
+      }>(`${endpoint}/${command}`, {
+        method: "POST",
+        body: JSON.stringify({
+          slide: target,
+          ...(command === "publish" ? { append: true } : {}),
+          ...(command === "stop" && target ? { slideId: target.id } : {}),
+          participants: command === "preview" || all ? null : selected,
+          names,
+          live,
+        }),
+      });
       if (version !== generation.current) return;
       if (command === "preview") {
         setPreview(data.gallery);
         setCompare([]);
-      } else setPublished(data.gallery);
+      } else {
+        setPublished(data.galleries?.[0] ?? data.gallery);
+        setPublishedList(
+          data.galleries ?? (data.gallery ? [data.gallery] : []),
+        );
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -138,7 +165,7 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
     }
   }
   if (!active) return null;
-  const gallery = ctx.host ? preview : published;
+  const gallery = ctx.host ? preview : null;
   const cards = gallery?.cards ?? [];
   const displayed =
     compareOnly && compare.length
@@ -154,7 +181,7 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
       {ctx.host ? (
         <>
           <p>
-            フォームがあるスライドを選ぶと、各参加者の保存した回答をプレビューできます。プレビューはホストだけに見えます。
+            フォームがあるスライドを選ぶと、各参加者の保存した回答をプレビューできます。プレビューはホストだけに見えます。スライドは１枚ずつ共有に追加でき、最大50枚まで共有できます。
           </p>
           {candidates.length ? (
             <div
@@ -230,15 +257,49 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
               disabled={busy || !published}
               onClick={() => void action("stop")}
             >
-              共有を停止
+              すべての共有を停止
             </button>
           </div>
           <p role="status">
-            {published
-              ? `共有中：${published.cards.length}人・${published.names ? "氏名あり" : "匿名"}・${published.live ? "自動更新" : "共有時点の回答"}`
+            {publishedList.length
+              ? `共有中：${publishedList.length}枚`
               : "現在、参加者には公開していません。"}{" "}
             メールアドレスは共有されません。
           </p>
+          {publishedList.length > 0 && (
+            <button
+              className="button outline"
+              onClick={() => {
+                activity.close();
+                onOpenGallery();
+              }}
+            >
+              共有された回答を開く
+            </button>
+          )}
+          {publishedList.length > 0 && (
+            <div
+              className="gallery-published-list"
+              aria-label="共有中のスライド"
+            >
+              {publishedList.map((item) => (
+                <div key={item.slide.id}>
+                  <span>
+                    {item.slide.title || "無題"}（{item.cards.length}人・
+                    {item.names ? "氏名あり" : "匿名"}・
+                    {item.live ? "自動更新" : "共有時点の回答"}）
+                  </span>
+                  <button
+                    className="button outline"
+                    disabled={busy}
+                    onClick={() => void action("stop", item.slide)}
+                  >
+                    このスライドの共有を停止
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {preview && (
             <p>
               選択したスライドのプレビュー：{preview.cards.length}
@@ -247,11 +308,23 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
           )}
         </>
       ) : (
-        <p>
-          {published
-            ? `${published.names ? "氏名あり" : "匿名"}で共有中です。${published.live ? "保存された回答を自動更新します。" : "共有時点の回答を表示します。"}`
-            : "ホストが共有すると、ここに回答スライドが表示されます。"}
-        </p>
+        <div>
+          <p>
+            {publishedList.length
+              ? `${publishedList.length}枚の回答スライドが共有されています。`
+              : "ホストが共有すると、ここから回答スライドを閲覧できます。"}
+          </p>
+          <button
+            className="button primary"
+            disabled={!publishedList.length}
+            onClick={() => {
+              activity.close();
+              onOpenGallery();
+            }}
+          >
+            共有された回答を開く
+          </button>
+        </div>
       )}
       {error && <p role="alert">{error}</p>}
       {gallery && (
@@ -296,7 +369,7 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
                   {ctx.host && card.email && <small>{card.email}</small>}
                   <button onClick={() => setEnlarged(card.id)}>拡大</button>
                 </header>
-                <Card card={card} slide={gallery.slide} />
+                <ResponseGalleryCard card={card} slide={gallery.slide} />
                 <footer>
                   {ctx.host && !all && (
                     <label>
@@ -380,7 +453,7 @@ export function ResponseGalleryPanel({ deck }: { deck: Deck }) {
             拡大表示を閉じる
           </button>
           <h3>{large.name}</h3>
-          <Card card={large} slide={gallery.slide} />
+          <ResponseGalleryCard card={large} slide={gallery.slide} />
         </div>
       )}
     </section>

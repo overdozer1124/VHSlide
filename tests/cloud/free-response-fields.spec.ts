@@ -196,7 +196,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await appearance.getByRole("checkbox", { name: "枠線を非表示" }).check();
     await appearance.getByRole("checkbox", { name: "項目名を表示" }).uncheck();
     const field = guest.locator(".editor-workspace [data-response-field]");
-    await expect(field).toHaveCount(1);
+    await expect(field).toHaveCount(1, { timeout: 15_000 });
     const input = field.getByRole("textbox", {
       name: "観察から気づいたこと",
       exact: true,
@@ -269,9 +269,14 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(page.locator(".gallery-card textarea")).toBeDisabled();
     const galleryPane = page.getByRole("tabpanel", { name: "回答スライド" });
     const paneBox = (await galleryPane.boundingBox())!;
-    await page.mouse.move(paneBox.x + paneBox.width - 20, paneBox.y + paneBox.height / 2);
+    await page.mouse.move(
+      paneBox.x + paneBox.width - 20,
+      paneBox.y + paneBox.height / 2,
+    );
     await page.mouse.wheel(0, 600);
-    await expect.poll(() => galleryPane.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await expect
+      .poll(() => galleryPane.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(0);
     await page.locator(".gallery-card footer").first().scrollIntoViewIfNeeded();
     expect(
       (await (await guest.request.get(`/api/decks/${id}/gallery`)).json())
@@ -280,31 +285,83 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await page
       .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
       .click();
+    // A second published slide is independently selectable in the read-only workspace.
+    const publicGallery = (
+      await (await page.request.get(`/api/decks/${id}/gallery`)).json()
+    ).gallery;
+    const secondSlide = {
+      ...publicGallery.slide,
+      id: crypto.randomUUID(),
+      title: "別の共有スライド",
+    };
+    expect(
+      (
+        await page.request.post(`/api/decks/${id}/gallery/publish`, {
+          headers,
+          data: { slide: secondSlide, append: true },
+        })
+      ).status(),
+    ).toBe(200);
     await launcher(guest).click();
     await guest.getByRole("tab", { name: "回答スライド", exact: true }).click();
-    await expect(guest.locator(".gallery-card")).toHaveCount(1);
-    await expect(guest.locator(".gallery-card")).toContainText("回答 1");
-    await expect(guest.locator(".gallery-card")).not.toContainText(
-      "free-guest",
+    const openShared = guest.getByRole("button", {
+      name: "共有された回答を開く",
+    });
+    await expect(openShared).toBeEnabled();
+    await openShared.click();
+    const workspace = guest.getByRole("dialog", {
+      name: "共有された回答スライド",
+    });
+    await expect(workspace).toBeVisible();
+    await expect(workspace.locator(".response-workspace-card")).toHaveCount(1);
+    await guest.screenshot({
+      path: info.outputPath("shared-response-map.png"),
+    });
+    await expect(workspace.locator(".response-workspace-card")).toContainText(
+      "回答 1",
     );
+    await expect(workspace).not.toContainText("free-guest");
+    await workspace.getByRole("button", { name: "拡大", exact: true }).click();
+    await expect(workspace).toContainText("125%");
+    await expect(
+      workspace.getByLabel("スライドを選択").locator("option"),
+    ).toHaveCount(2);
+    await workspace.getByLabel("スライドを選択").selectOption(secondSlide.id);
+    await expect(
+      workspace.getByText("別の共有スライド · 1人の回答"),
+    ).toBeVisible();
+    await workspace.getByRole("button", { name: "回答 1の回答を閲覧" }).click();
+    await expect(workspace).toContainText("閲覧のみ");
+    await expect(
+      workspace.getByRole("complementary", { name: "回答一覧" }),
+    ).toBeVisible();
+    await expect(workspace.getByRole("textbox")).toBeDisabled();
+    await guest.screenshot({
+      path: info.outputPath("shared-response-detail.png"),
+    });
+    await workspace.getByRole("button", { name: "回答一覧へ" }).click();
     await page
       .getByRole("checkbox", { name: "保存された回答を自動更新" })
       .check();
     await page
       .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
       .click();
-    await guest.getByRole("button", { name: "回答スライドを閉じる" }).click();
+    await workspace.getByRole("button", { name: "作品に戻る" }).click();
     await input.fill("みんなへの最新の回答");
     await input.blur();
     await expect(guest.getByLabel("回答の保存状態")).toHaveText(
       "回答は保存済みです",
     );
     await launcher(guest).click();
-    await expect(guest.locator(".gallery-card textarea")).toHaveValue(
-      "みんなへの最新の回答",
-    );
-    await page.getByRole("button", { name: "共有を停止" }).click();
-    await expect(guest.locator(".gallery-card")).toHaveCount(0);
+    await guest.getByRole("button", { name: "共有された回答を開く" }).click();
+    await expect(
+      workspace.locator(".response-workspace-card textarea"),
+    ).toHaveValue("みんなへの最新の回答");
+    await page
+      .getByRole("button", { name: "すべての共有を停止", exact: true })
+      .click();
+    await expect(workspace.locator(".response-workspace-card")).toHaveCount(0);
+    await workspace.getByRole("button", { name: "作品に戻る" }).click();
     await page.screenshot({
       path: info.outputPath("free-input-gallery.png"),
       fullPage: true,

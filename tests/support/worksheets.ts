@@ -217,6 +217,62 @@ export async function exerciseWorksheets(
   const snapshot = await galleryCall("", guest);
   assert.equal(snapshot.cards.length, 1);
   assert.equal(snapshot.cards[0].name, "回答 1");
+  // A second slide can be published independently; guest reads stay anonymous.
+  const secondSlide = structuredClone(slide);
+  secondSlide.id = crypto.randomUUID();
+  secondSlide.title = "別の回答スライド";
+  const addSecond = await call(
+    galleryPath + "/publish",
+    "POST",
+    { slide: secondSlide, append: true, live: true },
+    owner,
+  );
+  assert.equal(addSecond.status, 200);
+  let shared = await (await call(galleryPath, "GET", undefined, guest)).json();
+  assert.equal(shared.galleries.length, 2);
+  assert.ok(!JSON.stringify(shared).includes(identity.email));
+  assert.ok(!JSON.stringify(shared).includes(identity.id));
+  await post(
+    `/${sheet.id}/answer`,
+    { patch: true, values: { reason: "複数共有中の更新" } },
+    guest,
+  );
+  shared = await (await call(galleryPath, "GET", undefined, guest)).json();
+  assert.equal(
+    shared.galleries[0].cards[0].worksheets[0].own.values.reason,
+    "自動保存した理由",
+  );
+  assert.ok(
+    shared.galleries[1].cards.some(
+      (card: any) =>
+        card.worksheets[0].own?.values.reason === "複数共有中の更新",
+    ),
+  );
+  await post(
+    `/${sheet.id}/answer`,
+    { patch: true, values: { reason: "自動保存した理由" } },
+    guest,
+  );
+  const forbiddenStop = await call(
+    galleryPath + "/stop",
+    "POST",
+    { slideId: slide.id },
+    guest,
+  );
+  assert.equal(forbiddenStop.status, 403);
+  await restart();
+  shared = await (await call(galleryPath, "GET", undefined, guest)).json();
+  assert.equal(shared.galleries.length, 2);
+  const stopSecond = await call(
+    galleryPath + "/stop",
+    "POST",
+    { slideId: secondSlide.id },
+    owner,
+  );
+  assert.equal(stopSecond.status, 200);
+  shared = await (await call(galleryPath, "GET", undefined, guest)).json();
+  assert.equal(shared.galleries.length, 1);
+  assert.equal(shared.galleries[0].slide.id, slide.id);
   const serialized = JSON.stringify(snapshot);
   assert.ok(!serialized.includes(identity.email));
   assert.ok(!serialized.includes(identity.id));

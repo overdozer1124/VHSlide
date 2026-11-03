@@ -156,34 +156,71 @@ export function galleryCommand(
   host: boolean,
   action: string,
   value: Record<string, unknown>,
-): { gallery: ResponseGallery | null } {
+): { gallery: ResponseGallery | null; galleries?: ResponseGallery[] } {
   sql(
     "CREATE TABLE IF NOT EXISTS response_gallery(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE,slide TEXT NOT NULL,config TEXT NOT NULL,snapshot TEXT NOT NULL)",
   );
-  if (action === "read") {
-    const row = [
-      ...sql("SELECT * FROM response_gallery WHERE deck=?", deck),
-    ][0];
-    if (!row) return { gallery: null };
-    const config = JSON.parse(row.config) as Config;
-    if (!config.live) return { gallery: JSON.parse(row.snapshot) };
-    config.aliases ??= {};
-    const gallery = galleryBuild(
-      sql,
+  const row = [...sql("SELECT * FROM response_gallery WHERE deck=?", deck)][0];
+  const stored = (): {
+    slides: Slide[];
+    configs: Config[];
+    snapshots: ResponseGallery[];
+  } => {
+    if (!row) return { slides: [], configs: [], snapshots: [] };
+    const slides = JSON.parse(row.slide),
+      configs = JSON.parse(row.config),
+      snapshots = JSON.parse(row.snapshot);
+    return {
+      slides: Array.isArray(slides) ? slides : [slides],
+      configs: Array.isArray(configs) ? configs : [configs],
+      snapshots: Array.isArray(snapshots) ? snapshots : [snapshots],
+    };
+  };
+  const save = (data: ReturnType<typeof stored>) => {
+    if (!data.slides.length) {
+      sql("DELETE FROM response_gallery WHERE deck=?", deck);
+      return;
+    }
+    sql(
+      "INSERT INTO response_gallery VALUES(?,?,?,?) ON CONFLICT(deck) DO UPDATE SET slide=excluded.slide,config=excluded.config,snapshot=excluded.snapshot",
       deck,
-      actor,
-      JSON.parse(row.slide),
-      config,
+      JSON.stringify(data.slides),
+      JSON.stringify(data.configs),
+      JSON.stringify(data.snapshots),
     );
-    const encoded = JSON.stringify(config);
-    if (encoded !== row.config)
-      sql("UPDATE response_gallery SET config=? WHERE deck=?", encoded, deck);
-    return { gallery };
+  };
+  if (action === "read") {
+    const data = stored();
+    const galleries = data.slides.map((slide, index) => {
+      const config = data.configs[index];
+      if (!config.live) return data.snapshots[index];
+      config.aliases ??= {};
+      return galleryBuild(sql, deck, actor, slide, config);
+    });
+    if (row && data.configs.some((config) => config.live)) {
+      const encoded = JSON.stringify(
+        Array.isArray(JSON.parse(row.config)) ? data.configs : data.configs[0],
+      );
+      if (encoded !== row.config)
+        sql("UPDATE response_gallery SET config=? WHERE deck=?", encoded, deck);
+    }
+    return { gallery: galleries[0] ?? null, galleries };
   }
   check(host, 403, "共有を操作できるのはホストだけです。");
   if (action === "stop") {
-    sql("DELETE FROM response_gallery WHERE deck=?", deck);
-    return { gallery: null };
+    if (typeof value?.slideId !== "string") {
+      sql("DELETE FROM response_gallery WHERE deck=?", deck);
+      return { gallery: null, galleries: [] };
+    }
+    const data = stored();
+    const index = data.slides.findIndex((slide) => slide.id === value.slideId);
+    if (index >= 0) {
+      data.slides.splice(index, 1);
+      data.configs.splice(index, 1);
+      data.snapshots.splice(index, 1);
+      save(data);
+    }
+    return { gallery: data.snapshots[0] ?? null, galleries: data.snapshots };
   }
   check(
     action === "preview" || action === "publish",
@@ -248,14 +285,20 @@ export function galleryCommand(
   );
   if (action === "publish") {
     const snapshot = galleryBuild(sql, deck, actor, slide, config);
-    sql(
-      "INSERT INTO response_gallery VALUES(?,?,?,?) ON CONFLICT(deck) DO UPDATE SET slide=excluded.slide,config=excluded.config,snapshot=excluded.snapshot",
-      deck,
-      JSON.stringify(slide),
-      JSON.stringify(config),
-      JSON.stringify(snapshot),
-    );
-    return { gallery: snapshot };
+    const data =
+      value.append === true
+        ? stored()
+        : { slides: [], configs: [], snapshots: [] };
+    let index = data.slides.findIndex((existing) => existing.id === slide.id);
+    if (index < 0) {
+      check(data.slides.length < 50, 400, "共有できるスライドは50枚までです。");
+      index = data.slides.length;
+    }
+    data.slides[index] = slide;
+    data.configs[index] = config;
+    data.snapshots[index] = snapshot;
+    save(data);
+    return { gallery: snapshot, galleries: data.snapshots };
   }
   return { gallery };
 }
