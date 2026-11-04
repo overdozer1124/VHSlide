@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.83.1",
+    date: "2026-11-04",
+    title: "フォームの通信を最適化",
+    changes: [
+      "表示中のフォームや集計は自動更新を維持しながら、使用していない画面や非表示のタブでの通信を減らしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.83.0",
     date: "2026-11-04",
     title: "ユーザーフォームの入力画面をレイアウト",

@@ -2194,11 +2194,23 @@ export default function App() {
         )}
       </CloudDocument.Provider>
     );
+  const formFollowTarget =
+    followLocked && cloud.follow.active ? cloud.follow.target : undefined;
+  const displayedFormSlide = formFollowTarget
+    ? formFollowTarget.mode === "map"
+      ? undefined
+      : workbook.slides.find((page) => page.id === formFollowTarget.pageId)
+    : view === "map"
+      ? undefined
+      : slide;
   const worksheetProps = {
     deckId: cloud.active?.id,
     userId: cloud.user?.id,
     host: cloud.isHost,
     blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+    pollActive: !!displayedFormSlide?.elements.some(
+      (e) => e.worksheet || e.responseField?.source === "worksheet",
+    ),
     presenting: view === "present" || (!cloud.isHost && cloud.follow.active),
     onEmbed: (worksheet: import("./worksheets").WorksheetView) => {
       if (!cloud.active || !cloud.isHost || worksheet.status === "draft")
@@ -3219,14 +3231,12 @@ export default function App() {
             onData={setSurveyData}
             refreshToken={surveyRefresh}
             pollActive={
-              workbook.slides.some((s) =>
-                s.elements.some((e) => e.surveyResult),
-              ) ||
-              (view !== "map" &&
-                slide.elements.some(
-                  (e) => e.survey || e.responseField?.source === "survey",
-                )) ||
-              followLocked
+              !!displayedFormSlide?.elements.some(
+                (e) =>
+                  e.survey ||
+                  e.surveyResult ||
+                  e.responseField?.source === "survey",
+              )
             }
             onEmbed={(survey) => {
               if (!cloud.active || !cloud.isHost || survey.status === "draft")

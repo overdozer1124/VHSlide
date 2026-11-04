@@ -6,6 +6,7 @@ import type { Deck, Slide } from "./model";
 import { sheetList } from "./workbook";
 import { Canvas } from "./Canvas";
 import { api } from "./cloud";
+import { usePageVisible } from "./usePageVisible";
 import type { GalleryCard, ResponseGallery } from "./responseGallery";
 export function ResponseGalleryCard({
   card,
@@ -49,6 +50,7 @@ export function ResponseGalleryPanel({
   const activity = useActivityPanel(),
     ctx = useWorksheets();
   const active = activity.open && activity.active === "gallery";
+  const pageVisible = usePageVisible();
   const [preview, setPreview] = useState<ResponseGallery | null>(null),
     [published, setPublished] = useState<ResponseGallery | null>(null),
     [publishedList, setPublishedList] = useState<ResponseGallery[]>([]),
@@ -67,7 +69,7 @@ export function ResponseGalleryPanel({
   const [compareOnly, setCompareOnly] = useState(false);
   const endpoint = `/api/decks/${ctx.deckId}/gallery`;
   useEffect(() => {
-    if (!active || !ctx.enabled) return;
+    if (!active || !ctx.enabled || !pageVisible) return;
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
     async function tick() {
@@ -98,7 +100,7 @@ export function ResponseGalleryPanel({
       stopped = true;
       clearTimeout(timer);
     };
-  }, [active, ctx.enabled, endpoint]);
+  }, [active, ctx.enabled, endpoint, pageVisible]);
   const sheets = sheetList(deck);
   const candidates = deck.slides
     .filter((slide) =>

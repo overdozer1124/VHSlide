@@ -9,6 +9,7 @@ import {
 import type { SurveySlideData } from "./SurveySlideContext";
 import { useEffect, useRef, useState } from "react";
 import { api } from "./cloud";
+import { usePageVisible } from "./usePageVisible";
 import type { SurveyKind, SurveyView } from "./surveys";
 import type { FormDraft, SurveyDefinition } from "./formEditing";
 
@@ -41,6 +42,7 @@ export function SurveyPanel({
   const answers = useAnswers();
   const activity = useActivityPanel();
   const open = activity.open && activity.active === "survey";
+  const visible = usePageVisible();
   const close = activity.close;
   const activityEpoch = useRef(0);
   useEffect(() => {
@@ -83,7 +85,7 @@ export function SurveyPanel({
     setMessage("");
   }, [scope]);
   useEffect(() => {
-    if (!deckId || blocked) return;
+    if (!deckId || blocked || !visible) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
@@ -113,7 +115,7 @@ export function SurveyPanel({
         if (!stopped)
           timer = setTimeout(
             () => void refresh(),
-            open || pollActive ? 3000 : 12000,
+            open || pollActive ? 3000 : 30000,
           );
       }
     }
@@ -122,7 +124,7 @@ export function SurveyPanel({
       stopped = true;
       clearTimeout(timer);
     };
-  }, [deckId, scope, open, blocked, refreshToken, pollActive]);
+  }, [deckId, scope, open, blocked, refreshToken, pollActive, visible]);
   useEffect(() => {
     if (answers.saved?.kind === "survey") {
       ++refreshVersion.current;

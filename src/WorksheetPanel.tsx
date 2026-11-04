@@ -15,6 +15,7 @@ import type {
 import { worksheetCsv } from "./worksheetCsv";
 import { WorksheetResults } from "./WorksheetResults";
 import { api } from "./cloud";
+import { usePageVisible } from "./usePageVisible";
 import { parseWorksheet } from "./worksheets";
 import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
@@ -29,6 +30,7 @@ export function WorksheetPanel({
   const ctx = useWorksheets();
   const activity = useActivityPanel();
   const open = activity.open && activity.active === "worksheet";
+  const visible = usePageVisible();
   const connectionError = ctx.error;
   const close = activity.close;
   const [creating, setCreating] = useState(false);
@@ -65,11 +67,15 @@ export function WorksheetPanel({
     };
   }, []);
   useEffect(() => {
-    if (open && ctx.enabled)
+    if (!open || !ctx.enabled || !visible) return;
+    const refresh = () =>
       void ctx.refresh().catch((e) => {
         if (alive.current) setError((e as Error).message);
       });
-  }, [open, ctx.enabled]);
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => clearInterval(timer);
+  }, [open, ctx.enabled, visible]);
   useEffect(() => {
     if (open && (error || connectionError || message))
       feedback.current?.scrollIntoView({ block: "nearest" });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "./cloud";
+import { usePageVisible } from "./usePageVisible";
 import { useWorksheets } from "./WorksheetContext";
 import { ResponseGalleryCard } from "./ResponseGalleryPanel";
 import type { ResponseGallery } from "./responseGallery";
@@ -8,6 +9,7 @@ import type { ResponseGallery } from "./responseGallery";
 /** A read-only workspace for the publicly shared response cards. */
 export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
   const { deckId, enabled } = useWorksheets();
+  const pageVisible = usePageVisible();
   const [galleries, setGalleries] = useState<ResponseGallery[]>([]);
   const [selected, setSelected] = useState("");
   const [cardId, setCardId] = useState<string>();
@@ -21,6 +23,7 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
       setCardId(undefined);
       return;
     }
+    if (!pageVisible) return;
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
@@ -52,7 +55,7 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [deckId, enabled]);
+  }, [deckId, enabled, pageVisible]);
   const gallery = galleries.find((g) => g.slide.id === selected);
   const cards = gallery?.cards ?? [];
   const active = cards.find((card) => card.id === cardId);
