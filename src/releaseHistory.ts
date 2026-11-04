@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.84.1",
+    date: "2026-11-04",
+    title: "PPTX読み込みの写真が共有作品で保存できない問題を修正",
+    changes: [
+      "「PPTXを1行として読み込む」で共有中の作品へ取り込むとき、PPTX内の写真をその作品の写真として登録してから取り込むようにしました。これまでは写真が埋め込みのまま取り込まれ、共有の保存が「この作品の写真を使ってください」と表示されて止まることがありました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.84.0",
     date: "2026-11-04",
     title: "PPTXを1行として読み込み",

@@ -21,7 +21,7 @@ import type { SurveySlideData } from "./SurveySlideContext";
 import { parseSurveyBinding } from "./surveyBinding";
 import { SurveyPanel } from "./SurveyPanel";
 import { insertSurveyResults } from "./surveySlides";
-import { importPptx } from "./pptx";
+import { importPptx, dataUrlToFile } from "./pptx";
 import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget } from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
@@ -1699,6 +1699,36 @@ export default function App() {
       notify(error instanceof Error ? error.message : "読み込めませんでした。");
     }
   }
+  async function uploadEmbeddedImages(
+    slides: Slide[],
+    roomId: string,
+  ): Promise<Slide[]> {
+    const cache = new Map<string, string>();
+    const result: Slide[] = [];
+    let count = 0;
+    for (const s of slides) {
+      const elements: Element[] = [];
+      for (const e of s.elements) {
+        if (e.type !== "image" || !e.src?.startsWith("data:")) {
+          elements.push(e);
+          continue;
+        }
+        const known = cache.get(e.src);
+        if (known) {
+          elements.push({ ...e, src: known });
+          continue;
+        }
+        const file = dataUrlToFile(e.src, `pptx-image-${++count}`);
+        if (!file)
+          throw new Error("PPTX内の画像を写真として登録できませんでした。");
+        const src = await cloud.upload(file, roomId);
+        cache.set(e.src, src);
+        elements.push({ ...e, src: src });
+      }
+      result.push({ ...s, elements });
+    }
+    return result;
+  }
   async function openPptxAsRow(file?: File) {
     if (!file) return;
     if (!cloud.isHost) {
@@ -1709,11 +1739,19 @@ export default function App() {
       if (!/\.pptx$/i.test(file.name))
         throw new Error("PPTXファイルを選んでください。");
       const imported = await importPptx(file);
+      const roomId = cloud.active?.id;
+      const slides = roomId
+        ? await uploadEmbeddedImages(imported.slides, roomId)
+        : imported.slides;
+      if (roomId && cloud.active?.id !== roomId)
+        throw new Error(
+          "読み込み中に作品が切り替わりました。もう一度お試しください。",
+        );
       const current = latestWorkbook.current;
       const sheet = activeSheet(current);
       const next = appendSlidesAsRow(
         current,
-        imported.slides,
+        slides,
         sheet.id,
         file.name.replace(/\.pptx$/i, ""),
       );
