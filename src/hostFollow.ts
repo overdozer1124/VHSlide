@@ -17,6 +17,7 @@ export type FollowState =
       updatedAt: number;
       expiresAt: number;
       target: FollowTarget;
+      pinned?: boolean;
     };
 export const idleFollow = (revision = 0): FollowState => ({
   active: false,
@@ -82,7 +83,7 @@ export function transitionFollow(
     typeof v.id !== "string" ||
     !v.id ||
     v.id.length > 80 ||
-    !["start", "move", "stop", "heartbeat"].includes(v.action)
+    !["start", "move", "stop", "heartbeat", "pin", "resume"].includes(v.action)
   )
     throw new FollowError(400, "追従の通信形式が正しくありません。");
   if (v.action === "start") {
@@ -111,13 +112,25 @@ export function transitionFollow(
   if (v.action === "stop") return idleFollow(current.revision + 1);
   if (actor.connection !== current.controller)
     throw new FollowError(409, "追従を開始した画面から操作してください。");
+  if (v.action === "pin" && current.target.mode !== "page")
+    throw new FollowError(400, "固定するスライドを表示してください。");
   return {
     ...current,
     revision: current.revision + 1,
     updatedAt: now,
     expiresAt: now + FOLLOW_LEASE_MS,
+    pinned:
+      v.action === "pin"
+        ? true
+        : v.action === "resume"
+          ? false
+          : current.pinned,
     target:
-      v.action === "heartbeat" ? current.target : followTarget(v.target, book),
+      v.action === "resume"
+        ? followTarget(v.target, book)
+        : v.action === "move" && !current.pinned
+          ? followTarget(v.target, book)
+          : current.target,
   };
 }
 export function publicFollow(state: FollowState) {
@@ -147,6 +160,7 @@ export function isPublicFollowState(
     !!v.target &&
     ["map", "page"].includes(v.target.mode) &&
     typeof v.target.sheetId === "string" &&
+    (v.pinned === undefined || typeof v.pinned === "boolean") &&
     (v.target.pageId === undefined || typeof v.target.pageId === "string") &&
     Number.isFinite(v.startedAt) &&
     Number.isFinite(v.updatedAt) &&

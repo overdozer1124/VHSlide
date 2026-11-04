@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { Element } from "./model";
 import type { Arrange } from "./objectEditing";
+import type { MatchSize } from "./structuredEditing";
 import { arrangementUnits } from "./structuredEditing";
 import { elementBounds, resizeElement, canDistribute } from "./objectEditing";
 export function NumberField({
@@ -91,6 +92,8 @@ export function ObjectLayout({
   allElements = elements,
   showActions = true,
   onArrange,
+  primaryId,
+  onMatchSize,
   onChange,
   onDuplicate,
   onDelete,
@@ -99,16 +102,26 @@ export function ObjectLayout({
   allElements?: Element[];
   showActions?: boolean;
   onArrange: (action: Arrange) => void;
+  primaryId?: string;
+  onMatchSize: (referenceId: string, mode: MatchSize) => void;
   onChange: (p: Partial<Element>) => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const [chosenReference, setChosenReference] = useState("");
   const e = elements[0],
     single = elements.length === 1,
-    units = arrangementUnits(
+    grouped = arrangementUnits(
       allElements,
       elements.map((e) => e.id),
-    ).map((unit) => ({ ...unit[0], ...elementBounds(unit) }));
+    ),
+    units = grouped.map((unit) => ({ ...unit[0], ...elementBounds(unit) }));
+  const fallback =
+    grouped.find((unit) => unit.some((item) => item.id === primaryId)) ??
+    grouped[0];
+  const reference =
+    grouped.find((unit) => unit.some((item) => item.id === chosenReference)) ??
+    fallback;
   return (
     <section className="object-layout-controls" aria-label="オブジェクトの配置">
       {showActions && (
@@ -162,6 +175,59 @@ export function ObjectLayout({
         <p className="inspector-note">
           グループを1つと数えて3つ以上選び、両端の間に収まるときに等間隔にできます。重なる場合は先に両端を広げてください。
         </p>
+      )}
+      {units.length >= 2 && reference && (
+        <section
+          className="object-match-size"
+          aria-label="オブジェクトの大きさを揃える"
+        >
+          <h3>大きさを揃える</h3>
+          <label>
+            基準にするもの
+            <select
+              aria-label="大きさの基準"
+              value={reference[0].id}
+              onChange={(event) => setChosenReference(event.target.value)}
+            >
+              {grouped.map((unit, i) => {
+                const first = unit[0],
+                  bounds = elementBounds(unit);
+                const type =
+                  unit.length > 1
+                    ? `グループ（${unit.length}個）`
+                    : {
+                        text: "文字",
+                        image: "画像",
+                        shape: "図形",
+                        table: "表",
+                        line: "線",
+                        chart: "グラフ",
+                      }[first.type];
+                const text = first.text?.replace(/\s+/g, " ").slice(0, 18);
+                return (
+                  <option
+                    key={first.id}
+                    value={first.id}
+                  >{`${i + 1}. ${type}${text ? `：${text}` : ""}（${Math.round(bounds.w)} × ${Math.round(bounds.h)}）`}</option>
+                );
+              })}
+            </select>
+          </label>
+          <div className="object-action-pair">
+            <button onClick={() => onMatchSize(reference[0].id, "width")}>
+              幅を揃える
+            </button>
+            <button onClick={() => onMatchSize(reference[0].id, "height")}>
+              高さを揃える
+            </button>
+            <button onClick={() => onMatchSize(reference[0].id, "both")}>
+              幅と高さを揃える
+            </button>
+          </div>
+          <p className="inspector-note">
+            基準の大きさに合わせます。縦横比を固定したものは比率を保ちます。
+          </p>
+        </section>
       )}
       <h3>重なり順</h3>
       <div className="object-action-pair">

@@ -11,6 +11,85 @@ import {
 import { worksheetCsv } from "./worksheetCsv";
 import { sample, parseDeck, serializeDeck } from "./model";
 describe("worksheets", () => {
+  it("validates radar scores and exports each axis and series in separate CSV columns", () => {
+    const sheet = worksheetTemplate("radar");
+    const f = sheet.fields[0];
+    const scores = [1, 2, 3, 4, 5, null, 5, 4, 3, 2, 1, null];
+    expect(parseWorksheetValues(sheet, { [f.id]: scores })[f.id]).toEqual(
+      scores,
+    );
+    expect(() => parseWorksheetValues(sheet, { [f.id]: [9] })).toThrow();
+    expect(() =>
+      parseWorksheetValues(sheet, { [f.id]: [9, ...scores.slice(1)] }),
+    ).toThrow();
+    const csv = worksheetCsv({
+      ...sheet,
+      id: "sheet",
+      created: 0,
+      status: "open",
+      results: {
+        responses: [
+          {
+            respondentId: "u",
+            name: "生徒",
+            email: "a@test",
+            updated: 0,
+            values: { [f.id]: scores },
+          },
+        ],
+      },
+    });
+    expect(csv).toContain('"項目ごとの評価：場面1：項目1"');
+    expect(csv).toContain('"項目ごとの評価：場面2：項目6"');
+    expect(csv).toContain('"1","2","3","4","5","","5","4","3","2","1",""');
+  });
+  it("preserves optional layout settings through serialization and rejects invalid dimensions", () => {
+    const sheet = worksheetTemplate("blank");
+    const styled = {
+      ...sheet,
+      fontSize: 24,
+      fields: [
+        {
+          ...sheet.fields[0],
+          widthPercent: 70,
+          inputHeight: 120,
+          fontSize: 22,
+        },
+      ],
+    };
+    expect(parseWorksheet(styled)).toEqual(styled);
+    const book = sample();
+    book.slides[0].elements.push({
+      id: crypto.randomUUID(),
+      type: "shape",
+      shape: "rounded",
+      fill: "#ffffff",
+      stroke: "#dc8945",
+      x: 0,
+      y: 0,
+      w: 900,
+      h: 500,
+      worksheet: {
+        ...styled,
+        deckId: crypto.randomUUID(),
+        worksheetId: crypto.randomUUID(),
+      },
+    });
+    expect(parseDeck(serializeDeck(book))).toEqual(book);
+    expect(() =>
+      parseWorksheet({
+        ...styled,
+        fields: [{ ...styled.fields[0], widthPercent: 101 }],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...styled,
+        fields: [{ ...styled.fields[0], inputHeight: -1 }],
+      }),
+    ).toThrow();
+    expect(() => parseWorksheet({ ...styled, fontSize: 999 })).toThrow();
+  });
   it("validates every classroom template and preserves only portable definitions", () => {
     for (const kind of Object.keys(
       worksheetTemplateNames,

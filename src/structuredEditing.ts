@@ -64,6 +64,84 @@ export function arrangementUnits(all: Element[], ids: string[]): Element[][] {
   }
   return units;
 }
+export type MatchSize = "width" | "height" | "both";
+/** Match complete groups as units; reject the entire operation if any unit cannot fit. */
+export function matchStructuredSizes(
+  all: Element[],
+  ids: string[],
+  referenceId: string,
+  mode: MatchSize,
+): { elements: Element[]; error?: string; moved?: boolean } {
+  const units = arrangementUnits(all, ids);
+  const reference = units.find((unit) =>
+    unit.some((e) => e.id === referenceId),
+  );
+  if (!reference || units.length < 2)
+    return {
+      elements: all,
+      error: "基準とするものを含めて、2つ以上選んでください。",
+    };
+  const target = elementBounds(reference),
+    changes = new Map<string, Element>();
+  let moved = false;
+  for (const unit of units) {
+    if (unit === reference) continue;
+    if (
+      unit.some((e) => {
+        const original = all.find((item) => item.id === e.id)!;
+        return (
+          original.type === "line" &&
+          (original.startAnchor || original.endAnchor)
+        );
+      })
+    )
+      return {
+        elements: all,
+        error:
+          "接続された線はサイズを揃えられません。接続を解除してからお試しください。",
+      };
+    const b = elementBounds(unit);
+    let sx = mode === "height" ? 1 : target.w / b.w;
+    let sy = mode === "width" ? 1 : target.h / b.h;
+    if (unit.length === 1 && unit[0].aspectLocked) {
+      if (mode === "width") sy = sx;
+      else if (mode === "height") sx = sy;
+    }
+    if (unit.some((e) => e.aspectLocked) && Math.abs(sx - sy) > 1e-8)
+      return {
+        elements: all,
+        error:
+          "縦横比を固定したオブジェクトは指定のサイズにできません。固定を解除してからお試しください。",
+      };
+    const w = b.w * sx,
+      h = b.h * sy;
+    if (
+      w > 960 ||
+      h > 540 ||
+      unit.some((e) => e.w * sx < 20 || e.h * sy < 20)
+    )
+      return {
+        elements: all,
+        error:
+          "指定のサイズではスライドに収まらないか、オブジェクトが小さすぎます。",
+      };
+    const x = Math.max(0, Math.min(b.x, 960 - w)),
+      y = Math.max(0, Math.min(b.y, 540 - h));
+    if (Math.abs(x - b.x) > 1e-7 || Math.abs(y - b.y) > 1e-7) moved = true;
+    const point = (p: { x: number; y: number }) => ({
+      x: x + (p.x - b.x) * sx,
+      y: y + (p.y - b.y) * sy,
+    });
+    for (const e of unit) {
+      const original = all.find((item) => item.id === e.id)!;
+      changes.set(e.id, { ...original, ...point(e), w: e.w * sx, h: e.h * sy });
+    }
+  }
+  return {
+    elements: resolveConnections(all.map((e) => changes.get(e.id) ?? e)),
+    moved,
+  };
+}
 export function arrangeStructured(
   all: Element[],
   ids: string[],

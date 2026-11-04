@@ -100,6 +100,18 @@ test("host creates both question types, guests answer privately and results beco
     await expect(page.locator(".survey-response-table tbody")).toContainText(
       "夏",
     );
+    await page.getByRole("button", { name: "質問・選択肢を編集" }).click();
+    await page.getByRole("textbox", { name: "アンケートの質問" }).fill("好きな季節はどれ？");
+    await page.getByRole("button", { name: "選択肢を追加" }).click();
+    await page.getByRole("textbox", { name: "選択肢3" }).fill("秋");
+    await page.getByRole("button", { name: "変更を保存" }).click();
+    await expect(dialog(page)).toContainText("アンケートの内容を保存しました。");
+    await expect(guest.getByRole("radio", { name: "秋", exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(guest.getByRole("radio", { name: "夏", exact: true })).toBeChecked();
+    await guest.getByRole("radio", { name: "秋", exact: true }).check();
+    await expect(page.locator(".survey-result").filter({ hasText: "秋" })).toContainText("1件 (100%)");
+    await guest.getByRole("radio", { name: "夏", exact: true }).check();
+    await expect(page.locator(".survey-result").filter({ hasText: "夏" })).toContainText("1件 (100%)");
     await expect(guest.locator(".survey-responses")).toHaveCount(0);
     await expect(
       guest.getByRole("button", { name: "回答結果をCSV保存" }),

@@ -21,6 +21,7 @@ import {
   LOCAL_CHANGE,
 } from "./sharedDeck";
 import { backupSnapshot } from "./backupData";
+import { matchStructuredSizes } from "./structuredEditing";
 import { createBackupArchive, readBackupArchive } from "./backupArchive";
 const shape = (id = "a", x = 40, y = 40): Element => ({
   id,
@@ -117,6 +118,50 @@ it("aligns, distributes and moves layers preserving selected order", () => {
     "c",
     "a",
   ]);
+});
+it("matches the chosen object's width, height or both while keeping the reference unchanged", () => {
+  const reference = { ...shape("a", 40, 40), w: 200, h: 120 };
+  const other = { ...shape("b", 830, 480), w: 80, h: 40 };
+  const elements = [reference, other, shape("c", 300, 100)];
+  const width = matchStructuredSizes(elements, ["a", "b"], "a", "width");
+  expect(width.error).toBeUndefined();
+  expect(width.moved).toBe(true);
+  expect(width.elements[0]).toEqual(reference);
+  expect(width.elements[1]).toMatchObject({ x: 760, y: 480, w: 200, h: 40 });
+  expect(width.elements[2]).toEqual(elements[2]);
+  const height = matchStructuredSizes(elements, ["a", "b"], "a", "height");
+  expect(height.elements[1]).toMatchObject({ x: 830, y: 420, w: 80, h: 120 });
+  const both = matchStructuredSizes(elements, ["a", "b"], "a", "both");
+  expect(both.elements[1]).toMatchObject({ x: 760, y: 420, w: 200, h: 120 });
+});
+it("matches groups as units, respects aspect locks and rejects impossible changes atomically", () => {
+  const reference = { ...shape("a", 40, 40), w: 200, h: 100 };
+  const group = [
+    { ...shape("b", 300, 40), groupId: "g", w: 80, h: 40 },
+    { ...shape("c", 400, 40), groupId: "g", w: 80, h: 40 },
+  ];
+  const elements = [reference, ...group];
+  const result = matchStructuredSizes(elements, ["a", "b", "c"], "a", "width");
+  expect(result.elements[1].w).toBeCloseTo((80 * 200) / 180);
+  expect(result.elements[2].x).toBeCloseTo(300 + (100 * 200) / 180);
+  const locked = [
+    reference,
+    { ...shape("locked", 400, 100), w: 100, h: 100, aspectLocked: true },
+  ];
+  expect(
+    matchStructuredSizes(locked, ["a", "locked"], "a", "width").elements[1],
+  ).toMatchObject({ w: 200, h: 200 });
+  const impossible = matchStructuredSizes(locked, ["a", "locked"], "a", "both");
+  expect(impossible.error).toMatch(/縦横比/);
+  expect(impossible.elements).toBe(locked);
+  const line = {
+    ...shape("line", 500, 100),
+    type: "line" as const,
+    startAnchor: { elementId: "a", side: "right" as const },
+  };
+  expect(
+    matchStructuredSizes([reference, line], ["a", "line"], "a", "width").error,
+  ).toMatch(/接続/);
 });
 it("keeps proportions during locked resize and quarter rotation, normalizes line endpoints", () => {
   const e = { ...shape(), w: 800, h: 100 };

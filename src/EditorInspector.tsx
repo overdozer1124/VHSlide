@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   Copy,
+  ClipboardPaste,
   Trash2,
   Paintbrush,
   Move,
@@ -28,6 +29,9 @@ export function EditorInspector({
   links,
   group,
   onDuplicate,
+  onCopy,
+  onPaste,
+  canPaste,
   onDelete,
   onSectionChange,
   pageKey,
@@ -43,6 +47,9 @@ export function EditorInspector({
   links: ReactNode;
   group: ReactNode;
   onDuplicate: () => void;
+  onCopy: () => void;
+  onPaste: () => void;
+  canPaste: boolean;
   onDelete: () => void;
   onSectionChange: (section: string) => void;
   pageKey: string;
@@ -84,18 +91,20 @@ export function EditorInspector({
   const title =
     element?.survey && !multiple
       ? "アンケート"
-      : multiple
-        ? `${count}個の要素`
-        : element
-          ? {
-              text: "文字",
-              image: "画像",
-              shape: "図形",
-              table: "表",
-              line: "線",
-              chart: "グラフ",
-            }[element.type]
-          : "ページのデザイン";
+      : element?.worksheet && !multiple
+        ? "ワークシート"
+        : multiple
+          ? `${count}個の要素`
+          : element
+            ? {
+                text: "文字",
+                image: "画像",
+                shape: "図形",
+                table: "表",
+                line: "線",
+                chart: "グラフ",
+              }[element.type]
+            : "ページのデザイン";
   const tabs = [
     { key: "appearance", name: "見た目", icon: Paintbrush },
     { key: "layout", name: "配置", icon: Move },
@@ -125,11 +134,31 @@ export function EditorInspector({
           </button>
           <button
             disabled={disabled}
+            onClick={onCopy}
+            title="コピー（Ctrl / ⌘ + C）"
+          >
+            <Copy size={16} />
+            コピー
+          </button>
+          <button
+            disabled={disabled}
             onClick={onDelete}
             aria-label="選んだものを削除"
           >
             <Trash2 size={16} />
             削除
+          </button>
+        </div>
+      )}
+      {canPaste && (
+        <div className="inspector-quick-actions">
+          <button
+            disabled={disabled}
+            onClick={onPaste}
+            title="貼り付け（Ctrl / ⌘ + V）"
+          >
+            <ClipboardPaste size={16} />
+            貼り付け
           </button>
         </div>
       )}
@@ -198,25 +227,11 @@ export function EditorInspector({
               element && !multiple ? `${id}-${current}-tab` : undefined
             }
           >
-            {current === "appearance" ? (
-              element?.survey ? (
-                <div>
-                  <h3>{element.survey.question}</h3>
-                  <p>
-                    アンケートの質問・受付・集計はツールバーの「フォーム」から管理します。部品の入力欄以外をドラッグして位置を変え、枠の辺・四隅でサイズ変更できます。
-                  </p>
-                  <p>
-                    同じアンケートを複数のページに配置しても、回答は参加者ごとに1件です。
-                  </p>
-                </div>
-              ) : (
-                appearance
-              )
-            ) : current === "layout" ? (
-              layout
-            ) : (
-              links
-            )}
+            {current === "appearance"
+              ? appearance
+              : current === "layout"
+                ? layout
+                : links}
           </div>
         </fieldset>
       </div>

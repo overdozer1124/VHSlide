@@ -1,3 +1,5 @@
+import { FormDraftInput } from "./formEditing";
+import type { FormDraft } from "./formEditing";
 import { canDragForm } from "./formDrag";
 import { useContext } from "react";
 import type { PointerEvent } from "react";
@@ -9,6 +11,8 @@ export function SlideSurvey(props: {
   element: Element;
   interactive?: boolean;
   onMoveStart?: (event: PointerEvent) => void;
+  draft?: FormDraft;
+  onDraftChange?: (draft: FormDraft) => void;
 }) {
   const context = useContext(SurveySlideContext);
   return (
@@ -22,10 +26,14 @@ function SurveyCard({
   element,
   interactive = false,
   onMoveStart,
+  draft,
+  onDraftChange,
 }: {
   element: Element;
   interactive?: boolean;
   onMoveStart?: (event: PointerEvent) => void;
+  draft?: FormDraft;
+  onDraftChange?: (draft: FormDraft) => void;
 }) {
   const context = useContext(SurveySlideContext);
   const binding = element.survey!;
@@ -33,16 +41,23 @@ function SurveyCard({
     interactive && context.enabled && binding.deckId === context.deckId
       ? context.surveys.find((s) => s.id === binding.surveyId)
       : undefined;
-  const question = survey ?? binding;
+  const edit =
+    draft?.kind === "survey" && draft.elementId === element.id
+      ? draft
+      : undefined;
+  const question = edit?.value ?? survey ?? binding;
   return (
     <section
       className={`slide-survey ${interactive ? "is-interactive" : "is-preview"} ${onMoveStart ? "is-movable" : ""}`}
       data-slide-survey={interactive || undefined}
       aria-label={`スライド内アンケート：${question.question}`}
-      style={{
-        background: element.fill === "none" ? "#ffffff" : element.fill,
-        borderColor: element.stroke,
-      }}
+      style={
+        {
+          background: element.fill === "none" ? "#ffffff" : element.fill,
+          borderColor: element.stroke,
+          "--form-font-size": `${element.formFontSize ?? 20}px`,
+        } as React.CSSProperties
+      }
       onPointerDown={
         interactive
           ? (e) => {
@@ -66,9 +81,52 @@ function SurveyCard({
               ? "複数選択"
               : "1つ選ぶ"}
         </span>
-        <h3>{question.question}</h3>
+        <h3>
+          {edit ? (
+            <FormDraftInput
+              label="アンケートの質問を編集"
+              value={edit.value.question}
+              maxLength={200}
+              onChange={(question) =>
+                onDraftChange?.({ ...edit, value: { ...edit.value, question } })
+              }
+            />
+          ) : (
+            question.question
+          )}
+        </h3>
       </header>
-      {!interactive || !survey ? (
+      {edit ? (
+        <div className="slide-survey-preview form-draft-options">
+          {edit.value.kind === "text" ? (
+            <div className="slide-survey-placeholder">ここに回答を入力</div>
+          ) : (
+            edit.value.options.map((option, index) => (
+              <div key={index}>
+                <span aria-hidden="true">
+                  {edit.value.kind === "single" ? "○" : "□"}
+                </span>
+                <FormDraftInput
+                  label={`選択肢${index + 1}を編集`}
+                  value={option}
+                  maxLength={60}
+                  onChange={(text) =>
+                    onDraftChange?.({
+                      ...edit,
+                      value: {
+                        ...edit.value,
+                        options: edit.value.options.map((previous, i) =>
+                          i === index ? text : previous,
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+            ))
+          )}
+        </div>
+      ) : !interactive || !survey ? (
         <>
           <div className="slide-survey-preview">
             {question.kind === "text" ? (

@@ -80,7 +80,13 @@ export function SurveyAnswerForm({
         </div>
       </fieldset>
       {!compact && !ctx.readOnly && (
-        <p className="answer-inline-status" role="status">
+        <p
+          className={`answer-inline-status ${status.error ? "is-error" : ""}`}
+          role="status"
+        >
+          {!status.error && !status.saving && !status.dirty && survey.own && (
+            <span aria-hidden="true">✓ </span>
+          )}
           {status.error
             ? `未保存：${status.error}`
             : status.saving

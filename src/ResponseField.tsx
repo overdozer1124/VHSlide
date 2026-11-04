@@ -46,8 +46,13 @@ export function ResponseField({
       ? answers.draft("worksheet", sheet.id)
       : {}),
   } as WorksheetValues;
-  const label =
-    field?.label ?? (binding.source === "survey" ? binding.question : "");
+  const label = field
+    ? binding.showSection && field.section
+      ? `${field.section}：${field.label}`
+      : field.label
+    : binding.source === "survey"
+      ? binding.question
+      : "";
   return (
     <section
       className={`response-field ${binding.showLabel ? "" : "hide-label"} ${interactive ? "interactive" : "preview"} ${onMoveStart ? "is-movable" : ""}`}
@@ -96,10 +101,11 @@ export function ResponseField({
           }}
         >
           <WorksheetInputs
+            ignoreFieldLayout
             sheet={{
               title: label,
               description: "",
-              fields: [{ ...field, section: "", wide: true }],
+              fields: [{ ...field, label, section: "", wide: true }],
             }}
             values={values}
             onChange={() => {}}

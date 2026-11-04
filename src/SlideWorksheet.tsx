@@ -1,3 +1,6 @@
+import { FormDraftInput } from "./formEditing";
+import { WorksheetRadar } from "./WorksheetRadar";
+import type { FormDraft } from "./formEditing";
 import { canDragForm } from "./formDrag";
 import { useId } from "react";
 import type { PointerEvent } from "react";
@@ -17,12 +20,18 @@ export function WorksheetInputs({
   disabled = false,
   preview = false,
   onFieldChange,
+  onEdit,
+  editLayout,
+  ignoreFieldLayout = false,
 }: {
   sheet: WorksheetDefinition;
   values: WorksheetValues;
   onChange: (v: WorksheetValues) => void;
   disabled?: boolean;
   preview?: boolean;
+  onEdit?: (definition: WorksheetDefinition) => void;
+  editLayout?: WorksheetDefinition;
+  ignoreFieldLayout?: boolean;
   onFieldChange?: (
     id: string,
     value: WorksheetValues[string],
@@ -38,12 +47,27 @@ export function WorksheetInputs({
     onFieldChange
       ? onFieldChange(id, value, immediate)
       : onChange({ ...values, [id]: value });
+  const editField = (id: string, patch: Partial<WorksheetField>) =>
+    onEdit?.({
+      ...sheet,
+      fields: sheet.fields.map((field) =>
+        field.id === id ? { ...field, ...patch } : field,
+      ),
+    });
   const checks = sheet.fields.filter((f) => f.kind === "checkbox");
-  const groups: { section: string; fields: WorksheetField[] }[] = [];
+  const groups: {
+    section: string;
+    originalSection: string;
+    fields: WorksheetField[];
+  }[] = [];
   for (const f of sheet.fields) {
+    const originalSection =
+      editLayout?.fields.find((field) => field.id === f.id)?.section ??
+      f.section;
     const last = groups[groups.length - 1];
-    if (f.section && last?.section === f.section) last.fields.push(f);
-    else groups.push({ section: f.section, fields: [f] });
+    if (originalSection && last?.originalSection === originalSection)
+      last.fields.push(f);
+    else groups.push({ section: f.section, originalSection, fields: [f] });
   }
   return (
     <>
@@ -59,16 +83,68 @@ export function WorksheetInputs({
               className={`worksheet-group ${wide ? "wide" : ""}`}
               key={group.fields[0].id}
             >
-              {group.section && <h4>{group.section}</h4>}
+              {(group.section || (onEdit && group.originalSection)) && (
+                <h4>
+                  {onEdit ? (
+                    <FormDraftInput
+                      label="セクション名を編集"
+                      value={group.section}
+                      maxLength={200}
+                      onChange={(section) => {
+                        const ids = new Set(
+                          group.fields.map((field) => field.id),
+                        );
+                        onEdit({
+                          ...sheet,
+                          fields: sheet.fields.map((field) =>
+                            ids.has(field.id) ? { ...field, section } : field,
+                          ),
+                        });
+                      }}
+                    />
+                  ) : (
+                    group.section
+                  )}
+                </h4>
+              )}
               <div
                 className={`worksheet-group-fields ${wide ? "two-columns" : ""}`}
               >
                 {group.fields.map((f) => (
                   <div
                     className={`worksheet-field ${f.wide ? "wide" : ""}`}
+                    style={
+                      ignoreFieldLayout
+                        ? undefined
+                        : ({
+                            width:
+                              f.widthPercent === undefined
+                                ? undefined
+                                : `${f.widthPercent}%`,
+                            fontSize: f.fontSize,
+                            "--field-font-size":
+                              f.fontSize === undefined
+                                ? undefined
+                                : `${f.fontSize}px`,
+                            "--field-input-height":
+                              f.inputHeight === undefined
+                                ? undefined
+                                : `${f.inputHeight}px`,
+                          } as React.CSSProperties)
+                    }
                     key={f.id}
                   >
-                    {f.kind === "checkbox" ? (
+                    {onEdit && f.kind === "checkbox" ? (
+                      <div className="worksheet-check">
+                        <span aria-hidden="true">□</span>
+                        <FormDraftInput
+                          label="チェック項目を編集"
+                          value={f.label}
+                          maxLength={200}
+                          onChange={(label) => editField(f.id, { label })}
+                        />
+                      </div>
+                    ) : f.kind === "checkbox" ? (
                       <label className="worksheet-check">
                         <input
                           type="checkbox"
@@ -80,13 +156,65 @@ export function WorksheetInputs({
                       </label>
                     ) : (
                       <>
-                        <label
-                          className="worksheet-input-label"
-                          htmlFor={`${prefix}-${f.id}`}
-                        >
-                          {f.label}
-                        </label>
-                        {f.kind === "text" ? (
+                        {onEdit ? (
+                          <FormDraftInput
+                            label="入力項目名を編集"
+                            value={f.label}
+                            maxLength={200}
+                            onChange={(label) => editField(f.id, { label })}
+                          />
+                        ) : (
+                          <label
+                            className="worksheet-input-label"
+                            htmlFor={`${prefix}-${f.id}`}
+                          >
+                            {f.label}
+                          </label>
+                        )}
+                        {f.kind === "radar" ? (
+                          <WorksheetRadar
+                            field={f}
+                            value={
+                              Array.isArray(values[f.id])
+                                ? (values[f.id] as (number | null)[])
+                                : []
+                            }
+                            disabled={disabled || !!onEdit}
+                            onChange={(value) => change(f.id, value)}
+                          />
+                        ) : onEdit && f.kind === "text" ? (
+                          <FormDraftInput
+                            label="入力欄の案内文を編集"
+                            value={f.placeholder}
+                            maxLength={200}
+                            placeholder="入力欄の案内文"
+                            onChange={(placeholder) =>
+                              editField(f.id, { placeholder })
+                            }
+                          />
+                        ) : onEdit ? (
+                          <div className="form-draft-options">
+                            {f.options.map((option, i) => (
+                              <div key={i}>
+                                <span aria-hidden="true">
+                                  {f.kind === "single" ? "○" : "□"}
+                                </span>
+                                <FormDraftInput
+                                  label={`選択肢${i + 1}を編集`}
+                                  value={option}
+                                  maxLength={100}
+                                  onChange={(text) =>
+                                    editField(f.id, {
+                                      options: f.options.map((previous, n) =>
+                                        n === i ? text : previous,
+                                      ),
+                                    })
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : f.kind === "text" ? (
                           <textarea
                             id={`${prefix}-${f.id}`}
                             rows={f.wide ? 2 : 1}
@@ -153,7 +281,17 @@ export function WorksheetInputs({
     </>
   );
 }
-export function WorksheetAnswer({ sheet }: { sheet: WorksheetView }) {
+export function WorksheetAnswer({
+  sheet,
+  edit,
+  editLayout,
+  onEdit,
+}: {
+  sheet: WorksheetView;
+  edit?: WorksheetDefinition;
+  editLayout?: WorksheetDefinition;
+  onEdit?: (definition: WorksheetDefinition) => void;
+}) {
   const ctx = useWorksheets();
   const answers = useAnswers();
   const values = {
@@ -175,7 +313,9 @@ export function WorksheetAnswer({ sheet }: { sheet: WorksheetView }) {
       onCompositionEnd={() => answers.compose("worksheet", sheet.id, false)}
     >
       <WorksheetInputs
-        sheet={sheet}
+        sheet={edit ?? sheet}
+        onEdit={onEdit}
+        editLayout={editLayout}
         values={values}
         onChange={() => {}}
         onFieldChange={(id, value, immediate) =>
@@ -183,9 +323,15 @@ export function WorksheetAnswer({ sheet }: { sheet: WorksheetView }) {
         }
         disabled={!open}
       />
-      {!ctx.readOnly && (
+      {!ctx.readOnly && !edit && (
         <>
-          <p className="answer-inline-status" role="status">
+          <p
+            className={`answer-inline-status ${status.error ? "is-error" : ""}`}
+            role="status"
+          >
+            {!status.error && !status.saving && !status.dirty && sheet.own && (
+              <span aria-hidden="true">✓ </span>
+            )}
             {status.error
               ? `未保存：${status.error}`
               : status.saving
@@ -197,9 +343,6 @@ export function WorksheetAnswer({ sheet }: { sheet: WorksheetView }) {
                     : "入力すると自動保存します。"}
             {sheet.status !== "open" && " 受付は終了しています。"}
           </p>
-          <p className="worksheet-privacy">
-            名前・メールアドレスと入力内容はホストが確認できます。入力は自動保存されます。共有された回答は「回答スライド」で参照できます。
-          </p>
         </>
       )}
     </form>
@@ -209,10 +352,14 @@ export function SlideWorksheet({
   element,
   interactive = false,
   onMoveStart,
+  draft,
+  onDraftChange,
 }: {
   element: Element;
   interactive?: boolean;
   onMoveStart?: (event: PointerEvent) => void;
+  draft?: FormDraft;
+  onDraftChange?: (draft: FormDraft) => void;
 }) {
   const ctx = useWorksheets();
   const binding = element.worksheet!;
@@ -220,12 +367,21 @@ export function SlideWorksheet({
     interactive && ctx.enabled && binding.deckId === ctx.deckId
       ? ctx.sheets.find((s) => s.id === binding.worksheetId)
       : undefined;
-  const sheet = live ?? binding;
+  const edit =
+    draft?.kind === "worksheet" && draft.elementId === element.id
+      ? draft
+      : undefined;
+  const sheet = edit?.value ?? live ?? binding;
   return (
     <section
       className={`slide-worksheet ${interactive ? "is-interactive" : "is-preview"} ${onMoveStart ? "is-movable" : ""}`}
       data-slide-survey={interactive || undefined}
       aria-label={`ワークシート：${sheet.title}`}
+      style={
+        {
+          "--form-font-size": `${element.formFontSize ?? sheet.fontSize ?? 18}px`,
+        } as React.CSSProperties
+      }
       onPointerDown={
         interactive
           ? (e) => {
@@ -241,13 +397,48 @@ export function SlideWorksheet({
       onTouchEnd={interactive ? (e) => e.stopPropagation() : undefined}
     >
       <header>
-        <h3>{sheet.title}</h3>
-        {sheet.description && <p>{sheet.description}</p>}
+        <h3>
+          {edit ? (
+            <FormDraftInput
+              label="ワークシートのタイトルを編集"
+              value={edit.value.title}
+              maxLength={200}
+              onChange={(title) =>
+                onDraftChange?.({ ...edit, value: { ...edit.value, title } })
+              }
+            />
+          ) : (
+            sheet.title
+          )}
+        </h3>
+        {edit ? (
+          <p>
+            <FormDraftInput
+              label="ワークシートの説明を編集"
+              value={edit.value.description}
+              maxLength={1000}
+              placeholder="説明を入力"
+              onChange={(description) =>
+                onDraftChange?.({
+                  ...edit,
+                  value: { ...edit.value, description },
+                })
+              }
+            />
+          </p>
+        ) : (
+          sheet.description && <p>{sheet.description}</p>
+        )}
       </header>
       {live ? (
         <WorksheetAnswer
           key={`${ctx.deckId}:${ctx.userId}:${live.id}`}
           sheet={live}
+          edit={edit?.value}
+          editLayout={edit?.expected}
+          onEdit={
+            edit ? (value) => onDraftChange?.({ ...edit, value }) : undefined
+          }
         />
       ) : (
         <>

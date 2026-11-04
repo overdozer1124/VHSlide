@@ -32,6 +32,7 @@ export interface GridMove {
 export type Shape = ShapeKind;
 export interface Element {
   responseField?: ResponseFieldBinding;
+  formFontSize?: number;
   worksheet?: WorksheetBinding;
   survey?: SurveyBinding;
   surveyResult?: SurveyResultBinding;
@@ -686,6 +687,10 @@ export function parseDeck(input: string): Deck {
           )
             fail();
           base.surveyResult = binding;
+        }
+        if (e.formFontSize !== undefined) {
+          if (e.worksheet === undefined && e.survey === undefined) fail();
+          base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== undefined) {
           if (e.type !== "shape" || e.survey !== undefined) fail();

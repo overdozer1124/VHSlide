@@ -34,12 +34,18 @@ export function HostFollowView({
       data-mode={state.target.mode}
     >
       <header>
-        <strong>{state.host.name}さんの画面を表示中</strong>
+        <strong>
+          {state.pinned
+            ? "スライドを固定表示中"
+            : `${state.host.name}さんの画面を表示中`}
+        </strong>
         <span>ページ移動・編集はホストが終了するまでできません。</span>
         <ResponseFieldLauncher />
       </header>
       <p className="host-follow-notice" role="status">
-        ホストが集合をかけました。編集中の内容はそのまま保持されています。
+        {state.pinned
+          ? "先生がこのスライドを固定しています。フォームに入力できます。"
+          : "ホストが集合をかけました。編集中の内容はそのまま保持されています。"}
       </p>
       {!ready ? (
         <div className="host-follow-wait" role="status">

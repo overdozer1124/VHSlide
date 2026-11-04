@@ -357,6 +357,58 @@ it("follow control state rejects guests and stale sessions while retaining stabl
   );
   expect(running.active).toBe(true);
   expect(publicFollow(running)).not.toHaveProperty("controller");
+  const pinned = transitionFollow(
+    running,
+    { id: "pin", action: "pin", sessionId: "session-a" },
+    actor,
+    b,
+    101,
+  );
+  expect(pinned.active && pinned.pinned).toBe(true);
+  const other = b.slides[1];
+  const moved = transitionFollow(
+    pinned,
+    {
+      id: "move",
+      action: "move",
+      sessionId: "session-a",
+      target: {
+        mode: "page",
+        sheetId: other.sheetId ?? "main",
+        pageId: other.id,
+      },
+    },
+    actor,
+    b,
+    102,
+  );
+  expect(moved.active && moved.target).toEqual(target);
+  const resumed = transitionFollow(
+    moved,
+    {
+      id: "resume",
+      action: "resume",
+      sessionId: "session-a",
+      target: {
+        mode: "page",
+        sheetId: other.sheetId ?? "main",
+        pageId: other.id,
+      },
+    },
+    actor,
+    b,
+    103,
+  );
+  expect(resumed.active && resumed.pinned).toBe(false);
+  expect(resumed.active && resumed.target.pageId).toBe(other.id);
+  expect(() =>
+    transitionFollow(
+      running,
+      { id: "pin", action: "pin", sessionId: "session-a" },
+      { ...actor, host: false },
+      b,
+    ),
+  ).toThrow();
   expect(() =>
     transitionFollow(
       running,

@@ -111,6 +111,105 @@ export async function exerciseWorksheets(
   );
   let host = (await list())[0];
   assert.equal(host.results!.responses.length, 2);
+  const revised = structuredClone(definition);
+  revised.title = "朝食の工夫を考えよう";
+  revised.fields[0].label = "選んだ理由";
+  revised.fields[2].options[1] = "夜にする";
+  await post(
+    `/${sheet.id}/edit`,
+    { expected: definition, definition: revised },
+    guest,
+    403,
+  );
+  await post(
+    `/${sheet.id}/edit`,
+    {
+      expected: definition,
+      definition: { ...revised, fields: revised.fields.slice(1) },
+    },
+    owner,
+    400,
+  );
+  await post(`/${sheet.id}/edit`, {
+    expected: definition,
+    definition: revised,
+  });
+  assert.equal(
+    (await list(guest))[0].own?.values.reason,
+    '<script>日本語,"花"\n次',
+  );
+  await post(
+    `/${sheet.id}/edit`,
+    { expected: definition, definition: revised },
+    owner,
+    409,
+  );
+  await restart();
+  assert.equal((await list())[0].title, revised.title);
+  await post(`/${sheet.id}/edit`, { expected: revised, definition });
+  const reordered = structuredClone(definition);
+  reordered.fields = [
+    reordered.fields[2],
+    reordered.fields[0],
+    reordered.fields[1],
+  ];
+  await post(
+    `/${sheet.id}/edit`,
+    { expected: definition, definition: reordered },
+    guest,
+    403,
+  );
+  await post(`/${sheet.id}/edit`, {
+    expected: definition,
+    definition: reordered,
+  });
+  assert.deepEqual(
+    (await list())[0].fields.map((field) => field.id),
+    ["choice", "reason", "check"],
+  );
+  assert.equal(
+    (await list(guest))[0].own?.values.reason,
+    '<script>日本語,"花"\n次',
+  );
+  assert.deepEqual((await list(guest))[0].own?.values.choice, [1]);
+  await post(`/${sheet.id}/edit`, { expected: reordered, definition });
+  const extended = structuredClone(definition);
+  extended.fontSize = 23;
+  extended.fields[0].widthPercent = 75;
+  extended.fields[0].inputHeight = 120;
+  extended.fields[0].fontSize = 20;
+  extended.fields[2].options.push("昼");
+  extended.fields.push({
+    id: "added",
+    label: "追加項目",
+    kind: "text",
+    options: [],
+    placeholder: "",
+    section: "",
+    wide: false,
+  });
+  await post(
+    `/${sheet.id}/edit`,
+    { expected: definition, definition: extended },
+    guest,
+    403,
+  );
+  await post(`/${sheet.id}/edit`, {
+    expected: definition,
+    definition: extended,
+  });
+  assert.equal((await list(guest))[0].fields[0].inputHeight, 120);
+  assert.equal((await list(guest))[0].fontSize, 23);
+  assert.equal(
+    (await list(guest))[0].own?.values.reason,
+    '<script>日本語,"花"\n次',
+  );
+  await post(
+    `/${sheet.id}/answer`,
+    { values: { added: "追加した回答" }, patch: true },
+    guest,
+  );
+  assert.equal((await list(guest))[0].own?.values.added, "追加した回答");
   const identity = (
     await (await call("/api/session", "GET", undefined, guest)).json()
   ).user;
@@ -362,4 +461,62 @@ export async function exerciseWorksheets(
   assert.equal((await list())[0].results!.responses.length, 2);
   await post(`/${sheet.id}`, undefined, owner, 200, "DELETE");
   assert.deepEqual(await list(), []);
+  const radar: WorksheetDefinition = {
+    title: "数値とグラフ",
+    description: "",
+    fields: [
+      {
+        id: "radar",
+        label: "比較",
+        kind: "radar",
+        options: [],
+        placeholder: "",
+        section: "",
+        wide: true,
+        radar: {
+          axes: ["安全", "快適", "活動"],
+          series: ["登山", "式典"],
+          min: 1,
+          max: 5,
+        },
+      },
+    ],
+  };
+  await post("", radar);
+  const radarSheet = (await list())[0];
+  await post(`/${radarSheet.id}/status`, { status: "open" });
+  await post(
+    `/${radarSheet.id}/answer`,
+    { values: { radar: [1, 2, null, 4, 5, null] } },
+    guest,
+    404,
+  );
+  await post(
+    `/${radarSheet.id}/answer`,
+    { values: { radar: [1, 2, null, 4, 5, null] } },
+    owner,
+  );
+  await post(
+    `/${radarSheet.id}/answer`,
+    { values: { radar: [1, 9, null, 4, 5, null] } },
+    owner,
+    400,
+  );
+  await restart();
+  assert.deepEqual((await list())[0].own?.values.radar, [
+    1,
+    2,
+    null,
+    4,
+    5,
+    null,
+  ]);
+  const wrong = structuredClone(radar);
+  wrong.fields[0].radar!.axes.push("追加");
+  await post(
+    `/${radarSheet.id}/edit`,
+    { expected: radar, definition: wrong },
+    owner,
+    400,
+  );
 }

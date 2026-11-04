@@ -3,6 +3,7 @@ import { speakerPreview, type SpeakerState } from "./speakerChannel";
 import type { SpeakerLaunch } from "./useSpeakerWindow";
 import { useSpeakerWindow } from "./useSpeakerWindow";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -18,6 +19,7 @@ import { Canvas } from "./Canvas";
 import { useFitCanvas } from "./useFitCanvas";
 import { pageOrigin } from "./pageScope";
 interface PresentationProps {
+  followControls?: ReactNode;
   speakerLaunch?: SpeakerLaunch;
   scopeLabel: string;
   scopeCount: number;
@@ -35,6 +37,7 @@ interface PresentationProps {
   exitPresent: () => void;
 }
 export function PresentationView({
+  followControls,
   speakerLaunch,
   onOpenLink,
   onLinkBack,
@@ -184,6 +187,7 @@ export function PresentationView({
           </small>
         </span>
         <div>
+          {followControls}
           <ResponseFieldLauncher />
           <button
             className="quiet"

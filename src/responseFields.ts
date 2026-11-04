@@ -10,16 +10,21 @@ export type ResponseFieldBinding = (
       field: WorksheetField;
     }
   | ({ source: "survey" } & SurveyBinding)
-) & { showLabel: boolean };
+) & { showLabel: boolean; showSection?: boolean };
 export function parseResponseField(value: unknown): ResponseFieldBinding {
   const v = value as ResponseFieldBinding;
-  if (!v || typeof v.showLabel !== "boolean")
+  if (
+    !v ||
+    typeof v.showLabel !== "boolean" ||
+    (v.showSection !== undefined && typeof v.showSection !== "boolean")
+  )
     throw Error("入力欄の形式が正しくありません。");
   if (v.source === "survey")
     return {
       source: "survey",
       ...parseSurveyBinding(v),
       showLabel: v.showLabel,
+      ...(v.showSection === undefined ? {} : { showSection: v.showSection }),
     };
   if (
     v.source !== "worksheet" ||
@@ -40,5 +45,6 @@ export function parseResponseField(value: unknown): ResponseFieldBinding {
     worksheetId: v.worksheetId,
     field,
     showLabel: v.showLabel,
+    ...(v.showSection === undefined ? {} : { showSection: v.showSection }),
   };
 }

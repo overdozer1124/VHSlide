@@ -15,12 +15,15 @@ import { worksheetCsv } from "./worksheetCsv";
 import { WorksheetResults } from "./WorksheetResults";
 import { api } from "./cloud";
 import { parseWorksheet } from "./worksheets";
+import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
   host,
   onEmbed,
+  onFormSaved,
 }: {
   host: boolean;
   onEmbed: (sheet: WorksheetView) => void;
+  onFormSaved: (draft: FormDraft) => boolean;
 }) {
   const ctx = useWorksheets();
   const activity = useActivityPanel();
@@ -28,6 +31,10 @@ export function WorksheetPanel({
   const connectionError = ctx.error;
   const close = activity.close;
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<{
+    id: string;
+    expected: WorksheetDefinition;
+  }>();
   const [hostView, setHostView] = useState<"results" | "input" | "settings">(
     "results",
   );
@@ -64,13 +71,14 @@ export function WorksheetPanel({
   useEffect(() => {
     if (
       !creating &&
+      !editing &&
       ctx.sheets.length &&
       !ctx.sheets.some((s) => s.id === selectedId)
     ) {
       setSelectedId(ctx.sheets[0].id);
       setHostView("results");
     }
-  }, [creating, ctx.sheets, selectedId]);
+  }, [creating, editing, ctx.sheets, selectedId]);
   function createDraft() {
     if (busy) return;
     setError("");
@@ -92,7 +100,13 @@ export function WorksheetPanel({
             `入力欄 ${index + 1} の選択肢を、空行・重複のない2〜10項目で入力してください。`,
           );
       });
-      void command("", parseWorksheet(definition));
+      const value = parseWorksheet(definition);
+      void (editing
+        ? command(`/${editing.id}/edit`, {
+            expected: editing.expected,
+            definition: value,
+          })
+        : command("", value));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -113,6 +127,32 @@ export function WorksheetPanel({
       );
       if (!alive.current) return;
       ctx.update(data.worksheets);
+      if (path.endsWith("/edit") && editing && ctx.deckId) {
+        const saved = data.worksheets.find((item) => item.id === editing.id);
+        if (saved) {
+          const value = {
+            title: saved.title,
+            description: saved.description,
+            fontSize: saved.fontSize,
+            fields: saved.fields,
+          };
+          if (
+            !onFormSaved({
+              kind: "worksheet",
+              id: saved.id,
+              deckId: ctx.deckId,
+              elementId: "",
+              expected: editing.expected,
+              value,
+            })
+          )
+            setError(
+              "内容は保存されましたが、スライドのプレビュー更新を確認できませんでした。",
+            );
+        }
+        setEditing(undefined);
+        setHostView("settings");
+      }
       if (path === "") {
         setCreating(false);
         setHostView("settings");
@@ -143,6 +183,8 @@ export function WorksheetPanel({
       fields: d.fields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
     }));
   }
+  const existingField = (id: string) =>
+    !!editing?.expected.fields.some((field) => field.id === id);
   async function download() {
     if (!selected || busy) return;
     setBusy(true);
@@ -198,6 +240,7 @@ export function WorksheetPanel({
                   className="button primary"
                   onClick={() => {
                     setCreating(true);
+                    setEditing(undefined);
                     setDefinition(worksheetTemplate("reason"));
                     setMessage("");
                     setError("");
@@ -214,6 +257,7 @@ export function WorksheetPanel({
                     setSelectedId(s.id);
                     setHostView("results");
                     setCreating(false);
+                    setEditing(undefined);
                     setError("");
                     setMessage("");
                   }}
@@ -231,7 +275,7 @@ export function WorksheetPanel({
               {!ctx.sheets.length && <p>まだワークシートがありません。</p>}
             </aside>
             <main ref={content}>
-              {host && creating ? (
+              {host && (creating || editing) ? (
                 <form
                   noValidate
                   onSubmit={(e) => {
@@ -239,28 +283,34 @@ export function WorksheetPanel({
                     createDraft();
                   }}
                 >
-                  <h3>ワークシートを作成</h3>
-                  <label>
-                    ひな形
-                    <select
-                      aria-label="ワークシートのひな形"
-                      onChange={(e) =>
-                        setDefinition(
-                          worksheetTemplate(
-                            e.target
-                              .value as keyof typeof worksheetTemplateNames,
+                  <h3>
+                    {editing ? "ワークシートを編集" : "ワークシートを作成"}
+                  </h3>
+                  {!editing && (
+                    <label>
+                      ひな形
+                      <select
+                        aria-label="ワークシートのひな形"
+                        onChange={(e) =>
+                          setDefinition(
+                            worksheetTemplate(
+                              e.target
+                                .value as keyof typeof worksheetTemplateNames,
+                            ),
+                          )
+                        }
+                        defaultValue="reason"
+                      >
+                        {Object.entries(worksheetTemplateNames).map(
+                          ([k, v]) => (
+                            <option value={k} key={k}>
+                              {v}
+                            </option>
                           ),
-                        )
-                      }
-                      defaultValue="reason"
-                    >
-                      {Object.entries(worksheetTemplateNames).map(([k, v]) => (
-                        <option value={k} key={k}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                        )}
+                      </select>
+                    </label>
+                  )}
                   <label>
                     タイトル
                     <input
@@ -289,8 +339,33 @@ export function WorksheetPanel({
                       }
                     />
                   </label>
+                  <label>
+                    ワークシート全体の文字の大きさ
+                    <input
+                      type="number"
+                      aria-label="ワークシート全体の文字の大きさ"
+                      min={12}
+                      max={60}
+                      placeholder="自動（18）"
+                      value={definition.fontSize ?? ""}
+                      onChange={(event) =>
+                        setDefinition({
+                          ...definition,
+                          fontSize:
+                            event.target.value === ""
+                              ? undefined
+                              : Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <small>
+                    12〜60。スライドで個別に文字サイズを設定している場合は、その設定が優先されます。
+                  </small>
                   <p>
-                    作成後は項目を固定します。項目を変える場合は新しいワークシートを作成してください。1〜40項目、1作品30件まで。
+                    {editing
+                      ? "既存の回答を引き継ぎながら、項目の並べ替え・編集・追加ができます。"
+                      : "入力欄は1〜40項目、ワークシートは1作品30件までです。"}
                   </p>
                   {definition.fields.map((f, i) => (
                     <fieldset className="worksheet-field-editor" key={f.id}>
@@ -311,12 +386,30 @@ export function WorksheetPanel({
                         形式
                         <select
                           aria-label={`入力形式${i + 1}`}
+                          disabled={existingField(f.id)}
                           value={f.kind}
                           onChange={(e) => {
                             const kind = e.target
                               .value as WorksheetField["kind"];
                             editField(f.id, {
                               kind,
+                              radar:
+                                kind === "radar"
+                                  ? {
+                                      axes: [
+                                        "項目1",
+                                        "項目2",
+                                        "項目3",
+                                        "項目4",
+                                        "項目5",
+                                        "項目6",
+                                      ],
+                                      series: ["場面1", "場面2"],
+                                      min: 1,
+                                      max: 5,
+                                    }
+                                  : undefined,
+                              ...(kind === "radar" ? { wide: true } : {}),
                               options:
                                 kind === "single" || kind === "multiple"
                                   ? ["はい", "いいえ"]
@@ -328,6 +421,7 @@ export function WorksheetPanel({
                           <option value="checkbox">チェック欄</option>
                           <option value="single">単一選択</option>
                           <option value="multiple">複数選択</option>
+                          <option value="radar">数値とレーダーチャート</option>
                         </select>
                       </label>
                       <label>
@@ -367,6 +461,85 @@ export function WorksheetPanel({
                           />
                         </label>
                       )}
+                      {f.kind === "radar" && f.radar && (
+                        <div className="radar-config">
+                          <label>
+                            項目（1行1項目・3〜10項目）
+                            <textarea
+                              aria-label={`レーダーチャートの項目${i + 1}`}
+                              value={f.radar.axes.join("\n")}
+                              onChange={(event) =>
+                                editField(f.id, {
+                                  radar: {
+                                    ...f.radar!,
+                                    axes: event.target.value.split("\n"),
+                                  },
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            比較する場面（1行1項目・1〜4項目）
+                            <textarea
+                              aria-label={`レーダーチャートの場面${i + 1}`}
+                              value={f.radar.series.join("\n")}
+                              onChange={(event) =>
+                                editField(f.id, {
+                                  radar: {
+                                    ...f.radar!,
+                                    series: event.target.value.split("\n"),
+                                  },
+                                })
+                              }
+                            />
+                          </label>
+                          <div className="radar-config-range">
+                            <label>
+                              最小値
+                              <input
+                                aria-label={`レーダーチャートの最小値${i + 1}`}
+                                type="number"
+                                min={0}
+                                max={99}
+                                disabled={existingField(f.id)}
+                                value={f.radar.min}
+                                onChange={(event) =>
+                                  editField(f.id, {
+                                    radar: {
+                                      ...f.radar!,
+                                      min: Number(event.target.value),
+                                    },
+                                  })
+                                }
+                              />
+                            </label>
+                            <label>
+                              最大値
+                              <input
+                                aria-label={`レーダーチャートの最大値${i + 1}`}
+                                type="number"
+                                min={1}
+                                max={100}
+                                disabled={existingField(f.id)}
+                                value={f.radar.max}
+                                onChange={(event) =>
+                                  editField(f.id, {
+                                    radar: {
+                                      ...f.radar!,
+                                      max: Number(event.target.value),
+                                    },
+                                  })
+                                }
+                              />
+                            </label>
+                          </div>
+                          {existingField(f.id) && (
+                            <small>
+                              回答との対応を保つため、既存の項目数・場面数・数値の範囲は変更できません。名称は変更できます。
+                            </small>
+                          )}
+                        </div>
+                      )}
                       <label>
                         <input
                           type="checkbox"
@@ -377,10 +550,76 @@ export function WorksheetPanel({
                         />
                         横幅いっぱいに配置
                       </label>
+                      <details className="worksheet-layout-settings">
+                        <summary>入力欄の大きさ・文字を調整</summary>
+                        <p>
+                          空欄では自動になります。幅は配置先の横幅に対する割合です。
+                        </p>
+                        <div className="worksheet-layout-controls">
+                          <label>
+                            幅（%）
+                            <input
+                              type="number"
+                              aria-label={`入力欄${i + 1}の幅`}
+                              min={20}
+                              max={100}
+                              placeholder="自動"
+                              value={f.widthPercent ?? ""}
+                              onChange={(event) =>
+                                editField(f.id, {
+                                  widthPercent:
+                                    event.target.value === ""
+                                      ? undefined
+                                      : Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            高さ（px）
+                            <input
+                              type="number"
+                              aria-label={`入力欄${i + 1}の高さ`}
+                              min={32}
+                              max={400}
+                              placeholder="自動"
+                              value={f.inputHeight ?? ""}
+                              onChange={(event) =>
+                                editField(f.id, {
+                                  inputHeight:
+                                    event.target.value === ""
+                                      ? undefined
+                                      : Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            文字（px）
+                            <input
+                              type="number"
+                              aria-label={`入力欄${i + 1}の文字の大きさ`}
+                              min={12}
+                              max={60}
+                              placeholder="全体と同じ"
+                              value={f.fontSize ?? ""}
+                              onChange={(event) =>
+                                editField(f.id, {
+                                  fontSize:
+                                    event.target.value === ""
+                                      ? undefined
+                                      : Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                        </div>
+                      </details>
                       <div className="worksheet-editor-actions">
                         <button
                           type="button"
                           disabled={i === 0}
+                          aria-label={`入力欄${i + 1}を上へ移動`}
                           onClick={() =>
                             setDefinition((d) => {
                               const fields = [...d.fields];
@@ -396,7 +635,27 @@ export function WorksheetPanel({
                         </button>
                         <button
                           type="button"
-                          disabled={definition.fields.length === 1}
+                          disabled={i === definition.fields.length - 1}
+                          aria-label={`入力欄${i + 1}を下へ移動`}
+                          onClick={() =>
+                            setDefinition((d) => {
+                              const fields = [...d.fields];
+                              [fields[i], fields[i + 1]] = [
+                                fields[i + 1],
+                                fields[i],
+                              ];
+                              return { ...d, fields };
+                            })
+                          }
+                        >
+                          下へ
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            definition.fields.length === 1 ||
+                            existingField(f.id)
+                          }
                           onClick={() =>
                             setDefinition((d) => ({
                               ...d,
@@ -426,7 +685,10 @@ export function WorksheetPanel({
                   </button>
                   <details>
                     <summary>レイアウトのプレビュー</summary>
-                    <div className="worksheet-preview">
+                    <div
+                      className="worksheet-preview"
+                      style={{ fontSize: definition.fontSize }}
+                    >
                       <h3>{definition.title}</h3>
                       <p>{definition.description}</p>
                       <WorksheetInputs
@@ -439,8 +701,18 @@ export function WorksheetPanel({
                     </div>
                   </details>
                   <button className="button primary" disabled={busy}>
-                    {busy ? "下書きを保存中…" : "下書きを作成"}
+                    {busy ? "保存中…" : editing ? "変更を保存" : "下書きを作成"}
                   </button>
+                  {editing && (
+                    <button
+                      type="button"
+                      className="button outline"
+                      disabled={busy}
+                      onClick={() => setEditing(undefined)}
+                    >
+                      キャンセル
+                    </button>
+                  )}
                 </form>
               ) : selected ? (
                 <>
@@ -513,6 +785,24 @@ export function WorksheetPanel({
                       aria-label="ワークシートの設定"
                     >
                       <h4>内容の確認</h4>
+                      <button
+                        className="button outline"
+                        disabled={busy}
+                        onClick={() => {
+                          const expected = structuredClone({
+                            title: selected.title,
+                            description: selected.description,
+                            fontSize: selected.fontSize,
+                            fields: selected.fields,
+                          });
+                          setDefinition(structuredClone(expected));
+                          setEditing({ id: selected.id, expected });
+                          setMessage("");
+                          setError("");
+                        }}
+                      >
+                        項目を編集・追加
+                      </button>
                       <p>
                         {selected.description || "説明は設定されていません。"}
                       </p>
@@ -531,9 +821,6 @@ export function WorksheetPanel({
                         disabled
                         preview
                       />
-                      <p>
-                        作成済みの項目は固定されています。項目を変更する場合は、新しいワークシートを作成してください。
-                      </p>
                       <details className="worksheet-delete">
                         <summary>ワークシートの削除</summary>
                         <p>全員の入力結果も削除され、元に戻せません。</p>

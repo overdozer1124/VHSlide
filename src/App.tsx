@@ -1,3 +1,7 @@
+import { syncFormDefinitions } from "./syncFormDefinitions";
+import { separateWorksheet } from "./worksheetLayout";
+import type { WorksheetDefinition } from "./worksheets";
+import type { FormDraft } from "./formEditing";
 import { ToolbarScroller } from "./ToolbarScroller";
 import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
 import { ResponseGalleryView } from "./ResponseGalleryView";
@@ -49,10 +53,15 @@ import {
   ungroupElements,
   resolveConnections,
   removeObjects,
+  copyElements,
 } from "./structureData";
-import { arrangeStructured } from "./structuredEditing";
+import {
+  arrangeStructured,
+  matchStructuredSizes,
+  type MatchSize,
+} from "./structuredEditing";
 import { coverCrop } from "./imageData";
-import { duplicateObjects } from "./objectEditing";
+import { duplicateObjects, translateElements } from "./objectEditing";
 import type { Arrange } from "./objectEditing";
 import { createTable } from "./tableData";
 import { SlideActionDialog } from "./SlideActionDialog";
@@ -351,6 +360,17 @@ export default function App() {
   const [activeId, setActiveId] = useState(deck.slides[0].id),
     [selected, setPrimarySelected] = useState<string>();
   const [selectionIds, setSelectionIds] = useState<string[]>([]);
+  const [objectClipboard, setObjectClipboard] = useState<{
+    token: string;
+    deckId: string;
+    userId: string;
+    slideIds: string[];
+    sourceSlideId: string;
+    elements: Element[];
+    pastes: number;
+  }>();
+  const clipboardRef = useRef(objectClipboard);
+  clipboardRef.current = objectClipboard;
   function setSelected(id?: string) {
     setPrimarySelected(id);
     setSelectionIds(id ? [id] : []);
@@ -918,6 +938,17 @@ export default function App() {
       elements: arrangeStructured(slide.elements, selectionIds, action),
     });
   }
+  function matchObjectSizes(referenceId: string, mode: MatchSize) {
+    const result = matchStructuredSizes(
+      slide.elements,
+      selectionIds,
+      referenceId,
+      mode,
+    );
+    if (result.error) return notify(result.error);
+    updateSlide({ elements: result.elements });
+    if (result.moved) notify("スライド内に収まるよう、位置を調整しました。");
+  }
   function duplicateSelection() {
     const result = duplicateObjects(slide.elements, selectionIds);
     if (result.elements.length > 200)
@@ -931,6 +962,73 @@ export default function App() {
       elements: removeObjects(slide.elements, selectionIds),
     });
     setSelected(undefined);
+  }
+  function copyObjectSelection() {
+    if (!cloud.canEdit(slide) || !selectionIds.length) return;
+    const elements = copyElements(slide.elements, selectionIds, uid);
+    if (!elements.length) return;
+    const value = {
+      token: crypto.randomUUID(),
+      deckId: cloud.active?.id ?? "local",
+      userId: cloud.user?.id ?? "local",
+      slideIds: workbook.slides.map((s) => s.id),
+      sourceSlideId: slide.id,
+      elements,
+      pastes: 0,
+    };
+    clipboardRef.current = value;
+    setObjectClipboard(value);
+    return value;
+  }
+  const clipboardMatches =
+    !!objectClipboard &&
+    objectClipboard.deckId === (cloud.active?.id ?? "local") &&
+    objectClipboard.userId === (cloud.user?.id ?? "local") &&
+    workbook.slides.some((s) => objectClipboard.slideIds.includes(s.id));
+  const clipboardText = (token: string) => `VHSlide-objects:${token}`;
+  function copyObjectsWithButton() {
+    const copied = copyObjectSelection();
+    if (!copied) return;
+    if (!navigator.clipboard?.writeText)
+      return notify(
+        "コピーしました。貼り付け先で「貼り付け」を押してください。",
+      );
+    void navigator.clipboard.writeText(clipboardText(copied.token)).then(
+      () => notify("コピーしました。別のスライドにも貼り付けできます。"),
+      () =>
+        notify("コピーしました。貼り付け先で「貼り付け」を押してください。"),
+    );
+  }
+  function pasteObjectSelection() {
+    const copied = clipboardRef.current;
+    if (
+      !copied ||
+      copied.deckId !== (cloud.active?.id ?? "local") ||
+      copied.userId !== (cloud.user?.id ?? "local") ||
+      !workbook.slides.some((s) => copied.slideIds.includes(s.id))
+    )
+      return notify("コピー元と同じ作品を開いてください。");
+    if (!cloud.canEdit(slide))
+      return notify("このスライドを編集する権限がありません。");
+    if (slide.elements.length + copied.elements.length > 200)
+      return notify("1ページの要素は200個までです。");
+    const copies = copyElements(
+      copied.elements,
+      copied.elements.map((e) => e.id),
+      uid,
+    );
+    const offset = Math.min(
+      200,
+      20 * (copied.pastes + (copied.sourceSlideId === slide.id ? 1 : 0)),
+    );
+    const added = offset ? translateElements(copies, offset, offset) : copies;
+    const next = { ...copied, pastes: copied.pastes + 1 };
+    clipboardRef.current = next;
+    setObjectClipboard(next);
+    updateSlide({ elements: [...slide.elements, ...added] });
+    setSelectionIds(added.map((e) => e.id));
+    setPrimarySelected(added.at(-1)?.id);
+    editorNavigationActive.current = false;
   }
   function insertStructure(elements: Element[]) {
     if (cloud.active && elements.some((e) => e.drawing)) {
@@ -1245,8 +1343,13 @@ export default function App() {
       if (
         view === "editor" &&
         selected &&
-        ["Delete", "Backspace"].includes(event.key) &&
-        !target.closest(".inspector")
+        cloud.canEdit(slide) &&
+        !event.defaultPrevented &&
+        !event.isComposing &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        ["Delete", "Backspace"].includes(event.key)
       ) {
         event.preventDefault();
         deleteSelection();
@@ -1258,6 +1361,48 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+  });
+  useEffect(() => {
+    const handler = (event: ClipboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        view !== "editor" ||
+        !event.clipboardData ||
+        (cloud.follow.active && !cloud.isHost) ||
+        cloud.viewingRevoked ||
+        updatesOpen ||
+        cloud.panel ||
+        toolsOpen ||
+        fitRequest ||
+        backupOpen ||
+        historyPending ||
+        [
+          ...document.querySelectorAll<HTMLElement>(
+            '[role="dialog"][aria-modal="true"]',
+          ),
+        ].some((el) => el.getClientRects().length > 0)
+      )
+        return;
+      const target =
+        event.target instanceof globalThis.Element ? event.target : null;
+      if (
+        target?.closest(
+          "input,textarea,select,[role=menu],[role=dialog],.help-panel,.slide-table",
+        ) ||
+        (target?.closest("[contenteditable]") &&
+          !target.closest(".editor-page-current .element")) ||
+        window.getSelection()?.toString()
+      )
+        return;
+      const copied = copyObjectSelection();
+      if (!copied) return;
+      event.clipboardData.setData("text/plain", clipboardText(copied.token));
+      event.preventDefault();
+      event.stopPropagation();
+      notify("コピーしました。別のスライドにも貼り付けできます。");
+    };
+    window.addEventListener("copy", handler, true);
+    return () => window.removeEventListener("copy", handler, true);
   });
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
@@ -1272,13 +1417,37 @@ export default function App() {
         historyPending
       )
         return;
+      const target = e.target instanceof globalThis.Element ? e.target : null;
       if (
         view !== "editor" ||
-        (e.target as HTMLElement).closest(
-          "input,textarea,[role=menu],[role=dialog],.help-panel",
+        target?.closest(
+          "input,textarea,select,[role=menu],[role=dialog],.help-panel,.slide-table",
         )
       )
         return;
+      const editableText = !!target?.closest("[contenteditable]");
+      if (editableText && !target?.closest(".editor-page-current .element"))
+        return;
+      if (
+        e.defaultPrevented ||
+        [
+          ...document.querySelectorAll<HTMLElement>(
+            '[role="dialog"][aria-modal="true"]',
+          ),
+        ].some((el) => el.getClientRects().length > 0)
+      )
+        return;
+      const copied = clipboardRef.current;
+      if (
+        copied &&
+        e.clipboardData?.getData("text/plain") === clipboardText(copied.token)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        pasteObjectSelection();
+        return;
+      }
+      if (editableText) return;
       const file = Array.from(e.clipboardData?.items ?? [])
         .find((i) => i.type.startsWith("image/"))
         ?.getAsFile();
@@ -1287,8 +1456,8 @@ export default function App() {
         void addImage(file);
       }
     };
-    window.addEventListener("paste", handler);
-    return () => window.removeEventListener("paste", handler);
+    window.addEventListener("paste", handler, true);
+    return () => window.removeEventListener("paste", handler, true);
   });
   function addElement(
     type: "text" | "shape" | "line",
@@ -1792,6 +1961,64 @@ export default function App() {
         )}
       </div>
     ) : null;
+  function syncSavedForm(draft: FormDraft) {
+    if (cloud.active?.id !== draft.deckId || !cloud.isHost) return false;
+    const current = latestWorkbook.current;
+    const next = syncFormDefinitions(current, draft);
+    return next === current || commitWorkbook(next, current, true);
+  }
+  function separateWorksheetOnSlide(
+    elementId: string,
+    definition: WorksheetDefinition,
+  ) {
+    const current = latestWorkbook.current;
+    const page = current.slides.find((item) => item.id === slide.id);
+    const index =
+      page?.elements.findIndex((item) => item.id === elementId) ?? -1;
+    const element = page?.elements[index];
+    if (
+      latestSlideId.current !== slide.id ||
+      !page ||
+      !element?.worksheet ||
+      !cloud.canEdit(page) ||
+      element.worksheet.deckId !== cloud.active?.id
+    )
+      throw Error("編集できる共有ワークシートを開いてください。");
+    const parts = separateWorksheet(element, definition, uid);
+    if (page.elements.length - 1 + parts.length > 200)
+      throw Error(
+        "1ページの要素は200個までです。空きのあるページでお試しください。",
+      );
+    const elements = page.elements.map((item) =>
+      item.type === "line"
+        ? {
+            ...item,
+            ...(item.startAnchor?.elementId === elementId
+              ? { startAnchor: { ...item.startAnchor, elementId: parts[0].id } }
+              : {}),
+            ...(item.endAnchor?.elementId === elementId
+              ? { endAnchor: { ...item.endAnchor, elementId: parts[0].id } }
+              : {}),
+          }
+        : item,
+    );
+    elements.splice(index, 1, ...parts);
+    const next = {
+      ...current,
+      slides: current.slides.map((item) =>
+        item.id === page.id
+          ? { ...item, elements: resolveConnections(elements) }
+          : item,
+      ),
+    };
+    if (!commitWorkbook(next, current))
+      throw Error("入力欄を個別に配置できませんでした。");
+    const first = parts.find((item) => item.responseField);
+    setSelected(first?.id);
+    notify(
+      "入力欄を個別に配置しました。枠をドラッグして移動・サイズ変更できます。",
+    );
+  }
   const followPage = view === "present" ? presenting?.slide : slide;
   const followTarget: FollowTarget =
     view === "map"
@@ -1810,7 +2037,7 @@ export default function App() {
   const followTargetKey = JSON.stringify(followTarget),
     lastFollowTarget = useRef("");
   useEffect(() => {
-    if (!cloud.drivesFollow || !cloud.follow.active) {
+    if (!cloud.drivesFollow || !cloud.follow.active || cloud.follow.pinned) {
       lastFollowTarget.current = "";
       return;
     }
@@ -1821,36 +2048,64 @@ export default function App() {
     if (lastFollowTarget.current === followTargetKey) return;
     lastFollowTarget.current = followTargetKey;
     void cloud.moveFollow(followTarget).catch((error) => notify(error.message));
-  }, [followTargetKey, cloud.follow.active, cloud.drivesFollow]);
+  }, [
+    followTargetKey,
+    cloud.follow.active,
+    cloud.follow.active && cloud.follow.pinned,
+    cloud.drivesFollow,
+  ]);
   const iconSize = 17;
   const followControls = (
     <>
       {cloud.active && cloud.isHost && (
         <div className="host-follow-controls">
-          <button
-            className={`button ${cloud.follow.active ? "follow-running" : "outline"}`}
-            aria-label="全員の画面を同期"
-            aria-pressed={cloud.follow.active}
-            disabled={
-              !cloud.followConnected ||
-              cloud.followPending ||
-              (!cloud.follow.active &&
-                followTarget.mode === "page" &&
-                !workbook.slides.some((s) => s.id === followTarget.pageId))
-            }
-            onClick={() =>
-              void (
-                cloud.follow.active
-                  ? cloud.stopFollow()
-                  : cloud.startFollow(followTarget)
-              ).catch((error) => notify(error.message))
-            }
-          >
-            {cloud.follow.active ? "集合を終了" : "全員を集合"}
-          </button>
+          <div className="host-follow-buttons">
+            <button
+              className={`button ${cloud.follow.active ? "follow-running" : "outline"}`}
+              aria-label="全員の画面を同期"
+              aria-pressed={cloud.follow.active}
+              disabled={
+                !cloud.followConnected ||
+                cloud.followPending ||
+                (!cloud.follow.active &&
+                  followTarget.mode === "page" &&
+                  !workbook.slides.some((s) => s.id === followTarget.pageId))
+              }
+              onClick={() =>
+                void (
+                  cloud.follow.active
+                    ? cloud.stopFollow()
+                    : cloud.startFollow(followTarget)
+                ).catch((error) => notify(error.message))
+              }
+            >
+              {cloud.follow.active ? "集合を終了" : "全員を集合"}
+            </button>
+            {cloud.follow.active &&
+              cloud.drivesFollow &&
+              (cloud.follow.pinned || cloud.follow.target.mode === "page") && (
+                <button
+                  className="button outline"
+                  disabled={!cloud.followConnected || cloud.followPending}
+                  onClick={() =>
+                    void (
+                      cloud.follow.active && cloud.follow.pinned
+                        ? cloud.resumeFollow(followTarget)
+                        : cloud.pinFollow()
+                    ).catch((error) => notify(error.message))
+                  }
+                >
+                  {cloud.follow.pinned
+                    ? "画面の同期を再開"
+                    : "ゲストの画面を固定"}
+                </button>
+              )}
+          </div>
           {cloud.follow.active && (
             <span role="status">
-              全員に表示中・ゲスト
+              {cloud.follow.pinned
+                ? "ゲスト画面を固定中・"
+                : "全員に表示中・ゲスト"}
               {cloud.members.filter((m) => m.id !== cloud.user?.id).length}人
             </span>
           )}
@@ -2652,6 +2907,7 @@ export default function App() {
               setPrimarySelected(next.at(-1));
             }}
             onArrange={arrangeObjects}
+            onMatchSize={matchObjectSizes}
             linkDeck={
               forceAssigned
                 ? {
@@ -2668,9 +2924,14 @@ export default function App() {
             onUngroup={ungroupSelection}
             onSelectGroup={() => selected && selectObjects(selected)}
             onDuplicate={duplicateSelection}
+            onCopy={copyObjectsWithButton}
+            onPaste={pasteObjectSelection}
+            canPaste={clipboardMatches}
             onDeleteSelection={deleteSelection}
             updateSlide={updateSlide}
             updateElement={updateElement}
+            onFormSaved={syncSavedForm}
+            onSeparateWorksheet={separateWorksheetOnSlide}
             addElement={addElement}
             addTable={addTable}
             pageAddition={
@@ -2728,6 +2989,7 @@ export default function App() {
           presenting.pages.length > 0 &&
           presentation && (
             <PresentationView
+              followControls={followControls}
               speakerLaunch={speakerLaunch}
               onOpenLink={openObjectLink}
               onLinkBack={objectTrail.length ? backFromObjectLink : undefined}
@@ -2945,10 +3207,12 @@ export default function App() {
           <WorksheetPanel
             host={cloud.isHost}
             onEmbed={worksheetProps.onEmbed}
+            onFormSaved={syncSavedForm}
           />
         }
         survey={
           <SurveyPanel
+            onFormSaved={syncSavedForm}
             key={`${cloud.active?.id ?? "local"}:${cloud.user?.id ?? ""}`}
             deckId={cloud.active?.id}
             userId={cloud.user?.id}

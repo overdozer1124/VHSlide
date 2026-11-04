@@ -43,7 +43,8 @@ export function ResponseFieldTools({
   const [fieldId, setFieldId] = useState("");
   const [create, setCreate] = useState(true);
   const [label, setLabel] = useState("");
-  const [kind, setKind] = useState<WorksheetField["kind"]>("text");
+  const [kind, setKind] =
+    useState<Exclude<WorksheetField["kind"], "radar">>("text");
   const [options, setOptions] = useState("はい\nいいえ");
   const [placeholder, setPlaceholder] = useState("ここに入力");
   const [groupTitle, setGroupTitle] = useState("ワークシート");

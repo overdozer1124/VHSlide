@@ -1,3 +1,10 @@
+import { useWorksheets } from "./WorksheetContext";
+import { SurveySlideContext } from "./SurveySlideContext";
+import { api } from "./cloud";
+import type { FormDraft } from "./formEditing";
+import type { WorksheetView } from "./worksheets";
+import type { WorksheetDefinition } from "./worksheets";
+import type { SurveyView } from "./surveys";
 import { ToolbarScroller } from "./ToolbarScroller";
 import { ResponseFieldLauncher } from "./ResponseFieldLauncher";
 import { ResponseFieldAppearance } from "./ResponseFieldTools";
@@ -24,8 +31,9 @@ import { ImageControls } from "./ImageTools";
 import { ObjectPalette, Palette } from "./ObjectPalette";
 import { ObjectLayout, StrokeControls } from "./ObjectLayout";
 import type { Arrange } from "./objectEditing";
+import type { MatchSize } from "./structuredEditing";
 import { TableInsert, TableControls } from "./TableTools";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   NotebookPen,
@@ -95,10 +103,19 @@ interface EditorProps {
   setSelected: (id?: string, additive?: boolean, inside?: boolean) => void;
   setSelectedMany: (ids: string[]) => void;
   onArrange: (action: Arrange) => void;
+  onMatchSize: (referenceId: string, mode: MatchSize) => void;
   onDuplicate: () => void;
+  onCopy: () => void;
+  onPaste: () => void;
+  canPaste: boolean;
   onDeleteSelection: () => void;
   updateSlide: (patch: Partial<Slide>) => void;
   updateElement: (patch: Partial<Element>) => void;
+  onFormSaved: (draft: FormDraft) => boolean;
+  onSeparateWorksheet: (
+    elementId: string,
+    definition: WorksheetDefinition,
+  ) => void;
   addElement: (
     type: "text" | "shape" | "line",
     shape?: Shape,
@@ -158,10 +175,16 @@ export function Editor({
   setSelected,
   setSelectedMany,
   onArrange,
+  onMatchSize,
   onDuplicate,
+  onCopy,
+  onPaste,
+  canPaste,
   onDeleteSelection,
   updateSlide,
   updateElement,
+  onFormSaved,
+  onSeparateWorksheet,
   addElement,
   addTable,
   onBack,
@@ -186,6 +209,171 @@ export function Editor({
   onToggleRail,
   onToggleInspector,
 }: EditorProps) {
+  const worksheets = useWorksheets();
+  const surveyContext = useContext(SurveySlideContext);
+  const [formDraft, setFormDraft] = useState<FormDraft>();
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [separatingWorksheet, setSeparatingWorksheet] = useState(false);
+  async function separateCurrentWorksheet(element: Element) {
+    if (!element.worksheet || separatingWorksheet) return;
+    setSeparatingWorksheet(true);
+    setFormError("");
+    try {
+      const sheets = await worksheets.refresh();
+      const sheet = sheets.find(
+        (item) => item.id === element.worksheet!.worksheetId,
+      );
+      if (!sheet) throw Error("ワークシートを読み込んでからお試しください。");
+      onSeparateWorksheet(element.id, sheet);
+    } catch (error) {
+      setFormError((error as Error).message);
+    } finally {
+      setSeparatingWorksheet(false);
+    }
+  }
+  const formDirty =
+    !!formDraft &&
+    JSON.stringify(formDraft.value) !== JSON.stringify(formDraft.expected);
+  useEffect(() => {
+    if (!formDirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [formDirty]);
+  function leaveEditor(rect?: DOMRect) {
+    if (
+      formDirty &&
+      !window.confirm(
+        "フォームの文章の変更はまだ保存されていません。編集を終了しますか？",
+      )
+    )
+      return;
+    onBack(rect);
+  }
+  function beginFormEdit(element: Element) {
+    if (!cloud?.isHost || !cloud.active || formDraft) return;
+    if (element.worksheet?.deckId === cloud.active.id) {
+      const sheet = worksheets.sheets.find(
+        (item) => item.id === element.worksheet!.worksheetId,
+      );
+      if (!sheet) {
+        setFormError("ワークシートを読み込んでから編集してください。");
+        return;
+      }
+      const value = {
+        title: sheet.title,
+        description: sheet.description,
+        fontSize: sheet.fontSize,
+        fields: sheet.fields,
+      };
+      setFormDraft({
+        elementId: element.id,
+        deckId: cloud.active.id,
+        id: sheet.id,
+        kind: "worksheet",
+        expected: structuredClone(value),
+        value: structuredClone(value),
+      });
+    } else if (element.survey?.deckId === cloud.active.id) {
+      const survey = surveyContext.surveys.find(
+        (item) => item.id === element.survey!.surveyId,
+      );
+      if (!survey) {
+        setFormError("アンケートを読み込んでから編集してください。");
+        return;
+      }
+      const value = {
+        question: survey.question,
+        kind: survey.kind,
+        options: survey.options,
+      };
+      setFormDraft({
+        elementId: element.id,
+        deckId: cloud.active.id,
+        id: survey.id,
+        kind: "survey",
+        expected: structuredClone(value),
+        value: structuredClone(value),
+      });
+    }
+    setFormError("");
+  }
+  async function saveFormEdit() {
+    const draft = formDraft;
+    if (
+      !draft ||
+      formSaving ||
+      !editable ||
+      !cloud?.isHost ||
+      cloud.active?.id !== draft.deckId
+    )
+      return;
+    setFormSaving(true);
+    setFormError("");
+    try {
+      if (draft.kind === "worksheet") {
+        const result = await api<{ worksheets: WorksheetView[] }>(
+          `/api/decks/${draft.deckId}/worksheets/${draft.id}/edit`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              expected: draft.expected,
+              definition: draft.value,
+            }),
+          },
+        );
+        const saved = result.worksheets.find((item) => item.id === draft.id);
+        if (!saved) throw Error("保存後のワークシートを確認できませんでした。");
+        worksheets.update(result.worksheets);
+        const value = {
+          title: saved.title,
+          description: saved.description,
+          fontSize: saved.fontSize,
+          fields: saved.fields,
+        };
+        if (!onFormSaved({ ...draft, value }))
+          setFormError(
+            "フォームの内容は保存されましたが、スライドのプレビュー更新を確認できませんでした。",
+          );
+      } else {
+        const result = await api<{ surveys: SurveyView[] }>(
+          `/api/decks/${draft.deckId}/surveys/${draft.id}/edit`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              expected: draft.expected,
+              question: draft.value.question,
+              options: draft.value.options,
+            }),
+          },
+        );
+        const saved = result.surveys.find((item) => item.id === draft.id);
+        if (!saved) throw Error("保存後のアンケートを確認できませんでした。");
+        surveyContext.onUpdated(
+          result.surveys,
+          draft.deckId,
+          surveyContext.userId,
+        );
+        const value = {
+          question: saved.question,
+          kind: saved.kind,
+          options: saved.options,
+        };
+        if (!onFormSaved({ ...draft, value }))
+          setFormError(
+            "フォームの内容は保存されましたが、スライドのプレビュー更新を確認できませんでした。",
+          );
+      }
+      setFormDraft(undefined);
+    } catch (error) {
+      setFormError((error as Error).message);
+    } finally {
+      setFormSaving(false);
+    }
+  }
   const [textController, setTextController] = useState<TextController>();
   const [cellSelection, setCellSelection] = useState<CellSelection>();
   const [cellRangeMode, setCellRangeMode] = useState(false);
@@ -424,7 +612,7 @@ export function Editor({
             <button
               className="quiet back-map"
               aria-label="全体マップへ"
-              onClick={() => onBack()}
+              onClick={() => leaveEditor()}
             >
               <ArrowLeft size={17} />
               <span className="back-map-full">全体マップへ</span>
@@ -584,6 +772,50 @@ export function Editor({
           </div>
         )}
       </ToolbarScroller>
+      {formDraft && (
+        <div
+          className="form-edit-bar"
+          role="region"
+          aria-label="フォームの文章を編集中"
+        >
+          <span>
+            スライド上の文章を編集し、保存してください。変更は同じフォームのすべての配置と集計に反映されます。
+          </span>
+          <button
+            className="button primary"
+            disabled={
+              formSaving ||
+              !editable ||
+              !cloud?.isHost ||
+              cloud.active?.id !== formDraft.deckId
+            }
+            onClick={() => void saveFormEdit()}
+          >
+            {formSaving ? "保存中…" : "文章の変更を保存"}
+          </button>
+          <button
+            className="button outline"
+            disabled={formSaving}
+            onClick={() => {
+              if (
+                JSON.stringify(formDraft.value) !==
+                  JSON.stringify(formDraft.expected) &&
+                !window.confirm("編集した文章を破棄しますか？")
+              )
+                return;
+              setFormDraft(undefined);
+              setFormError("");
+            }}
+          >
+            編集を取り消す
+          </button>
+        </div>
+      )}
+      {formError && (
+        <p className="form-edit-error" role="alert">
+          {formError}
+        </p>
+      )}
       <div
         className="editor-layout"
         data-rail-collapsed={railCollapsed}
@@ -677,12 +909,20 @@ export function Editor({
             slide={slide}
             zoom={zoom}
             onNavigate={onNavigate}
-            onMap={onBack}
+            onMap={leaveEditor}
             onPinchStart={() => setGestureEpoch((epoch) => epoch + 1)}
             surface={workspaceRef}
           >
             <Canvas
               surveyInteractive
+              formDraft={
+                editable &&
+                cloud?.isHost &&
+                cloud.active?.id === formDraft?.deckId
+                  ? formDraft
+                  : undefined
+              }
+              onFormDraftChange={formSaving ? undefined : setFormDraft}
               slide={slide}
               zoom={zoom}
               editable={editable}
@@ -792,6 +1032,9 @@ export function Editor({
               count={chosen.length}
               disabled={!editable}
               onDuplicate={onDuplicate}
+              onCopy={onCopy}
+              onPaste={onPaste}
+              canPaste={canPaste}
               onDelete={onDeleteSelection}
               onSectionChange={(section) => {
                 if (section !== "appearance") setCellRangeMode(false);
@@ -834,6 +1077,73 @@ export function Editor({
                       キャンバスの中の文字や図形をタップすると、色や大きさを変えられます。
                     </p>
                   </>
+                ) : element.survey || element.worksheet ? (
+                  <section
+                    className="form-appearance"
+                    aria-label="フォームの編集"
+                  >
+                    <label>
+                      文字の大きさ
+                      <input
+                        aria-label="フォームの文字の大きさ"
+                        type="number"
+                        min={12}
+                        max={60}
+                        value={
+                          element.formFontSize ??
+                          (element.worksheet
+                            ? (element.worksheet.fontSize ?? 18)
+                            : 20)
+                        }
+                        onChange={(event) =>
+                          updateElement({
+                            formFontSize: Math.max(
+                              12,
+                              Math.min(60, Number(event.target.value) || 12),
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <button
+                      className="button outline"
+                      disabled={
+                        !cloud?.isHost ||
+                        !cloud.active ||
+                        !!formDraft ||
+                        (element.worksheet?.deckId ??
+                          element.survey?.deckId) !== cloud.active.id
+                      }
+                      onClick={() => beginFormEdit(element)}
+                    >
+                      スライド上で文章を編集
+                    </button>
+                    <p className="inspector-note">
+                      タイトル・質問・項目名・選択肢をスライド上で編集できます。文章の変更は同じフォームを使うすべてのスライドと集計に反映されます。
+                    </p>
+                    {element.worksheet && (
+                      <>
+                        <button
+                          className="button outline"
+                          disabled={
+                            !editable ||
+                            !worksheets.enabled ||
+                            separatingWorksheet ||
+                            !!formDraft ||
+                            element.worksheet.deckId !== worksheets.deckId
+                          }
+                          onClick={() => void separateCurrentWorksheet(element)}
+                        >
+                          {separatingWorksheet
+                            ? "準備中…"
+                            : "入力欄を個別に配置"}
+                        </button>
+                        <p className="inspector-note">
+                          ワークシートを入力欄ごとの部品に分け、マウスで自由に配置できます。元の回答は引き継がれます。タイトルと説明も別の文字部品になります。
+                        </p>
+                      </>
+                    )}
+                  </section>
                 ) : (
                   <>
                     {element.type === "shape" && element.text === undefined && (
@@ -1102,6 +1412,8 @@ export function Editor({
                   <ObjectLayout
                     elements={chosen}
                     allElements={slide.elements}
+                    primaryId={selected}
+                    onMatchSize={onMatchSize}
                     showActions={false}
                     onArrange={onArrange}
                     onChange={updateElement}

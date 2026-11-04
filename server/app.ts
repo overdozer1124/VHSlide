@@ -982,7 +982,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer|field))?)?$/.exec(
+            /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer|field|edit))?)?$/.exec(
               extra,
             );
           insist(
@@ -1028,7 +1028,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^surveys(?:\/([a-f0-9-]{36})(?:\/(status|answer|publish))?)?$/.exec(
+            /^surveys(?:\/([a-f0-9-]{36})(?:\/(status|answer|publish|edit))?)?$/.exec(
               extra,
             );
           insist(

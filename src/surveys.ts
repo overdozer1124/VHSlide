@@ -193,7 +193,49 @@ export function surveyCommand(
   ][0];
   insist(row, 404, "アンケートが見つかりません。");
   const survey = read(row);
-  if (action === "publish") {
+  if (action === "edit") {
+    insist(host, 403, "内容を編集できるのはホストだけです。");
+    const before = value.expected as {
+      question?: unknown;
+      kind?: unknown;
+      options?: unknown;
+    };
+    insist(
+      before &&
+        before.question === survey.question &&
+        before.kind === survey.kind &&
+        JSON.stringify(before.options) === JSON.stringify(survey.options),
+      409,
+      "他の画面で内容が変更されました。最新の内容を読み込んでから編集してください。",
+    );
+    insist(
+      typeof value.question === "string" &&
+        value.question.trim().length > 0 &&
+        value.question.length <= 200,
+      400,
+      "質問は1〜200文字で入力してください。",
+    );
+    const options = value.options;
+    insist(
+      Array.isArray(options) &&
+        (survey.kind === "text"
+          ? options.length === 0
+          : options.length >= survey.options.length && options.length <= 10) &&
+        options.every(
+          (o) => typeof o === "string" && o.trim() && o.length <= 60,
+        ) &&
+        new Set(options.map((o: string) => o.trim())).size === options.length,
+      400,
+      "選択肢は重複しない各60文字以内で入力してください。",
+    );
+    sql(
+      "UPDATE surveys SET question=?,options=? WHERE id=? AND deck=?",
+      (value.question as string).trim().replace(/\s+/g, " "),
+      JSON.stringify((options as string[]).map((o) => o.trim())),
+      survey.id,
+      deck,
+    );
+  } else if (action === "publish") {
     insist(host, 403, "集計の共有を変更できるのはホストだけです。");
     insist(
       survey.kind !== "text" &&

@@ -1,5 +1,171 @@
 import { test, expect, type Page } from "@playwright/test";
 import { blank } from "../../src/model";
+test("copies selected objects between slides and preserves keyboard text editing", async ({
+  page,
+}, info) => {
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (await page.request.get("/__test/token?name=copy-host")).text()
+      : "copy-host";
+  expect(
+    (
+      await page.request.post("/api/auth/google", {
+        headers,
+        data: { credential },
+      })
+    ).status(),
+  ).toBe(200);
+  const first = {
+    ...blank(0, 0),
+    title: "コピー元",
+    elements: [
+      {
+        id: "original",
+        type: "shape",
+        shape: "rect",
+        x: 40,
+        y: 80,
+        w: 200,
+        h: 120,
+        fill: "#ffffff",
+        stroke: "#173d38",
+        text: "コピーする文字",
+        fontSize: 24,
+        color: "#173d38",
+      },
+    ],
+  };
+  const second = { ...blank(0, 1), title: "貼り付け先", elements: [] };
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "コピー検証", slides: [first, second] },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page
+    .getByRole("button", { name: "コピー元を編集", exact: true })
+    .click();
+  await expect(page.locator(".workspace-flight")).toHaveCount(0);
+  const original = page.locator(
+    '.editor-page-current .element[data-element-id="original"]',
+  );
+  if (info.project.name.includes("touch")) {
+    await original.tap();
+    await page.getByRole("button", { name: "コピー", exact: true }).tap();
+  } else {
+    await original.click();
+    await page.keyboard.press("Control+c");
+  }
+  await expect(
+    page.getByRole("button", { name: "貼り付け", exact: true }),
+  ).toBeVisible();
+  if (info.project.name.includes("touch"))
+    await page.getByRole("button", { name: "貼り付け", exact: true }).tap();
+  else await page.keyboard.press("Control+v");
+  await expect(page.locator(".editor-page-current .element")).toHaveCount(2);
+  await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+  await expect(page.locator(".editor-page-current .element")).toHaveCount(1);
+  await page.getByRole("button", { name: "2段目の横のページをひらく" }).click();
+  await expect(page.locator(".workspace-flight")).toHaveCount(0);
+  if (info.project.name.includes("touch"))
+    await page.getByRole("button", { name: "貼り付け", exact: true }).tap();
+  else await page.keyboard.press("Control+v");
+  const pasted = page.locator(".editor-page-current .element");
+  await expect(pasted).toHaveCount(1);
+  await expect(pasted).toContainText("コピーする文字");
+  await expect(pasted).not.toHaveAttribute("data-element-id", "original");
+  await page.keyboard.press("Delete");
+  await expect(pasted).toHaveCount(0);
+  await page.getByRole("button", { name: "貼り付け", exact: true }).click();
+  await expect(pasted).toHaveCount(1);
+  await pasted.dblclick();
+  const text = pasted.getByRole("textbox");
+  await expect(text).toBeVisible();
+  await text.fill("編集する文字");
+  await text.press("Backspace");
+  await expect(pasted).toHaveCount(1);
+  await expect(text).toContainText("編集する文");
+  await text.press("Control+a");
+  await text.press("Control+c");
+  await text.press("End");
+  await text.press("Control+v");
+  await expect(text).toContainText("編集する文編集する文");
+  await expect(pasted).toHaveCount(1);
+});
+test("matches sizes to a chosen reference and supports undo", async ({
+  page,
+}, info) => {
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (await page.request.get("/__test/token?name=size-host")).text()
+      : "size-host";
+  expect(
+    (
+      await page.request.post("/api/auth/google", {
+        headers,
+        data: { credential },
+      })
+    ).status(),
+  ).toBe(200);
+  const shape = (id: string, x: number, w: number, h: number) => ({
+    id,
+    type: "shape",
+    shape: "rect",
+    x,
+    y: 80,
+    w,
+    h,
+    fill: "#ffffff",
+    stroke: "#173d38",
+    text: id,
+    fontSize: 24,
+    color: "#173d38",
+  });
+  const slide = {
+    ...blank(0, 0),
+    title: "サイズ確認",
+    elements: [shape("reference", 40, 200, 120), shape("target", 300, 100, 60)],
+  };
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "サイズ調整", slides: [slide] },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page
+    .getByRole("button", { name: "サイズ確認を編集", exact: true })
+    .click();
+  await expect(page.locator(".workspace-flight")).toHaveCount(0);
+  const reference = page.locator(
+    '.editor-page-current .element[data-element-id="reference"]',
+  );
+  const target = page.locator(
+    '.editor-page-current .element[data-element-id="target"]',
+  );
+  if (info.project.name.includes("touch")) {
+    await page.getByRole("button", { name: "まとめて選択" }).tap();
+    await reference.tap();
+    await target.tap();
+  } else {
+    await reference.click();
+    await target.click({ modifiers: ["Shift"] });
+  }
+  await page
+    .getByRole("combobox", { name: "大きさの基準" })
+    .selectOption("reference");
+  await page.getByRole("button", { name: "幅を揃える", exact: true }).click();
+  await expect(target).toHaveCSS("width", "200px");
+  await expect(target).toHaveCSS("height", "60px");
+  await page.getByRole("button", { name: "幅と高さを揃える" }).click();
+  await expect(target).toHaveCSS("height", "120px");
+  await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+  await expect(target).toHaveCSS("height", "60px");
+  await expect(reference).toHaveCSS("width", "200px");
+});
 test("shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert", async ({
   page,
   browser,

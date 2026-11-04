@@ -168,7 +168,7 @@ export class CloudWorkspace {
     this.followRequests.clear();
   }
   private followCommand(
-    action: "start" | "move" | "stop" | "heartbeat",
+    action: "start" | "move" | "stop" | "heartbeat" | "pin" | "resume",
     target?: FollowTarget,
   ): Promise<void> {
     if (
@@ -212,6 +212,12 @@ export class CloudWorkspace {
     return this.drivesFollow
       ? this.followCommand("move", target)
       : Promise.resolve();
+  }
+  pinFollow() {
+    return this.followCommand("pin");
+  }
+  resumeFollow(target: FollowTarget) {
+    return this.followCommand("resume", target);
   }
   available = false;
   clientId = "";

@@ -10,6 +10,7 @@ import type { SurveySlideData } from "./SurveySlideContext";
 import { useEffect, useRef, useState } from "react";
 import { api } from "./cloud";
 import type { SurveyKind, SurveyView } from "./surveys";
+import type { FormDraft, SurveyDefinition } from "./formEditing";
 
 type Props = {
   deckId?: string;
@@ -22,6 +23,7 @@ type Props = {
   refreshToken?: number;
   pollActive?: boolean;
   blocked?: boolean;
+  onFormSaved: (draft: FormDraft) => boolean;
 };
 export function SurveyPanel({
   deckId,
@@ -34,6 +36,7 @@ export function SurveyPanel({
   refreshToken,
   pollActive,
   blocked,
+  onFormSaved,
 }: Props) {
   const answers = useAnswers();
   const activity = useActivityPanel();
@@ -47,6 +50,10 @@ export function SurveyPanel({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<{
+    id: string;
+    expected: SurveyDefinition;
+  }>();
   const [question, setQuestion] = useState("");
   const [kind, setKind] = useState<SurveyKind>("single");
   const [options, setOptions] = useState(["", ""]);
@@ -70,6 +77,7 @@ export function SurveyPanel({
     setSelectedId("");
     setError("");
     setCreating(false);
+    setEditing(undefined);
     setBusy(false);
     setDeleteId("");
     setMessage("");
@@ -130,6 +138,7 @@ export function SurveyPanel({
   function select(survey: SurveyView) {
     setSelectedId(survey.id);
     setCreating(false);
+    setEditing(undefined);
     setDeleteId("");
     setMessage("");
     setError("");
@@ -161,7 +170,31 @@ export function SurveyPanel({
       ++refreshVersion.current;
       setSurveys(data.surveys);
       setDeleteId("");
-      if (path === "") {
+      if (path.endsWith("/edit") && editing && deckId) {
+        const saved = data.surveys.find((item) => item.id === editing.id);
+        if (saved) {
+          const value = {
+            question: saved.question,
+            kind: saved.kind,
+            options: saved.options,
+          };
+          if (
+            !onFormSaved({
+              kind: "survey",
+              id: saved.id,
+              deckId,
+              elementId: "",
+              expected: editing.expected,
+              value,
+            })
+          )
+            setError(
+              "内容は保存されましたが、スライドのプレビュー更新を確認できませんでした。",
+            );
+        }
+        setEditing(undefined);
+        setMessage("アンケートの内容を保存しました。");
+      } else if (path === "") {
         setCreating(false);
         setQuestion("");
         setOptions(["", ""]);
@@ -277,6 +310,7 @@ export function SurveyPanel({
                   disabled={busy}
                   onClick={() => {
                     setCreating(true);
+                    setEditing(undefined);
                     setSelectedId("");
                     setQuestion("");
                     setOptions(["", ""]);
@@ -319,14 +353,20 @@ export function SurveyPanel({
               ))}
             </aside>
             <main>
-              {creating && host ? (
+              {(creating || editing) && host ? (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void command("", { question, kind, options });
+                    void (editing
+                      ? command(`/${editing.id}/edit`, {
+                          expected: editing.expected,
+                          question,
+                          options: kind === "text" ? [] : options,
+                        })
+                      : command("", { question, kind, options }));
                   }}
                 >
-                  <h3>新しいアンケート</h3>
+                  <h3>{editing ? "アンケートを編集" : "新しいアンケート"}</h3>
                   <label>
                     質問
                     <textarea
@@ -344,7 +384,7 @@ export function SurveyPanel({
                       value={kind}
                       aria-label="アンケートの回答形式"
                       onChange={(e) => setKind(e.target.value as SurveyKind)}
-                      disabled={busy}
+                      disabled={busy || !!editing}
                     >
                       <option value="single">選択式（1つ選ぶ）</option>
                       <option value="multiple">選択式（複数選ぶ）</option>
@@ -371,7 +411,10 @@ export function SurveyPanel({
                             type="button"
                             className="button outline"
                             aria-label={`選択肢${i + 1}を削除`}
-                            disabled={options.length <= 2}
+                            disabled={
+                              options.length <= 2 ||
+                              (!!editing && i < editing.expected.options.length)
+                            }
                             onClick={() =>
                               setOptions((o) => o.filter((_, j) => j !== i))
                             }
@@ -391,17 +434,48 @@ export function SurveyPanel({
                     </fieldset>
                   )}
                   <p>
-                    1人1回答。受付中は自分の回答を変更できます。作成後の質問と選択肢は変更できません。
+                    {editing
+                      ? "既存の回答を引き継ぎます。既存の選択肢は位置に対応しているため、削除や並べ替えはできません。"
+                      : "1人1回答。受付中は自分の回答を変更できます。"}
                   </p>
                   <button className="button primary" disabled={busy}>
-                    下書きを作成
+                    {editing ? "変更を保存" : "下書きを作成"}
                   </button>
+                  {editing && (
+                    <button
+                      type="button"
+                      className="button outline"
+                      onClick={() => setEditing(undefined)}
+                      disabled={busy}
+                    >
+                      キャンセル
+                    </button>
+                  )}
                 </form>
               ) : selected ? (
                 <>
                   <h3>{selected.question}</h3>
                   {host && (
                     <div className="survey-controls">
+                      <button
+                        className="button outline"
+                        disabled={busy}
+                        onClick={() => {
+                          const expected = {
+                            question: selected.question,
+                            kind: selected.kind,
+                            options: [...selected.options],
+                          };
+                          setQuestion(expected.question);
+                          setKind(expected.kind);
+                          setOptions([...expected.options]);
+                          setEditing({ id: selected.id, expected });
+                          setError("");
+                          setMessage("");
+                        }}
+                      >
+                        質問・選択肢を編集
+                      </button>
                       <button
                         className="button primary"
                         disabled={busy}

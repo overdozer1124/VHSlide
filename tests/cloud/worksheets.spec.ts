@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { sample, parseDeck, serializeDeck } from "../../src/model";
+import { worksheetTemplate } from "../../src/worksheetTemplates";
 import { fromBase64, readSharedDeck } from "../../src/sharedDeck";
 import * as Y from "yjs";
 async function signIn(page: Page, name: string) {
@@ -26,6 +27,221 @@ async function openWorksheets(page: Page) {
 }
 const modal = (page: Page) =>
   page.getByRole("dialog", { name: "ワークシート", exact: true });
+test("existing worksheet fields become individually movable and keep personal answers", async ({
+  page,
+  browser,
+}, info) => {
+  const context = await browser.newContext(info.project.use),
+    guest = await context.newPage();
+  try {
+    await signIn(page, "layout-host");
+    await signIn(guest, "layout-guest");
+    const headers = { Origin: "http://127.0.0.1:3187" };
+    const { id } = await (
+      await page.request.post("/api/decks", { headers, data: sample() })
+    ).json();
+    const invite = await (
+      await page.request.post(`/api/decks/${id}/invite`, { headers })
+    ).json();
+    const token = new URL(invite.url).searchParams.get("join");
+    const accepted = await (
+      await guest.request.post(`/api/invites/${token}/accept`, { headers })
+    ).json();
+    if (accepted.status === "pending")
+      await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+        headers,
+        data: { requestIds: [accepted.requestId] },
+      });
+    const created = await page.request.post(`/api/decks/${id}/worksheets`, {
+      headers,
+      data: worksheetTemplate("reason"),
+    });
+    expect(created.status()).toBe(200);
+    const sheet = (await created.json()).worksheets[0];
+    expect(
+      (
+        await page.request.post(
+          `/api/decks/${id}/worksheets/${sheet.id}/status`,
+          { headers, data: { status: "open" } },
+        )
+      ).status(),
+    ).toBe(200);
+    await page.goto(`/?room=${id}`);
+    await guest.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(5);
+    await openWorksheets(page);
+    await page
+      .getByRole("button", { name: "このワークシートをスライドに配置" })
+      .click();
+    await guest.locator(".thumbnail").first().click();
+    const guestForm = guest.locator(".editor-workspace .slide-worksheet");
+    await guestForm
+      .getByRole("textbox", { name: "選んだ理由" })
+      .fill("保存済みの答え");
+    await guestForm.getByRole("textbox", { name: "選んだ理由" }).blur();
+    await expect(guestForm).toContainText("入力は保存済みです。");
+    const hostForm = page.locator(".editor-workspace .slide-worksheet");
+    await hostForm.locator("header h3").click();
+    await page.getByRole("button", { name: "入力欄を個別に配置" }).click();
+    await expect(
+      page.locator(".editor-workspace .slide-worksheet"),
+    ).toHaveCount(0);
+    await expect(page.locator(".editor-workspace .response-field")).toHaveCount(
+      3,
+    );
+    const guestField = guest
+      .locator(".editor-workspace .response-field")
+      .first();
+    await expect(
+      guestField.getByRole("textbox", { name: "理由と工夫：選んだ理由" }),
+    ).toHaveValue("保存済みの答え");
+    await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+    await expect(
+      page.locator(".editor-workspace .slide-worksheet"),
+    ).toHaveCount(1);
+    await page.getByRole("button", { name: "やり直す", exact: true }).click();
+    await expect(page.locator(".editor-workspace .response-field")).toHaveCount(
+      3,
+    );
+    await expect(
+      guestField.getByRole("textbox", { name: "理由と工夫：選んだ理由" }),
+    ).toHaveValue("保存済みの答え");
+    const hostField = page.locator(".editor-workspace .response-field").first();
+    const position = await hostField.boundingBox();
+    const label = await hostField
+      .locator(".worksheet-input-label")
+      .boundingBox();
+    await page.mouse.move(label!.x + 10, label!.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(label!.x + 45, label!.y + 8, { steps: 4 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await hostField.boundingBox())!.x)
+      .toBeGreaterThan(position!.x + 10);
+    const handle = page.getByRole("button", {
+      name: "要素の右の枠でサイズを変更",
+    });
+    const h = await handle.boundingBox();
+    const before = (await hostField.boundingBox())!.width;
+    await page.mouse.move(h!.x + h!.width / 2, h!.y + h!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(h!.x + h!.width / 2 - 50, h!.y + h!.height / 2, {
+      steps: 4,
+    });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await hostField.boundingBox())!.width)
+      .toBeLessThan(before - 10);
+    const bottom = await page
+      .getByRole("button", { name: "要素の下の枠でサイズを変更" })
+      .boundingBox();
+    const beforeHeight = (await hostField.boundingBox())!.height;
+    await page.mouse.move(
+      bottom!.x + bottom!.width / 2,
+      bottom!.y + bottom!.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      bottom!.x + bottom!.width / 2,
+      bottom!.y + bottom!.height / 2 - 35,
+      { steps: 4 },
+    );
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await hostField.boundingBox())!.height)
+      .toBeLessThan(beforeHeight - 10);
+    await guestField
+      .getByRole("textbox", { name: "理由と工夫：選んだ理由" })
+      .fill("移動後の答え");
+    await guestField
+      .getByRole("textbox", { name: "理由と工夫：選んだ理由" })
+      .blur();
+    await openWorksheets(page);
+    await page.getByRole("button", { name: /回答結果（1人）/ }).click();
+    await expect(modal(page)).toContainText("移動後の答え");
+  } finally {
+    await context.close();
+  }
+});
+test("radar worksheets chart each participant's scores and export separate columns", async ({
+  page,
+  browser,
+}, info) => {
+  const context = await browser.newContext(info.project.use);
+  const guest = await context.newPage();
+  try {
+    await signIn(page, "radar-host");
+    await signIn(guest, "radar-guest");
+    const headers = { Origin: "http://127.0.0.1:3187" };
+    const { id } = await (
+      await page.request.post("/api/decks", { headers, data: sample() })
+    ).json();
+    const invite = await (
+      await page.request.post(`/api/decks/${id}/invite`, { headers })
+    ).json();
+    const token = new URL(invite.url).searchParams.get("join");
+    const accepted = await (
+      await guest.request.post(`/api/invites/${token}/accept`, { headers })
+    ).json();
+    if (accepted.status === "pending")
+      await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+        headers,
+        data: { requestIds: [accepted.requestId] },
+      });
+    await page.goto(`/?room=${id}`);
+    await guest.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(5);
+    await openWorksheets(page);
+    await modal(page)
+      .getByRole("button", { name: "新しいワークシート" })
+      .click();
+    await page
+      .getByRole("combobox", { name: "ワークシートのひな形" })
+      .selectOption("radar");
+    await page
+      .getByRole("textbox", { name: "レーダーチャートの項目1" })
+      .fill("安全\n快適\n活動");
+    await page
+      .getByRole("textbox", { name: "レーダーチャートの場面1" })
+      .fill("登山\n式典");
+    await page.getByRole("button", { name: "下書きを作成" }).click();
+    await expect(modal(page)).toContainText("下書きを作成しました");
+    await page.getByRole("button", { name: "受付を開始", exact: true }).click();
+    await page
+      .getByRole("button", { name: "このワークシートをスライドに配置" })
+      .click();
+    await guest.locator(".thumbnail").first().click();
+    const form = guest.locator(".editor-workspace .slide-worksheet");
+    const chart = form.getByRole("img", { name: "登山のレーダーチャート" });
+    await expect(chart).toBeVisible();
+    await form.getByRole("spinbutton", { name: "登山：安全" }).fill("5");
+    await expect(chart.locator(".radar-point")).toHaveCount(1);
+    await expect(chart.locator(".radar-area")).toHaveCount(0);
+    await form.getByRole("spinbutton", { name: "登山：快適" }).fill("3");
+    await form.getByRole("spinbutton", { name: "登山：活動" }).fill("4");
+    await form.getByRole("spinbutton", { name: "式典：安全" }).fill("2");
+    await form.getByRole("spinbutton", { name: "式典：安全" }).blur();
+    await expect(chart.locator(".radar-area")).toHaveCount(1);
+    await expect(form).toContainText("入力は保存済みです。");
+    await guest.reload();
+    await guest.locator(".thumbnail").first().click();
+    await expect(
+      guest
+        .locator(".editor-workspace .slide-worksheet")
+        .getByRole("spinbutton", { name: "登山：安全" }),
+    ).toHaveValue("5");
+    await openWorksheets(page);
+    await page.getByRole("button", { name: /回答結果（1人）/ }).click();
+    await expect(modal(page)).toContainText("radar-guest");
+    const downloading = page.waitForEvent("download");
+    await page.getByRole("button", { name: "入力結果をCSV保存" }).click();
+    const csv = await readFile((await (await downloading).path())!, "utf8");
+    expect(csv).toContain("項目ごとの評価：登山：安全");
+    expect(csv).toContain('"5","3","4","2","",""');
+  } finally {
+    await context.close();
+  }
+});
 test("worksheet templates embed on slides, save per account, export named CSV and preserve privacy", async ({
   page,
   browser,
@@ -178,6 +394,86 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .check();
     await card.locator("textarea,input").first().blur();
     await expect(card).toContainText("入力は保存済みです。");
+    await openWorksheets(page);
+    await page.getByRole("button", { name: "設定・内容の確認" }).click();
+    await page.getByRole("button", { name: "項目を編集・追加" }).click();
+    await page.getByRole("button", { name: "入力欄2を下へ移動" }).click();
+    await page
+      .getByRole("spinbutton", { name: "ワークシート全体の文字の大きさ" })
+      .fill("23");
+    await page
+      .locator(".worksheet-field-editor")
+      .first()
+      .getByText("入力欄の大きさ・文字を調整")
+      .click();
+    await page.getByRole("spinbutton", { name: "入力欄1の幅" }).fill("70");
+    await page.getByRole("spinbutton", { name: "入力欄1の高さ" }).fill("110");
+    await page
+      .getByRole("spinbutton", { name: "入力欄1の文字の大きさ" })
+      .fill("22");
+    await page.getByRole("textbox", { name: "項目名1" }).fill("選んだ理由");
+    await page
+      .getByRole("button", { name: "入力欄を追加", exact: true })
+      .click();
+    await page.getByRole("textbox", { name: "項目名5" }).fill("新しい質問");
+    await page.getByRole("button", { name: "変更を保存" }).click();
+    await expect(modal(page)).toContainText("保存しました。");
+    await page.getByRole("button", { name: "ワークシートを閉じる" }).click();
+    await expect(
+      card.getByRole("textbox", { name: "新しい質問", exact: true }),
+    ).toBeVisible({ timeout: 15000 });
+    await expect(
+      card.getByRole("textbox", { name: "選んだ理由", exact: true }),
+    ).toHaveValue(answer);
+    await expect(card.locator(".worksheet-input-label").nth(1)).toHaveText(
+      "他の人の意見から見つけたこと",
+    );
+    await expect(
+      card
+        .getByRole("textbox", { name: "選んだ理由", exact: true })
+        .locator(".."),
+    ).toHaveCSS("width", /.+px/);
+    await expect(
+      card.getByRole("textbox", { name: "選んだ理由", exact: true }),
+    ).toHaveCSS("height", "110px");
+    await expect(
+      card
+        .getByRole("textbox", { name: "選んだ理由", exact: true })
+        .locator(".."),
+    ).toHaveAttribute("style", /width: 70%/);
+    await expect(card).toHaveAttribute("style", /--form-font-size: 23px/);
+    await card
+      .getByRole("textbox", { name: "新しい質問", exact: true })
+      .fill("追加した回答");
+    await card.getByRole("textbox", { name: "新しい質問", exact: true }).blur();
+    await expect(card).toContainText("入力は保存済みです。");
+    await expect(card.locator(".answer-inline-status")).toContainText("✓");
+    await expect(card).not.toContainText(
+      "名前・メールアドレスと入力内容はホストが確認できます。",
+    );
+    await hostCard.locator("header h3").click();
+    await page
+      .getByRole("spinbutton", { name: "フォームの文字の大きさ" })
+      .fill("24");
+    await page.getByRole("button", { name: "スライド上で文章を編集" }).click();
+    await hostCard
+      .getByRole("textbox", { name: "ワークシートのタイトルを編集" })
+      .fill("編集したワークシート");
+    await page.getByRole("button", { name: "文章の変更を保存" }).click();
+    await expect(hostCard).toContainText("編集したワークシート");
+    await expect(card).toContainText("編集したワークシート", {
+      timeout: 15000,
+    });
+    await expect(
+      card.getByRole("textbox", { name: "選んだ理由", exact: true }),
+    ).toHaveValue(answer);
+    await hostCard.locator("header h3").click();
+    await page.getByRole("button", { name: "スライド上で文章を編集" }).click();
+    await hostCard
+      .getByRole("textbox", { name: "ワークシートのタイトルを編集" })
+      .fill("朝食の理由と工夫");
+    await page.getByRole("button", { name: "文章の変更を保存" }).click();
+    await expect(hostCard).toContainText("朝食の理由と工夫");
     await expect(
       hostCard.getByRole("textbox", { name: "選んだ理由", exact: true }),
     ).toHaveValue("");
@@ -215,6 +511,39 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     ).toHaveValue(answer);
     await followed.locator("textarea,input").first().blur();
     await expect(followed).toContainText("入力は保存済みです。");
+    const fixedPage = await guest
+      .locator(".host-follow-page")
+      .getAttribute("data-follow-page");
+    await page.getByRole("button", { name: "ゲストの画面を固定" }).click();
+    await expect(guest.locator(".host-follow-overlay")).toContainText(
+      "スライドを固定表示中",
+    );
+    await page.getByRole("button", { name: "発表する", exact: true }).click();
+    await page.keyboard.press("ArrowRight");
+    await expect(guest.locator(".host-follow-page")).toHaveAttribute(
+      "data-follow-page",
+      fixedPage!,
+    );
+    const fixedInput = followed.getByRole("textbox", {
+      name: "選んだ理由",
+      exact: true,
+    });
+    await fixedInput.fill(answer + "追記");
+    await fixedInput.blur();
+    await expect(followed).toContainText("入力は保存済みです。");
+    await fixedInput.fill(answer);
+    await fixedInput.blur();
+    await expect(followed).toContainText("入力は保存済みです。");
+    await page.mouse.move(10, 10);
+    await page.getByRole("button", { name: "画面の同期を再開" }).click();
+    await expect(guest.locator(".host-follow-page")).not.toHaveAttribute(
+      "data-follow-page",
+      fixedPage!,
+    );
+    await page.mouse.move(10, 10);
+    await page
+      .getByRole("button", { name: "発表をおわる", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "全員の画面を同期", exact: true })
       .click();
@@ -237,6 +566,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     expect(csv).toContain("worksheet-guest@example.test");
     expect(csv).toContain('"朝は食欲がわかない,""理由""\n夜に準備する🌸"');
     expect(csv).toContain('"はい"');
+    expect(csv).toContain("追加した回答");
     await page.screenshot({
       path: info.outputPath("worksheet-results.png"),
       fullPage: true,

@@ -5654,6 +5654,9 @@ h1 span {
 .object-layout-controls h3 {
   margin: 4px 0 0;
 }
+.object-match-size { margin:14px 0; padding-top:4px; border-top:1px solid #dfe8e1; }
+.object-match-size label { display:flex; flex-direction:column; gap:5px; margin-bottom:8px; }
+.object-match-size select { width:100%; max-width:100%; }
 .object-action-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5848,7 +5851,7 @@ h1 span {
 .inspector-quick-actions button:hover:not(:disabled) {
   background: #eef4e9;
 }
-.inspector-quick-actions button:last-child:hover:not(:disabled) {
+.inspector-quick-actions button[aria-label="選んだものを削除"]:hover:not(:disabled) {
   background: #fff1ed;
   color: #a03e31;
   border-color: #e8c4bc;
@@ -6329,6 +6332,8 @@ h1 span {
 .follow-row-heading {position:absolute;left:7px;width:40px;overflow-wrap:anywhere;font-size:15px;}
 
 .host-follow-controls {display:inline-flex;gap:8px;align-items:center;}
+.host-follow-buttons {display:flex;align-items:center;gap:4px;}
+.present-top .host-follow-controls {vertical-align:middle;}
 .host-follow-controls [role=status] {font-size:13px;color:#365d50;white-space:nowrap;}
 .host-follow-controls .follow-running {background:#365d50;color:#fff;}
 
@@ -6788,6 +6793,37 @@ h1 span {
 .worksheet-field h4 { margin:4px 0 6px;padding:5px 10px;background:#dc8945;color:#fff;border-radius:8px;font-size:19px; }
 .worksheet-field>label:not(.worksheet-check) { display:block;font-weight:700;margin-bottom:4px; }
 .worksheet-field textarea { display:block;width:100%;box-sizing:border-box;background:#fffdfa!important;color:#29323b;border:1px solid #e4a36e!important;border-radius:8px;padding:7px 10px;font:inherit;resize:none;min-height:38px; }
+.worksheet-field textarea { height:var(--field-input-height,auto); min-height:var(--field-input-height,38px); }
+.worksheet-field fieldset,.worksheet-field .worksheet-check { min-height:var(--field-input-height,0px); box-sizing:border-box; }
+.worksheet-layout-settings { margin:10px 0; padding:10px; border:1px solid #d7e4da; border-radius:8px; }
+.worksheet-layout-settings summary { cursor:pointer; font-weight:600; }
+.worksheet-layout-controls { display:flex; flex-wrap:wrap; gap:8px 16px; }
+.worksheet-layout-controls label { flex:1 1 110px; }
+.worksheet-layout-controls input { width:100%; max-width:140px; }
+.worksheet-radar { min-width:0; color:#29433f; }
+.radar-instruction { margin:4px 0 8px; font-size:.78em; color:#627a70; }
+.radar-table-scroll { overflow-x:auto; }
+.radar-input-table { width:100%; border-collapse:collapse; font-size:.85em; }
+.radar-input-table th,.radar-input-table td { padding:4px 6px; border-bottom:1px solid #dce9e3; text-align:left; }
+.radar-input-table td { min-width:70px; }
+.radar-cell { display:flex; flex-direction:column; gap:2px; }
+.radar-cell input { box-sizing:border-box; width:100%; min-width:60px; border:1px solid #a9cdc3; border-radius:6px; padding:5px; color:inherit; font:inherit; background:#fff; }
+.radar-cell input[aria-invalid=true] { border-color:#bc4538; }
+.radar-cell small { color:#b12d22; font-size:.7em; }
+.radar-charts { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:10px; }
+.radar-charts figure { flex:1 1 160px; max-width:260px; min-width:140px; margin:0; text-align:center; }
+.radar-charts figcaption { font-size:.85em; font-weight:700; }
+.radar-charts svg { display:block; width:100%; height:auto; }
+.radar-charts small { display:block; color:#71877d; font-size:.65em; }
+.radar-grid,.radar-axis { fill:none; stroke:#b7cac6; stroke-width:.7; }
+.radar-number { fill:#357f87; font-size:9px; font-weight:700; }
+.radar-tick { fill:#557570; font-size:6px; paint-order:stroke; stroke:#fff; stroke-width:2px; }
+.radar-area { fill:#55afaf66; stroke:#21858c; stroke-width:2; }
+.radar-point { fill:#1b7f86; }
+.radar-config { padding:8px; margin:8px 0; border:1px solid #d7e4da; border-radius:8px; }
+.radar-config textarea { width:100%; min-height:90px; }
+.radar-config-range { display:flex; flex-wrap:wrap; gap:12px; }
+.radar-config-range input { width:100px; }
 .worksheet-field fieldset { display:flex;flex-wrap:wrap;gap:10px;border:1px solid #e4a36e;border-radius:8px;margin:0;padding:8px; }
 .worksheet-field fieldset label,.worksheet-check { display:flex;gap:10px;align-items:center; }
 .worksheet-check { min-height:42px;padding:8px;border:1px solid #e4a36e;border-radius:9px;background:#fffaf4; }
@@ -7248,3 +7284,26 @@ html[data-host-follow="active"] .app-shell .response-field-launch {visibility:hi
 .map-batch-main .map-batch-fields { flex:1 1 auto; min-width:0; max-width:100%; }
 .map-batch-main .map-batch-fields label { min-width:0; }
 .mapping .map-batch-panel { flex-wrap:nowrap; }
+/* Form text editing is separate from answering and never changes stored choices. */
+.form-edit-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding:8px 14px; background:#edf5ec; border-bottom:1px solid #c9ddcb; color:#244f40; }
+.form-edit-bar span { flex:1 1 260px; font-size:13px; }
+.form-edit-bar button { min-height:36px; }
+.form-edit-error { margin:0; padding:8px 14px; color:#a52f24; background:#fff1ed; }
+.form-appearance { display:flex; flex-direction:column; gap:12px; }
+.form-appearance label { display:flex; flex-direction:column; gap:5px; }
+.form-appearance input { width:100%; max-width:120px; padding:6px; }
+.form-draft-input { display:inline-block; box-sizing:border-box; width:100%; min-width:0; padding:3px 5px; border:1px solid #519679; border-radius:5px; background:#f8fffa; color:inherit; font:inherit; line-height:inherit; cursor:text; }
+.form-draft-input:focus { outline:2px solid #315d4e; outline-offset:1px; }
+.form-draft-options > div { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.slide-worksheet { font-size:var(--form-font-size,18px); }
+.slide-worksheet h3 { font-size:calc(var(--form-font-size,18px) * 1.444); }
+.slide-worksheet .worksheet-group > h4 { font-size:calc(var(--form-font-size,18px) * 1.056); }
+.slide-worksheet.is-interactive textarea { font-size:max(var(--field-font-size,var(--form-font-size,18px)),calc(16px / var(--canvas-zoom,1))); }
+.slide-survey { font-size:var(--form-font-size,20px); }
+.slide-survey h3 { font-size:calc(var(--form-font-size,20px) * 1.2); }
+.slide-survey-inputs label { font-size:var(--form-font-size,20px); }
+.slide-survey.is-interactive .slide-survey-inputs label { font-size:max(var(--form-font-size,20px),calc(14px / var(--canvas-zoom,1))); }
+.slide-survey.is-interactive textarea { font-size:max(var(--form-font-size,20px),calc(16px / var(--canvas-zoom,1))); }
+.slide-worksheet .answer-inline-status,.slide-survey .answer-inline-status { margin:6px 0 0; color:#687d70; font-size:12px; line-height:1.4; }
+.slide-worksheet .answer-inline-status.is-error,.slide-survey .answer-inline-status.is-error { color:#ad3429; font-weight:700; }
+@media(max-width:700px) { .form-edit-bar { padding:6px 8px; } .form-edit-bar span { flex-basis:100%; } }

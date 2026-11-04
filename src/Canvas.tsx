@@ -1,3 +1,4 @@
+import type { FormDraft } from "./formEditing";
 import { ResponseField } from "./ResponseField";
 import { SurveyResultCaption } from "./SurveyResultCaption";
 import { SlideWorksheet } from "./SlideWorksheet";
@@ -68,8 +69,12 @@ export function Canvas({
   onCellSelection,
   cellRangeMode = false,
   onOpenLink,
+  formDraft,
+  onFormDraftChange,
 }: {
   slide: Slide;
+  formDraft?: FormDraft;
+  onFormDraftChange?: (draft: FormDraft) => void;
   surveyInteractive?: boolean;
   selected?: string;
   selectedIds?: string[];
@@ -609,7 +614,13 @@ export function Canvas({
                   top: e.y,
                   width: e.w,
                   height: e.h,
-                  zIndex: layer,
+                  zIndex:
+                    editable &&
+                    e.responseField &&
+                    selected === e.id &&
+                    activeIds.length === 1
+                      ? rendered.length + 1
+                      : layer,
                 } as React.CSSProperties
               }
               onPointerDown={(event) => {
@@ -665,6 +676,8 @@ export function Canvas({
                     key={`${e.worksheet.deckId}:${e.worksheet.worksheetId}`}
                     element={e}
                     interactive={surveyInteractive}
+                    draft={formDraft}
+                    onDraftChange={onFormDraftChange}
                     onMoveStart={
                       editable
                         ? (event) => start(event, e, false, false)
@@ -676,6 +689,8 @@ export function Canvas({
                     key={`${e.survey.deckId}:${e.survey.surveyId}`}
                     element={e}
                     interactive={surveyInteractive}
+                    draft={formDraft}
+                    onDraftChange={onFormDraftChange}
                     onMoveStart={
                       editable
                         ? (event) => start(event, e, false, false)

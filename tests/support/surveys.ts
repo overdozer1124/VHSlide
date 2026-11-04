@@ -73,6 +73,49 @@ export async function exerciseSurveys(
   let host = (await list()).find((s) => s.id === single.id)!;
   assert.equal(host.results?.count, 1);
   assert.deepEqual(host.results?.counts, [0, 1]);
+  const originalSurvey = {
+    question: single.question,
+    kind: single.kind,
+    options: single.options,
+  };
+  const renamedSurvey = {
+    ...originalSurvey,
+    question: "好きな季節を選ぼう",
+    options: ["春です", "夏です"],
+  };
+  await write(
+    `/${single.id}/edit`,
+    { expected: originalSurvey, ...renamedSurvey },
+    guest,
+    403,
+  );
+  await write(
+    `/${single.id}/edit`,
+    { expected: originalSurvey, ...renamedSurvey, options: ["春"] },
+    owner,
+    400,
+  );
+  await write(`/${single.id}/edit`, {
+    expected: originalSurvey,
+    ...renamedSurvey,
+  });
+  assert.deepEqual(
+    (await list()).find((s) => s.id === single.id)!.results?.counts,
+    [0, 1],
+  );
+  assert.deepEqual((await list(guest))[0].own, { choices: [1], text: "" });
+  await write(
+    `/${single.id}/edit`,
+    { expected: originalSurvey, ...renamedSurvey },
+    owner,
+    409,
+  );
+  await restart();
+  assert.equal((await list())[0].question, renamedSurvey.question);
+  await write(`/${single.id}/edit`, {
+    expected: renamedSurvey,
+    ...originalSurvey,
+  });
   const identity = (
     await (await call("/api/session", "GET", undefined, guest)).json()
   ).user;
@@ -87,6 +130,42 @@ export async function exerciseSurveys(
   assert.deepEqual(own.own, { choices: [1], text: "" });
   assert.equal("results" in own, false);
   assert.equal(own.chartSummary, undefined);
+  await write("", {
+    question: "追加の検証",
+    kind: "single",
+    options: ["A", "B"],
+  });
+  const editable = (await list()).find((s) => s.question === "追加の検証")!;
+  await write(`/${editable.id}/status`, { status: "open" });
+  await write(`/${editable.id}/answer`, { choices: [1], text: "" }, guest);
+  const expected = {
+    question: editable.question,
+    kind: editable.kind,
+    options: editable.options,
+  };
+  await write(
+    `/${editable.id}/edit`,
+    { expected, question: "変更後", options: ["A", "B", "C"] },
+    guest,
+    403,
+  );
+  await write(`/${editable.id}/edit`, {
+    expected,
+    question: "変更後",
+    options: ["A", "B", "C"],
+  });
+  const updated = (await list()).find((s) => s.id === editable.id)!;
+  assert.deepEqual(updated.results!.counts, [0, 1, 0]);
+  assert.deepEqual(
+    (await list(guest)).find((s) => s.id === editable.id)!.own?.choices,
+    [1],
+  );
+  await write(`/${editable.id}/answer`, { choices: [2], text: "" }, guest);
+  assert.deepEqual(
+    (await list()).find((s) => s.id === editable.id)!.results!.counts,
+    [0, 0, 1],
+  );
+  await write(`/${editable.id}`, undefined, owner, 200, "DELETE");
   await write(`/${single.id}/publish`, { enabled: true }, guest, 403);
   await write(`/${single.id}/publish`, { enabled: true });
   const published = (await list(guest)).find((s) => s.id === single.id)!;

@@ -3,22 +3,30 @@ import { SurveyError } from "./surveys.ts";
 export type WorksheetField = {
   id: string;
   label: string;
-  kind: "text" | "checkbox" | "single" | "multiple";
+  kind: "text" | "checkbox" | "single" | "multiple" | "radar";
   options: string[];
   placeholder: string;
   section: string;
   wide: boolean;
+  widthPercent?: number;
+  inputHeight?: number;
+  fontSize?: number;
+  radar?: { axes: string[]; series: string[]; min: number; max: number };
 };
 export type WorksheetDefinition = {
   title: string;
   description: string;
   fields: WorksheetField[];
+  fontSize?: number;
 };
 export type WorksheetBinding = WorksheetDefinition & {
   deckId: string;
   worksheetId: string;
 };
-export type WorksheetValues = Record<string, string | boolean | number[]>;
+export type WorksheetValues = Record<
+  string,
+  string | boolean | (number | null)[]
+>;
 export type WorksheetResponse = {
   respondentId: string;
   name: string;
@@ -44,6 +52,16 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
     v && str(v.title, 200) && v.title.trim() && str(v.description, 1000),
     "タイトル・説明を確認してください。",
   );
+  const validSize = (value: unknown, min: number, max: number) =>
+    value === undefined ||
+    (typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= min &&
+      value <= max);
+  check(
+    validSize(v.fontSize, 12, 60),
+    "文字の大きさは12〜60で入力してください。",
+  );
   check(
     Array.isArray(v.fields) && v.fields.length > 0 && v.fields.length <= 40,
     "入力欄は1〜40項目です。",
@@ -58,6 +76,12 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         !ids.has(f.id),
       "入力欄のIDが不正です。",
     );
+    check(
+      validSize(f.widthPercent, 20, 100) &&
+        validSize(f.inputHeight, 32, 400) &&
+        validSize(f.fontSize, 12, 60),
+      "入力欄の幅・高さ・文字の大きさを確認してください。",
+    );
     ids.add(f.id);
     check(
       str(f.label, 200) &&
@@ -65,7 +89,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         str(f.placeholder, 200) &&
         str(f.section, 200) &&
         typeof f.wide === "boolean" &&
-        ["text", "checkbox", "single", "multiple"].includes(f.kind),
+        ["text", "checkbox", "single", "multiple", "radar"].includes(f.kind),
       "入力欄の設定を確認してください。",
     );
     check(
@@ -77,6 +101,34 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         new Set(f.options).size === f.options.length,
       "選択肢は重複しない2〜10項目です。",
     );
+    if (f.kind === "radar") {
+      const radar = f.radar;
+      const validLabels = (
+        labels: unknown,
+        min: number,
+        max: number,
+      ): labels is string[] =>
+        Array.isArray(labels) &&
+        labels.length >= min &&
+        labels.length <= max &&
+        labels.every((label) => str(label, 80) && label.trim()) &&
+        new Set(labels.map((label) => label.trim())).size === labels.length;
+      check(
+        radar &&
+          validLabels(radar.axes, 3, 10) &&
+          validLabels(radar.series, 1, 4) &&
+          Number.isInteger(radar.min) &&
+          Number.isInteger(radar.max) &&
+          radar.min >= 0 &&
+          radar.max <= 100 &&
+          radar.min < radar.max,
+        "レーダーチャートの項目・系列・数値の範囲を確認してください。",
+      );
+    } else
+      check(
+        f.radar === undefined,
+        "レーダーチャートの設定を確認してください。",
+      );
     return {
       id: f.id,
       label: f.label.trim(),
@@ -85,9 +137,27 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       placeholder: f.placeholder,
       section: f.section,
       wide: f.wide,
+      ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
+      ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),
+      ...(f.fontSize !== undefined ? { fontSize: f.fontSize } : {}),
+      ...(f.radar
+        ? {
+            radar: {
+              axes: f.radar.axes.map((v) => v.trim()),
+              series: f.radar.series.map((v) => v.trim()),
+              min: f.radar.min,
+              max: f.radar.max,
+            },
+          }
+        : {}),
     };
   });
-  return { title: v.title.trim(), description: v.description, fields };
+  return {
+    title: v.title.trim(),
+    description: v.description,
+    fields,
+    ...(v.fontSize !== undefined ? { fontSize: v.fontSize } : {}),
+  };
 }
 export function parseWorksheetBinding(value: unknown): WorksheetBinding {
   const v = value as WorksheetBinding;
@@ -120,12 +190,31 @@ export function parseWorksheetValues(
     if (f.kind === "text") check(str(x, 2000), "記述欄は2000文字までです。");
     else if (f.kind === "checkbox")
       check(typeof x === "boolean", "チェック項目が不正です。");
+    else if (f.kind === "radar")
+      check(
+        Array.isArray(x) &&
+          (x.length === 0 ||
+            x.length === f.radar!.axes.length * f.radar!.series.length) &&
+          x.every(
+            (n) =>
+              n === null ||
+              (typeof n === "number" &&
+                Number.isInteger(n) &&
+                n >= f.radar!.min &&
+                n <= f.radar!.max),
+          ),
+        "数値は指定された範囲の整数で入力してください。",
+      );
     else
       check(
         Array.isArray(x) &&
           x.length <= (f.kind === "single" ? 1 : 10) &&
           x.every(
-            (i) => Number.isInteger(i) && i >= 0 && i < f.options.length,
+            (i) =>
+              typeof i === "number" &&
+              Number.isInteger(i) &&
+              i >= 0 &&
+              i < f.options.length,
           ) &&
           new Set(x).size === x.length,
         "選択内容が不正です。",
@@ -272,7 +361,39 @@ export function worksheetCommand(
     return;
   }
   check(host, "管理できるのはホストだけです。", 403);
-  if (action === "field") {
+  if (action === "edit") {
+    const current = parseWorksheet(JSON.parse(row.definition));
+    const expected = parseWorksheet(value.expected);
+    check(
+      JSON.stringify(current) === JSON.stringify(expected),
+      "他の画面で内容が変更されました。最新の内容を読み込んでから編集してください。",
+      409,
+    );
+    const next = parseWorksheet(value.definition);
+    check(
+      next.fields.length >= current.fields.length &&
+        current.fields.every((f) => {
+          const updated = next.fields.find((field) => field.id === f.id);
+          return (
+            !!updated &&
+            f.kind === updated.kind &&
+            f.options.length <= updated.options.length &&
+            (f.kind !== "radar" ||
+              (f.radar!.axes.length === updated.radar!.axes.length &&
+                f.radar!.series.length === updated.radar!.series.length &&
+                f.radar!.min === updated.radar!.min &&
+                f.radar!.max === updated.radar!.max))
+          );
+        }),
+      "既存の回答を保つため、既存の項目・選択肢の削除や回答形式の変更はできません。",
+    );
+    sql(
+      "UPDATE worksheets SET definition=? WHERE id=? AND deck=?",
+      JSON.stringify(next),
+      row.id,
+      deck,
+    );
+  } else if (action === "field") {
     const definition = JSON.parse(row.definition) as WorksheetDefinition;
     const field = (value as { field: WorksheetField }).field;
     const next = parseWorksheet({

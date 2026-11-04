@@ -19,11 +19,28 @@ export const worksheetTemplateNames = {
   check: "セルフチェック",
   reflection: "ふり返り",
   plan: "改善プラン",
+  radar: "数値とレーダーチャート",
   blank: "自由に作成",
 };
 export function worksheetTemplate(
   kind: keyof typeof worksheetTemplateNames,
 ): WorksheetDefinition {
+  if (kind === "radar")
+    return {
+      title: "大切にしたいことを比べよう",
+      description: "各項目に数値を入力すると、レーダーチャートに反映されます。",
+      fields: [
+        {
+          ...field("項目ごとの評価", "", "radar", true),
+          radar: {
+            axes: ["項目1", "項目2", "項目3", "項目4", "項目5", "項目6"],
+            series: ["場面1", "場面2"],
+            min: 1,
+            max: 5,
+          },
+        },
+      ],
+    };
   if (kind === "reason")
     return {
       title: "朝食を食べない理由に、どんな工夫ができる？",
