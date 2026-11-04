@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.84.0",
+    date: "2026-11-04",
+    title: "PPTXを1行として読み込み",
+    changes: [
+      "「ファイル」メニューの「PPTXを1行として読み込む」から、PowerPointファイルのスライドを今開いている作品のシートの末尾へ、新しい行として追加できるようになりました。行にはファイル名の見出しが付きます。従来どおり新しい作品として開く場合は「開く」を使います。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.83.0",
     date: "2026-11-04",
     title: "ユーザーフォームの入力画面をレイアウト",

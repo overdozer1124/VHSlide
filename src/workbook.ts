@@ -1,5 +1,5 @@
 import { copyPages } from "./structureData.ts";
-import type { Deck, Sheet } from "./model";
+import type { Deck, Sheet, Slide } from "./model";
 import { blank, MAX_SLIDES, uid } from "./model";
 export const sheetList = (book: Deck): Sheet[] =>
   book.sheets ?? [{ id: "main", name: "シート1" }];
@@ -143,4 +143,41 @@ export function changeSheet(
     [sheets[index], sheets[to]] = [sheets[to], sheets[index]];
   }
   return { ...book, sheets };
+}
+/** Append imported pages as one new row at the bottom of a sheet. */
+export function appendSlidesAsRow(
+  book: Deck,
+  imported: Slide[],
+  sheetId: string,
+  rowLabel?: string,
+): Deck {
+  if (!imported.length) throw new Error("読み込むページがありません。");
+  if (book.slides.length + imported.length > MAX_SLIDES)
+    throw new Error(`作品全体で${MAX_SLIDES}ページまでです。`);
+  const inSheet = book.slides.filter((s) => (s.sheetId ?? "main") === sheetId);
+  const y = inSheet.length ? Math.max(...inSheet.map((s) => s.y)) + 1 : 0;
+  if (y > 99) throw new Error("縦は100マスまでです。");
+  const placed = imported.map((s, i) => {
+    const base: Slide = { ...s, x: i, y };
+    if (book.sheets) base.sheetId = sheetId;
+    else delete base.sheetId;
+    return base;
+  });
+  const label = rowLabel?.trim().slice(0, 80);
+  return {
+    ...book,
+    ...(label
+      ? {
+          sheets: sheetList(book).map((sheet) =>
+            sheet.id === sheetId
+              ? {
+                  ...sheet,
+                  rowLabels: { ...sheet.rowLabels, [String(y)]: label },
+                }
+              : sheet,
+          ),
+        }
+      : {}),
+    slides: [...book.slides, ...placed],
+  };
 }

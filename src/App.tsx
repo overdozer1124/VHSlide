@@ -134,6 +134,7 @@ import {
   sheetDeck,
   mergeSheet,
   changeSheet,
+  appendSlidesAsRow,
 } from "./workbook";
 import { SheetTabs } from "./SheetTabs";
 import { matchesFilter } from "./mapFilter";
@@ -471,6 +472,7 @@ export default function App() {
   const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();
   const [direction, setDirection] = useState("right");
   const jsonRef = useRef<HTMLInputElement>(null),
+    pptxRowRef = useRef<HTMLInputElement>(null),
     imageRef = useRef<HTMLInputElement>(null);
   const presenting = useMemo(
     () =>
@@ -1697,6 +1699,38 @@ export default function App() {
       notify(error instanceof Error ? error.message : "読み込めませんでした。");
     }
   }
+  async function openPptxAsRow(file?: File) {
+    if (!file) return;
+    if (!cloud.isHost) {
+      notify("行の追加はホストだけが行えます。");
+      return;
+    }
+    try {
+      if (!/\.pptx$/i.test(file.name))
+        throw new Error("PPTXファイルを選んでください。");
+      const imported = await importPptx(file);
+      const current = latestWorkbook.current;
+      const sheet = activeSheet(current);
+      const next = appendSlidesAsRow(
+        current,
+        imported.slides,
+        sheet.id,
+        file.name.replace(/\.pptx$/i, ""),
+      );
+      if (!commitWorkbook(next, current)) return;
+      const first = next.slides[current.slides.length];
+      setViewFilters({});
+      setActiveId(first.id);
+      setSelected(undefined);
+      setView("map");
+      setMoving(undefined);
+      notify(
+        `PPTXの${imported.slides.length}ページを「${sheet.name}」の新しい行として読み込みました。文字・画像・基本図形のみ再現され、テーマ・グループ・表・グラフ・アニメーションなどは再現されない場合があります。`,
+      );
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "読み込めませんでした。");
+    }
+  }
   async function download() {
     try {
       const source = forceAssigned
@@ -2292,6 +2326,16 @@ export default function App() {
           }}
         />
         <input
+          ref={pptxRowRef}
+          type="file"
+          accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          hidden
+          onChange={(e) => {
+            void openPptxAsRow(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <input
           ref={imageRef}
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
@@ -2373,6 +2417,11 @@ export default function App() {
                       {
                         label: "開く",
                         action: () => jsonRef.current?.click(),
+                      },
+                      {
+                        label: "PPTXを1行として読み込む",
+                        detail: "今のシートの末尾に新しい行として追加",
+                        action: () => pptxRowRef.current?.click(),
                       },
 
                       {
