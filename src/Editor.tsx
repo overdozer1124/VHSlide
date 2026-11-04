@@ -267,6 +267,7 @@ export function Editor({
         title: sheet.title,
         description: sheet.description,
         fontSize: sheet.fontSize,
+        modalLayout: sheet.modalLayout,
         fields: sheet.fields,
       };
       setFormDraft({
@@ -332,6 +333,7 @@ export function Editor({
           title: saved.title,
           description: saved.description,
           fontSize: saved.fontSize,
+          modalLayout: saved.modalLayout,
           fields: saved.fields,
         };
         if (!onFormSaved({ ...draft, value }))

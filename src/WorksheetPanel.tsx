@@ -2,6 +2,7 @@ import { useActivityPanel } from "./ActivitiesPanel";
 import { useEffect, useRef, useState } from "react";
 import { useWorksheets } from "./WorksheetContext";
 import { WorksheetAnswer, WorksheetInputs } from "./SlideWorksheet";
+import { WorksheetModalLayout } from "./WorksheetModalLayout";
 import {
   worksheetTemplate,
   worksheetTemplateNames,
@@ -34,6 +35,11 @@ export function WorksheetPanel({
   const [editing, setEditing] = useState<{
     id: string;
     expected: WorksheetDefinition;
+  }>();
+  const [layoutEditing, setLayoutEditing] = useState<{
+    id: string;
+    expected: WorksheetDefinition;
+    value: WorksheetDefinition;
   }>();
   const [hostView, setHostView] = useState<"results" | "input" | "settings">(
     "results",
@@ -71,6 +77,7 @@ export function WorksheetPanel({
   useEffect(() => {
     if (
       !creating &&
+      !layoutEditing &&
       !editing &&
       ctx.sheets.length &&
       !ctx.sheets.some((s) => s.id === selectedId)
@@ -78,7 +85,7 @@ export function WorksheetPanel({
       setSelectedId(ctx.sheets[0].id);
       setHostView("results");
     }
-  }, [creating, editing, ctx.sheets, selectedId]);
+  }, [creating, editing, layoutEditing, ctx.sheets, selectedId]);
   function createDraft() {
     if (busy) return;
     setError("");
@@ -134,6 +141,7 @@ export function WorksheetPanel({
             title: saved.title,
             description: saved.description,
             fontSize: saved.fontSize,
+            modalLayout: saved.modalLayout,
             fields: saved.fields,
           };
           if (
@@ -183,6 +191,75 @@ export function WorksheetPanel({
       fields: d.fields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
     }));
   }
+  async function saveModalLayout() {
+    if (!layoutEditing || !ctx.deckId || busy) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const data = await api<{ worksheets: WorksheetView[] }>(
+        `/api/decks/${ctx.deckId}/worksheets/${layoutEditing.id}/edit`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            expected: layoutEditing.expected,
+            definition: layoutEditing.value,
+          }),
+        },
+      );
+      const saved = data.worksheets.find(
+        (item) => item.id === layoutEditing.id,
+      );
+      if (!saved) throw Error("保存したワークシートを確認できませんでした。");
+      ctx.update(data.worksheets);
+      const value = {
+        title: saved.title,
+        description: saved.description,
+        fields: saved.fields,
+        fontSize: saved.fontSize,
+        modalLayout: saved.modalLayout,
+      };
+      if (
+        !onFormSaved({
+          kind: "worksheet",
+          id: saved.id,
+          deckId: ctx.deckId,
+          elementId: "",
+          expected: layoutEditing.expected,
+          value,
+        })
+      )
+        setError(
+          "レイアウトは保存されましたが、スライドのプレビュー更新を確認できませんでした。",
+        );
+      setLayoutEditing(undefined);
+      setMessage("画面のレイアウトを保存しました。");
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const layoutField = (sheet: WorksheetDefinition, field: WorksheetField) => (
+    <WorksheetInputs
+      sheet={{
+        ...sheet,
+        fields: [
+          {
+            ...field,
+            wide: true,
+            widthPercent: undefined,
+            inputHeight: undefined,
+          },
+        ],
+      }}
+      values={{}}
+      onChange={() => {}}
+      disabled
+      preview
+      hideScore
+    />
+  );
   const existingField = (id: string) =>
     !!editing?.expected.fields.some((field) => field.id === id);
   async function download() {
@@ -238,9 +315,11 @@ export function WorksheetPanel({
               {host && (
                 <button
                   className="button primary"
+                  disabled={busy || !!layoutEditing}
                   onClick={() => {
                     setCreating(true);
                     setEditing(undefined);
+                    setLayoutEditing(undefined);
                     setDefinition(worksheetTemplate("reason"));
                     setMessage("");
                     setError("");
@@ -253,11 +332,13 @@ export function WorksheetPanel({
                 <button
                   key={s.id}
                   className={`survey-item ${selectedId === s.id ? "active" : ""}`}
+                  disabled={busy || !!layoutEditing}
                   onClick={() => {
                     setSelectedId(s.id);
                     setHostView("results");
                     setCreating(false);
                     setEditing(undefined);
+                    setLayoutEditing(undefined);
                     setError("");
                     setMessage("");
                   }}
@@ -275,7 +356,75 @@ export function WorksheetPanel({
               {!ctx.sheets.length && <p>まだワークシートがありません。</p>}
             </aside>
             <main ref={content}>
-              {host && (creating || editing) ? (
+              {host && layoutEditing ? (
+                <section
+                  className="worksheet-layout-editor"
+                  aria-label="フォーム画面のレイアウト編集"
+                >
+                  <h3>入力画面のレイアウト</h3>
+                  <p>
+                    各項目の「移動」をドラッグして配置し、右下の↘で幅と高さを変えます。横に移動するには先に幅を縮めます。矢印キーでも操作できます。
+                  </p>
+                  <div className="worksheet-layout-editor-actions">
+                    <button
+                      className="button primary"
+                      disabled={busy}
+                      onClick={() => void saveModalLayout()}
+                    >
+                      {busy ? "保存中…" : "レイアウトを保存"}
+                    </button>
+                    <button
+                      className="button outline"
+                      disabled={busy}
+                      onClick={() =>
+                        setLayoutEditing(
+                          (current) =>
+                            current && {
+                              ...current,
+                              value: {
+                                ...current.value,
+                                modalLayout: undefined,
+                              },
+                            },
+                        )
+                      }
+                    >
+                      標準の配置に戻す
+                    </button>
+                    <button
+                      className="button outline"
+                      disabled={busy}
+                      onClick={() => {
+                        if (
+                          JSON.stringify(layoutEditing.value) !==
+                            JSON.stringify(layoutEditing.expected) &&
+                          !window.confirm("レイアウトの変更を破棄しますか？")
+                        )
+                          return;
+                        setLayoutEditing(undefined);
+                      }}
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                  <WorksheetModalLayout
+                    sheet={layoutEditing.value}
+                    editing
+                    onChange={(modalLayout) =>
+                      setLayoutEditing(
+                        (current) =>
+                          current && {
+                            ...current,
+                            value: { ...current.value, modalLayout },
+                          },
+                      )
+                    }
+                    renderField={(field) =>
+                      layoutField(layoutEditing.value, field)
+                    }
+                  />
+                </section>
+              ) : host && (creating || editing) ? (
                 <form
                   noValidate
                   onSubmit={(e) => {
@@ -792,7 +941,30 @@ export function WorksheetPanel({
                           const expected = structuredClone({
                             title: selected.title,
                             description: selected.description,
+                            fields: selected.fields,
                             fontSize: selected.fontSize,
+                            modalLayout: selected.modalLayout,
+                          });
+                          setLayoutEditing({
+                            id: selected.id,
+                            expected,
+                            value: structuredClone(expected),
+                          });
+                          setError("");
+                          setMessage("");
+                        }}
+                      >
+                        入力画面のレイアウトを編集
+                      </button>
+                      <button
+                        className="button outline"
+                        disabled={busy}
+                        onClick={() => {
+                          const expected = structuredClone({
+                            title: selected.title,
+                            description: selected.description,
+                            fontSize: selected.fontSize,
+                            modalLayout: selected.modalLayout,
                             fields: selected.fields,
                           });
                           setDefinition(structuredClone(expected));
@@ -814,13 +986,20 @@ export function WorksheetPanel({
                             ? "入力受付中"
                             : "受付終了"}
                       </p>
-                      <WorksheetInputs
-                        sheet={selected}
-                        values={{}}
-                        onChange={() => {}}
-                        disabled
-                        preview
-                      />
+                      {selected.modalLayout ? (
+                        <WorksheetModalLayout
+                          sheet={selected}
+                          renderField={(field) => layoutField(selected, field)}
+                        />
+                      ) : (
+                        <WorksheetInputs
+                          sheet={selected}
+                          values={{}}
+                          onChange={() => {}}
+                          disabled
+                          preview
+                        />
+                      )}
                       <details className="worksheet-delete">
                         <summary>ワークシートの削除</summary>
                         <p>全員の入力結果も削除され、元に戻せません。</p>
@@ -846,7 +1025,7 @@ export function WorksheetPanel({
                     </section>
                   )}
                   <div hidden={host && hostView !== "input"}>
-                    <WorksheetAnswer key={selected.id} sheet={selected} />
+                    <WorksheetAnswer key={selected.id} sheet={selected} modal />
                   </div>
                   {host && hostView === "results" && selected.results && (
                     <WorksheetResults

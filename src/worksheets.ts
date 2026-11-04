@@ -18,6 +18,9 @@ export type WorksheetDefinition = {
   description: string;
   fields: WorksheetField[];
   fontSize?: number;
+  modalLayout?: {
+    items: { id: string; x: number; y: number; w: number; h: number }[];
+  };
 };
 export type WorksheetBinding = WorksheetDefinition & {
   deckId: string;
@@ -152,11 +155,42 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         : {}),
     };
   });
+  let modalLayout: WorksheetDefinition["modalLayout"];
+  if (v.modalLayout !== undefined) {
+    const layout = v.modalLayout;
+    check(
+      layout &&
+        Array.isArray(layout.items) &&
+        layout.items.length <= fields.length,
+      "レイアウトを確認してください。",
+    );
+    const placed = new Set<string>();
+    modalLayout = {
+      items: layout.items.map((item) => {
+        check(
+          item &&
+            typeof item.id === "string" &&
+            ids.has(item.id) &&
+            !placed.has(item.id) &&
+            validSize(item.x, 0, 950) &&
+            validSize(item.y, 0, 10000) &&
+            validSize(item.w, 50, 1000) &&
+            validSize(item.h, 60, 3000) &&
+            item.x + item.w <= 1000 &&
+            item.y + item.h <= 11000,
+          "レイアウトの位置・大きさを確認してください。",
+        );
+        placed.add(item.id);
+        return { id: item.id, x: item.x, y: item.y, w: item.w, h: item.h };
+      }),
+    };
+  }
   return {
     title: v.title.trim(),
     description: v.description,
     fields,
     ...(v.fontSize !== undefined ? { fontSize: v.fontSize } : {}),
+    ...(modalLayout ? { modalLayout } : {}),
   };
 }
 export function parseWorksheetBinding(value: unknown): WorksheetBinding {

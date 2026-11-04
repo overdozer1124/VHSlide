@@ -18,6 +18,7 @@ export function syncFormDefinitions(book: Deck, draft: FormDraft): Deck {
               ...old.worksheet,
               ...draft.value,
               fontSize: draft.value.fontSize,
+              modalLayout: draft.value.modalLayout,
             },
           };
         if (

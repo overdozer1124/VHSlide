@@ -6846,6 +6846,26 @@ h1 span {
 .worksheet-group>h4 { margin:0 0 8px;padding:6px 10px;background:#dc8945;color:#fff;border-radius:8px;font-size:19px; }
 .worksheet-group-fields { display:grid;grid-template-columns:minmax(0,1fr);gap:10px; }
 .worksheet-group-fields.two-columns { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.worksheet-layout-editor-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.worksheet-modal-layout-wrap { width:100%; overflow-x:auto; overscroll-behavior:contain; }
+.worksheet-modal-layout { position:relative; width:100%; min-width:560px; box-sizing:border-box; }
+.worksheet-modal-layout-wrap.is-editing { border:1px solid #b9d2c1; border-radius:8px; background:#f3f7f2; padding:10px; box-sizing:border-box; }
+.worksheet-layout-select { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:13px; }
+.worksheet-layout-select select { max-width:360px; min-width:180px; }
+.worksheet-positioned-field { position:absolute; box-sizing:border-box; min-width:0; overflow:hidden; }
+.worksheet-positioned-content { height:100%; overflow:auto; box-sizing:border-box; }
+.worksheet-positioned-content .worksheet-fields { display:block; height:100%; }
+.worksheet-positioned-content .worksheet-group { display:flex; flex-direction:column; height:100%; }
+.worksheet-positioned-content .worksheet-group-fields { display:block; flex:1; min-height:0; }
+.worksheet-positioned-content .worksheet-field { display:flex; flex-direction:column; height:100%; box-sizing:border-box; }
+.worksheet-positioned-content .worksheet-field textarea { flex:1; min-height:38px; height:auto; }
+.worksheet-positioned-content .worksheet-group > h4 { margin-bottom:4px; }
+.worksheet-modal-layout-wrap.is-editing .worksheet-positioned-field { border:1px solid #7da38b; background:#fff; border-radius:7px; padding:32px 6px 14px; }
+.worksheet-layout-handle { position:absolute; left:0; right:0; top:0; height:30px; display:flex; align-items:center; gap:6px; background:#e5f0e8; overflow:hidden; font-size:12px; }
+.worksheet-layout-handle span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.worksheet-layout-handle button { flex:none; height:28px; border:0; background:#365d50; color:white; cursor:move; touch-action:none; padding:2px 8px; }
+.worksheet-layout-resize { position:absolute; right:0; bottom:0; width:28px; height:28px; border:0; border-radius:5px 0 5px 0; background:#365d50; color:white; cursor:nwse-resize; touch-action:none; }
+.worksheet-layout-editor > p { font-size:14px; }
 @media(max-width:600px) { .worksheet-panel .worksheet-group-fields.two-columns { grid-template-columns:1fr; } }
 .worksheet-feedback { position:sticky;top:0;z-index:3;padding:10px 14px;margin:0 0 16px;border:1px solid #9fbba2;border-radius:8px;background:#edf7ef;box-shadow:0 2px 6px #173d3810; }
 .worksheet-feedback.has-error { background:#fff2ec;border-color:#c87752;color:#8a3020; }

@@ -1,5 +1,6 @@
 import { FormDraftInput } from "./formEditing";
 import { WorksheetRadar } from "./WorksheetRadar";
+import { WorksheetModalLayout } from "./WorksheetModalLayout";
 import type { FormDraft } from "./formEditing";
 import { canDragForm } from "./formDrag";
 import { useId } from "react";
@@ -23,6 +24,7 @@ export function WorksheetInputs({
   onEdit,
   editLayout,
   ignoreFieldLayout = false,
+  hideScore = false,
 }: {
   sheet: WorksheetDefinition;
   values: WorksheetValues;
@@ -32,6 +34,7 @@ export function WorksheetInputs({
   onEdit?: (definition: WorksheetDefinition) => void;
   editLayout?: WorksheetDefinition;
   ignoreFieldLayout?: boolean;
+  hideScore?: boolean;
   onFieldChange?: (
     id: string,
     value: WorksheetValues[string],
@@ -269,7 +272,7 @@ export function WorksheetInputs({
           );
         })}
       </div>
-      {checks.length > 0 && (
+      {!hideScore && checks.length > 0 && (
         <p className="worksheet-score">
           チェックした数：
           {preview
@@ -286,11 +289,13 @@ export function WorksheetAnswer({
   edit,
   editLayout,
   onEdit,
+  modal = false,
 }: {
   sheet: WorksheetView;
   edit?: WorksheetDefinition;
   editLayout?: WorksheetDefinition;
   onEdit?: (definition: WorksheetDefinition) => void;
+  modal?: boolean;
 }) {
   const ctx = useWorksheets();
   const answers = useAnswers();
@@ -312,17 +317,64 @@ export function WorksheetAnswer({
       onCompositionStart={() => answers.compose("worksheet", sheet.id, true)}
       onCompositionEnd={() => answers.compose("worksheet", sheet.id, false)}
     >
-      <WorksheetInputs
-        sheet={edit ?? sheet}
-        onEdit={onEdit}
-        editLayout={editLayout}
-        values={values}
-        onChange={() => {}}
-        onFieldChange={(id, value, immediate) =>
-          answers.change("worksheet", sheet.id, { [id]: value }, immediate)
-        }
-        disabled={!open}
-      />
+      {modal && sheet.modalLayout ? (
+        <WorksheetModalLayout
+          sheet={sheet}
+          renderField={(field) => (
+            <WorksheetInputs
+              sheet={{
+                ...sheet,
+                fields: [
+                  {
+                    ...field,
+                    wide: true,
+                    widthPercent: undefined,
+                    inputHeight: undefined,
+                  },
+                ],
+              }}
+              values={values}
+              onChange={() => {}}
+              onFieldChange={(id, value, immediate) =>
+                answers.change(
+                  "worksheet",
+                  sheet.id,
+                  { [id]: value },
+                  immediate,
+                )
+              }
+              disabled={!open}
+              hideScore
+            />
+          )}
+        />
+      ) : (
+        <WorksheetInputs
+          sheet={edit ?? sheet}
+          onEdit={onEdit}
+          editLayout={editLayout}
+          values={values}
+          onChange={() => {}}
+          onFieldChange={(id, value, immediate) =>
+            answers.change("worksheet", sheet.id, { [id]: value }, immediate)
+          }
+          disabled={!open}
+        />
+      )}
+      {modal &&
+        sheet.modalLayout &&
+        sheet.fields.some((field) => field.kind === "checkbox") && (
+          <p className="worksheet-score">
+            チェックした数：
+            {
+              sheet.fields.filter(
+                (field) =>
+                  field.kind === "checkbox" && values[field.id] === true,
+              ).length
+            }{" "}
+            / {sheet.fields.filter((field) => field.kind === "checkbox").length}
+          </p>
+        )}
       {!ctx.readOnly && !edit && (
         <>
           <p

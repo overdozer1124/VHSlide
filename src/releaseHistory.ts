@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.83.0",
+    date: "2026-11-04",
+    title: "ユーザーフォームの入力画面をレイアウト",
+    changes: [
+      "ワークシートの入力画面で、先生が各項目の位置と大きさを調整できます。保存した配置は生徒のユーザーフォームに反映され、従来の回答とスライド上の配置は保持されます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.82.0",
     date: "2026-11-04",
     title: "ワークシートの入力欄を自由に配置",

@@ -10,7 +10,37 @@ import {
 } from "./worksheetTemplates";
 import { worksheetCsv } from "./worksheetCsv";
 import { sample, parseDeck, serializeDeck } from "./model";
+import { modalLayoutItems } from "./WorksheetModalLayout";
 describe("worksheets", () => {
+  it("preserves and validates modal layout while placing newly added fields below it", () => {
+    const sheet = worksheetTemplate("reason");
+    const layout = {
+      items: [{ id: sheet.fields[0].id, x: 50, y: 20, w: 450, h: 160 }],
+    };
+    const updated = { ...sheet, modalLayout: layout };
+    expect(parseWorksheet(updated).modalLayout).toEqual(layout);
+    const items = modalLayoutItems(updated);
+    expect(items[0]).toEqual(layout.items[0]);
+    expect(items[1].y).toBeGreaterThanOrEqual(180);
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        modalLayout: { items: [{ ...layout.items[0], x: 700 }] },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        modalLayout: { items: [{ ...layout.items[0], id: "unknown" }] },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        modalLayout: { items: [layout.items[0], layout.items[0]] },
+      }),
+    ).toThrow();
+  });
   it("validates radar scores and exports each axis and series in separate CSV columns", () => {
     const sheet = worksheetTemplate("radar");
     const f = sheet.fields[0];

@@ -147,6 +147,25 @@ export async function exerciseWorksheets(
   await restart();
   assert.equal((await list())[0].title, revised.title);
   await post(`/${sheet.id}/edit`, { expected: revised, definition });
+  const placed = {
+    ...definition,
+    modalLayout: { items: [{ id: "reason", x: 50, y: 30, w: 500, h: 160 }] },
+  };
+  await post(
+    `/${sheet.id}/edit`,
+    { expected: definition, definition: placed },
+    guest,
+    403,
+  );
+  await post(`/${sheet.id}/edit`, { expected: definition, definition: placed });
+  assert.deepEqual((await list(guest))[0].modalLayout, placed.modalLayout);
+  assert.equal(
+    (await list(guest))[0].own?.values.reason,
+    '<script>日本語,"花"\n次',
+  );
+  await restart();
+  assert.deepEqual((await list())[0].modalLayout, placed.modalLayout);
+  await post(`/${sheet.id}/edit`, { expected: placed, definition });
   const reordered = structuredClone(definition);
   reordered.fields = [
     reordered.fields[2],

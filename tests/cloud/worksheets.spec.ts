@@ -27,6 +27,123 @@ async function openWorksheets(page: Page) {
 }
 const modal = (page: Page) =>
   page.getByRole("dialog", { name: "ワークシート", exact: true });
+test("host edits the student form layout while preserving answers and live updates", async ({
+  page,
+  browser,
+}, info) => {
+  const context = await browser.newContext(info.project.use),
+    guest = await context.newPage();
+  try {
+    await signIn(page, "layout-modal-host");
+    await signIn(guest, "layout-modal-guest");
+    const headers = { Origin: "http://127.0.0.1:3187" };
+    const { id } = await (
+      await page.request.post("/api/decks", { headers, data: sample() })
+    ).json();
+    const invite = await (
+      await page.request.post(`/api/decks/${id}/invite`, { headers })
+    ).json();
+    const token = new URL(invite.url).searchParams.get("join");
+    const accepted = await (
+      await guest.request.post(`/api/invites/${token}/accept`, { headers })
+    ).json();
+    if (accepted.status === "pending")
+      await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+        headers,
+        data: { requestIds: [accepted.requestId] },
+      });
+    const sheet = (
+      await (
+        await page.request.post(`/api/decks/${id}/worksheets`, {
+          headers,
+          data: worksheetTemplate("reason"),
+        })
+      ).json()
+    ).worksheets[0];
+    await page.request.post(`/api/decks/${id}/worksheets/${sheet.id}/status`, {
+      headers,
+      data: { status: "open" },
+    });
+    await page.goto(`/?room=${id}`);
+    await guest.goto(`/?room=${id}`);
+    await expect(page.locator(".slide-card")).toHaveCount(5);
+    await openWorksheets(page);
+    await openWorksheets(guest);
+    await guest
+      .getByRole("textbox", { name: "選んだ理由", exact: true })
+      .fill("私の回答");
+    await guest
+      .getByRole("textbox", { name: "選んだ理由", exact: true })
+      .blur();
+    await expect(modal(guest)).toContainText("入力は保存済みです。");
+    await page.getByRole("button", { name: "設定・内容の確認" }).click();
+    await page
+      .getByRole("button", { name: "入力画面のレイアウトを編集" })
+      .click();
+    const editor = page.getByRole("region", {
+      name: "フォーム画面のレイアウト編集",
+    });
+    const card = editor.locator(".worksheet-positioned-field").first();
+    const resize = editor.getByRole("button", {
+      name: "1. 選んだ理由の大きさを変更",
+    });
+    await resize.scrollIntoViewIfNeeded();
+    const box = (await resize.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      box.x + box.width / 2 - 250,
+      box.y + box.height / 2 + 40,
+      { steps: 4 },
+    );
+    await page.mouse.up();
+    await expect(card).not.toHaveAttribute("style", /width: 100%/);
+    const resizeStyle = await card.getAttribute("style");
+    await editor.getByRole("button", { name: "1. 選んだ理由を移動" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(card).not.toHaveAttribute("style", resizeStyle!);
+    const finalStyle = (await card.getAttribute("style"))!
+      .replace(/\s*z-index:\s*2;?/, "")
+      .trim();
+    await page.getByRole("button", { name: "レイアウトを保存" }).click();
+    await expect(modal(page)).toContainText("画面のレイアウトを保存しました");
+    const guestCard = guest
+      .locator(
+        ".worksheet-modal-layout:not(.is-editing) .worksheet-positioned-field",
+      )
+      .first();
+    await expect(guestCard).toHaveAttribute("style", finalStyle!, {
+      timeout: 15000,
+    });
+    await expect(
+      guestCard.getByRole("textbox", { name: "選んだ理由" }),
+    ).toHaveValue("私の回答");
+    await guestCard
+      .getByRole("textbox", { name: "選んだ理由" })
+      .fill("保存後も入力");
+    await guestCard.getByRole("textbox", { name: "選んだ理由" }).blur();
+    await guest.reload();
+    await openWorksheets(guest);
+    await expect(
+      guest
+        .locator(".worksheet-modal-layout .worksheet-positioned-field")
+        .first()
+        .getByRole("textbox", { name: "選んだ理由" }),
+    ).toHaveValue("保存後も入力");
+    await expect(
+      guest
+        .locator(".worksheet-modal-layout .worksheet-positioned-field")
+        .first(),
+    ).toHaveAttribute("style", finalStyle!);
+    await page.getByRole("button", { name: "入力画面のレイアウトを編集" }).click();
+    await page.getByRole("button", { name: "標準の配置に戻す" }).click();
+    await page.getByRole("button", { name: "レイアウトを保存" }).click();
+    await expect(guest.locator(".worksheet-modal-layout")).toHaveCount(0, { timeout: 15000 });
+    await expect(guest.getByRole("textbox", { name: "選んだ理由", exact: true })).toHaveValue("保存後も入力");
+  } finally {
+    await context.close();
+  }
+});
 test("existing worksheet fields become individually movable and keep personal answers", async ({
   page,
   browser,
