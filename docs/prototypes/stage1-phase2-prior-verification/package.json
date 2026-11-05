@@ -1,0 +1,1 @@
+{"dependencies":{"miniflare":"^4.20260730.0"},"description":"VHSlide stage-1 phase-2 prior-verification harness (LOCAL MOCK ONLY - plan v0.5 section 2.7)","name":"stage1-phase2-harness","private":true,"scripts":{"test":"node test/run.mjs"},"type":"module","version":"0.1.0"}
