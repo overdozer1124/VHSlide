@@ -19,7 +19,11 @@ npm test   # = node test/run.mjs。全項目 PASS で終了コード 0
 |---|---|
 | `src/worker.js` | 通常ビルド。アプリ内管理ルート（運営者セッションなし、操作ごとのトークン検証、在籍・世代照合と変更の同一トランザクション化）＋診断読み取り。専用経路は持たない |
 | `src/platform-worker.js` | プラットフォーム経路の一時ビルド。固定した承認内容（環境・用途・対象主体ハッシュ・期限・一回値・操作ID）をバインディングに持ち、完全一致時のみ登録簿の初期投入／全面差し替えを行う専用経路を持つ。管理ルートは持たない |
+| `fault-builds/apply-after-writes/` | 故障版ビルド（検証専用・非公開）。書込み「後」の途中失敗を実環境で確認するための別成果物。差分は `apply-after-writes.diff` に固定 |
+| `public/login-real.html` / `tools/serve-real.mjs` | 実ログイン画面と、その提供サーバー（PC 側運用）。フェーズ1の型でフェーズ2用に用意 |
+| `tools/build-realenv-manifest.mjs` / `realenv-manifest.json` | 実環境用マニフェスト（成果物ハッシュ・バインディング一覧・ソース検査）の生成ツールと生成結果 |
 | `test/run.mjs` | 試験ランナー（§2.7 の項目番号を各チェック名に付与） |
+| `test/real-ui.smoke.mjs` | 実ログイン画面と提供サーバーのローカル疎通確認（`node test/real-ui.smoke.mjs`。run.mjs とは別枠） |
 | `DESIGN.md` | 設計、§2.7 対応表、試作としての解釈、未決定事項 |
 
 ## テーブル（すべて `op2_*`、RegistryDO の SQLite storage）

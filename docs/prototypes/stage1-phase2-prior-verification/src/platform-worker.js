@@ -315,6 +315,16 @@ export class RegistryDO {
         const subjectHash = await sha256hex(claims.sub);
         let result;
         this.ctx.storage.transactionSync(() => {
+          // 期限チェックは apply 処理の入口で行う。期限切れの承認
+          // では、他の固定値の照合結果によらず、apply へのすべての
+          // 要求を approval_expired で拒否する（計画 2.7 項目4の
+          // 確認範囲はこの apply 経路である。/nonce の発行自体は
+          // 状態を変更せず、発行された nonce も期限切れの承認では
+          // ここで拒否されるため消費できない）。
+          const expiresAt = finiteNumber(env.APPROVAL_EXPIRES_AT);
+          if (expiresAt === null || expiresAt <= Date.now()) {
+            throw new HttpError(403, "approval_expired");
+          }
           // 固定値の照合（すべて一致しなければ拒否。計画 2.3）
           if (body.one_time_value !== env.APPROVAL_ONE_TIME) {
             throw new HttpError(403, "bad_one_time_value");
@@ -324,11 +334,6 @@ export class RegistryDO {
           }
           if (body.env_id !== env.APPROVAL_ENV_ID) {
             throw new HttpError(403, "env_mismatch");
-          }
-          // 期限切れの一時ビルドはすべての要求を拒否する（2.4）。
-          const expiresAt = finiteNumber(env.APPROVAL_EXPIRES_AT);
-          if (expiresAt === null || expiresAt <= Date.now()) {
-            throw new HttpError(403, "approval_expired");
           }
           // 値が漏れても、固定された対象以外の主体は登録できない（2.3）。
           if (subjectHash !== env.APPROVAL_SUBJECT_HASH) {
@@ -471,12 +476,18 @@ export default {
       if (url.pathname === "/nonce" && request.method === "GET") {
         const { status, json } = await doCall(env, "/do/nonce", {});
         if (status !== 200) return jsonResponse(json, status);
+        // 実環境構成（verify）では Secure を必須とする（DESIGN.md
+        // 「試作の制約」3）。ローカル模擬は http://localhost 起点の
+        // ため付けない。変形B（ブラウザーから見た生成元は
+        // http://localhost:8787）で実際に送り返されるかは、実環境で
+        // 実測する。
+        const secureAttr = env.DEPLOYMENT_TIER === "verify" ? "; Secure" : "";
         return jsonResponse(
           { nonce: json.nonce },
           200,
           {
             "set-cookie":
-              `${NONCE_CTX_COOKIE}=${json.ctx}; HttpOnly; SameSite=Strict; Path=/; Max-Age=300`,
+              `${NONCE_CTX_COOKIE}=${json.ctx}; HttpOnly; SameSite=Strict; Path=/; Max-Age=300${secureAttr}`,
           }
         );
       }

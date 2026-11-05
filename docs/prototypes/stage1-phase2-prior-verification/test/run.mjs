@@ -76,9 +76,14 @@ const COMMON_BINDINGS = {
 };
 
 async function startBuild(scriptName, persistName, extraBindings = {}) {
+  return startBuildPath(path.join("src", scriptName), persistName, extraBindings);
+}
+
+// 成果物の相対パスを指定して起動する（故障版ビルド用）。
+async function startBuildPath(relScriptPath, persistName, extraBindings = {}) {
   const mf = new Miniflare({
     modules: true,
-    scriptPath: path.join(ROOT, "src", scriptName),
+    scriptPath: path.join(ROOT, relScriptPath),
     compatibilityDate: "2025-01-01",
     durableObjects: {
       REGISTRY: { className: "RegistryDO", useSQLite: true },
@@ -224,7 +229,8 @@ async function main() {
   for (const p of [
     ".persist-p1", ".persist-p2", ".persist-p3", ".persist-p4",
     ".persist-p5", ".persist-p6", ".persist-p7", ".persist-p8",
-    ".persist-p9", ".persist-p10", ".persist-p11",
+    ".persist-p9", ".persist-p10", ".persist-p11", ".persist-p12",
+    ".persist-p13",
   ]) {
     rmSync(path.join(ROOT, p), { recursive: true, force: true });
   }
@@ -395,7 +401,10 @@ async function main() {
   }
   await platform.mf.dispose();
   {
-    // 期限切れビルド（2.7-4）: 期限が過去の承認ではすべて拒否される。
+    // 期限切れビルド（2.7-4）: 期限が過去の承認では、apply 経路の
+    // 要求がすべて approval_expired で拒否される。期限チェックは
+    // apply 処理の入口にあり、他の固定値の照合より先に行われる
+    // （確認範囲は apply 経路。それ以外の経路の扱いは手順書に明記）。
     const expired = await startBuild("platform-worker.js", ".persist-p1",
       approvalBindings({
         operationId: "op-009",
@@ -414,6 +423,25 @@ async function main() {
       "2.7-4: 期限切れの承認は 403 approval_expired",
       r.status === 403 && r.json.error === "approval_expired",
       `status=${r.status}`
+    );
+    const rWrong = await platformApply(expired.base, SUB_A, {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "wrong-value",
+    });
+    check(
+      "2.7-4: 期限切れ後は一回値が不一致でも 403 approval_expired（期限チェックが apply の入口）",
+      rWrong.status === 403 && rWrong.json.error === "approval_expired",
+      `status=${rWrong.status} body=${JSON.stringify(rWrong.json)}`
+    );
+    const stateExp = await inspectPlatform(expired.base);
+    check(
+      "2.7-4: 期限切れ後の試行では登録簿・消費・完了記録は変わらない",
+      operatorHashes(stateExp).join() === HASH_A &&
+        stateExp.consumed_ops.length === 1 &&
+        stateExp.completion.length === 1 &&
+        stateExp.generation === 1,
+      JSON.stringify(stateExp)
     );
     await expired.mf.dispose();
   }
@@ -1234,6 +1262,161 @@ async function main() {
       JSON.stringify(stateP11)
     );
     await readP11.mf.dispose();
+  }
+
+  // ===== 実環境構成: Cookie の Secure 属性 =====
+  // verify 構成では認証試行コンテキスト Cookie に Secure を付ける
+  // （実環境での必須化）。ローカル模擬（http 起点）では付けない。
+  // ここで確認するのは属性の有無までであり、変形Bでブラウザーが
+  // 実際に送り返すかは実環境で実測する（手順書 項目8）。
+  section("実環境構成 Cookie の Secure 属性（verify で必須）");
+  {
+    const verifyNormal = await startBuild("worker.js", ".persist-p12", {
+      DEPLOYMENT_TIER: "verify",
+      MOCK_AUTH: undefined,
+      ALLOW_TEST_HOOKS: undefined,
+    });
+    const rVN = await call(verifyNormal.base, "GET", "/nonce", { origin: null });
+    const scVN = rVN.headers.get("set-cookie") || "";
+    check(
+      "Secure: verify 構成の通常ビルドでは ctx Cookie に Secure; HttpOnly; SameSite=Strict が付く",
+      rVN.status === 200 &&
+        scVN.includes("Secure") &&
+        scVN.includes("HttpOnly") &&
+        scVN.includes("SameSite=Strict"),
+      `status=${rVN.status} set-cookie=${scVN}`
+    );
+    await verifyNormal.mf.dispose();
+
+    const verifyPlatform = await startBuild("platform-worker.js", ".persist-p12", {
+      DEPLOYMENT_TIER: "verify",
+      MOCK_AUTH: undefined,
+      ALLOW_TEST_HOOKS: undefined,
+      ...approvalBindings({
+        operationId: "op-901",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-901",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rVP = await call(verifyPlatform.base, "GET", "/nonce", { origin: null });
+    const scVP = rVP.headers.get("set-cookie") || "";
+    check(
+      "Secure: verify 構成の一時ビルドでも ctx Cookie に Secure が付く",
+      rVP.status === 200 && scVP.includes("Secure"),
+      `status=${rVP.status} set-cookie=${scVP}`
+    );
+    await verifyPlatform.mf.dispose();
+
+    const mockNormal = await startBuild("worker.js", ".persist-p12");
+    const rMN = await call(mockNormal.base, "GET", "/nonce", { origin: null });
+    const scMN = rMN.headers.get("set-cookie") || "";
+    check(
+      "Secure: local-mock 構成では Secure を付けない（ローカル http 起点のため）",
+      rMN.status === 200 && scMN.includes("HttpOnly") && !scMN.includes("Secure"),
+      `status=${rMN.status} set-cookie=${scMN}`
+    );
+    await mockNormal.mf.dispose();
+  }
+
+  // ===== 2.7-9（実環境手段）: 故障版ビルドによる途中失敗 =====
+  // 現行の _fault=platform-mid は「nonce 消費後・登録簿書込み前」の
+  // 注入であり、書込み済み内容のロールバックの実証にはならない。
+  // 実環境では、別成果物として固定した故障版ビルド
+  // （fault-builds/apply-after-writes/）を使う。ここではその故障版
+  // 自体の振る舞いをローカルで確認する（実環境での実施は未実施）。
+  section("2.7-9 故障版ビルド（書込み後の途中失敗・実環境手段のローカル確認）");
+  {
+    const cleanSrc = readFileSync(
+      path.join(ROOT, "src", "platform-worker.js"),
+      "utf8"
+    );
+    const faultSrc = readFileSync(
+      path.join(ROOT, "fault-builds", "apply-after-writes", "worker.js"),
+      "utf8"
+    );
+    check(
+      "故障版: マーカー（injected_fault_apply_after_writes）は故障版にだけ含まれ、クリーン版には含まれない",
+      !cleanSrc.includes("injected_fault_apply_after_writes") &&
+        faultSrc.includes("injected_fault_apply_after_writes")
+    );
+
+    const faultApproval = approvalBindings({
+      operationId: "op-F01",
+      purpose: "bootstrap",
+      subjectHash: HASH_A,
+      oneTime: "one-time-value-f01",
+      expiresAtMs: FUTURE(),
+    });
+    const fb = await startBuildPath(
+      path.join("fault-builds", "apply-after-writes", "worker.js"),
+      ".persist-p13",
+      faultApproval
+    );
+    const pre = await inspectPlatform(fb.base);
+    check(
+      "故障版: 実施前の全状態は空（未初期化・世代0・記録なし）",
+      pre.operators.length === 0 &&
+        pre.consumed_ops.length === 0 &&
+        pre.completion.length === 0 &&
+        pre.initialized === false &&
+        pre.generation === 0,
+      JSON.stringify(pre)
+    );
+
+    const att = await attempt(fb.base, SUB_A);
+    const bodyF = {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-f01",
+      id_token: att.token,
+    };
+    const rF1 = await call(fb.base, "POST", "/platform/apply", {
+      body: bodyF,
+      cookie: att.cookie,
+    });
+    check(
+      "故障版: 書込み後の途中失敗は 500 で、detail にマーカーを含む（例外到達の識別）",
+      rF1.status === 500 &&
+        JSON.stringify(rF1.json || {}).includes("injected_fault_apply_after_writes"),
+      `status=${rF1.status} body=${JSON.stringify(rF1.json)}`
+    );
+    const rF2 = await call(fb.base, "POST", "/platform/apply", {
+      body: bodyF,
+      cookie: att.cookie,
+    });
+    check(
+      "故障版: 同一トークン（同一 nonce）の再提示でも再びマーカーつき 500（nonce 消費も巻き戻っている傍証）",
+      rF2.status === 500 &&
+        JSON.stringify(rF2.json || {}).includes("injected_fault_apply_after_writes"),
+      `status=${rF2.status} body=${JSON.stringify(rF2.json)}`
+    );
+    const post = await inspectPlatform(fb.base);
+    check(
+      "故障版: 実施後の全状態が実施前と完全一致する（書込み済み分を含むロールバック）",
+      JSON.stringify(post) === JSON.stringify(pre),
+      `pre=${JSON.stringify(pre)} post=${JSON.stringify(post)}`
+    );
+    await fb.mf.dispose();
+
+    const clean = await startBuild("platform-worker.js", ".persist-p13", faultApproval);
+    const rClean = await platformApply(clean.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-f01",
+    });
+    const stateClean = await inspectPlatform(clean.base);
+    check(
+      "故障版: クリーンな一時ビルドに差し替えれば同じ承認（未消費）で 201 になり、状態は正確に1件分だけ進む",
+      rClean.status === 201 &&
+        operatorHashes(stateClean).join() === HASH_A &&
+        stateClean.generation === 1 &&
+        stateClean.consumed_ops.length === 1 &&
+        stateClean.completion.length === 1,
+      `status=${rClean.status} state=${JSON.stringify(stateClean)}`
+    );
+    await clean.mf.dispose();
   }
 
   // ---------- 集計 ----------

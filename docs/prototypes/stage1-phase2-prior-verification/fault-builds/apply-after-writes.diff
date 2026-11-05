@@ -1,0 +1,36 @@
+--- src/platform-worker.js
++++ fault-builds/apply-after-writes/worker.js
+@@ -1,3 +1,22 @@
++// !!! 故障版ビルド（検証専用・非公開）!!!
++// VHSlide 段階①フェーズ2 先行検証ハーネス ― プラットフォーム経路の
++// 一時ビルド（src/platform-worker.js）の故障版。
++//
++// 計画 2.7 項目9「途中失敗時のロールバック」を実環境で確認するため
++// だけの別成果物である（フェーズ1の障害版ビルドの流儀）。通常の
++// 一時ビルドとは混ぜず、差分は fault-builds/apply-after-writes.diff
++// に固定する。本番・通常の検証では決して使わない。
++//
++// クリーン版との差分は1点のみ: /do/apply のトランザクション内で、
++// 登録簿の書込み（運営者の削除・挿入、世代と初期化状態の更新）を
++// 行った「後」、消費記録・完了記録を書く「前」に、無条件に例外
++// （マーカー: injected_fault_apply_after_writes）を投げる。
++// ロールバックが効けば、書込み済みの内容を含め全状態が実施前に
++// 戻る。例外到達の識別は、500 応答の detail に含まれるマーカーと、
++// 事前／事後の全状態読み戻しの比較で行う。
++//
++// 以下、クリーン版の説明をそのまま引き継ぐ。
++//
+ // VHSlide 段階①フェーズ2 先行検証ハーネス ― プラットフォーム経路の
+ // 一時ビルド（このファイルが「一時ビルドの成果物」に相当する）
+ //
+@@ -385,6 +404,10 @@
+           );
+           this.metaSet("generation", nextGeneration);
+           this.metaSet("initialized", "1");
++          // FAULT BUILD (verification only): unconditional failure
++          // AFTER the registry writes, BEFORE the consumption and
++          // completion records. Marker: injected_fault_apply_after_writes.
++          throw new Error("injected_fault_apply_after_writes");
+           this.sql.exec(
+             "INSERT INTO op2_consumed_ops (operation_id, purpose, env_id, subject_hash, consumed_at) VALUES (?, ?, ?, ?, ?)",
+             env.APPROVAL_OPERATION_ID,

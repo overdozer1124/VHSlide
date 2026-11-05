@@ -1,0 +1,289 @@
+{
+  "generated_by": "tools/build-realenv-manifest.mjs",
+  "generated_for": "段階①フェーズ2 先行検証 実環境試験（手順書 v0.2）",
+  "target": {
+    "worker_name": "vhslide-stage1-verify-20261101-a",
+    "note": "アカウント ID・Worker 名・DO 名前空間 ID の同一性確認は、このマニフェストや成果物自身の設定の読み返しでは行わない。ダッシュボード（PC 側）と API（Muse）の2経路で独立に読み取り、事前合意した値と照合する（手順書 手順0）"
+  },
+  "artifacts": [
+    {
+      "path": "src/worker.js",
+      "sha256": "f803eb438291a1e7385b1939360d8b94fff2d650267e1a4fba4f1750bc454a96",
+      "bytes": 21196
+    },
+    {
+      "path": "src/platform-worker.js",
+      "sha256": "b19c6e0c36d5162f79498e84848993bfa5c472c54824214e8c3e3d86983f9336",
+      "bytes": 23302
+    },
+    {
+      "path": "fault-builds/apply-after-writes/worker.js",
+      "sha256": "b613757ea8eda6103794cc36f761392c48ca98982cfd6a360ddd46ad0154bead",
+      "bytes": 24832
+    },
+    {
+      "path": "fault-builds/apply-after-writes.diff",
+      "sha256": "7a33920da097867ee1ef02f8dba9b63ba28c9371a70afcd7da7021ec0415d120",
+      "bytes": 2168
+    },
+    {
+      "path": "public/login-real.html",
+      "sha256": "cd33b52444d8ac41ef0cef1f39a8d0c480f78cd7c938223ac113c941e706a849",
+      "bytes": 9390
+    },
+    {
+      "path": "tools/serve-real.mjs",
+      "sha256": "28b5df8bdeb802e8d2b88947c5a76183177c52274d9cb0a0b2db1b1a45662de1",
+      "bytes": 10031
+    }
+  ],
+  "builds": {
+    "normal": {
+      "artifact": "src/worker.js",
+      "role": "通常ビルド（アプリ内管理ルート）",
+      "bindings": [
+        {
+          "name": "DEPLOYMENT_TIER",
+          "kind": "plain_text",
+          "value": "verify",
+          "note": "明示指定が必須。未設定・想定外はハーネス側が全経路を拒否する"
+        },
+        {
+          "name": "ENV_ID",
+          "kind": "plain_text",
+          "value": "<set-on-pc>",
+          "note": "値は含めない。対象環境の識別子。手順0で2経路照合した値を使う"
+        },
+        {
+          "name": "GOOGLE_CLIENT_ID",
+          "kind": "plain_text",
+          "value": "<set-on-pc: verification OAuth client id>",
+          "note": "値は含めない。aud 照合の基準"
+        },
+        {
+          "name": "REGISTRY",
+          "kind": "durable_object",
+          "note": "RegistryDO へのバインディング。名前空間 ID は手順0で2経路照合する"
+        }
+      ],
+      "must_not_be_set": [
+        {
+          "name": "MOCK_AUTH",
+          "reason": "tier=verify では設定検証が全経路を拒否する"
+        },
+        {
+          "name": "ALLOW_TEST_HOOKS",
+          "reason": "tier=verify では設定検証が全経路を拒否する。故障の注入はフックではなく故障版ビルドで行う"
+        },
+        {
+          "name": "TOKENINFO_URL",
+          "reason": "tier=verify では設定検証が全経路を拒否し、既定の Google tokeninfo だけを使う"
+        },
+        {
+          "name": "DIAG_KEY",
+          "reason": "診断読み取りは local-mock＋フック有効時のみ。実環境の読み戻しはプラットフォーム経路（Data Studio 等）で行う"
+        }
+      ]
+    },
+    "platform": {
+      "artifact": "src/platform-worker.js",
+      "role": "プラットフォーム経路の一時ビルド（操作ごとに配置し、直後に通常ビルドへ復帰させる）",
+      "bindings": [
+        {
+          "name": "DEPLOYMENT_TIER",
+          "kind": "plain_text",
+          "value": "verify",
+          "note": "明示指定が必須。未設定・想定外はハーネス側が全経路を拒否する"
+        },
+        {
+          "name": "ENV_ID",
+          "kind": "plain_text",
+          "value": "<set-on-pc>",
+          "note": "値は含めない。対象環境の識別子。手順0で2経路照合した値を使う"
+        },
+        {
+          "name": "GOOGLE_CLIENT_ID",
+          "kind": "plain_text",
+          "value": "<set-on-pc: verification OAuth client id>",
+          "note": "値は含めない。aud 照合の基準"
+        },
+        {
+          "name": "REGISTRY",
+          "kind": "durable_object",
+          "note": "RegistryDO へのバインディング。名前空間 ID は手順0で2経路照合する"
+        },
+        {
+          "name": "APPROVAL_ENV_ID",
+          "kind": "plain_text",
+          "value": "<fixed-by-account-holder>",
+          "note": "値は含めない。ENV_ID と一致が必須"
+        },
+        {
+          "name": "APPROVAL_PURPOSE",
+          "kind": "plain_text",
+          "value": "<fixed-by-account-holder: bootstrap | full-replace>",
+          "note": "値は含めない"
+        },
+        {
+          "name": "APPROVAL_SUBJECT_HASH",
+          "kind": "plain_text",
+          "value": "<fixed-by-account-holder>",
+          "note": "値は含めない。対象主体の SHA-256"
+        },
+        {
+          "name": "APPROVAL_EXPIRES_AT",
+          "kind": "plain_text",
+          "value": "<fixed-by-account-holder>",
+          "note": "値は含めない。分単位の短さに保つ"
+        },
+        {
+          "name": "APPROVAL_ONE_TIME",
+          "kind": "secret",
+          "note": "値は含めない。アカウント保有者が生成し、PC 側で設定する。Muse は保持しない"
+        },
+        {
+          "name": "APPROVAL_OPERATION_ID",
+          "kind": "plain_text",
+          "value": "<fixed-by-account-holder>",
+          "note": "値は含めない。操作ごとに新規発行し、再利用しない"
+        }
+      ],
+      "must_not_be_set": [
+        {
+          "name": "MOCK_AUTH",
+          "reason": "tier=verify では設定検証が全経路を拒否する"
+        },
+        {
+          "name": "ALLOW_TEST_HOOKS",
+          "reason": "tier=verify では設定検証が全経路を拒否する。故障の注入はフックではなく故障版ビルドで行う"
+        },
+        {
+          "name": "TOKENINFO_URL",
+          "reason": "tier=verify では設定検証が全経路を拒否し、既定の Google tokeninfo だけを使う"
+        },
+        {
+          "name": "DIAG_KEY",
+          "reason": "診断読み取りは local-mock＋フック有効時のみ。実環境の読み戻しはプラットフォーム経路（Data Studio 等）で行う"
+        }
+      ]
+    },
+    "fault": {
+      "artifact": "fault-builds/apply-after-writes/worker.js",
+      "diff": "fault-builds/apply-after-writes.diff",
+      "role": "故障版ビルド（検証専用・非公開）。計画 2.7 項目9の途中失敗ドリルでのみ一時ビルドとして配置し、直後に通常ビルドへ復帰させる。通常の操作には決して使わない",
+      "bindings": "platform と同じ",
+      "must_not_be_set": [
+        {
+          "name": "MOCK_AUTH",
+          "reason": "tier=verify では設定検証が全経路を拒否する"
+        },
+        {
+          "name": "ALLOW_TEST_HOOKS",
+          "reason": "tier=verify では設定検証が全経路を拒否する。故障の注入はフックではなく故障版ビルドで行う"
+        },
+        {
+          "name": "TOKENINFO_URL",
+          "reason": "tier=verify では設定検証が全経路を拒否し、既定の Google tokeninfo だけを使う"
+        },
+        {
+          "name": "DIAG_KEY",
+          "reason": "診断読み取りは local-mock＋フック有効時のみ。実環境の読み戻しはプラットフォーム経路（Data Studio 等）で行う"
+        }
+      ]
+    }
+  },
+  "pc_side": {
+    "login_page": "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
+    "serve": "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）"
+  },
+  "source_checks": {
+    "clean_platform_has_no_fault_marker": {
+      "found": [],
+      "expect": "absent"
+    },
+    "fault_build_has_marker": {
+      "found": [
+        {
+          "line": 13,
+          "text": "// （マーカー: injected_fault_apply_after_writes）を投げる。"
+        },
+        {
+          "line": 409,
+          "text": "// completion records. Marker: injected_fault_apply_after_writes."
+        },
+        {
+          "line": 410,
+          "text": "throw new Error(\"injected_fault_apply_after_writes\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "fault_diff_exists": {
+      "found": [
+        {
+          "line": 0,
+          "text": "fault-builds/apply-after-writes.diff"
+        }
+      ],
+      "expect": "present"
+    },
+    "normal_verify_rejects_hooks": {
+      "found": [
+        {
+          "line": 94,
+          "text": "if (env.ALLOW_TEST_HOOKS === \"1\") return \"config_hooks_in_verify\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "platform_verify_rejects_hooks": {
+      "found": [
+        {
+          "line": 88,
+          "text": "if (env.ALLOW_TEST_HOOKS === \"1\") return \"config_hooks_in_verify\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "normal_secure_cookie_in_verify": {
+      "found": [
+        {
+          "line": 449,
+          "text": "const secureAttr = env.DEPLOYMENT_TIER === \"verify\" ? \"; Secure\" : \"\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "platform_secure_cookie_in_verify": {
+      "found": [
+        {
+          "line": 484,
+          "text": "const secureAttr = env.DEPLOYMENT_TIER === \"verify\" ? \"; Secure\" : \"\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "normal_has_no_platform_apply": {
+      "found": [],
+      "expect": "absent"
+    },
+    "login_page_placeholder": {
+      "found": [
+        {
+          "line": 102,
+          "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "login_page_gis": {
+      "found": [
+        {
+          "line": 33,
+          "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
+        }
+      ],
+      "expect": "present"
+    }
+  }
+}

@@ -441,12 +441,18 @@ export default {
       if (url.pathname === "/nonce" && request.method === "GET") {
         const { status, json } = await doCall(env, "/do/nonce", {});
         if (status !== 200) return jsonResponse(json, status);
+        // 実環境構成（verify）では Secure を必須とする（DESIGN.md
+        // 「試作の制約」3）。ローカル模擬は http://localhost 起点の
+        // ため付けない。変形B（ブラウザーから見た生成元は
+        // http://localhost:8787）で実際に送り返されるかは、実環境で
+        // 実測する。
+        const secureAttr = env.DEPLOYMENT_TIER === "verify" ? "; Secure" : "";
         return jsonResponse(
           { nonce: json.nonce },
           200,
           {
             "set-cookie":
-              `${NONCE_CTX_COOKIE}=${json.ctx}; HttpOnly; SameSite=Strict; Path=/; Max-Age=300`,
+              `${NONCE_CTX_COOKIE}=${json.ctx}; HttpOnly; SameSite=Strict; Path=/; Max-Age=300${secureAttr}`,
           }
         );
       }
