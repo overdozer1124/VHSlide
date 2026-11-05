@@ -506,7 +506,7 @@ export class Directory extends DurableObject<Env> {
         hash = await sha(raw);
       this.ctx.storage.transactionSync(() => {
         this.sql.exec(
-          "INSERT INTO users VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          "INSERT INTO users (id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
           user.id,
           user.name,
           user.email,

@@ -633,7 +633,7 @@ export function createApplication(options: Options) {
           );
         }
         db.prepare(
-          "INSERT INTO users VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          "INSERT INTO users (id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
         ).run(u.id, u.name, u.email);
         const raw = token();
         db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
