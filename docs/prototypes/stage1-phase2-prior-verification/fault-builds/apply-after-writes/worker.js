@@ -296,6 +296,21 @@ export class RegistryDO {
         "SELECT operation_id, env_id, subject_hash, purpose, applied_at FROM op2_completion ORDER BY id"
       ),
     ];
+    // 読み戻し対象には、未消費 nonce の内訳（件数のみ。nonce の値や
+    // ctx ハッシュ自体は含めない）も含める（手順書 v0.3 の読み戻し
+    // 対象の定義。消費の巻き戻りや再送の使用済み状態を、読み戻しで
+    // 確認できるようにするため）。
+    const nonceRows = [
+      ...this.sql.exec(
+        "SELECT used, COUNT(*) AS n FROM op2_pending_nonce GROUP BY used"
+      ),
+    ];
+    let nonceUsed = 0;
+    let nonceUnused = 0;
+    for (const r of nonceRows) {
+      if (r.used) nonceUsed = r.n;
+      else nonceUnused = r.n;
+    }
     return {
       env_id: this.env.ENV_ID,
       generation: this.generation(),
@@ -303,6 +318,11 @@ export class RegistryDO {
       operators,
       consumed_ops: consumed,
       completion,
+      pending_nonces: {
+        total: nonceUsed + nonceUnused,
+        used: nonceUsed,
+        unused: nonceUnused,
+      },
     };
   }
 

@@ -1,6 +1,6 @@
 {
   "generated_by": "tools/build-realenv-manifest.mjs",
-  "generated_for": "段階①フェーズ2 先行検証 実環境試験（手順書 v0.2）",
+  "generated_for": "段階①フェーズ2 先行検証 実環境試験（手順書 v0.3）",
   "target": {
     "worker_name": "vhslide-stage1-verify-20261101-a",
     "note": "アカウント ID・Worker 名・DO 名前空間 ID の同一性確認は、このマニフェストや成果物自身の設定の読み返しでは行わない。ダッシュボード（PC 側）と API（Muse）の2経路で独立に読み取り、事前合意した値と照合する（手順書 手順0）"
@@ -8,22 +8,22 @@
   "artifacts": [
     {
       "path": "src/worker.js",
-      "sha256": "f803eb438291a1e7385b1939360d8b94fff2d650267e1a4fba4f1750bc454a96",
-      "bytes": 21196
+      "sha256": "7e9af693936e280295434eaa2d1dfe14a99a5e54a30251a7642860b9b7a066ad",
+      "bytes": 21947
     },
     {
       "path": "src/platform-worker.js",
-      "sha256": "b19c6e0c36d5162f79498e84848993bfa5c472c54824214e8c3e3d86983f9336",
-      "bytes": 23302
+      "sha256": "4b4f86f7de6f01075e61d5e5ec874db6e1cbed12ec2df65ab4668d9a04ab28bb",
+      "bytes": 24053
     },
     {
       "path": "fault-builds/apply-after-writes/worker.js",
-      "sha256": "b613757ea8eda6103794cc36f761392c48ca98982cfd6a360ddd46ad0154bead",
-      "bytes": 24832
+      "sha256": "694b79eaebaf4c7ee259da3c2ce10de27d82f012f37f9b0ef4a28af789878e22",
+      "bytes": 25583
     },
     {
       "path": "fault-builds/apply-after-writes.diff",
-      "sha256": "7a33920da097867ee1ef02f8dba9b63ba28c9371a70afcd7da7021ec0415d120",
+      "sha256": "699735cc1b9b54d30ee0ef4422d3e63821a708c36cbe5e3292cde030fda60fbb",
       "bytes": 2168
     },
     {
@@ -208,11 +208,11 @@
           "text": "// （マーカー: injected_fault_apply_after_writes）を投げる。"
         },
         {
-          "line": 409,
+          "line": 429,
           "text": "// completion records. Marker: injected_fault_apply_after_writes."
         },
         {
-          "line": 410,
+          "line": 430,
           "text": "throw new Error(\"injected_fault_apply_after_writes\");"
         }
       ],
@@ -248,7 +248,7 @@
     "normal_secure_cookie_in_verify": {
       "found": [
         {
-          "line": 449,
+          "line": 469,
           "text": "const secureAttr = env.DEPLOYMENT_TIER === \"verify\" ? \"; Secure\" : \"\";"
         }
       ],
@@ -257,7 +257,7 @@
     "platform_secure_cookie_in_verify": {
       "found": [
         {
-          "line": 484,
+          "line": 504,
           "text": "const secureAttr = env.DEPLOYMENT_TIER === \"verify\" ? \"; Secure\" : \"\";"
         }
       ],

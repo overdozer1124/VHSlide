@@ -23,7 +23,7 @@
  // VHSlide 段階①フェーズ2 先行検証ハーネス ― プラットフォーム経路の
  // 一時ビルド（このファイルが「一時ビルドの成果物」に相当する）
  //
-@@ -385,6 +404,10 @@
+@@ -405,6 +424,10 @@
            );
            this.metaSet("generation", nextGeneration);
            this.metaSet("initialized", "1");

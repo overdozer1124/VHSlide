@@ -17,6 +17,7 @@
 
 import { Miniflare } from "miniflare";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -119,6 +120,91 @@ try {
 
     const nf = await fetch(base + "/no-such-path");
     check("スモーク: 転送対象外のパスは提供サーバーが 404 を返す", nf.status === 404);
+
+    // 故障マーカーの素通し確認（手順書 v0.3 の実証前確認）:
+    // 故障版ビルドを中継先にして /platform/apply を提供サーバー経由で
+    // 実施し、500 の応答本文（detail のマーカー）が欠落せず届くことを
+    // 確認する。値はすべてダミーであり、秘密は含まれない。これで
+    // 「提供サーバーが応答本文を素通しする」ことまでをローカルで
+    // 確認し、実環境では PC 側で応答本文を直接取得する手順につなぐ。
+    const mfF = new Miniflare({
+      modules: true,
+      scriptPath: path.join(ROOT, "fault-builds", "apply-after-writes", "worker.js"),
+      compatibilityDate: "2025-01-01",
+      durableObjects: { REGISTRY: { className: "RegistryDO", useSQLite: true } },
+      durableObjectsPersist: path.join(ROOT, ".persist-smoke-fault"),
+      bindings: {
+        DEPLOYMENT_TIER: "local-mock",
+        MOCK_AUTH: "1",
+        ALLOW_TEST_HOOKS: "1",
+        GOOGLE_CLIENT_ID: CLIENT_ID,
+        ENV_ID,
+        DIAG_KEY: "smoke-diag-key",
+        APPROVAL_ENV_ID: ENV_ID,
+        APPROVAL_PURPOSE: "bootstrap",
+        APPROVAL_SUBJECT_HASH: createHash("sha256").update("smoke-fault-subject", "utf8").digest("hex"),
+        APPROVAL_EXPIRES_AT: String(Date.now() + 600000),
+        APPROVAL_ONE_TIME: "smoke-one-time-value",
+        APPROVAL_OPERATION_ID: "op-smoke-fault",
+      },
+    });
+    const mfFUrl = (await mfF.ready).toString().replace(/\/$/, "");
+    const childF = spawn("node", [path.join(ROOT, "tools", "serve-real.mjs")], {
+      env: {
+        ...process.env,
+        GOOGLE_CLIENT_ID: CLIENT_ID,
+        RELAY_URL: mfFUrl,
+        PORT: "8898",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    try {
+      const baseF = "http://127.0.0.1:8898";
+      let readyF = false;
+      for (let i = 0; i < 50 && !readyF; i++) {
+        try {
+          const r = await fetch(baseF + "/");
+          if (r.status === 200) readyF = true;
+        } catch { /* 起動待ち */ }
+        if (!readyF) await new Promise((r) => setTimeout(r, 200));
+      }
+      let markerSeen = false;
+      let detailF = "";
+      if (readyF) {
+        const nRes = await fetch(baseF + "/nonce");
+        const nJson = await nRes.json().catch(() => null);
+        const cookieF = (nRes.headers.get("set-cookie") || "").split(";")[0];
+        const expF = String(Math.floor(Date.now() / 1000) + 600);
+        const tokenF = `mockop|smoke-fault-subject|${nJson && nJson.nonce}|https://accounts.google.com|${CLIENT_ID}|${expF}`;
+        const aRes = await fetch(baseF + "/platform/apply", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            Origin: "http://localhost:8787",
+            Cookie: cookieF,
+          },
+          body: JSON.stringify({
+            purpose: "bootstrap",
+            env_id: ENV_ID,
+            one_time_value: "smoke-one-time-value",
+            id_token: tokenF,
+          }),
+        });
+        const aText = await aRes.text();
+        markerSeen = aRes.status === 500 && aText.includes("injected_fault_apply_after_writes");
+        detailF = `status=${aRes.status} body=${aText.slice(0, 200)}`;
+      } else {
+        detailF = "serve-real（故障版用）が起動しなかった";
+      }
+      check(
+        "スモーク: 故障マーカーが提供サーバー経由の応答本文で観察できる（500・detail 素通し）",
+        markerSeen,
+        detailF
+      );
+    } finally {
+      childF.kill("SIGTERM");
+      await mfF.dispose();
+    }
   }
 } finally {
   child.kill("SIGTERM");

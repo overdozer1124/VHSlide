@@ -230,7 +230,7 @@ async function main() {
     ".persist-p1", ".persist-p2", ".persist-p3", ".persist-p4",
     ".persist-p5", ".persist-p6", ".persist-p7", ".persist-p8",
     ".persist-p9", ".persist-p10", ".persist-p11", ".persist-p12",
-    ".persist-p13",
+    ".persist-p13", ".persist-p14",
   ]) {
     rmSync(path.join(ROOT, p), { recursive: true, force: true });
   }
@@ -1354,18 +1354,24 @@ async function main() {
       ".persist-p13",
       faultApproval
     );
+    // 認証試行（nonce 発行）を済ませてから実施前状態を取る。読み戻し
+    // には未消費 nonce の内訳も含まれるため、発行後の状態を基準に
+    // しないと、実施後の完全一致の比較に発行分が混ざってしまう。
+    const att = await attempt(fb.base, SUB_A);
     const pre = await inspectPlatform(fb.base);
     check(
-      "故障版: 実施前の全状態は空（未初期化・世代0・記録なし）",
+      "故障版: 実施前の全状態は空（未初期化・世代0・記録なし。発行済み nonce 1件は未使用）",
       pre.operators.length === 0 &&
         pre.consumed_ops.length === 0 &&
         pre.completion.length === 0 &&
         pre.initialized === false &&
-        pre.generation === 0,
+        pre.generation === 0 &&
+        pre.pending_nonces.total === 1 &&
+        pre.pending_nonces.used === 0 &&
+        pre.pending_nonces.unused === 1,
       JSON.stringify(pre)
     );
 
-    const att = await attempt(fb.base, SUB_A);
     const bodyF = {
       purpose: "bootstrap",
       env_id: ENV_ID,
@@ -1417,6 +1423,103 @@ async function main() {
       `status=${rClean.status} state=${JSON.stringify(stateClean)}`
     );
     await clean.mf.dispose();
+  }
+
+  // ===== 2.7-9（手順書 v0.3 S17 の型）: 全面復旧（旧値≠新値）での故障版 =====
+  // 実環境の S17 は、登録簿が {B} の状態で対象 A の全面復旧を行う。
+  // 旧値と新値が異なるため、ロールバックが効かなければ運営者集合・
+  // 世代の差分が読み戻しで直接観測できる。ここではその型をローカルで
+  // 再現する: クリーン版で {A} を作り、故障版で {A}→{B} の全面復旧を
+  // 失敗させ、全状態（未消費 nonce の内訳を含む）が実施前と完全一致
+  // すること、クリーン版では同じ承認で新値 {B} へ進むことを確認する。
+  section("2.7-9 故障版ビルド（全面復旧・旧値≠新値、手順書 v0.3 S17 の型）");
+  {
+    const bootApproval = approvalBindings({
+      operationId: "op-S17a",
+      purpose: "bootstrap",
+      subjectHash: HASH_A,
+      oneTime: "one-time-value-s17a",
+      expiresAtMs: FUTURE(),
+    });
+    const base17 = await startBuild("platform-worker.js", ".persist-p14", bootApproval);
+    const rBoot = await platformApply(base17.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-s17a",
+    });
+    const stBoot = await inspectPlatform(base17.base);
+    check(
+      "S17型: 土台の初期投入で登録簿は旧値 {A}・世代1になる",
+      rBoot.status === 201 &&
+        operatorHashes(stBoot).join() === HASH_A &&
+        stBoot.generation === 1,
+      `status=${rBoot.status} state=${JSON.stringify(stBoot)}`
+    );
+    await base17.mf.dispose();
+
+    const frApproval = approvalBindings({
+      operationId: "op-S17b",
+      purpose: "full-replace",
+      subjectHash: HASH_B,
+      oneTime: "one-time-value-s17b",
+      expiresAtMs: FUTURE(),
+    });
+    const fb17 = await startBuildPath(
+      path.join("fault-builds", "apply-after-writes", "worker.js"),
+      ".persist-p14",
+      frApproval
+    );
+    const att17 = await attempt(fb17.base, SUB_B);
+    const pre17 = await inspectPlatform(fb17.base);
+    check(
+      "S17型: 故障実施前の状態は旧値 {A}・世代1・消費と完了は初期投入分のみ（今回の nonce は未使用）",
+      operatorHashes(pre17).join() === HASH_A &&
+        pre17.generation === 1 &&
+        pre17.consumed_ops.length === 1 &&
+        pre17.completion.length === 1 &&
+        pre17.pending_nonces.unused >= 1,
+      JSON.stringify(pre17)
+    );
+    const rF17 = await call(fb17.base, "POST", "/platform/apply", {
+      body: {
+        purpose: "full-replace",
+        env_id: ENV_ID,
+        one_time_value: "one-time-value-s17b",
+        id_token: att17.token,
+      },
+      cookie: att17.cookie,
+    });
+    check(
+      "S17型: 書込み後の途中失敗は 500 で、detail にマーカーを含む",
+      rF17.status === 500 &&
+        JSON.stringify(rF17.json || {}).includes("injected_fault_apply_after_writes"),
+      `status=${rF17.status} body=${JSON.stringify(rF17.json)}`
+    );
+    const post17 = await inspectPlatform(fb17.base);
+    check(
+      "S17型: 実施後の全状態が実施前と完全一致する（新値 {B} へ差し替わっていない。世代・nonce 消費も巻き戻っている）",
+      JSON.stringify(post17) === JSON.stringify(pre17),
+      `pre=${JSON.stringify(pre17)} post=${JSON.stringify(post17)}`
+    );
+    await fb17.mf.dispose();
+
+    const cl17 = await startBuild("platform-worker.js", ".persist-p14", frApproval);
+    const rCl17 = await platformApply(cl17.base, SUB_B, {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-s17b",
+    });
+    const stCl17 = await inspectPlatform(cl17.base);
+    check(
+      "S17型: クリーン版では同じ承認が 201 になり、登録簿は新値 {B}・世代2へ進む（差分が読み戻しで観測できる）",
+      rCl17.status === 201 &&
+        operatorHashes(stCl17).join() === HASH_B &&
+        stCl17.generation === 2 &&
+        stCl17.consumed_ops.length === 2 &&
+        stCl17.completion.length === 2,
+      `status=${rCl17.status} state=${JSON.stringify(stCl17)}`
+    );
+    await cl17.mf.dispose();
   }
 
   // ---------- 集計 ----------
