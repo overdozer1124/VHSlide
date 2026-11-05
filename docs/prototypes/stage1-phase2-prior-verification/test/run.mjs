@@ -186,13 +186,45 @@ function operatorHashes(state) {
   return (state.operators || []).map((o) => o.subject_hash).sort();
 }
 
+// ---------- DO への直接入口（Worker の fetch を経ない呼び出し） ----------
+// 故障注入フックのゲートが、HTTP 入口での _fault 剥離に依存せず
+// DO 自身でも効くことを確認するために使う。
+async function doDirect(mf, pathName, payload) {
+  const ns = await mf.getDurableObjectNamespace("REGISTRY");
+  const stub = ns.get(ns.idFromName("registry:" + ENV_ID));
+  const res = await stub.fetch("https://registry.internal" + pathName, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+  const json = await res.json().catch(() => null);
+  return { status: res.status, json };
+}
+
+async function platformApplyDirect(mf, sub, body, extraBody = {}) {
+  const n = await doDirect(mf, "/do/nonce", {});
+  if (n.status !== 200 || !n.json || !n.json.nonce) {
+    throw new Error(`direct nonce issuance failed: status=${n.status}`);
+  }
+  return doDirect(mf, "/do/apply", {
+    body: { ...body, id_token: mockToken(sub, n.json.nonce), ...extraBody },
+    ctx: n.json.ctx,
+  });
+}
+
+async function snapshotDirect(mf) {
+  const r = await doDirect(mf, "/do/snapshot", {});
+  return r.json;
+}
+
 const FUTURE = () => Date.now() + 10 * 60 * 1000;
 
 // ---------- 本体 ----------
 async function main() {
   for (const p of [
     ".persist-p1", ".persist-p2", ".persist-p3", ".persist-p4",
-    ".persist-p5", ".persist-p6", ".persist-p7",
+    ".persist-p5", ".persist-p6", ".persist-p7", ".persist-p8",
+    ".persist-p9", ".persist-p10", ".persist-p11",
   ]) {
     rmSync(path.join(ROOT, p), { recursive: true, force: true });
   }
@@ -958,6 +990,250 @@ async function main() {
       JSON.stringify(state)
     );
     await loss.mf.dispose();
+  }
+
+  // ===== 設定ゲート: 故障注入フックの制限 =====
+  // フックは tier=local-mock かつ ALLOW_TEST_HOOKS=1 のときだけ働く。
+  // ゲートは Worker の HTTP 入口での _fault 剥離だけでなく、DO 自身
+  // （faultHooksEnabled）でも判定する。ここでは (a) フック無効の
+  // local-mock での HTTP 入口、(b) フック無効での DO 直接入口、
+  // (c) フック有効での DO 直接入口（従来どおり働くこと）、
+  // (d) verify 設定、の4形態を確認する。
+  section("設定ゲート 故障注入フックの制限（フック無効・DO直接入口・verify）");
+  {
+    // (a) フック無効（ALLOW_TEST_HOOKS 未設定）・HTTP 入口: 途中失敗
+    const offMid = await startBuild("platform-worker.js", ".persist-p8", {
+      ALLOW_TEST_HOOKS: undefined,
+      ...approvalBindings({
+        operationId: "op-501",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-501",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rMid = await platformApply(offMid.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-501",
+    }, { extraBody: { _fault: "platform-mid" } });
+    check(
+      "設定ゲート: フック無効では _fault=platform-mid 付きでも 500 にならず通常処理される（201）",
+      rMid.status === 201,
+      `status=${rMid.status} body=${JSON.stringify(rMid.json)}`
+    );
+    await offMid.mf.dispose();
+    const readP8a = await startBuild("worker.js", ".persist-p8");
+    const stateP8a = await readRegistry(readP8a.base);
+    check(
+      "設定ゲート: フック無効時の途中失敗つき実施は、ロールバックではなく通常どおり確定している",
+      operatorHashes(stateP8a).join() === HASH_A &&
+        stateP8a.consumed_ops.length === 1 &&
+        stateP8a.consumed_ops[0].operation_id === "op-501" &&
+        stateP8a.completion.length === 1 &&
+        stateP8a.generation === 1,
+      JSON.stringify(stateP8a)
+    );
+    await readP8a.mf.dispose();
+
+    // (a') フック無効・HTTP 入口: コミット後フック（全面復旧）
+    const offAfter = await startBuild("platform-worker.js", ".persist-p8", {
+      ALLOW_TEST_HOOKS: undefined,
+      ...approvalBindings({
+        operationId: "op-502",
+        purpose: "full-replace",
+        subjectHash: HASH_B,
+        oneTime: "one-time-value-502",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rAfter = await platformApply(offAfter.base, SUB_B, {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-502",
+    }, { extraBody: { _fault: "platform-after-commit" } });
+    check(
+      "設定ゲート: フック無効では _fault=platform-after-commit 付きでも成功後に意図的な 500 は返らない（201）",
+      rAfter.status === 201,
+      `status=${rAfter.status} body=${JSON.stringify(rAfter.json)}`
+    );
+    await offAfter.mf.dispose();
+    const readP8b = await startBuild("worker.js", ".persist-p8");
+    const stateP8b = await readRegistry(readP8b.base);
+    check(
+      "設定ゲート: フック無効時のコミット後フックつき全面復旧は通常どおり差し替わる",
+      operatorHashes(stateP8b).join() === HASH_B &&
+        stateP8b.completion.some((c) => c.operation_id === "op-502") &&
+        stateP8b.generation === 2,
+      JSON.stringify(stateP8b)
+    );
+    await readP8b.mf.dispose();
+  }
+  {
+    // (b) フック無効・DO 直接入口: HTTP 入口の剥離を経なくても効かない
+    const offDirect = await startBuild("platform-worker.js", ".persist-p9", {
+      ALLOW_TEST_HOOKS: undefined,
+      ...approvalBindings({
+        operationId: "op-601",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-601",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rDirectMid = await platformApplyDirect(offDirect.mf, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-601",
+    }, { _fault: "platform-mid" });
+    const snapDirectMid = await snapshotDirect(offDirect.mf);
+    check(
+      "設定ゲート: DO 直接入口でもフック無効時は _fault=platform-mid が効かず 201 で確定する",
+      rDirectMid.status === 201 &&
+        operatorHashes(snapDirectMid).join() === HASH_A &&
+        snapDirectMid.consumed_ops.length === 1 &&
+        snapDirectMid.completion.length === 1,
+      `status=${rDirectMid.status} state=${JSON.stringify(snapDirectMid)}`
+    );
+    await offDirect.mf.dispose();
+
+    const offDirect2 = await startBuild("platform-worker.js", ".persist-p9", {
+      ALLOW_TEST_HOOKS: undefined,
+      ...approvalBindings({
+        operationId: "op-602",
+        purpose: "full-replace",
+        subjectHash: HASH_B,
+        oneTime: "one-time-value-602",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rDirectAfter = await platformApplyDirect(offDirect2.mf, SUB_B, {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-602",
+    }, { _fault: "platform-after-commit" });
+    const snapDirectAfter = await snapshotDirect(offDirect2.mf);
+    check(
+      "設定ゲート: DO 直接入口でもフック無効時は _fault=platform-after-commit が効かず 500 にならない（201）",
+      rDirectAfter.status === 201 &&
+        operatorHashes(snapDirectAfter).join() === HASH_B &&
+        snapDirectAfter.completion.some((c) => c.operation_id === "op-602"),
+      `status=${rDirectAfter.status} state=${JSON.stringify(snapDirectAfter)}`
+    );
+    await offDirect2.mf.dispose();
+  }
+  {
+    // (c) フック有効（local-mock＋ALLOW_TEST_HOOKS=1）・DO 直接入口:
+    // 従来どおりフックが働くことの回帰確認
+    const onDirect = await startBuild("platform-worker.js", ".persist-p10",
+      approvalBindings({
+        operationId: "op-701",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-701",
+        expiresAtMs: FUTURE(),
+      })
+    );
+    const body701 = {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-701",
+    };
+    const rOnMid = await platformApplyDirect(onDirect.mf, SUB_A, body701, {
+      _fault: "platform-mid",
+    });
+    const snapOnMid = await snapshotDirect(onDirect.mf);
+    check(
+      "設定ゲート: DO 直接入口でもフック有効時は _fault=platform-mid が従来どおり働く（500・ロールバック）",
+      rOnMid.status === 500 &&
+        snapOnMid.operators.length === 0 &&
+        snapOnMid.consumed_ops.length === 0 &&
+        snapOnMid.completion.length === 0 &&
+        snapOnMid.initialized === false,
+      `status=${rOnMid.status} state=${JSON.stringify(snapOnMid)}`
+    );
+    const rOnAfter = await platformApplyDirect(onDirect.mf, SUB_A, body701, {
+      _fault: "platform-after-commit",
+    });
+    const snapOnAfter = await snapshotDirect(onDirect.mf);
+    check(
+      "設定ゲート: DO 直接入口でもフック有効時は _fault=platform-after-commit が従来どおり働く（500・状態は確定済み）",
+      rOnAfter.status === 500 &&
+        operatorHashes(snapOnAfter).join() === HASH_A &&
+        snapOnAfter.consumed_ops.length === 1 &&
+        snapOnAfter.completion.length === 1,
+      `status=${rOnAfter.status} state=${JSON.stringify(snapOnAfter)}`
+    );
+    await onDirect.mf.dispose();
+  }
+  {
+    // (d) verify 設定: フックつき構成は構成自体を拒否し、正規の
+    // verify 構成では _fault を含む要求で失敗注入は発火しない
+    const badVerify = await startBuild("platform-worker.js", ".persist-p11", {
+      DEPLOYMENT_TIER: "verify",
+      MOCK_AUTH: undefined,
+      ALLOW_TEST_HOOKS: "1",
+      ...approvalBindings({
+        operationId: "op-801",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-801",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rBadVerify = await call(badVerify.base, "POST", "/platform/apply", {
+      body: {
+        purpose: "bootstrap",
+        env_id: ENV_ID,
+        one_time_value: "one-time-value-801",
+        id_token: "dummy",
+        _fault: "platform-after-commit",
+      },
+    });
+    check(
+      "設定ゲート: verify で ALLOW_TEST_HOOKS=1 の構成は全経路を 500 config_refused（fail-closed）",
+      rBadVerify.status === 500 &&
+        rBadVerify.json &&
+        rBadVerify.json.error === "config_refused",
+      `status=${rBadVerify.status} body=${JSON.stringify(rBadVerify.json)}`
+    );
+    await badVerify.mf.dispose();
+
+    const verify = await startBuild("platform-worker.js", ".persist-p11", {
+      DEPLOYMENT_TIER: "verify",
+      MOCK_AUTH: undefined,
+      ALLOW_TEST_HOOKS: undefined,
+      ...approvalBindings({
+        operationId: "op-801",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-801",
+        expiresAtMs: FUTURE(),
+      }),
+    });
+    const rVerify = await platformApply(verify.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-801",
+    }, { extraBody: { _fault: "platform-after-commit" } });
+    check(
+      "設定ゲート: verify 設定では _fault 付き要求でも失敗注入は発火しない（injected_fault を含まず、成功にもならない）",
+      rVerify.status !== 201 &&
+        !JSON.stringify(rVerify.json || {}).includes("injected_fault"),
+      `status=${rVerify.status} body=${JSON.stringify(rVerify.json)}`
+    );
+    await verify.mf.dispose();
+    const readP11 = await startBuild("worker.js", ".persist-p11");
+    const stateP11 = await readRegistry(readP11.base);
+    check(
+      "設定ゲート: verify 設定での _fault 付き要求では消費・登録は一切起きていない",
+      stateP11.operators.length === 0 &&
+        stateP11.consumed_ops.length === 0 &&
+        stateP11.completion.length === 0 &&
+        stateP11.initialized === false,
+      JSON.stringify(stateP11)
+    );
+    await readP11.mf.dispose();
   }
 
   // ---------- 集計 ----------

@@ -230,6 +230,20 @@ export class RegistryDO {
     return Number(this.metaGet("generation") || "0");
   }
 
+  // 失敗注入フックの可否（フェーズ1の流儀）: tier=local-mock かつ
+  // ALLOW_TEST_HOOKS=1 のときだけ働く。判定は DO 自身の env で行い、
+  // Worker の fetch が _fault を剥離するかどうかには依存しない。
+  // これにより、Worker を経ない DO への直接入口からでもフックは
+  // 起動できない（設定が verify の場合、ALLOW_TEST_HOOKS=1 は
+  // validateConfig が構成自体を拒否するため、到達時点では常に
+  // フック無効になっている）。
+  faultHooksEnabled() {
+    return (
+      this.env.DEPLOYMENT_TIER === "local-mock" &&
+      this.env.ALLOW_TEST_HOOKS === "1"
+    );
+  }
+
   // nonce の照合と消費。呼び出し側のトランザクション内で使うこと。
   // 固定値の不一致など、nonce 消費より前に判定すべき拒否は呼び出し側が
   // 先に行う（拒否で nonce を燃やさない）。
@@ -347,9 +361,10 @@ export class RegistryDO {
           ) {
             throw new HttpError(409, "not_initialized");
           }
-          // 失敗注入（local-mock＋フック有効時のみ。途中失敗の
-          // ロールバック確認用。フェーズ1の流儀）。
-          if (body._fault === "platform-mid") {
+          // 失敗注入（フック有効時のみ。途中失敗のロールバック
+          // 確認用）。ゲートは DO 内で判定するため、DO への直接
+          // 入口でも verify 等では起動しない。
+          if (this.faultHooksEnabled() && body._fault === "platform-mid") {
             throw new Error("injected_fault_platform_mid");
           }
           const now = new Date().toISOString();
@@ -383,11 +398,14 @@ export class RegistryDO {
           );
           result = { ok: true, generation: nextGeneration };
         });
-        // 失敗注入（コミット後の応答喪失の再現）: トランザクションは
-        // 成立済みだが、応答を返す前に例外で落とす。呼び出し側には
-        // 500 が返り、実施されたかどうかは応答からは判断できない
-        // （再送せず、読み戻しで判断する。計画 2.6）。
-        if (body._fault === "platform-after-commit") {
+        // 失敗注入（フック有効時のみ。コミット後の応答喪失の
+        // 再現）: トランザクションは成立済みだが、応答を返す前に
+        // 例外で落とす。呼び出し側には 500 が返り、実施されたか
+        // どうかは応答からは判断できない（再送せず、読み戻しで
+        // 判断する。計画 2.6）。ゲートは DO 内で判定するため、
+        // DO への直接入口でも verify 等では起動しない（成功後に
+        // 意図的な 500 を返すことはできない）。
+        if (this.faultHooksEnabled() && body._fault === "platform-after-commit") {
           throw new Error("injected_fault_platform_after_commit");
         }
         return jsonResponse(result, 201);
@@ -481,7 +499,10 @@ export default {
           throw new HttpError(400, "bad_body");
         }
         // 失敗注入は local-mock＋フック有効時のみ（フェーズ1の流儀）。
-        // それ以外の形態では _fault を無視する。
+        // それ以外の形態ではここで _fault を剥離する。なお最終的な
+        // ゲートは DO 側（faultHooksEnabled）にもあり、DO への直接
+        // 入口ではこの剥離を経ないため、DO 側の判定が正となる
+        // （二重の防御。どちらか一方でもフックは起動しない）。
         const faultEnabled =
           env.DEPLOYMENT_TIER === "local-mock" && env.ALLOW_TEST_HOOKS === "1";
         const cookies = parseCookies(request);
