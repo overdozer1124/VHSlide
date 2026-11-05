@@ -29,7 +29,7 @@ try {
     run("npm", ["run", "build"]);
     run("npx", ["tsc", "-p", "tsconfig.cloudflare.json"]);
     const assets = readdirSync("dist/assets").filter((name) =>
-      name.endsWith(".js"),
+      name.startsWith("index-") && name.endsWith(".js"),
     );
     if (
       !assets.some((name) =>
