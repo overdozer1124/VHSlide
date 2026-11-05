@@ -164,8 +164,10 @@ function checkOrigin(request) {
 }
 
 // 登録簿を持つ Durable Object。製品では Directory DO に対応する。
-// 専用経路（プラットフォーム）・管理ルートのどちらの状態操作も、
-// ここでの単一トランザクションに集約する。
+// 一時ビルドの DO はプラットフォーム経路の専用処理（apply）と
+// nonce 発行・読み取りだけを持ち、管理ルートの状態操作（admin）は
+// 含まない（ビルド成果物として分離する。通常側の DO は
+// src/worker.js）。
 export class RegistryDO {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -336,6 +338,15 @@ export class RegistryDO {
           ) {
             throw new HttpError(409, "already_initialized");
           }
+          // 全面復旧は初期化済みの登録簿への操作であり、初期化前の
+          // 状態では拒否する（初期投入と全面復旧は別の操作として
+          // 区別する。計画 2.1/2.3）。
+          if (
+            env.APPROVAL_PURPOSE === "full-replace" &&
+            this.metaGet("initialized") !== "1"
+          ) {
+            throw new HttpError(409, "not_initialized");
+          }
           // 失敗注入（local-mock＋フック有効時のみ。途中失敗の
           // ロールバック確認用。フェーズ1の流儀）。
           if (body._fault === "platform-mid") {
@@ -372,99 +383,16 @@ export class RegistryDO {
           );
           result = { ok: true, generation: nextGeneration };
         });
+        // 失敗注入（コミット後の応答喪失の再現）: トランザクションは
+        // 成立済みだが、応答を返す前に例外で落とす。呼び出し側には
+        // 500 が返り、実施されたかどうかは応答からは判断できない
+        // （再送せず、読み戻しで判断する。計画 2.6）。
+        if (body._fault === "platform-after-commit") {
+          throw new Error("injected_fault_platform_after_commit");
+        }
         return jsonResponse(result, 201);
       }
 
-      if (url.pathname === "/do/admin" && request.method === "POST") {
-        const { body, ctx } = await request.json();
-        const claims = await verifyIdToken(body.id_token, this.env);
-        const ctxHash = ctx ? await sha256hex(ctx) : null;
-        const callerHash = await sha256hex(claims.sub);
-        let result;
-        this.ctx.storage.transactionSync(() => {
-          // nonce の消費・在籍照合・世代照合・変更の適用を同一
-          // トランザクションで行う（計画 2.5）。
-          this.consumeNonce(claims.nonce, ctxHash);
-          const caller = [
-            ...this.sql.exec(
-              "SELECT subject_hash FROM op2_operators WHERE subject_hash = ?",
-              callerHash
-            ),
-          ];
-          // 認可の照会に失敗した場合は拒否する（fail-closed）。
-          // 失効した運営者は、次の操作でここで拒否される。
-          if (!caller.length) throw new HttpError(403, "not_operator");
-          const gen = this.generation();
-          if (body.action === "verify-only") {
-            result = { ok: true, generation: gen };
-            return;
-          }
-          // 登録簿の変更は、提示された世代が現在の世代と一致する
-          // 場合にだけ適用する。古い世代に基づく同時更新は拒否。
-          if (body.expected_generation !== gen) {
-            throw new HttpError(409, "stale_generation");
-          }
-          const now = new Date().toISOString();
-          if (body.action === "add") {
-            const exists = [
-              ...this.sql.exec(
-                "SELECT subject_hash FROM op2_operators WHERE subject_hash = ?",
-                body.subject_hash
-              ),
-            ];
-            if (exists.length) throw new HttpError(409, "already_member");
-            this.sql.exec(
-              "INSERT INTO op2_operators (subject_hash, added_at, added_by) VALUES (?, ?, ?)",
-              body.subject_hash,
-              now,
-              callerHash
-            );
-          } else if (body.action === "revoke") {
-            const exists = [
-              ...this.sql.exec(
-                "SELECT subject_hash FROM op2_operators WHERE subject_hash = ?",
-                body.subject_hash
-              ),
-            ];
-            if (!exists.length) throw new HttpError(404, "target_not_member");
-            this.sql.exec(
-              "DELETE FROM op2_operators WHERE subject_hash = ?",
-              body.subject_hash
-            );
-          } else if (body.action === "rotate") {
-            const oldExists = [
-              ...this.sql.exec(
-                "SELECT subject_hash FROM op2_operators WHERE subject_hash = ?",
-                body.old_subject_hash
-              ),
-            ];
-            if (!oldExists.length) throw new HttpError(404, "target_not_member");
-            const newExists = [
-              ...this.sql.exec(
-                "SELECT subject_hash FROM op2_operators WHERE subject_hash = ?",
-                body.new_subject_hash
-              ),
-            ];
-            if (newExists.length) throw new HttpError(409, "already_member");
-            this.sql.exec(
-              "DELETE FROM op2_operators WHERE subject_hash = ?",
-              body.old_subject_hash
-            );
-            this.sql.exec(
-              "INSERT INTO op2_operators (subject_hash, added_at, added_by) VALUES (?, ?, ?)",
-              body.new_subject_hash,
-              now,
-              callerHash
-            );
-          } else {
-            throw new HttpError(400, "unknown_action");
-          }
-          const nextGeneration = gen + 1;
-          this.metaSet("generation", nextGeneration);
-          result = { ok: true, generation: nextGeneration };
-        });
-        return jsonResponse(result, 200);
-      }
 
       return jsonResponse({ error: "not_found" }, 404);
     } catch (e) {

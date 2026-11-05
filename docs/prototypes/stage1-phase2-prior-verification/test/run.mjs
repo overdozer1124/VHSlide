@@ -190,8 +190,31 @@ const FUTURE = () => Date.now() + 10 * 60 * 1000;
 
 // ---------- 本体 ----------
 async function main() {
-  for (const p of [".persist-p1", ".persist-p2", ".persist-p3"]) {
+  for (const p of [
+    ".persist-p1", ".persist-p2", ".persist-p3", ".persist-p4",
+    ".persist-p5", ".persist-p6", ".persist-p7",
+  ]) {
     rmSync(path.join(ROOT, p), { recursive: true, force: true });
+  }
+
+  // ===== 構成: ビルド成果物の分離（静的確認） =====
+  section("構成 ビルド成果物の分離（静的確認）");
+  {
+    const normalSrc = readFileSync(path.join(ROOT, "src", "worker.js"), "utf8");
+    const platformSrc = readFileSync(
+      path.join(ROOT, "src", "platform-worker.js"),
+      "utf8"
+    );
+    check(
+      "構成: 通常ビルドの成果物に専用処理（/do/apply・固定値照合・消費判定）が含まれない",
+      !normalSrc.includes("/do/apply") &&
+        !normalSrc.includes("APPROVAL_ONE_TIME") &&
+        !normalSrc.includes("operation_consumed")
+    );
+    check(
+      "構成: 一時ビルドの成果物に専用処理は含まれ、管理処理（/do/admin）は含まれない",
+      platformSrc.includes("/do/apply") && !platformSrc.includes("/do/admin")
+    );
   }
 
   // ===== 設定検証（fail-closed） =====
@@ -724,6 +747,217 @@ async function main() {
       `status=${r2.status}`
     );
     await faultBuild.mf.dispose();
+  }
+
+  // ===== 2.6: 旧ビルド再配置と「未消費・未期限」の操作ID =====
+  // 現行の扱いの定義: サーバー側に発行済み承認の一覧がないため、
+  // 未消費の操作IDを取り消す手段はない。旧い一時ビルドが再配置
+  // されれば、その操作IDは引き続き実施可能になる（歯止めは有効
+  // 期限のみ。再配置自体がプラットフォーム経路の行為であり、実施
+  // できるのはアカウント保有者に限られる）。この振る舞いを、ここ
+  // では「現行定義の確認」として記録する（取り消し手段の要否は
+  // 未解決事項として DESIGN.md に残す）。
+  section("2.6 旧ビルド再配置と未消費・未期限の操作ID（現行定義の確認）");
+  {
+    const bindings401 = approvalBindings({
+      operationId: "op-401",
+      purpose: "bootstrap",
+      subjectHash: HASH_A,
+      oneTime: "one-time-value-401",
+      expiresAtMs: FUTURE(),
+    });
+    const body401 = {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-401",
+    };
+    // 承認を発行しただけで実施せず、通常ビルドへ差し替える。
+    const issuedOnly = await startBuild("platform-worker.js", ".persist-p4", bindings401);
+    await issuedOnly.mf.dispose();
+    const normalP4 = await startBuild("worker.js", ".persist-p4");
+    const r404 = await platformApply(normalP4.base, SUB_A, body401);
+    check(
+      "2.6: 未実施のまま通常ビルドへ戻れば、専用経路は 404",
+      r404.status === 404,
+      `status=${r404.status}`
+    );
+    await normalP4.mf.dispose();
+    // 旧い一時ビルドを再配置すると、未消費・未期限の操作IDは
+    // 引き続き実施可能になる（取り消し手段がないことの確認）。
+    const redeployed = await startBuild("platform-worker.js", ".persist-p4", bindings401);
+    const r = await platformApply(redeployed.base, SUB_A, body401);
+    check(
+      "2.6: 再配置された旧ビルドでは未消費・未期限の操作IDが実施可能（取り消し手段なし）",
+      r.status === 201,
+      `status=${r.status} body=${JSON.stringify(r.json)}`
+    );
+    const state = await inspectPlatform(redeployed.base);
+    check(
+      "2.6: 再配置後の実施でも完了記録は操作IDどおりに残る",
+      state.completion.length === 1 &&
+        state.completion[0].operation_id === "op-401" &&
+        operatorHashes(state).join() === HASH_A,
+      JSON.stringify(state)
+    );
+    await redeployed.mf.dispose();
+  }
+
+  // ===== 全面復旧は初期化前の状態では拒否する（2.1） =====
+  section("プラットフォーム経路・全面復旧の初期化前拒否（2.1）");
+  {
+    const fr = await startBuild("platform-worker.js", ".persist-p6",
+      approvalBindings({
+        operationId: "op-403",
+        purpose: "full-replace",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-403",
+        expiresAtMs: FUTURE(),
+      })
+    );
+    const r = await platformApply(fr.base, SUB_A, {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-403",
+    });
+    check(
+      "全面復旧: 初期化前の状態では 409 not_initialized",
+      r.status === 409 && r.json.error === "not_initialized",
+      `status=${r.status} body=${JSON.stringify(r.json)}`
+    );
+    const state = await inspectPlatform(fr.base);
+    check(
+      "全面復旧: 拒否では登録簿・消費・完了記録は空で、未初期化のまま",
+      state.operators.length === 0 &&
+        state.consumed_ops.length === 0 &&
+        state.completion.length === 0 &&
+        state.initialized === false,
+      JSON.stringify(state)
+    );
+    await fr.mf.dispose();
+  }
+
+  // ===== 2.7-6/2.1: 最後の運営者の失効拒否と並行削除 =====
+  section("2.7-6/2.1 最後の運営者の保護（失効拒否・並行削除）");
+  {
+    const boot = await startBuild("platform-worker.js", ".persist-p5",
+      approvalBindings({
+        operationId: "op-402",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-402",
+        expiresAtMs: FUTURE(),
+      })
+    );
+    const rb = await platformApply(boot.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-402",
+    });
+    check(
+      "準備: 初期投入で運営者 A が登録される（世代1）",
+      rb.status === 201,
+      `status=${rb.status}`
+    );
+    await boot.mf.dispose();
+
+    const n5 = await startBuild("worker.js", ".persist-p5");
+    let r = await adminCall(n5.base, "/admin/registry/add", SUB_A, {
+      subject_hash: HASH_B,
+      expected_generation: 1,
+    });
+    check(
+      "準備: B の追加で世代が 2 に進む",
+      r.status === 200 && r.json.generation === 2,
+      `status=${r.status} body=${JSON.stringify(r.json)}`
+    );
+
+    // 並行削除: A が B を、B が A を、同じ世代（2）で同時に失効させる。
+    // 直列化と世代照合により正確に1件だけ成功し、登録簿は空にならない。
+    const [d1, d2] = await Promise.all([
+      adminCall(n5.base, "/admin/registry/revoke", SUB_A, {
+        subject_hash: HASH_B,
+        expected_generation: 2,
+      }),
+      adminCall(n5.base, "/admin/registry/revoke", SUB_B, {
+        subject_hash: HASH_A,
+        expected_generation: 2,
+      }),
+    ]);
+    const okCount = [d1, d2].filter((x) => x.status === 200).length;
+    const refusedCount = [d1, d2].filter(
+      (x) => x.status === 403 || x.status === 409
+    ).length;
+    const stateMid = await readRegistry(n5.base);
+    check(
+      "2.7-6: 並行する失効（互いの失効）は正確に1件だけ成功し、登録簿は空にならない",
+      okCount === 1 &&
+        refusedCount === 1 &&
+        stateMid.generation === 3 &&
+        operatorHashes(stateMid).length === 1,
+      `d1=${d1.status} d2=${d2.status} gen=${stateMid.generation} ops=${operatorHashes(stateMid)}`
+    );
+    const survivorHash = operatorHashes(stateMid)[0];
+    const survivorSub = survivorHash === HASH_A ? SUB_A : SUB_B;
+
+    // 最後の運営者の失効（自己失効を含む）は同一トランザクションで拒否。
+    r = await adminCall(n5.base, "/admin/registry/revoke", survivorSub, {
+      subject_hash: survivorHash,
+      expected_generation: 3,
+    });
+    check(
+      "2.7-6/2.1: 最後の運営者の失効は 409 last_operator で拒否される",
+      r.status === 409 && r.json.error === "last_operator",
+      `status=${r.status} body=${JSON.stringify(r.json)}`
+    );
+    const stateEnd = await readRegistry(n5.base);
+    const rVerify = await adminCall(n5.base, "/admin/verify-only", survivorSub);
+    check(
+      "2.7-6/2.1: 拒否後も最後の運営者は残り（世代3のまま）、操作できる",
+      stateEnd.generation === 3 &&
+        operatorHashes(stateEnd).length === 1 &&
+        rVerify.status === 200,
+      `gen=${stateEnd.generation} verify=${rVerify.status}`
+    );
+    await n5.mf.dispose();
+  }
+
+  // ===== 2.7-7: コミット後の応答喪失（再現）と読み戻し確認 =====
+  section("2.7-7 コミット後の応答喪失（再現・ローカル模擬のみ）");
+  {
+    const loss = await startBuild("platform-worker.js", ".persist-p7",
+      approvalBindings({
+        operationId: "op-404",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-404",
+        expiresAtMs: FUTURE(),
+      })
+    );
+    const r = await platformApply(loss.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-404",
+    }, { extraBody: { _fault: "platform-after-commit" } });
+    check(
+      "2.7-7: コミット後の応答喪失は 500 として観察される（応答からは成否を判断できない）",
+      r.status === 500,
+      `status=${r.status} body=${JSON.stringify(r.json)}`
+    );
+    // 計画 2.6: 再送しない。まず状態を読み戻して判断する。
+    const state = await inspectPlatform(loss.base);
+    const comp = state.completion[0] || {};
+    check(
+      "2.7-7: 読み戻しで実施済み（登録簿・消費・完了記録）が確認でき、再送不要と判断できる",
+      operatorHashes(state).join() === HASH_A &&
+        state.initialized === true &&
+        state.generation === 1 &&
+        state.consumed_ops.length === 1 &&
+        state.consumed_ops[0].operation_id === "op-404" &&
+        comp.operation_id === "op-404" &&
+        comp.subject_hash === HASH_A,
+      JSON.stringify(state)
+    );
+    await loss.mf.dispose();
   }
 
   // ---------- 集計 ----------

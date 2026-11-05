@@ -32,8 +32,10 @@
 //   GET  /test/registry         診断用読み取り＝プラットフォーム経路での
 //                               「登録簿の読み戻し」のローカル代替。
 //                               local-mock＋ALLOW_TEST_HOOKS=1＋DIAG_KEY 照合時のみ。
-//   ※ /platform/apply は通常ビルドには存在しない（404。2.4/2.6 の
-//     経路消滅の観察はこの 404 をもってローカル代替とする）。
+//   ※ 専用経路 /platform/apply の実装は、通常ビルドの成果物には
+//     含まれない（RegistryDO に apply 処理自体を持たない）。外側の
+//     404 だけでなく、成果物の中に内部操作が存在しないことを、
+//     試験の静的確認で示す。
 
 const EXPECTED_ORIGIN = "http://localhost:8787";
 const NONCE_CTX_COOKIE = "op2_nonce_ctx";
@@ -168,8 +170,9 @@ function checkOrigin(request) {
 }
 
 // 登録簿を持つ Durable Object。製品では Directory DO に対応する。
-// 専用経路（プラットフォーム）・管理ルートのどちらの状態操作も、
-// ここでの単一トランザクションに集約する。
+// 通常ビルドの DO は管理ルートの状態操作だけを持ち、プラット
+// フォーム経路の専用処理（apply）は含まない（ビルド成果物として
+// 分離する。プラットフォーム側の DO は src/platform-worker.js）。
 export class RegistryDO {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -295,89 +298,6 @@ export class RegistryDO {
         return jsonResponse(this.snapshot());
       }
 
-      if (url.pathname === "/do/apply" && request.method === "POST") {
-        const { body, ctx } = await request.json();
-        const claims = await verifyIdToken(body.id_token, this.env);
-        const ctxHash = ctx ? await sha256hex(ctx) : null;
-        const env = this.env;
-        const subjectHash = await sha256hex(claims.sub);
-        let result;
-        this.ctx.storage.transactionSync(() => {
-          // 固定値の照合（すべて一致しなければ拒否。計画 2.3）
-          if (body.one_time_value !== env.APPROVAL_ONE_TIME) {
-            throw new HttpError(403, "bad_one_time_value");
-          }
-          if (body.purpose !== env.APPROVAL_PURPOSE) {
-            throw new HttpError(403, "purpose_mismatch");
-          }
-          if (body.env_id !== env.APPROVAL_ENV_ID) {
-            throw new HttpError(403, "env_mismatch");
-          }
-          // 期限切れの一時ビルドはすべての要求を拒否する（2.4）。
-          const expiresAt = finiteNumber(env.APPROVAL_EXPIRES_AT);
-          if (expiresAt === null || expiresAt <= Date.now()) {
-            throw new HttpError(403, "approval_expired");
-          }
-          // 値が漏れても、固定された対象以外の主体は登録できない（2.3）。
-          if (subjectHash !== env.APPROVAL_SUBJECT_HASH) {
-            throw new HttpError(403, "subject_mismatch");
-          }
-          // nonce の消費は、固定値の照合を通った後にだけ行う。
-          this.consumeNonce(claims.nonce, ctxHash);
-          // 消費は操作ID単位で原子的（2.3）。消費済みは旧ビルドの
-          // 再配置でも再利用できない（サーバー側の状態で照合する）。
-          const consumed = [
-            ...this.sql.exec(
-              "SELECT operation_id FROM op2_consumed_ops WHERE operation_id = ?",
-              env.APPROVAL_OPERATION_ID
-            ),
-          ];
-          if (consumed.length) throw new HttpError(409, "operation_consumed");
-          // 初期投入は「初期化済み」という状態で再実行を拒否する（2.3）。
-          if (
-            env.APPROVAL_PURPOSE === "bootstrap" &&
-            this.metaGet("initialized") === "1"
-          ) {
-            throw new HttpError(409, "already_initialized");
-          }
-          // 失敗注入（local-mock＋フック有効時のみ。途中失敗の
-          // ロールバック確認用。フェーズ1の流儀）。
-          if (body._fault === "platform-mid") {
-            throw new Error("injected_fault_platform_mid");
-          }
-          const now = new Date().toISOString();
-          const nextGeneration = this.generation() + 1;
-          // 登録簿の差し替え（初期投入・全面復旧とも、承認された
-          // 主体だけを含む内容に置き換える）。
-          this.sql.exec("DELETE FROM op2_operators");
-          this.sql.exec(
-            "INSERT INTO op2_operators (subject_hash, added_at, added_by) VALUES (?, ?, ?)",
-            subjectHash,
-            now,
-            "platform:" + env.APPROVAL_OPERATION_ID
-          );
-          this.metaSet("generation", nextGeneration);
-          this.metaSet("initialized", "1");
-          this.sql.exec(
-            "INSERT INTO op2_consumed_ops (operation_id, purpose, env_id, subject_hash, consumed_at) VALUES (?, ?, ?, ?, ?)",
-            env.APPROVAL_OPERATION_ID,
-            env.APPROVAL_PURPOSE,
-            env.APPROVAL_ENV_ID,
-            subjectHash,
-            now
-          );
-          this.sql.exec(
-            "INSERT INTO op2_completion (operation_id, env_id, subject_hash, purpose, applied_at) VALUES (?, ?, ?, ?, ?)",
-            env.APPROVAL_OPERATION_ID,
-            env.APPROVAL_ENV_ID,
-            subjectHash,
-            env.APPROVAL_PURPOSE,
-            now
-          );
-          result = { ok: true, generation: nextGeneration };
-        });
-        return jsonResponse(result, 201);
-      }
 
       if (url.pathname === "/do/admin" && request.method === "POST") {
         const { body, ctx } = await request.json();
@@ -431,6 +351,18 @@ export class RegistryDO {
               ),
             ];
             if (!exists.length) throw new HttpError(404, "target_not_member");
+            // 最後の運営者の失効はアプリ側では行わない（計画 2.1:
+            // 全運営者の緊急失効と全運営者喪失時の回復はプラット
+            // フォーム経路に限定される）。登録簿が空になる失効は、
+            // 同一トランザクションの中で数えて拒否する。並行する
+            // 別の失効とは世代照合で直列化されるため、2件の失効が
+            // すり抜けて空になることはない。
+            const countRows = [
+              ...this.sql.exec("SELECT COUNT(*) AS n FROM op2_operators"),
+            ];
+            if (Number(countRows[0].n) <= 1) {
+              throw new HttpError(409, "last_operator");
+            }
             this.sql.exec(
               "DELETE FROM op2_operators WHERE subject_hash = ?",
               body.subject_hash
