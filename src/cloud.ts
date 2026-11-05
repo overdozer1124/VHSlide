@@ -34,6 +34,7 @@ import {
   readSharedDeck,
   toBase64,
 } from "./sharedDeck";
+import { collectForeignForms, rewriteFormBindings } from "./formAdoption";
 
 export interface CloudUser {
   id: string;
@@ -846,16 +847,102 @@ export class CloudWorkspace {
         method: "POST",
         body: serializeDeck(portable),
       });
+      // Form adoption: worksheets / surveys created in another deck (a
+      // copied work, or a work loaded from a file) only accept answers in
+      // their original deck. Re-register them under the new deck and
+      // rewrite the bindings so the placed fields stay usable.
+      let finalDeck = portable;
+      const adoptionFailures: string[] = [];
+      {
+        const plan = collectForeignForms(portable, result.id);
+        const worksheetIds = new Map<string, string>();
+        const surveyIds = new Map<string, string>();
+        const knownWorksheets = new Set<string>();
+        for (const sheet of plan.worksheets) {
+          try {
+            const data = await api<{
+              worksheets: { id: string; fields: { id: string }[] }[];
+            }>(`/api/decks/${result.id}/worksheets`, {
+              method: "POST",
+              body: JSON.stringify(sheet.definition),
+            });
+            const created =
+              data.worksheets.find(
+                (s) =>
+                  !knownWorksheets.has(s.id) &&
+                  s.fields.length === sheet.definition.fields.length &&
+                  s.fields.every(
+                    (f, i) => f.id === sheet.definition.fields[i].id,
+                  ),
+              ) ??
+              data.worksheets.find((s) => !knownWorksheets.has(s.id)) ??
+              data.worksheets.at(-1);
+            if (!created) throw new Error("ワークシートを作成できませんでした。");
+            data.worksheets.forEach((s) => knownWorksheets.add(s.id));
+            await api(`/api/decks/${result.id}/worksheets/${created.id}/status`, {
+              method: "POST",
+              body: JSON.stringify({ status: "open" }),
+            });
+            worksheetIds.set(sheet.key, created.id);
+          } catch {
+            adoptionFailures.push(`ワークシート「${sheet.definition.title}」`);
+          }
+        }
+        const knownSurveys = new Set<string>();
+        for (const survey of plan.surveys) {
+          try {
+            const data = await api<{ surveys: { id: string; question: string }[] }>(
+              `/api/decks/${result.id}/surveys`,
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  question: survey.question,
+                  kind: survey.kind,
+                  options: survey.options,
+                }),
+              },
+            );
+            const created =
+              data.surveys.find(
+                (s) => !knownSurveys.has(s.id) && s.question === survey.question,
+              ) ??
+              data.surveys.find((s) => !knownSurveys.has(s.id)) ??
+              data.surveys.at(-1);
+            if (!created) throw new Error("アンケートを作成できませんでした。");
+            data.surveys.forEach((s) => knownSurveys.add(s.id));
+            await api(`/api/decks/${result.id}/surveys/${created.id}/status`, {
+              method: "POST",
+              body: JSON.stringify({ status: "open" }),
+            });
+            surveyIds.set(survey.key, created.id);
+          } catch {
+            adoptionFailures.push(`アンケート「${survey.question}」`);
+          }
+        }
+        if (worksheetIds.size || surveyIds.size)
+          finalDeck = rewriteFormBindings(
+            portable,
+            result.id,
+            worksheetIds,
+            surveyIds,
+          );
+      }
       try {
         localStorage.setItem(
           `vhslide-cloud-deck:${result.id}`,
-          JSON.stringify(deck),
+          JSON.stringify(finalDeck),
         );
       } catch {
         /* The document still lives on the server. */
       }
       await this.open(result.id);
+      if (finalDeck !== portable && this.doc)
+        this.apply(readSharedDeck(this.doc), finalDeck);
       await this.refresh();
+      if (adoptionFailures.length)
+        throw new Error(
+          `作品はクラウドに保存しましたが、一部のフォームを引き継げませんでした（${adoptionFailures.join("、")}）。引き継げなかった回答欄は表示のみになります。`,
+        );
     });
   }
   get readyForBackupRestore() {
