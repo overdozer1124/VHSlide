@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import { checkDeployment } from "./deploy-guard.mjs";
 
 // Node reads this setting on startup. Restart so Cloudflare is reachable in
@@ -27,6 +28,19 @@ try {
   if (!process.argv.includes("--check")) {
     run("npm", ["run", "build"]);
     run("npx", ["tsc", "-p", "tsconfig.cloudflare.json"]);
+    const assets = readdirSync("dist/assets").filter((name) =>
+      name.endsWith(".js"),
+    );
+    if (
+      !assets.some((name) =>
+        readFileSync(`dist/assets/${name}`, "utf8").includes(
+          "PPTXを1行として読み込む",
+        ),
+      )
+    )
+      throw Error(
+        "ビルドにPPTXの行取り込み機能が見つかりません。本番の機能を確認してください。",
+      );
     const after = await checkDeployment();
     if (before.head !== after.head || before.current.id !== after.current.id)
       throw Error(

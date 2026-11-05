@@ -33,7 +33,20 @@ export function deployedVersion(payload) {
     typeof message === "string" &&
     /^Deploy (\d+\.\d+\.\d+)(?:\s|:|$)/.exec(message);
   if (!match) throw Error("本番バージョンをデプロイ情報から特定できません。");
-  return { version: match[1], id: deployment.id };
+  const commit = /^Deploy \d+\.\d+\.\d+: ([0-9a-f]{40})$/.exec(message)?.[1];
+  return {
+    version: match[1],
+    id: deployment.id,
+    ...(commit ? { commit } : {}),
+  };
+}
+
+export function assertKnownRelease(history, version) {
+  parseVersion(version);
+  if (!history.includes(`version: "${version}"`))
+    throw Error(
+      `本番 ${version} の更新履歴が正本にありません。本番の変更を統合してください。`,
+    );
 }
 
 function git(...args) {
@@ -82,6 +95,19 @@ export async function checkDeployment() {
       `Cloudflareの公開状態を確認できません (HTTP ${response.status})。`,
     );
   const current = deployedVersion(await response.json());
+  assertKnownRelease(
+    readFileSync("src/releaseHistory.ts", "utf8"),
+    current.version,
+  );
+  if (current.commit) {
+    try {
+      git("merge-base", "--is-ancestor", current.commit, head);
+    } catch {
+      throw Error(
+        "本番に公開したコミットが正本の履歴にありません。本番の変更を統合してください。",
+      );
+    }
+  }
   assertNewer(pkg.version, current.version);
   return { head, version: pkg.version, current };
 }
