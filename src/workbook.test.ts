@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { sample, parseDeck, duplicateRowGroup, blank } from "./model";
-import { activeSheet, changeSheet, sheetDeck, mergeSheet } from "./workbook";
+import {
+  activeSheet,
+  changeSheet,
+  sheetDeck,
+  mergeSheet,
+  appendSlidesAsRow,
+} from "./workbook";
 import {
   balancedGrid,
   matchesFilter,
@@ -189,4 +195,57 @@ it("copies headings into a duplicated sheet, keeps empty sheets clean and reject
       ),
     ).toThrow();
   }
+});
+
+describe("appendSlidesAsRow", () => {
+  const importedPages = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ...blank(i, 0),
+      title: `取り込み ${i + 1}`,
+    }));
+
+  it("appends imported pages as a new bottom row and labels it", () => {
+    const book = sample();
+    const bottom = Math.max(...book.slides.map((s) => s.y));
+    const next = appendSlidesAsRow(book, importedPages(3), "main", "資料");
+    const placed = next.slides.slice(book.slides.length);
+    expect(next.slides.slice(0, book.slides.length)).toEqual(book.slides);
+    expect(placed.map((s) => [s.x, s.y])).toEqual([
+      [0, bottom + 1],
+      [1, bottom + 1],
+      [2, bottom + 1],
+    ]);
+    expect(placed.every((s) => s.sheetId === undefined)).toBe(true);
+    expect(next.sheets?.[0].rowLabels?.[String(bottom + 1)]).toBe("資料");
+    const parsed = parseDeck(JSON.stringify(next));
+    expect(parsed.slides).toHaveLength(book.slides.length + 3);
+    expect(parsed.sheets?.[0].rowLabels?.[String(bottom + 1)]).toBe("資料");
+  });
+
+  it("targets only the chosen sheet and stamps its id when sheets exist", () => {
+    const book = changeSheet(sample(), "add");
+    const target = book.sheets![1].id;
+    const next = appendSlidesAsRow(book, importedPages(2), target);
+    const placed = next.slides.slice(book.slides.length);
+    expect(placed.map((s) => [s.x, s.y, s.sheetId])).toEqual([
+      [0, 1, target],
+      [1, 1, target],
+    ]);
+    expect(next.slides.filter((s) => (s.sheetId ?? "main") === "main")).toEqual(
+      book.slides.filter((s) => (s.sheetId ?? "main") === "main"),
+    );
+    expect(() => parseDeck(JSON.stringify(next))).not.toThrow();
+  });
+
+  it("refuses empty imports, page overflow and a 101st row", () => {
+    const book = sample();
+    expect(() => appendSlidesAsRow(book, [], "main")).toThrow();
+    expect(() => appendSlidesAsRow(book, importedPages(1001), "main")).toThrow(
+      "作品全体で1000ページまでです。",
+    );
+    const tall: typeof book = { ...book, slides: [{ ...blank(0, 99) }] };
+    expect(() => appendSlidesAsRow(tall, importedPages(1), "main")).toThrow(
+      "縦は100マスまでです。",
+    );
+  });
 });

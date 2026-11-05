@@ -234,3 +234,15 @@ export async function importPptx(file: File): Promise<Deck> {
     }),
   );
 }
+
+/** Decode an embedded (data:) image into a File so it can be uploaded as a
+ * deck asset; returns undefined for non-embedded or unsupported sources. */
+export function dataUrlToFile(src: string, baseName: string): File | undefined {
+  const match =
+    /^data:(image\/(?:png|jpeg|webp|gif));base64,([a-z0-9+/=]+)$/i.exec(src);
+  if (!match) return undefined;
+  const type = match[1].toLowerCase();
+  const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+  const extension = type === "image/jpeg" ? "jpg" : type.slice(6);
+  return new File([bytes], `${baseName}.${extension}`, { type });
+}
