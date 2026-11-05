@@ -1425,14 +1425,19 @@ async function main() {
     await clean.mf.dispose();
   }
 
-  // ===== 2.7-9（手順書 v0.3 S17 の型）: 全面復旧（旧値≠新値）での故障版 =====
+  // ===== 2.7-9（手順書 S17 の型）: 全面復旧（旧値≠新値）での故障版 =====
   // 実環境の S17 は、登録簿が {B} の状態で対象 A の全面復旧を行う。
   // 旧値と新値が異なるため、ロールバックが効かなければ運営者集合・
   // 世代の差分が読み戻しで直接観測できる。ここではその型をローカルで
   // 再現する: クリーン版で {A} を作り、故障版で {A}→{B} の全面復旧を
   // 失敗させ、全状態（未消費 nonce の内訳を含む）が実施前と完全一致
   // すること、クリーン版では同じ承認で新値 {B} へ進むことを確認する。
-  section("2.7-9 故障版ビルド（全面復旧・旧値≠新値、手順書 v0.3 S17 の型）");
+  // 手順書 v0.4 の明記に合わせ、比較基準（pre17）は今回の認証試行の
+  // nonce 発行後・故障操作前に採取し、件数の内訳を厳密に一致させる。
+  // あわせて同一 nonce の再提示でも再びマーカーつき 500 になることを
+  // 確認し、対応する nonce の used 状態が未使用のままであること
+  // （消費が巻き戻っていること）を直接確かめる。
+  section("2.7-9 故障版ビルド（全面復旧・旧値≠新値、手順書 S17 の型）");
   {
     const bootApproval = approvalBindings({
       operationId: "op-S17a",
@@ -1469,24 +1474,30 @@ async function main() {
       ".persist-p14",
       frApproval
     );
+    // 比較基準は、今回の認証試行（att17）の nonce 発行後・故障操作前に
+    // 採取する。発行前に採取すると nonce 行の増加で、正常なロール
+    // バックでも完全一致しない（手順書 v0.4 第4.5節 手順1）。
     const att17 = await attempt(fb17.base, SUB_B);
     const pre17 = await inspectPlatform(fb17.base);
     check(
-      "S17型: 故障実施前の状態は旧値 {A}・世代1・消費と完了は初期投入分のみ（今回の nonce は未使用）",
+      "S17型: 故障実施前の状態（nonce 発行後・操作前の比較基準）は旧値 {A}・世代1・消費と完了は初期投入分のみ（nonce 内訳は総数2・使用済み1・未使用1で、今回の nonce は未使用）",
       operatorHashes(pre17).join() === HASH_A &&
         pre17.generation === 1 &&
         pre17.consumed_ops.length === 1 &&
         pre17.completion.length === 1 &&
-        pre17.pending_nonces.unused >= 1,
+        pre17.pending_nonces.total === 2 &&
+        pre17.pending_nonces.used === 1 &&
+        pre17.pending_nonces.unused === 1,
       JSON.stringify(pre17)
     );
+    const bodyF17 = {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-s17b",
+      id_token: att17.token,
+    };
     const rF17 = await call(fb17.base, "POST", "/platform/apply", {
-      body: {
-        purpose: "full-replace",
-        env_id: ENV_ID,
-        one_time_value: "one-time-value-s17b",
-        id_token: att17.token,
-      },
+      body: bodyF17,
       cookie: att17.cookie,
     });
     check(
@@ -1495,9 +1506,19 @@ async function main() {
         JSON.stringify(rF17.json || {}).includes("injected_fault_apply_after_writes"),
       `status=${rF17.status} body=${JSON.stringify(rF17.json)}`
     );
+    const rF17b = await call(fb17.base, "POST", "/platform/apply", {
+      body: bodyF17,
+      cookie: att17.cookie,
+    });
+    check(
+      "S17型: 同一トークン（同一 nonce）の再提示でも再びマーカーつき 500（対応する nonce の used 状態が未使用のまま＝消費も巻き戻っている）",
+      rF17b.status === 500 &&
+        JSON.stringify(rF17b.json || {}).includes("injected_fault_apply_after_writes"),
+      `status=${rF17b.status} body=${JSON.stringify(rF17b.json)}`
+    );
     const post17 = await inspectPlatform(fb17.base);
     check(
-      "S17型: 実施後の全状態が実施前と完全一致する（新値 {B} へ差し替わっていない。世代・nonce 消費も巻き戻っている）",
+      "S17型: 実施後の全状態が、nonce 発行後・操作前に採取した比較基準と完全一致する（新値 {B} へ差し替わっていない。世代・nonce の used 状態を含む）",
       JSON.stringify(post17) === JSON.stringify(pre17),
       `pre=${JSON.stringify(pre17)} post=${JSON.stringify(post17)}`
     );

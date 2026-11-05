@@ -1,6 +1,6 @@
 {
   "generated_by": "tools/build-realenv-manifest.mjs",
-  "generated_for": "段階①フェーズ2 先行検証 実環境試験（手順書 v0.3）",
+  "generated_for": "段階①フェーズ2 先行検証 実環境試験（手順書 v0.4）",
   "target": {
     "worker_name": "vhslide-stage1-verify-20261101-a",
     "note": "アカウント ID・Worker 名・DO 名前空間 ID の同一性確認は、このマニフェストや成果物自身の設定の読み返しでは行わない。ダッシュボード（PC 側）と API（Muse）の2経路で独立に読み取り、事前合意した値と照合する（手順書 手順0）"
