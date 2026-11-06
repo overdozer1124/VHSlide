@@ -109,4 +109,10 @@ it("requires host structure authority and all selected page rights, without sile
   expect(() =>
     assertDeckAccess(b, batchAxes(b, "rows", "delete", 0, 3), access, true),
   ).not.toThrow();
+  expect(() =>
+    assertDeckAccess(b, batchAxes(b, "columns", "delete", 1, 1), access, false),
+  ).toThrow();
+  expect(() =>
+    assertDeckAccess(b, batchAxes(b, "columns", "delete", 1, 1), access, true),
+  ).not.toThrow();
 });

@@ -90,7 +90,7 @@ test("right-click duplicates one page without altering adjacent rows, and deleti
     .click({ button: "right" });
   const menu = page.getByRole("menu", { name: "ページの操作", exact: true });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole("menuitem")).toHaveCount(2);
+  await expect(menu.getByRole("menuitem")).toHaveCount(3);
   // The portal menu must stay usable even after leaving the thumbnail flyout.
   await page.mouse.move(1200, 800);
   await page.waitForTimeout(400);
@@ -131,6 +131,62 @@ test("right-click duplicates one page without altering adjacent rows, and deleti
   expect((await data(page)).slides.some((s: any) => s.id === copy.id)).toBe(
     false,
   );
+});
+
+test("editor deletes a whole column across rows with confirmation and undo", async ({
+  page,
+}) => {
+  await editor(page);
+  const before = await data(page);
+  await page.getByRole("button", { name: "1段目の横のページをひらく" }).click();
+  const target = page.getByRole("button", {
+    name: "1.2 自然がいっぱいを編集",
+    exact: true,
+  });
+  await target.click({ button: "right" });
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("2ページ");
+    expect(dialog.message()).toContain("全行");
+    await dialog.dismiss();
+  });
+  await page.getByRole("menuitem", { name: "この列を削除（全行）" }).click();
+  expect(await data(page)).toEqual(before);
+  await target.click({ button: "right" });
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("menuitem", { name: "この列を削除（全行）" }).click();
+  await expect.poll(async () => (await data(page)).slides.length).toBe(3);
+  const after = await data(page);
+  expect(
+    after.slides.some(
+      (s: any) => s.id === before.slides[1].id || s.id === before.slides[4].id,
+    ),
+  ).toBe(false);
+  expect(
+    after.slides.find((s: any) => s.id === before.slides[2].id),
+  ).toMatchObject({ x: 1, y: 0 });
+  expect(
+    after.slides.find((s: any) => s.id === before.slides[3].id),
+  ).toMatchObject({ x: 0, y: 1 });
+  await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+  expect(await data(page)).toEqual(before);
+});
+
+test("an empty cell can open the column deletion menu", async ({ page }) => {
+  await editor(page);
+  await page.getByRole("button", { name: "2段目の横のページをひらく" }).click();
+  const before = await data(page);
+  await page.getByRole("button", { name: "2.3の空のマスメニュー" }).click();
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("1ページ");
+    await dialog.accept();
+  });
+  await page.getByRole("menuitem", { name: "この列を削除（全行）" }).click();
+  await expect.poll(async () => (await data(page)).slides.length).toBe(4);
+  expect(
+    (await data(page)).slides.some((s: any) => s.id === before.slides[2].id),
+  ).toBe(false);
+  await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+  expect(await data(page)).toEqual(before);
 });
 
 test("left thumbnails duplicate and delete whole groups with one undo", async ({
@@ -190,7 +246,7 @@ test("map menus support keyboard navigation, Escape, outside dismissal and origi
   await expect(page.getByRole("menu")).toHaveCount(0);
   await expect(more).toBeFocused();
   await more.click();
-  await page.getByRole("heading", { name: "全体マップ", exact: true }).click();
+  await page.locator(".map-axis-corner").click();
   await expect(page.getByRole("menu")).toHaveCount(0);
   expect(await data(page)).toEqual(before);
   await page
@@ -200,9 +256,16 @@ test("map menus support keyboard navigation, Escape, outside dismissal and origi
     .getByRole("menuitem", { name: "このページを削除", exact: true })
     .click();
   // Deletion now waits for the durable pre-delete IndexedDB version.
-  await expect.poll(async () => (await data(page)).slides.length).toBe(4);
+  await expect
+    .poll(async () =>
+      (await data(page)).slides.some((s: any) => s.id === before.slides[0].id),
+    )
+    .toBe(false);
   const deleted = await data(page);
-  expect(deleted.slides).toHaveLength(4);
+  expect(deleted.slides).toHaveLength(5);
+  expect(deleted.slides.find((s: any) => s.id === before.slides[1].id)).toEqual(
+    before.slides[1],
+  );
   expect(deleted.slides.some((s: any) => s.x === 0 && s.y === 0)).toBe(true);
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   expect(await data(page)).toEqual(before);

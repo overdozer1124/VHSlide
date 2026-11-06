@@ -7,11 +7,13 @@ import type { Deck } from "./model";
 export type ThumbnailAction =
   | { kind: "duplicate-page"; id: string }
   | { kind: "delete-page"; id: string }
+  | { kind: "delete-column"; x: number }
   | { kind: "duplicate-row"; y: number; count?: number }
   | { kind: "delete-row"; y: number };
 export interface ThumbnailTarget {
   pageId?: string;
   row?: number;
+  column?: number;
 }
 export type OpenThumbnailMenu = (
   event: MouseEvent<HTMLElement>,
@@ -27,12 +29,16 @@ export interface ThumbnailMenuState extends ThumbnailTarget {
 export function ThumbnailMenu({
   deck,
   readOnly = false,
+  showColumnDelete = false,
+  canDeleteColumn = false,
   menu,
   onClose,
   onAction,
 }: {
   deck: Deck;
   readOnly?: boolean;
+  showColumnDelete?: boolean;
+  canDeleteColumn?: boolean;
   menu: ThumbnailMenuState;
   onClose: () => void;
   onAction: (action: ThumbnailAction) => void;
@@ -41,6 +47,7 @@ export function ThumbnailMenu({
   const [copies, setCopies] = useState(5);
   const [position, setPosition] = useState({ left: menu.left, top: menu.top });
   const page = deck.slides.find((s) => s.id === menu.pageId);
+  const column = page?.x ?? menu.column;
   const count = deck.slides.filter((s) => s.y === menu.row).length;
   function dismiss(restoreFocus = false) {
     onClose();
@@ -136,7 +143,10 @@ export function ThumbnailMenu({
     >
       <div className="thumbnail-menu-title">
         {menu.row === undefined
-          ? page?.title
+          ? (page?.title ??
+            (column !== undefined
+              ? `${column + 1}列目・空のマス`
+              : "ページの操作"))
           : `${menu.row + 1}段目 · ${count}ページ`}
       </div>
       {readOnly && (
@@ -156,11 +166,28 @@ export function ThumbnailMenu({
         role="menuitem"
         className="menu-delete"
         disabled={readOnly || !page}
+        title="このページだけを削除し、他のページの位置は変えません"
         onClick={() => page && act({ kind: "delete-page", id: page.id })}
       >
         <Trash2 size={16} />
         このページを削除
       </button>
+      {showColumnDelete && column !== undefined && (
+        <button
+          role="menuitem"
+          className="menu-delete"
+          disabled={readOnly || !canDeleteColumn}
+          title={
+            canDeleteColumn
+              ? "この列の全行を削除し、右の列を左へ詰めます"
+              : "列の削除はホストだけができます"
+          }
+          onClick={() => act({ kind: "delete-column", x: column })}
+        >
+          <Trash2 size={16} />
+          この列を削除（全行）
+        </button>
+      )}
       {menu.row !== undefined && (
         <>
           <div role="separator" className="thumbnail-menu-separator" />

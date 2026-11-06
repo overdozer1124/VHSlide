@@ -104,7 +104,6 @@ import {
   movePage,
   insertMovedPage,
   parseDeck,
-  removeSlide,
   removeRowGroup,
   rowPage,
   sample,
@@ -827,10 +826,29 @@ export default function App() {
         next = duplicateRowGroup(current, action.y, action.count ?? 1);
         chosen =
           rowPage(next, action.y + 1, slide.x) ?? rowPage(next, action.y + 1);
+      } else if (action.kind === "delete-column") {
+        if (!cloud.isHost) throw new Error("列の削除はホストだけができます。");
+        if (action.x < 0 || action.x >= bounds(current).cols)
+          throw new Error(
+            "削除する列が見つかりません。もう一度選んでください。",
+          );
+        const count = current.slides.filter((s) => s.x === action.x).length;
+        if (
+          !window.confirm(
+            `${action.x + 1}列目を削除します。\nこのシートの全行（フィルタで非表示のページを含む）の${count}ページが削除され、右の列は左へ詰まります。\n実行しますか？`,
+          )
+        )
+          return;
+        next = batchAxes(current, "columns", "delete", action.x, 1);
+        chosen =
+          next.slides.find((s) => s.id === slide.id) ??
+          next.slides.find((s) => s.y === slide.y && s.x === action.x) ??
+          rowPage(next, slide.y) ??
+          next.slides[0];
       } else {
         next =
           action.kind === "delete-page"
-            ? removeSlide(current, action.id)
+            ? removeSelectedPages(current, [action.id])
             : removeRowGroup(current, action.y);
         chosen =
           next.slides.find((s) => s.id === slide.id) ??
@@ -2934,7 +2952,7 @@ export default function App() {
             onEdit={(id, rect) => switchWorkspace("editor", id, rect)}
             onSelect={selectEditorPage}
             onDelete={(id) => {
-              if (commit(removeSlide(deck, id)))
+              if (commit(removeSelectedPages(deck, [id])))
                 notify("ページを削除しました。「もとに戻す」で戻せます。");
             }}
             onAddCell={(x, y) => {
@@ -3246,6 +3264,8 @@ export default function App() {
           <ThumbnailMenu
             deck={deck}
             readOnly={!!cloud.active && cloud.access.mode === "none"}
+            showColumnDelete={view === "editor"}
+            canDeleteColumn={cloud.isHost}
             menu={thumbnailMenu}
             onClose={() => setThumbnailMenu(undefined)}
             onAction={thumbnailAction}

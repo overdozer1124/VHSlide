@@ -819,9 +819,11 @@ export function SlideRail({
                                 event.preventDefault();
                                 return;
                               }
-                              if (!cell) return;
                               cancelTimers();
-                              onOpenMenu(event, { pageId: cell.id });
+                              onOpenMenu(
+                                event,
+                                cell ? { pageId: cell.id } : { column: x },
+                              );
                             }}
                             aria-label={
                               cell
@@ -880,14 +882,23 @@ export function SlideRail({
                               onChange={onFooterChange}
                             />
                           )}
-                          {cell && (
+                          {(cell || !filtered) && (
                             <button
                               className="thumbnail-more page-more"
-                              aria-label={`${cell.title}のページメニュー`}
-                              title="ページの複製や削除"
+                              aria-label={
+                                cell
+                                  ? `${cell.title}のページメニュー`
+                                  : `${openRow + 1}.${x + 1}の空のマスメニュー`
+                              }
+                              title={
+                                cell ? "ページの複製や削除" : "この列の操作"
+                              }
                               onClick={(event) => {
                                 cancelTimers();
-                                onOpenMenu(event, { pageId: cell.id });
+                                onOpenMenu(
+                                  event,
+                                  cell ? { pageId: cell.id } : { column: x },
+                                );
                               }}
                             >
                               <MoreHorizontal size={15} />

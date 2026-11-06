@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.87.0",
+    date: "2026-11-06",
+    title: "ページ編集画面から列を削除",
+    changes: [
+      "ページのメニューから、このページだけを削除する操作と、全行を含む列を削除して右側を詰める操作を選べるようになりました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.86.0",
     date: "2026-11-06",
     title: "ワークシートの選択と理由を一緒に回答",
