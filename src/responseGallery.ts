@@ -117,8 +117,14 @@ export function galleryBuild(
                     email: "",
                     updated: own.updated,
                     values: Object.fromEntries(
-                      Object.entries(own.values).filter(([key]) =>
-                        fields.get(s.id)!.has(key),
+                      Object.entries(own.values).filter(
+                        ([key]) =>
+                          fields.get(s.id)!.has(key) ||
+                          (key.endsWith(":reason") &&
+                            fields.get(s.id)!.has(key.slice(0, -7)) &&
+                            s.fields.some(
+                              (f) => f.id === key.slice(0, -7) && f.reason,
+                            )),
                       ),
                     ),
                   },

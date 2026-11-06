@@ -47,6 +47,7 @@ export function ResponseFieldTools({
     useState<Exclude<WorksheetField["kind"], "radar">>("text");
   const [options, setOptions] = useState("はい\nいいえ");
   const [placeholder, setPlaceholder] = useState("ここに入力");
+  const [reason, setReason] = useState(false);
   const [groupTitle, setGroupTitle] = useState("ワークシート");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -96,6 +97,9 @@ export function ResponseFieldTools({
                 : [],
             section: "",
             wide: true,
+            ...((kind === "single" || kind === "multiple") && reason
+              ? { reason: true }
+              : {}),
           };
           const data = await api<{ worksheets: WorksheetView[] }>(
             `/api/decks/${ctx.deckId}/worksheets${record === "new" || !sheet ? "" : `/${sheet.id}/field`}`,
@@ -287,6 +291,9 @@ export function ResponseFieldTools({
         placeholder,
         section: "",
         wide: true,
+        ...((kind === "single" || kind === "multiple") && reason
+          ? { reason: true }
+          : {}),
       }
     : (field ?? {
         id: "preview",
@@ -525,6 +532,18 @@ export function ResponseFieldTools({
                 )}
               </>
             )}
+            {create &&
+              source === "worksheet" &&
+              (kind === "single" || kind === "multiple") && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={reason}
+                    onChange={(e) => setReason(e.target.checked)}
+                  />{" "}
+                  選択した理由を書く欄を追加
+                </label>
+              )}
             {create && !label.trim() && (
               <p>項目名を入力すると、スライドに追加できます。</p>
             )}

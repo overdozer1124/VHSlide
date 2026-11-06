@@ -548,6 +548,10 @@ export function WorksheetPanel({
                               .value as WorksheetField["kind"];
                             editField(f.id, {
                               kind,
+                              reason:
+                                kind === "single" || kind === "multiple"
+                                  ? f.reason
+                                  : undefined,
                               radar:
                                 kind === "radar"
                                   ? {
@@ -604,17 +608,32 @@ export function WorksheetPanel({
                         </label>
                       )}
                       {(f.kind === "single" || f.kind === "multiple") && (
-                        <label>
-                          選択肢（1行1項目・2〜10項目）
-                          <textarea
-                            value={f.options.join("\n")}
-                            onChange={(e) =>
-                              editField(f.id, {
-                                options: e.target.value.split("\n"),
-                              })
-                            }
-                          />
-                        </label>
+                        <>
+                          <label>
+                            選択肢（1行1項目・2〜10項目）
+                            <textarea
+                              value={f.options.join("\n")}
+                              onChange={(e) =>
+                                editField(f.id, {
+                                  options: e.target.value.split("\n"),
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={!!f.reason}
+                              disabled={existingField(f.id) && !!f.reason}
+                              onChange={(e) =>
+                                editField(f.id, {
+                                  reason: e.target.checked || undefined,
+                                })
+                              }
+                            />{" "}
+                            選択した理由を書く欄を追加
+                          </label>
+                        </>
                       )}
                       {f.kind === "radar" && f.radar && (
                         <div className="radar-config">

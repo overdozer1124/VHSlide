@@ -8,6 +8,7 @@ export type WorksheetField = {
   placeholder: string;
   section: string;
   wide: boolean;
+  reason?: boolean;
   widthPercent?: number;
   inputHeight?: number;
   fontSize?: number;
@@ -30,6 +31,7 @@ export type WorksheetValues = Record<
   string,
   string | boolean | (number | null)[]
 >;
+export const worksheetReasonKey = (id: string) => `${id}:reason`;
 export type WorksheetResponse = {
   respondentId: string;
   name: string;
@@ -104,6 +106,12 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         new Set(f.options).size === f.options.length,
       "選択肢は重複しない2〜10項目です。",
     );
+    check(
+      f.reason === undefined ||
+        (typeof f.reason === "boolean" &&
+          (f.kind === "single" || f.kind === "multiple")),
+      "理由欄の設定を確認してください。",
+    );
     if (f.kind === "radar") {
       const radar = f.radar;
       const validLabels = (
@@ -140,6 +148,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       placeholder: f.placeholder,
       section: f.section,
       wide: f.wide,
+      ...(f.reason ? { reason: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
       ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),
       ...(f.fontSize !== undefined ? { fontSize: f.fontSize } : {}),
@@ -213,7 +222,11 @@ export function parseWorksheetValues(
   );
   const v = input as WorksheetValues;
   check(
-    Object.keys(v).every((k) => sheet.fields.some((f) => f.id === k)),
+    Object.keys(v).every((k) =>
+      sheet.fields.some(
+        (f) => f.id === k || (f.reason && worksheetReasonKey(f.id) === k),
+      ),
+    ),
     "存在しない入力欄です。",
   );
   const result: WorksheetValues = {};
@@ -254,6 +267,12 @@ export function parseWorksheetValues(
         "選択内容が不正です。",
       );
     result[f.id] = x;
+    if (f.reason) {
+      const key = worksheetReasonKey(f.id);
+      const reason = v[key] ?? "";
+      check(str(reason, 2000), "理由欄は2000文字までです。");
+      result[key] = reason;
+    }
   }
   return result;
 }
@@ -411,6 +430,7 @@ export function worksheetCommand(
           return (
             !!updated &&
             f.kind === updated.kind &&
+            (!f.reason || !!updated.reason) &&
             f.options.length <= updated.options.length &&
             (f.kind !== "radar" ||
               (f.radar!.axes.length === updated.radar!.axes.length &&

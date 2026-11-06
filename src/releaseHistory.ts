@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.86.0",
+    date: "2026-11-06",
+    title: "ワークシートの選択と理由を一緒に回答",
+    changes: [
+      "単一選択・複数選択の項目に理由を書く欄を追加でき、スライドやワークシートで回答できます。選択と理由は回答一覧とCSVで確認できます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.85.0",
     date: "2026-11-06",
     title: "ファイルやコピーでもユーザーフォームが使えるように",

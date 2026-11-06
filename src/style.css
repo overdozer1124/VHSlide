@@ -7163,6 +7163,11 @@ h1 span {
 .response-field.hide-label .worksheet-check>span {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
 
 .response-field-launch {color:#315d4e;font-weight:700;}
+.worksheet-reason { display:flex; flex-direction:column; gap:4px; margin-top:8px; }
+.worksheet-reason > label { font-weight:600; }
+.response-field .worksheet-reason { flex:1; min-height:50px; }
+.response-field .worksheet-reason textarea,
+.response-field.hide-label .worksheet-reason textarea { height:auto; flex:1; min-height:30px; }
 .response-field-steps {display:flex;gap:22px;flex-wrap:wrap;list-style:none;padding:16px 0;border-bottom:1px solid #d6e0d9;font-size:14px;}
 .response-field-steps b {display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#e7f0e9;margin-right:5px;}
 .response-field-creator {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;padding:8px 0;border:0;font-size:15px;}

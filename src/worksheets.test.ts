@@ -3,6 +3,7 @@ import {
   parseWorksheet,
   parseWorksheetBinding,
   parseWorksheetValues,
+  worksheetReasonKey,
 } from "./worksheets";
 import {
   worksheetTemplate,
@@ -12,6 +13,54 @@ import { worksheetCsv } from "./worksheetCsv";
 import { sample, parseDeck, serializeDeck } from "./model";
 import { modalLayoutItems } from "./WorksheetModalLayout";
 describe("worksheets", () => {
+  it("keeps choices and reasons separately, validates partial saves, and exports both", () => {
+    const base = worksheetTemplate("blank");
+    const field = {
+      ...base.fields[0],
+      kind: "multiple" as const,
+      options: ["朝", "昼"],
+      reason: true,
+    };
+    const sheet = parseWorksheet({ ...base, fields: [field] });
+    const reasonKey = worksheetReasonKey(field.id);
+    const values = parseWorksheetValues(sheet, {
+      [field.id]: [1],
+      [reasonKey]: "理由,を記入",
+    });
+    expect(values[field.id]).toEqual([1]);
+    expect(values[reasonKey]).toBe("理由,を記入");
+    expect(
+      parseWorksheetValues(sheet, { [reasonKey]: "途中" })[reasonKey],
+    ).toBe("途中");
+    expect(() =>
+      parseWorksheetValues(sheet, { [reasonKey]: "x".repeat(2001) }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheetValues(
+        { ...sheet, fields: [{ ...field, reason: undefined }] },
+        { [reasonKey]: "不要" },
+      ),
+    ).toThrow();
+    const csv = worksheetCsv({
+      ...sheet,
+      id: "sheet",
+      status: "open",
+      created: 0,
+      results: {
+        responses: [
+          {
+            respondentId: "u",
+            name: "生徒",
+            email: "a@test",
+            updated: 0,
+            values,
+          },
+        ],
+      },
+    });
+    expect(csv).toContain(`"${field.label}：理由"`);
+    expect(csv).toContain('"昼","理由,を記入"');
+  });
   it("preserves and validates modal layout while placing newly added fields below it", () => {
     const sheet = worksheetTemplate("reason");
     const layout = {

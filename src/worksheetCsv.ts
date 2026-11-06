@@ -4,11 +4,16 @@ import type {
   WorksheetView,
 } from "./worksheets";
 import { surveyResponseTime } from "./surveyCsv";
+import { worksheetReasonKey } from "./worksheets";
 export function worksheetValueText(
   field: WorksheetField,
   values: WorksheetValues,
 ): string {
-  if (!Object.hasOwn(values, field.id)) return "";
+  if (
+    !Object.hasOwn(values, field.id) &&
+    !Object.hasOwn(values, worksheetReasonKey(field.id))
+  )
+    return "";
   const value = values[field.id];
   if (field.kind === "radar" && field.radar && Array.isArray(value)) {
     const { axes, series } = field.radar;
@@ -22,15 +27,22 @@ export function worksheetValueText(
       .filter(Boolean)
       .join(" / ");
   }
-  return field.kind === "checkbox"
-    ? value === true
-      ? "はい"
-      : "いいえ"
-    : field.kind === "text"
-      ? String(value ?? "")
-      : Array.isArray(value)
-        ? value.map((i) => (i === null ? "" : field.options[i])).join(" / ")
-        : "";
+  const answer =
+    field.kind === "checkbox"
+      ? value === true
+        ? "はい"
+        : "いいえ"
+      : field.kind === "text"
+        ? String(value ?? "")
+        : Array.isArray(value)
+          ? value.map((i) => (i === null ? "" : field.options[i])).join(" / ")
+          : "";
+  const reason = field.reason
+    ? String(values[worksheetReasonKey(field.id)] ?? "")
+    : "";
+  return reason
+    ? [answer, `理由：${reason}`].filter(Boolean).join("\n")
+    : answer;
 }
 export function worksheetCsv(sheet: WorksheetView): string {
   if (!sheet.results) throw new Error("ホストだけがCSVを保存できます。");
@@ -45,7 +57,12 @@ export function worksheetCsv(sheet: WorksheetView): string {
           ? f.radar.series.flatMap((series) =>
               f.radar!.axes.map((axis) => `${f.label}：${series}：${axis}`),
             )
-          : [(f.section ? f.section + "：" : "") + f.label],
+          : f.reason
+            ? [
+                (f.section ? f.section + "：" : "") + f.label,
+                (f.section ? f.section + "：" : "") + f.label + "：理由",
+              ]
+            : [(f.section ? f.section + "：" : "") + f.label],
       ),
     ],
     ...sheet.results.responses.map((r) => [
@@ -64,7 +81,12 @@ export function worksheetCsv(sheet: WorksheetView): string {
                   : "";
               }),
             )
-          : [worksheetValueText(f, r.values)],
+          : f.reason
+            ? [
+                worksheetValueText({ ...f, reason: undefined }, r.values),
+                String(r.values[worksheetReasonKey(f.id)] ?? ""),
+              ]
+            : [worksheetValueText(f, r.values)],
       ),
     ]),
   ];

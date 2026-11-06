@@ -14,6 +14,7 @@ import type {
 } from "./worksheets";
 import { useWorksheets } from "./WorksheetContext";
 import { useAnswers } from "./AnswerStore";
+import { worksheetReasonKey } from "./worksheets";
 export function WorksheetInputs({
   sheet,
   values,
@@ -262,6 +263,25 @@ export function WorksheetInputs({
                               </label>
                             ))}
                           </fieldset>
+                        )}
+                        {f.reason && (
+                          <div className="worksheet-reason">
+                            <label htmlFor={`${prefix}-${f.id}-reason`}>
+                              理由・考え
+                            </label>
+                            <textarea
+                              id={`${prefix}-${f.id}-reason`}
+                              maxLength={2000}
+                              placeholder="選んだ理由や考えを入力"
+                              value={String(
+                                values[worksheetReasonKey(f.id)] ?? "",
+                              )}
+                              disabled={disabled || !!onEdit}
+                              onChange={(e) =>
+                                change(worksheetReasonKey(f.id), e.target.value)
+                              }
+                            />
+                          </div>
                         )}
                       </>
                     )}
