@@ -104,7 +104,7 @@ export function galleryBuild(
         ...(privatePreview ? { email: p.email } : {}),
         updated: p.updated,
         worksheets: sheets.map((s) => {
-          const { results: _, own: __, ...definition } = s;
+          const { results: _, own: __, summaries: ___, ...definition } = s;
           const own = s.results?.responses.find((r) => r.respondentId === id);
           return {
             ...definition,

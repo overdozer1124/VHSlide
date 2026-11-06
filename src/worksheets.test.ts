@@ -4,7 +4,10 @@ import {
   parseWorksheetBinding,
   parseWorksheetValues,
   worksheetReasonKey,
+  worksheetList,
 } from "./worksheets";
+import { DatabaseSync } from "node:sqlite";
+import type { HistorySQL } from "./historyStore";
 import {
   worksheetTemplate,
   worksheetTemplateNames,
@@ -14,6 +17,66 @@ import { sample, parseDeck, serializeDeck } from "./model";
 import { modalLayoutItems } from "./WorksheetModalLayout";
 import { sectionWorksheet } from "./worksheetSections";
 describe("worksheets", () => {
+  it("keeps participant order stable and reveals only explicitly published anonymous summaries", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE worksheets(id TEXT,deck TEXT,definition TEXT,status TEXT,created INTEGER); CREATE TABLE worksheet_answers(worksheet TEXT,author TEXT,value TEXT,updated INTEGER); CREATE TABLE users(id TEXT,name TEXT,email TEXT); CREATE TABLE members(deck TEXT,user_id TEXT); CREATE TABLE recipients(deck TEXT,user_id TEXT,rank INTEGER)",
+    );
+    const sql: HistorySQL = (query, ...args) => db.prepare(query).all(...args);
+    const field = {
+      ...worksheetTemplate("blank").fields[0],
+      id: "choice",
+      kind: "single",
+      options: ["A", "B"],
+      reason: true,
+    };
+    const def = { title: "質問", description: "", fields: [field] };
+    db.prepare("INSERT INTO worksheets VALUES(?,?,?,?,?)").run(
+      "sheet",
+      "deck",
+      JSON.stringify(def),
+      "open",
+      1,
+    );
+    for (const [id, rank, selected, updated] of [
+      ["b", 1, 1, 100],
+      ["a", 0, 0, 200],
+    ] as const) {
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, id, `${id}@test`);
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+      db.prepare("INSERT INTO recipients VALUES(?,?,?)").run("deck", id, rank);
+      db.prepare("INSERT INTO worksheet_answers VALUES(?,?,?,?)").run(
+        "sheet",
+        id,
+        JSON.stringify({ choice: [selected], "choice:reason": "秘密" }),
+        updated,
+      );
+    }
+    const host = worksheetList(sql, "deck", "host", true)[0];
+    expect(host.results!.responses.map((r) => r.respondentId)).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(host.summaries!.choice).toEqual({ count: 2, counts: [1, 1] });
+    const privateGuest = worksheetList(sql, "deck", "a", false)[0];
+    expect(privateGuest.results).toBeUndefined();
+    expect(privateGuest.summaries).toBeUndefined();
+    db.prepare("UPDATE worksheets SET definition=?").run(
+      JSON.stringify({ ...def, fields: [{ ...field, aggregatePublic: true }] }),
+    );
+    const guest = worksheetList(sql, "deck", "a", false)[0];
+    expect(guest.summaries!.choice).toEqual({ count: 2, counts: [1, 1] });
+    expect(JSON.stringify(guest.summaries)).not.toContain("秘密");
+    db.prepare(
+      "UPDATE worksheet_answers SET updated=999 WHERE author='b'",
+    ).run();
+    expect(
+      worksheetList(sql, "deck", "host", true)[0].results!.responses.map(
+        (r) => r.respondentId,
+      ),
+    ).toEqual(["a", "b"]);
+    db.close();
+  });
   it("migrates existing groups to independent sections without changing field IDs or answers", () => {
     const legacy = worksheetTemplate("reason");
     const migrated = sectionWorksheet(legacy);

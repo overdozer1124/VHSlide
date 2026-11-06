@@ -15,6 +15,7 @@ import type {
 import { useWorksheets } from "./WorksheetContext";
 import { useAnswers } from "./AnswerStore";
 import { worksheetReasonKey } from "./worksheets";
+import { WorksheetSummary } from "./WorksheetSummary";
 export function WorksheetInputs({
   sheet,
   values,
@@ -418,6 +419,7 @@ export function WorksheetAnswer({
             / {sheet.fields.filter((field) => field.kind === "checkbox").length}
           </p>
         )}
+      {!edit && !ctx.readOnly && <WorksheetSummary sheet={sheet} />}
       {!ctx.readOnly && !edit && (
         <>
           <p

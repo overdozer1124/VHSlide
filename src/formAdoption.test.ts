@@ -168,6 +168,10 @@ describe("rewriteFormBindings", () => {
         },
       }),
       wsField(SHEET_B, textField("r1", "対象外")),
+      el({
+        type: "chart",
+        worksheetResult: { deckId: OTHER, worksheetId: SHEET_A, fieldId: "q1" },
+      }),
     ]);
     const NEW_SHEET = "66666666-6666-4666-8666-666666666666";
     const next = rewriteFormBindings(
@@ -176,7 +180,7 @@ describe("rewriteFormBindings", () => {
       new Map([[`${OTHER}:${SHEET_A}`, NEW_SHEET]]),
       new Map(),
     );
-    const [a, b, c] = next.slides[0].elements;
+    const [a, b, c, chart] = next.slides[0].elements;
     expect(a.responseField).toMatchObject({
       deckId: OWNER,
       worksheetId: NEW_SHEET,
@@ -188,6 +192,11 @@ describe("rewriteFormBindings", () => {
     expect(c.responseField).toMatchObject({
       deckId: OTHER,
       worksheetId: SHEET_B,
+    });
+    expect(chart.worksheetResult).toEqual({
+      deckId: OWNER,
+      worksheetId: NEW_SHEET,
+      fieldId: "q1",
     });
   });
 

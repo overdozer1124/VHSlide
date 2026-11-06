@@ -14,6 +14,7 @@ import type {
 } from "./worksheets";
 import { worksheetCsv } from "./worksheetCsv";
 import { WorksheetResults } from "./WorksheetResults";
+import { WorksheetSummary } from "./WorksheetSummary";
 import { api } from "./cloud";
 import { usePageVisible } from "./usePageVisible";
 import { Plus } from "lucide-react";
@@ -23,10 +24,12 @@ import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
   host,
   onEmbed,
+  onEmbedResult,
   onFormSaved,
 }: {
   host: boolean;
   onEmbed: (sheet: WorksheetView) => void;
+  onEmbedResult: (sheet: WorksheetView, field: WorksheetField) => void;
   onFormSaved: (draft: FormDraft) => boolean;
 }) {
   const ctx = useWorksheets();
@@ -142,8 +145,11 @@ export function WorksheetPanel({
       );
       if (!alive.current) return;
       ctx.update(data.worksheets);
-      if (path.endsWith("/edit") && editing && ctx.deckId) {
-        const saved = data.worksheets.find((item) => item.id === editing.id);
+      if (path.endsWith("/edit") && (editing || selected) && ctx.deckId) {
+        const expected = editing?.expected ?? selected!;
+        const saved = data.worksheets.find(
+          (item) => item.id === (editing?.id ?? selected?.id),
+        );
         if (saved) {
           const value = {
             title: saved.title,
@@ -159,7 +165,7 @@ export function WorksheetPanel({
               id: saved.id,
               deckId: ctx.deckId,
               elementId: "",
-              expected: editing.expected,
+              expected,
               value,
             })
           )
@@ -167,8 +173,10 @@ export function WorksheetPanel({
               "内容は保存されましたが、スライドのプレビュー更新を確認できませんでした。",
             );
         }
-        setEditing(undefined);
-        setHostView("settings");
+        if (editing) {
+          setEditing(undefined);
+          setHostView("settings");
+        }
       }
       if (path === "") {
         setCreating(false);
@@ -272,7 +280,7 @@ export function WorksheetPanel({
   );
   const existingField = (id: string) =>
     !!editing?.expected.fields.some((field) => field.id === id);
-  async function download() {
+  async function download(order: string[] = []) {
     if (!selected || busy) return;
     setBusy(true);
     setError("");
@@ -281,6 +289,16 @@ export function WorksheetPanel({
       if (!alive.current) return;
       const sheet = fresh.find((s) => s.id === selected.id);
       if (!sheet) throw Error("ワークシートが見つかりません。");
+      if (sheet.results && order.length) {
+        const rank = new Map(order.map((id, i) => [id, i]));
+        sheet.results = {
+          responses: [...sheet.results.responses].sort(
+            (a, b) =>
+              (rank.get(a.respondentId) ?? Number.MAX_SAFE_INTEGER) -
+              (rank.get(b.respondentId) ?? Number.MAX_SAFE_INTEGER),
+          ),
+        };
+      }
       const url = URL.createObjectURL(
         new Blob([worksheetCsv(sheet)], { type: "text/csv;charset=utf-8" }),
       );
@@ -590,6 +608,10 @@ export function WorksheetPanel({
                                     .value as WorksheetField["kind"];
                                   editField(f.id, {
                                     kind,
+                                    aggregatePublic:
+                                      kind === "single" || kind === "multiple"
+                                        ? f.aggregatePublic
+                                        : undefined,
                                     reason:
                                       kind === "single" || kind === "multiple"
                                         ? f.reason
@@ -1166,12 +1188,51 @@ export function WorksheetPanel({
                     <WorksheetAnswer key={selected.id} sheet={selected} modal />
                   </div>
                   {host && hostView === "results" && selected.results && (
-                    <WorksheetResults
-                      key={selected.id}
-                      sheet={selected}
-                      busy={busy}
-                      onDownload={() => void download()}
-                    />
+                    <>
+                      {selected.fields.some(
+                        (field) =>
+                          field.kind === "single" || field.kind === "multiple",
+                      ) && (
+                        <details className="worksheet-aggregate-details">
+                          <summary>選択式の集計・公開・スライド配置</summary>
+                          <WorksheetSummary
+                            sheet={selected}
+                            host
+                            onShare={(field, published) =>
+                              void command(`/${selected.id}/edit`, {
+                                expected: selected,
+                                definition: {
+                                  ...selected,
+                                  fields: selected.fields.map((f) =>
+                                    f.id === field.id
+                                      ? {
+                                          ...f,
+                                          aggregatePublic:
+                                            published || undefined,
+                                        }
+                                      : f,
+                                  ),
+                                },
+                              })
+                            }
+                            onInsert={(field) => {
+                              try {
+                                onEmbedResult(selected, field);
+                                close();
+                              } catch (e) {
+                                setError((e as Error).message);
+                              }
+                            }}
+                          />
+                        </details>
+                      )}
+                      <WorksheetResults
+                        key={selected.id}
+                        sheet={selected}
+                        busy={busy}
+                        onDownload={(order) => void download(order)}
+                      />
+                    </>
                   )}
                 </>
               ) : (

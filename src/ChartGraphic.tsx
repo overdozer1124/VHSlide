@@ -4,9 +4,40 @@ import { useContext, useEffect, useReducer } from "react";
 import type { Element } from "./model";
 import { chartLayout, chartNumber } from "./chartLayout";
 import { textMeasure, canvasFont } from "./contentFit";
+import { useWorksheets } from "./WorksheetContext";
+import { chartColors } from "./chartData";
 export function ChartGraphic({ element }: { element: Element }) {
   const surveyData = useContext(SurveySlideContext);
-  const e = resolveSurveyResult(element, surveyData);
+  const worksheets = useWorksheets();
+  const binding = element.worksheetResult;
+  const sheet =
+    binding && worksheets.enabled && binding.deckId === worksheets.deckId
+      ? worksheets.sheets.find((s) => s.id === binding.worksheetId)
+      : undefined;
+  const field = sheet?.fields.find((f) => f.id === binding?.fieldId);
+  const summary = field && sheet?.summaries?.[field.id];
+  const e =
+    binding && element.chart
+      ? {
+          ...element,
+          chart: {
+            ...element.chart,
+            title:
+              summary && field
+                ? `${field.label}（${summary.count}人）`
+                : "集計は表示されていません",
+            series:
+              summary && field
+                ? field.options.map((label, index) => ({
+                    id: `option-${index}`,
+                    label,
+                    value: summary.counts[index] ?? 0,
+                    color: chartColors[index % chartColors.length],
+                  }))
+                : element.chart.series.map((point) => ({ ...point, value: 0 })),
+          },
+        }
+      : resolveSurveyResult(element, surveyData);
   const [, refresh] = useReducer((n) => n + 1, 0);
   useEffect(() => {
     const done = () => refresh();

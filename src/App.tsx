@@ -7,6 +7,7 @@ import { ResponseGalleryPanel } from "./ResponseGalleryPanel";
 import { ResponseGalleryView } from "./ResponseGalleryView";
 import { AnswerProvider } from "./AnswerStore";
 import { linkSurveyResult, snapshotSurveyResults } from "./surveyResults";
+import { chartColors } from "./chartData";
 import { ActivitiesPanel, ActivityPanelProvider } from "./ActivitiesPanel";
 import {
   ResponseFieldCreator,
@@ -2299,7 +2300,10 @@ export default function App() {
     host: cloud.isHost,
     blocked: cloud.viewingRevoked || cloud.recoveryOnly,
     pollActive: !!displayedFormSlide?.elements.some(
-      (e) => e.worksheet || e.responseField?.source === "worksheet",
+      (e) =>
+        e.worksheet ||
+        e.worksheetResult ||
+        e.responseField?.source === "worksheet",
     ),
     presenting: view === "present" || (!cloud.isHost && cloud.follow.active),
     onEmbed: (worksheet: import("./worksheets").WorksheetView) => {
@@ -3326,6 +3330,64 @@ export default function App() {
           <WorksheetPanel
             host={cloud.isHost}
             onEmbed={worksheetProps.onEmbed}
+            onEmbedResult={(sheet, field) => {
+              if (!cloud.active || !cloud.isHost || sheet.status === "draft")
+                throw new Error("ホストが受付を開始してから配置してください。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target || target.elements.length >= 200)
+                throw new Error("配置先のページを確認してください。");
+              const element: Element = {
+                id: uid(),
+                type: "chart",
+                x: 120,
+                y: 70,
+                w: 720,
+                h: 400,
+                worksheetResult: {
+                  deckId: cloud.active.id,
+                  worksheetId: sheet.id,
+                  fieldId: field.id,
+                },
+                chart: {
+                  kind: "bar",
+                  title: field.label.slice(0, 100),
+                  series: field.options.map((label, index) => ({
+                    id: `option-${index}`,
+                    label: label.slice(0, 60),
+                    value: 0,
+                    color: chartColors[index % chartColors.length],
+                  })),
+                  showValues: true,
+                  showLegend: true,
+                },
+              };
+              const next = {
+                ...current,
+                slides: current.slides.map((s) =>
+                  s.id === target.id
+                    ? { ...s, elements: [...s.elements, element] }
+                    : s,
+                ),
+              };
+              if (
+                !commitWorkbook(parseDeck(serializeDeck(next)), current, true)
+              )
+                throw new Error("グラフを配置できませんでした。");
+              if (document.fullscreenElement)
+                void document.exitFullscreen().catch(() => {});
+              setSpeakerLaunch(undefined);
+              setPresentation(undefined);
+              setObjectTrail([]);
+              setPendingPresentationLink(undefined);
+              setSelected(element.id);
+              setView("editor");
+              notify(
+                "集計グラフを配置しました。公開設定に応じて参加者に表示されます。",
+              );
+            }}
             onFormSaved={syncSavedForm}
           />
         }

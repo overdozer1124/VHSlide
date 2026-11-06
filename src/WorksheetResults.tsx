@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { WorksheetView } from "./worksheets";
 import { worksheetValueText } from "./worksheetCsv";
 import { surveyResponseTime } from "./surveyCsv";
+import { useWorksheets } from "./WorksheetContext";
 
 /** Host-only results. Callers must also enforce host access at the API boundary. */
 export function WorksheetResults({
@@ -11,12 +12,45 @@ export function WorksheetResults({
 }: {
   sheet: WorksheetView;
   busy: boolean;
-  onDownload: () => void;
+  onDownload: (order: string[]) => void;
 }) {
+  const ctx = useWorksheets();
+  const orderKey = `vhslide-worksheet-order:${ctx.deckId}:${ctx.userId}:${sheet.id}`;
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    try {
+      const value = JSON.parse(localStorage.getItem(orderKey) ?? "[]");
+      return Array.isArray(value)
+        ? value.filter((v): v is string => typeof v === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const [dragged, setDragged] = useState<string>();
   const [view, setView] = useState<"person" | "table">("person");
   const [search, setSearch] = useState("");
   const [personId, setPersonId] = useState("");
-  const responses = sheet.results?.responses ?? [];
+  const unordered = sheet.results?.responses ?? [];
+  const rank = new Map(customOrder.map((id, index) => [id, index]));
+  const responses = [...unordered].sort(
+    (a, b) =>
+      (rank.get(a.respondentId) ?? Number.MAX_SAFE_INTEGER) -
+      (rank.get(b.respondentId) ?? Number.MAX_SAFE_INTEGER),
+  );
+  function move(id: string, before: string, after = false) {
+    const order = responses.map((r) => r.respondentId);
+    const from = order.indexOf(id),
+      target = order.indexOf(before);
+    if (from < 0 || target < 0 || from === target) return;
+    order.splice(from, 1);
+    order.splice(order.indexOf(before) + (after ? 1 : 0), 0, id);
+    setCustomOrder(order);
+    try {
+      localStorage.setItem(orderKey, JSON.stringify(order));
+    } catch {
+      /* Keep the order for this session. */
+    }
+  }
   useEffect(() => {
     if (!responses.some((r) => r.respondentId === personId))
       setPersonId(responses[0]?.respondentId ?? "");
@@ -41,7 +75,7 @@ export function WorksheetResults({
         <button
           className="button outline"
           disabled={busy || !responses.length}
-          onClick={onDownload}
+          onClick={() => onDownload(responses.map((r) => r.respondentId))}
         >
           入力結果をCSV保存
         </button>
@@ -88,6 +122,22 @@ export function WorksheetResults({
             {filtered.length}人を表示 / 保存した参加者 {responses.length}人 ·
             CSVには検索に関係なく全員・全項目を保存します。
           </p>
+          {customOrder.length > 0 && (
+            <button
+              type="button"
+              className="button outline"
+              onClick={() => {
+                setCustomOrder([]);
+                try {
+                  localStorage.removeItem(orderKey);
+                } catch {
+                  /* Use the default for this session. */
+                }
+              }}
+            >
+              参加順に戻す
+            </button>
+          )}
           {!filtered.length ? (
             <p className="worksheet-empty" role="status">
               該当する参加者がいません。検索条件を変更してください。
@@ -147,6 +197,7 @@ export function WorksheetResults({
             <div className="worksheet-all-results">
               <p className="worksheet-scroll-hint" id="worksheet-table-hint">
                 左の氏名・メールアドレスと右の最終保存日時は固定です。中央の回答欄を横にスクロールして、全項目を確認できます。
+                氏名の移動ボタンはドラッグまたは上下ボタンで並べ替えられます。
               </p>
               <div
                 className="worksheet-comparison-wrap worksheet-frozen-wrap"
@@ -194,9 +245,74 @@ export function WorksheetResults({
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((r) => (
-                      <tr key={r.respondentId}>
+                    {filtered.map((r, index) => (
+                      <tr
+                        key={r.respondentId}
+                        onDragOver={(event) => {
+                          if (dragged && dragged !== r.respondentId)
+                            event.preventDefault();
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          if (dragged) {
+                            const box =
+                              event.currentTarget.getBoundingClientRect();
+                            move(
+                              dragged,
+                              r.respondentId,
+                              event.clientY > box.top + box.height / 2,
+                            );
+                          }
+                          setDragged(undefined);
+                        }}
+                      >
                         <th scope="row" className="worksheet-pin-left">
+                          <div className="worksheet-row-order">
+                            <button
+                              type="button"
+                              draggable
+                              aria-label={`${r.name}の行をドラッグして移動`}
+                              title="ドラッグして行を移動"
+                              onDragStart={(event) => {
+                                setDragged(r.respondentId);
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData(
+                                  "text/plain",
+                                  r.respondentId,
+                                );
+                              }}
+                              onDragEnd={() => setDragged(undefined)}
+                            >
+                              ⠿
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`${r.name}の行を上へ移動`}
+                              disabled={index === 0}
+                              onClick={() =>
+                                move(
+                                  r.respondentId,
+                                  filtered[index - 1].respondentId,
+                                )
+                              }
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`${r.name}の行を下へ移動`}
+                              disabled={index === filtered.length - 1}
+                              onClick={() =>
+                                move(
+                                  r.respondentId,
+                                  filtered[index + 1].respondentId,
+                                  true,
+                                )
+                              }
+                            >
+                              ↓
+                            </button>
+                          </div>
                           <strong>{r.name}</strong>
                           <span>{r.email || "メールアドレス未登録"}</span>
                         </th>

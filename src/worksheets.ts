@@ -10,6 +10,7 @@ export type WorksheetField = {
   sectionId?: string;
   wide: boolean;
   reason?: boolean;
+  aggregatePublic?: boolean;
   widthPercent?: number;
   inputHeight?: number;
   fontSize?: number;
@@ -47,6 +48,7 @@ export type WorksheetView = WorksheetDefinition & {
   created: number;
   own?: WorksheetResponse;
   results?: { responses: WorksheetResponse[] };
+  summaries?: Record<string, { count: number; counts: number[] }>;
 };
 function check(ok: unknown, message: string, status = 400): asserts ok {
   if (!ok) throw new SurveyError(status, message);
@@ -145,6 +147,12 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
           (f.kind === "single" || f.kind === "multiple")),
       "理由欄の設定を確認してください。",
     );
+    check(
+      f.aggregatePublic === undefined ||
+        (typeof f.aggregatePublic === "boolean" &&
+          (f.kind === "single" || f.kind === "multiple")),
+      "集計の公開設定を確認してください。",
+    );
     if (f.kind === "radar") {
       const radar = f.radar;
       const validLabels = (
@@ -183,6 +191,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       ...(f.sectionId !== undefined ? { sectionId: f.sectionId } : {}),
       wide: f.wide,
       ...(f.reason ? { reason: true } : {}),
+      ...(f.aggregatePublic ? { aggregatePublic: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
       ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),
       ...(f.fontSize !== undefined ? { fontSize: f.fontSize } : {}),
@@ -351,11 +360,42 @@ export function worksheetList(
         sheet.results = {
           responses: [
             ...sql(
-              "SELECT a.*,u.name,u.email FROM worksheet_answers a LEFT JOIN users u ON u.id=a.author WHERE a.worksheet=? ORDER BY a.updated,a.author",
+              "SELECT a.*,u.name,u.email FROM worksheet_answers a LEFT JOIN users u ON u.id=a.author LEFT JOIN members m ON m.deck=? AND m.user_id=a.author LEFT JOIN (SELECT deck,user_id,MIN(rank) AS rank FROM recipients WHERE user_id IS NOT NULL GROUP BY deck,user_id) r ON r.deck=m.deck AND r.user_id=a.author WHERE a.worksheet=? ORDER BY CASE WHEN r.rank IS NULL THEN 1 ELSE 0 END,r.rank,CASE WHEN m.rowid IS NULL THEN 1 ELSE 0 END,m.rowid,a.author",
+              deck,
               r.id,
             ),
           ].map(answer),
         };
+      const aggregated = sheet.fields.filter(
+        (f) =>
+          (f.kind === "single" || f.kind === "multiple") &&
+          (host || f.aggregatePublic),
+      );
+      if (aggregated.length) {
+        const rows = [
+          ...sql("SELECT value FROM worksheet_answers WHERE worksheet=?", r.id),
+        ].map((row) => JSON.parse(row.value) as WorksheetValues);
+        sheet.summaries = Object.fromEntries(
+          aggregated.map((field) => {
+            const counts = field.options.map(() => 0);
+            let count = 0;
+            for (const row of rows) {
+              const value = row[field.id];
+              if (!Array.isArray(value) || !value.length) continue;
+              count++;
+              for (const index of new Set(value))
+                if (
+                  typeof index === "number" &&
+                  Number.isInteger(index) &&
+                  index >= 0 &&
+                  index < counts.length
+                )
+                  counts[index]++;
+            }
+            return [field.id, { count, counts }];
+          }),
+        );
+      }
       return sheet;
     });
 }

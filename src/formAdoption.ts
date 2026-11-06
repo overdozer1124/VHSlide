@@ -158,6 +158,22 @@ export function rewriteFormBindings(
     let slideChanged = false;
     const elements = slide.elements.map((element) => {
       let next = element;
+      if (next.worksheetResult) {
+        const mapped = worksheetIds.get(
+          keyOf(next.worksheetResult.deckId, next.worksheetResult.worksheetId),
+        );
+        if (mapped) {
+          next = {
+            ...next,
+            worksheetResult: {
+              ...next.worksheetResult,
+              deckId: ownerDeckId,
+              worksheetId: mapped,
+            },
+          };
+          slideChanged = true;
+        }
+      }
       if (next.worksheet) {
         const mapped = worksheetIds.get(
           keyOf(next.worksheet.deckId, next.worksheet.worksheetId),

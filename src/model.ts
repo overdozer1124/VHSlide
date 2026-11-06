@@ -31,6 +31,7 @@ export interface GridMove {
 }
 export type Shape = ShapeKind;
 export interface Element {
+  worksheetResult?: { deckId: string; worksheetId: string; fieldId: string };
   responseField?: ResponseFieldBinding;
   formFontSize?: number;
   worksheet?: WorksheetBinding;
@@ -667,6 +668,26 @@ export function parseDeck(input: string): Deck {
           w: num(e.w, 20, W),
           h: num(e.h, 20, H),
         };
+        if (e.worksheetResult !== undefined) {
+          const b = e.worksheetResult;
+          if (
+            e.type !== "chart" ||
+            !b ||
+            typeof b.deckId !== "string" ||
+            typeof b.worksheetId !== "string" ||
+            !/^[a-f0-9-]{36}$/.test(b.deckId) ||
+            !/^[a-f0-9-]{36}$/.test(b.worksheetId) ||
+            typeof b.fieldId !== "string" ||
+            !/^[a-zA-Z0-9_-]{1,60}$/.test(b.fieldId) ||
+            e.surveyResult !== undefined
+          )
+            fail();
+          base.worksheetResult = {
+            deckId: b.deckId,
+            worksheetId: b.worksheetId,
+            fieldId: b.fieldId,
+          };
+        }
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
         if (e.responseField !== undefined) {
           if (

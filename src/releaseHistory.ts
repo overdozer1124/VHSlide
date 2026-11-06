@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.89.0",
+    date: "2026-11-06",
+    title: "ワークシートの選択式を集計",
+    changes: [
+      "ワークシート内の選択式回答を集計し、ホストが公開範囲を選んで、ワークシートやスライドに自動更新されるグラフを表示できるようになりました。",
+      "回答一覧を参加順に固定し、ドラッグや上下ボタンで並べ替えられるようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.88.0",
     date: "2026-11-06",
     title: "ワークシートをセクションごとに編集",

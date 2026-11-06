@@ -6836,6 +6836,17 @@ h1 span {
 .worksheet-panel input:not([type=checkbox]):not([type=radio]) { width:100%;box-sizing:border-box;border:1px solid #b8cabe;border-radius:7px;padding:9px;font:inherit; }
 .worksheet-field-editor label { display:block;margin:8px 0; }
 .worksheet-editor-actions { display:flex;gap:8px; }
+.worksheet-aggregates { margin:18px 0; border-top:1px solid #dce6df; padding-top:12px; }
+.worksheet-aggregate-details { margin:12px 0; padding:12px; border:1px solid #c9d8ce; border-radius:8px; }
+.worksheet-aggregate-details > summary { color:#315d4e; font-weight:700; cursor:pointer; }
+.worksheet-aggregate { border:1px solid #dce6df; border-radius:8px; padding:14px; margin:10px 0; background:white; }
+.worksheet-aggregate p { margin:5px 0; }
+.worksheet-aggregate-row { display:grid; grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) auto; gap:10px; align-items:center; margin:6px 0; }
+.worksheet-aggregate-row progress { width:100%; accent-color:#587d59; }
+.worksheet-aggregate-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+.worksheet-row-order { display:flex; gap:4px; margin-bottom:6px; }
+.worksheet-row-order button { border:1px solid #c9d8ce; border-radius:5px; background:white; color:#315d4e; min-width:28px; min-height:28px; cursor:pointer; }
+.worksheet-row-order button[draggable] { cursor:grab; }
 .worksheet-section-editor { border:1px solid #c5d9ce; border-radius:10px; background:#f6faf7; padding:16px; margin:16px 0; }
 .worksheet-section-editor > label { display:block; font-weight:700; color:#315d4e; margin-bottom:12px; }
 .worksheet-section-editor > .button { margin-right:8px; }
