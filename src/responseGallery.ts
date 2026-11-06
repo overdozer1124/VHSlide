@@ -108,6 +108,17 @@ export function galleryBuild(
           const own = s.results?.responses.find((r) => r.respondentId === id);
           return {
             ...definition,
+            ...(s.sections
+              ? {
+                  sections: s.sections.filter((section) =>
+                    s.fields.some(
+                      (field) =>
+                        field.sectionId === section.id &&
+                        fields.get(s.id)!.has(field.id),
+                    ),
+                  ),
+                }
+              : {}),
             fields: s.fields.filter((f) => fields.get(s.id)!.has(f.id)),
             ...(own
               ? {

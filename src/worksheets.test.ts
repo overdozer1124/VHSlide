@@ -12,7 +12,32 @@ import {
 import { worksheetCsv } from "./worksheetCsv";
 import { sample, parseDeck, serializeDeck } from "./model";
 import { modalLayoutItems } from "./WorksheetModalLayout";
+import { sectionWorksheet } from "./worksheetSections";
 describe("worksheets", () => {
+  it("migrates existing groups to independent sections without changing field IDs or answers", () => {
+    const legacy = worksheetTemplate("reason");
+    const migrated = sectionWorksheet(legacy);
+    expect(migrated.sections?.map((s) => s.title)).toEqual([
+      "理由と工夫",
+      "話し合い",
+    ]);
+    expect(migrated.fields.map((f) => f.id)).toEqual(
+      legacy.fields.map((f) => f.id),
+    );
+    expect(migrated.fields[0].sectionId).toBe(migrated.fields[1].sectionId);
+    expect(migrated.fields[2].sectionId).not.toBe(migrated.fields[1].sectionId);
+    const empty = { id: "empty-section", title: "これから入力" };
+    const saved = parseWorksheet({
+      ...migrated,
+      sections: [...migrated.sections!, empty],
+    });
+    expect(saved.sections?.at(-1)).toEqual(empty);
+    const values = { [legacy.fields[0].id]: "残したい回答" };
+    expect(parseWorksheetValues(saved, values)[legacy.fields[0].id]).toBe(
+      "残したい回答",
+    );
+    expect(() => parseWorksheet({ ...saved, sections: [] })).toThrow();
+  });
   it("keeps choices and reasons separately, validates partial saves, and exports both", () => {
     const base = worksheetTemplate("blank");
     const field = {

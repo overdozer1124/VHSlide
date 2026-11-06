@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.88.0",
+    date: "2026-11-06",
+    title: "ワークシートをセクションごとに編集",
+    changes: [
+      "セクションの見出しを独立して設定し、各セクションの中に入力項目を追加できるようになりました。既存のワークシートと回答も引き継ぎます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.87.1",
     date: "2026-11-06",
     title: "ワークシートの項目追加を分かりやすく",

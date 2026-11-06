@@ -7,6 +7,7 @@ export type WorksheetField = {
   options: string[];
   placeholder: string;
   section: string;
+  sectionId?: string;
   wide: boolean;
   reason?: boolean;
   widthPercent?: number;
@@ -17,6 +18,7 @@ export type WorksheetField = {
 export type WorksheetDefinition = {
   title: string;
   description: string;
+  sections?: { id: string; title: string }[];
   fields: WorksheetField[];
   fontSize?: number;
   modalLayout?: {
@@ -72,6 +74,26 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
     "入力欄は1〜40項目です。",
   );
   const ids = new Set<string>();
+  let sections: WorksheetDefinition["sections"];
+  if (v.sections !== undefined) {
+    check(
+      Array.isArray(v.sections) && v.sections.length <= 40,
+      "セクションを確認してください。",
+    );
+    const sectionIds = new Set<string>();
+    sections = v.sections.map((s) => {
+      check(
+        s &&
+          typeof s.id === "string" &&
+          /^[a-zA-Z0-9_-]{1,60}$/.test(s.id) &&
+          !sectionIds.has(s.id) &&
+          str(s.title, 200),
+        "セクションを確認してください。",
+      );
+      sectionIds.add(s.id);
+      return { id: s.id, title: s.title };
+    });
+  }
   const fields = v.fields.map((f) => {
     check(
       f &&
@@ -88,6 +110,17 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       "入力欄の幅・高さ・文字の大きさを確認してください。",
     );
     ids.add(f.id);
+    check(
+      f.sectionId === undefined ||
+        (typeof f.sectionId === "string" &&
+          /^[a-zA-Z0-9_-]{1,60}$/.test(f.sectionId) &&
+          (!sections ||
+            sections.some(
+              (s) => s.id === f.sectionId && s.title === f.section,
+            ))),
+      "セクションの設定を確認してください。",
+    );
+    check(!sections || !!f.sectionId, "入力欄のセクションを確認してください。");
     check(
       str(f.label, 200) &&
         f.label.trim() &&
@@ -147,6 +180,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       options: [...f.options],
       placeholder: f.placeholder,
       section: f.section,
+      ...(f.sectionId !== undefined ? { sectionId: f.sectionId } : {}),
       wide: f.wide,
       ...(f.reason ? { reason: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
@@ -198,6 +232,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
     title: v.title.trim(),
     description: v.description,
     fields,
+    ...(sections ? { sections } : {}),
     ...(v.fontSize !== undefined ? { fontSize: v.fontSize } : {}),
     ...(modalLayout ? { modalLayout } : {}),
   };
@@ -449,7 +484,15 @@ export function worksheetCommand(
     );
   } else if (action === "field") {
     const definition = JSON.parse(row.definition) as WorksheetDefinition;
-    const field = (value as { field: WorksheetField }).field;
+    let field = (value as { field: WorksheetField }).field;
+    if (definition.sections && field && !field.sectionId) {
+      let section = definition.sections.at(-1);
+      if (!section || section.title !== field.section) {
+        section = { id: crypto.randomUUID(), title: field.section };
+        definition.sections = [...definition.sections, section];
+      }
+      field = { ...field, sectionId: section.id };
+    }
     const next = parseWorksheet({
       ...definition,
       fields: [...definition.fields, field],

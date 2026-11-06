@@ -36,7 +36,10 @@ export interface ForeignForms {
 
 const keyOf = (deckId: string, id: string) => `${deckId}:${id}`;
 
-export function collectForeignForms(deck: Deck, ownerDeckId: string): ForeignForms {
+export function collectForeignForms(
+  deck: Deck,
+  ownerDeckId: string,
+): ForeignForms {
   const embedded = new Map<string, WorksheetDefinition>();
   const fieldsByKey = new Map<
     string,
@@ -71,6 +74,7 @@ export function collectForeignForms(deck: Deck, ownerDeckId: string): ForeignFor
             title: binding.title,
             description: binding.description,
             fields: binding.fields,
+            ...(binding.sections ? { sections: binding.sections } : {}),
             ...(binding.fontSize !== undefined
               ? { fontSize: binding.fontSize }
               : {}),

@@ -32,9 +32,7 @@ const el = (patch: Partial<Element>): Element => ({
 const deckOf = (elements: Element[]): Deck => ({
   version: 1,
   title: "テスト",
-  slides: [
-    { id: "s1", x: 0, y: 0, title: "p1", background: "#fff", elements },
-  ],
+  slides: [{ id: "s1", x: 0, y: 0, title: "p1", background: "#fff", elements }],
 });
 
 const wsField = (worksheetId: string, field: WorksheetField, deckId = OTHER) =>
@@ -49,6 +47,33 @@ const wsField = (worksheetId: string, field: WorksheetField, deckId = OTHER) =>
   });
 
 describe("collectForeignForms", () => {
+  it("preserves independent sections when a worksheet is copied to a cloud work", () => {
+    const sections = [
+      { id: "section-one", title: "考える" },
+      { id: "section-empty", title: "あとで追加" },
+    ];
+    const field = {
+      ...textField("q1", "質問"),
+      sectionId: "section-one",
+      section: "考える",
+    };
+    const deck = deckOf([
+      el({
+        worksheet: {
+          deckId: OTHER,
+          worksheetId: SHEET_A,
+          title: "ワーク",
+          description: "",
+          sections,
+          fields: [field],
+        },
+      }),
+    ]);
+    const { worksheets } = collectForeignForms(deck, OWNER);
+    expect(worksheets).toHaveLength(1);
+    expect(worksheets[0].definition.sections).toEqual(sections);
+    expect(worksheets[0].definition.fields[0].sectionId).toBe("section-one");
+  });
   it("collects worksheet fields from response fields in order, deduplicated", () => {
     const deck = deckOf([
       wsField(SHEET_A, textField("q1", "質問1")),

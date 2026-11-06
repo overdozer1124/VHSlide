@@ -17,6 +17,7 @@ import { WorksheetResults } from "./WorksheetResults";
 import { api } from "./cloud";
 import { usePageVisible } from "./usePageVisible";
 import { Plus } from "lucide-react";
+import { sectionWorksheet } from "./worksheetSections";
 import { parseWorksheet } from "./worksheets";
 import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
@@ -50,7 +51,7 @@ export function WorksheetPanel({
   const content = useRef<HTMLElement>(null);
 
   const [definition, setDefinition] = useState<WorksheetDefinition>(() =>
-    worksheetTemplate("reason"),
+    sectionWorksheet(worksheetTemplate("reason")),
   );
   const [selectedId, setSelectedId] = useState("");
   useEffect(() => {
@@ -150,6 +151,7 @@ export function WorksheetPanel({
             fontSize: saved.fontSize,
             modalLayout: saved.modalLayout,
             fields: saved.fields,
+            sections: saved.sections,
           };
           if (
             !onFormSaved({
@@ -223,6 +225,7 @@ export function WorksheetPanel({
         title: saved.title,
         description: saved.description,
         fields: saved.fields,
+        sections: saved.sections,
         fontSize: saved.fontSize,
         modalLayout: saved.modalLayout,
       };
@@ -327,7 +330,9 @@ export function WorksheetPanel({
                     setCreating(true);
                     setEditing(undefined);
                     setLayoutEditing(undefined);
-                    setDefinition(worksheetTemplate("reason"));
+                    setDefinition(
+                      sectionWorksheet(worksheetTemplate("reason")),
+                    );
                     setMessage("");
                     setError("");
                   }}
@@ -449,9 +454,11 @@ export function WorksheetPanel({
                         aria-label="ワークシートのひな形"
                         onChange={(e) =>
                           setDefinition(
-                            worksheetTemplate(
-                              e.target
-                                .value as keyof typeof worksheetTemplateNames,
+                            sectionWorksheet(
+                              worksheetTemplate(
+                                e.target
+                                  .value as keyof typeof worksheetTemplateNames,
+                              ),
                             ),
                           )
                         }
@@ -523,342 +530,443 @@ export function WorksheetPanel({
                       ? "既存の回答を引き継ぎながら、項目の並べ替え・編集・追加ができます。"
                       : "入力欄は1〜40項目、ワークシートは1作品30件までです。"}
                   </p>
-                  {definition.fields.map((f, i) => (
-                    <fieldset className="worksheet-field-editor" key={f.id}>
-                      <legend>入力欄 {i + 1}</legend>
-                      <label>
-                        項目名
-                        <input
-                          required
-                          aria-label={`項目名${i + 1}`}
-                          maxLength={200}
-                          value={f.label}
-                          onChange={(e) =>
-                            editField(f.id, { label: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        形式
-                        <select
-                          aria-label={`入力形式${i + 1}`}
-                          disabled={existingField(f.id)}
-                          value={f.kind}
-                          onChange={(e) => {
-                            const kind = e.target
-                              .value as WorksheetField["kind"];
-                            editField(f.id, {
-                              kind,
-                              reason:
-                                kind === "single" || kind === "multiple"
-                                  ? f.reason
-                                  : undefined,
-                              radar:
-                                kind === "radar"
-                                  ? {
-                                      axes: [
-                                        "項目1",
-                                        "項目2",
-                                        "項目3",
-                                        "項目4",
-                                        "項目5",
-                                        "項目6",
-                                      ],
-                                      series: ["場面1", "場面2"],
-                                      min: 1,
-                                      max: 5,
-                                    }
-                                  : undefined,
-                              ...(kind === "radar" ? { wide: true } : {}),
-                              options:
-                                kind === "single" || kind === "multiple"
-                                  ? ["はい", "いいえ"]
-                                  : [],
-                            });
-                          }}
-                        >
-                          <option value="text">記述欄</option>
-                          <option value="checkbox">チェック欄</option>
-                          <option value="single">単一選択</option>
-                          <option value="multiple">複数選択</option>
-                          <option value="radar">数値とレーダーチャート</option>
-                        </select>
-                      </label>
+                  {definition.sections?.map((section, sectionIndex) => (
+                    <section
+                      className="worksheet-section-editor"
+                      key={section.id}
+                      aria-label={`セクション${sectionIndex + 1}`}
+                    >
+                      <h4>セクション {sectionIndex + 1}</h4>
                       <label>
                         セクション見出し
                         <input
+                          aria-label={`セクション${sectionIndex + 1}の見出し`}
                           maxLength={200}
-                          value={f.section}
-                          onChange={(e) =>
-                            editField(f.id, { section: e.target.value })
-                          }
-                        />
-                      </label>
-                      {f.kind === "text" && (
-                        <label>
-                          入力例
-                          <input
-                            maxLength={200}
-                            value={f.placeholder}
-                            onChange={(e) =>
-                              editField(f.id, {
-                                placeholder: e.target.value,
-                              })
-                            }
-                          />
-                        </label>
-                      )}
-                      {(f.kind === "single" || f.kind === "multiple") && (
-                        <>
-                          <label>
-                            選択肢（1行1項目・2〜10項目）
-                            <textarea
-                              value={f.options.join("\n")}
-                              onChange={(e) =>
-                                editField(f.id, {
-                                  options: e.target.value.split("\n"),
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={!!f.reason}
-                              disabled={existingField(f.id) && !!f.reason}
-                              onChange={(e) =>
-                                editField(f.id, {
-                                  reason: e.target.checked || undefined,
-                                })
-                              }
-                            />{" "}
-                            選択した理由を書く欄を追加
-                          </label>
-                        </>
-                      )}
-                      {f.kind === "radar" && f.radar && (
-                        <div className="radar-config">
-                          <label>
-                            項目（1行1項目・3〜10項目）
-                            <textarea
-                              aria-label={`レーダーチャートの項目${i + 1}`}
-                              value={f.radar.axes.join("\n")}
-                              onChange={(event) =>
-                                editField(f.id, {
-                                  radar: {
-                                    ...f.radar!,
-                                    axes: event.target.value.split("\n"),
-                                  },
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            比較する場面（1行1項目・1〜4項目）
-                            <textarea
-                              aria-label={`レーダーチャートの場面${i + 1}`}
-                              value={f.radar.series.join("\n")}
-                              onChange={(event) =>
-                                editField(f.id, {
-                                  radar: {
-                                    ...f.radar!,
-                                    series: event.target.value.split("\n"),
-                                  },
-                                })
-                              }
-                            />
-                          </label>
-                          <div className="radar-config-range">
-                            <label>
-                              最小値
-                              <input
-                                aria-label={`レーダーチャートの最小値${i + 1}`}
-                                type="number"
-                                min={0}
-                                max={99}
-                                disabled={existingField(f.id)}
-                                value={f.radar.min}
-                                onChange={(event) =>
-                                  editField(f.id, {
-                                    radar: {
-                                      ...f.radar!,
-                                      min: Number(event.target.value),
-                                    },
-                                  })
-                                }
-                              />
-                            </label>
-                            <label>
-                              最大値
-                              <input
-                                aria-label={`レーダーチャートの最大値${i + 1}`}
-                                type="number"
-                                min={1}
-                                max={100}
-                                disabled={existingField(f.id)}
-                                value={f.radar.max}
-                                onChange={(event) =>
-                                  editField(f.id, {
-                                    radar: {
-                                      ...f.radar!,
-                                      max: Number(event.target.value),
-                                    },
-                                  })
-                                }
-                              />
-                            </label>
-                          </div>
-                          {existingField(f.id) && (
-                            <small>
-                              回答との対応を保つため、既存の項目数・場面数・数値の範囲は変更できません。名称は変更できます。
-                            </small>
-                          )}
-                        </div>
-                      )}
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={f.wide}
-                          onChange={(e) =>
-                            editField(f.id, { wide: e.target.checked })
-                          }
-                        />
-                        横幅いっぱいに配置
-                      </label>
-                      <details className="worksheet-layout-settings">
-                        <summary>入力欄の大きさ・文字を調整</summary>
-                        <p>
-                          空欄では自動になります。幅は配置先の横幅に対する割合です。
-                        </p>
-                        <div className="worksheet-layout-controls">
-                          <label>
-                            幅（%）
-                            <input
-                              type="number"
-                              aria-label={`入力欄${i + 1}の幅`}
-                              min={20}
-                              max={100}
-                              placeholder="自動"
-                              value={f.widthPercent ?? ""}
-                              onChange={(event) =>
-                                editField(f.id, {
-                                  widthPercent:
-                                    event.target.value === ""
-                                      ? undefined
-                                      : Number(event.target.value),
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            高さ（px）
-                            <input
-                              type="number"
-                              aria-label={`入力欄${i + 1}の高さ`}
-                              min={32}
-                              max={400}
-                              placeholder="自動"
-                              value={f.inputHeight ?? ""}
-                              onChange={(event) =>
-                                editField(f.id, {
-                                  inputHeight:
-                                    event.target.value === ""
-                                      ? undefined
-                                      : Number(event.target.value),
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            文字（px）
-                            <input
-                              type="number"
-                              aria-label={`入力欄${i + 1}の文字の大きさ`}
-                              min={12}
-                              max={60}
-                              placeholder="全体と同じ"
-                              value={f.fontSize ?? ""}
-                              onChange={(event) =>
-                                editField(f.id, {
-                                  fontSize:
-                                    event.target.value === ""
-                                      ? undefined
-                                      : Number(event.target.value),
-                                })
-                              }
-                            />
-                          </label>
-                        </div>
-                      </details>
-                      <div className="worksheet-editor-actions">
-                        <button
-                          type="button"
-                          disabled={i === 0}
-                          aria-label={`入力欄${i + 1}を上へ移動`}
-                          onClick={() =>
-                            setDefinition((d) => {
-                              const fields = [...d.fields];
-                              [fields[i - 1], fields[i]] = [
-                                fields[i],
-                                fields[i - 1],
-                              ];
-                              return { ...d, fields };
-                            })
-                          }
-                        >
-                          上へ
-                        </button>
-                        <button
-                          type="button"
-                          disabled={i === definition.fields.length - 1}
-                          aria-label={`入力欄${i + 1}を下へ移動`}
-                          onClick={() =>
-                            setDefinition((d) => {
-                              const fields = [...d.fields];
-                              [fields[i], fields[i + 1]] = [
-                                fields[i + 1],
-                                fields[i],
-                              ];
-                              return { ...d, fields };
-                            })
-                          }
-                        >
-                          下へ
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            definition.fields.length === 1 ||
-                            existingField(f.id)
-                          }
-                          onClick={() =>
+                          value={section.title}
+                          placeholder="見出しなし"
+                          onChange={(event) => {
+                            const title = event.target.value;
                             setDefinition((d) => ({
                               ...d,
-                              fields: d.fields.filter((x) => x.id !== f.id),
-                            }))
-                          }
-                        >
-                          項目を削除
-                        </button>
-                      </div>
-                    </fieldset>
+                              sections: d.sections!.map((s) =>
+                                s.id === section.id ? { ...s, title } : s,
+                              ),
+                              fields: d.fields.map((f) =>
+                                f.sectionId === section.id
+                                  ? { ...f, section: title }
+                                  : f,
+                              ),
+                            }));
+                          }}
+                        />
+                      </label>
+                      {definition.fields.map((f, i) =>
+                        f.sectionId !== section.id ? null : (
+                          <fieldset
+                            className="worksheet-field-editor"
+                            key={f.id}
+                          >
+                            <legend>入力欄 {i + 1}</legend>
+                            <label>
+                              項目名
+                              <input
+                                required
+                                aria-label={`項目名${i + 1}`}
+                                maxLength={200}
+                                value={f.label}
+                                onChange={(e) =>
+                                  editField(f.id, { label: e.target.value })
+                                }
+                              />
+                            </label>
+                            <label>
+                              形式
+                              <select
+                                aria-label={`入力形式${i + 1}`}
+                                disabled={existingField(f.id)}
+                                value={f.kind}
+                                onChange={(e) => {
+                                  const kind = e.target
+                                    .value as WorksheetField["kind"];
+                                  editField(f.id, {
+                                    kind,
+                                    reason:
+                                      kind === "single" || kind === "multiple"
+                                        ? f.reason
+                                        : undefined,
+                                    radar:
+                                      kind === "radar"
+                                        ? {
+                                            axes: [
+                                              "項目1",
+                                              "項目2",
+                                              "項目3",
+                                              "項目4",
+                                              "項目5",
+                                              "項目6",
+                                            ],
+                                            series: ["場面1", "場面2"],
+                                            min: 1,
+                                            max: 5,
+                                          }
+                                        : undefined,
+                                    ...(kind === "radar" ? { wide: true } : {}),
+                                    options:
+                                      kind === "single" || kind === "multiple"
+                                        ? ["はい", "いいえ"]
+                                        : [],
+                                  });
+                                }}
+                              >
+                                <option value="text">記述欄</option>
+                                <option value="checkbox">チェック欄</option>
+                                <option value="single">単一選択</option>
+                                <option value="multiple">複数選択</option>
+                                <option value="radar">
+                                  数値とレーダーチャート
+                                </option>
+                              </select>
+                            </label>
+                            {f.kind === "text" && (
+                              <label>
+                                入力例
+                                <input
+                                  maxLength={200}
+                                  value={f.placeholder}
+                                  onChange={(e) =>
+                                    editField(f.id, {
+                                      placeholder: e.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                            )}
+                            {(f.kind === "single" || f.kind === "multiple") && (
+                              <>
+                                <label>
+                                  選択肢（1行1項目・2〜10項目）
+                                  <textarea
+                                    value={f.options.join("\n")}
+                                    onChange={(e) =>
+                                      editField(f.id, {
+                                        options: e.target.value.split("\n"),
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!f.reason}
+                                    disabled={existingField(f.id) && !!f.reason}
+                                    onChange={(e) =>
+                                      editField(f.id, {
+                                        reason: e.target.checked || undefined,
+                                      })
+                                    }
+                                  />{" "}
+                                  選択した理由を書く欄を追加
+                                </label>
+                              </>
+                            )}
+                            {f.kind === "radar" && f.radar && (
+                              <div className="radar-config">
+                                <label>
+                                  項目（1行1項目・3〜10項目）
+                                  <textarea
+                                    aria-label={`レーダーチャートの項目${i + 1}`}
+                                    value={f.radar.axes.join("\n")}
+                                    onChange={(event) =>
+                                      editField(f.id, {
+                                        radar: {
+                                          ...f.radar!,
+                                          axes: event.target.value.split("\n"),
+                                        },
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label>
+                                  比較する場面（1行1項目・1〜4項目）
+                                  <textarea
+                                    aria-label={`レーダーチャートの場面${i + 1}`}
+                                    value={f.radar.series.join("\n")}
+                                    onChange={(event) =>
+                                      editField(f.id, {
+                                        radar: {
+                                          ...f.radar!,
+                                          series:
+                                            event.target.value.split("\n"),
+                                        },
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <div className="radar-config-range">
+                                  <label>
+                                    最小値
+                                    <input
+                                      aria-label={`レーダーチャートの最小値${i + 1}`}
+                                      type="number"
+                                      min={0}
+                                      max={99}
+                                      disabled={existingField(f.id)}
+                                      value={f.radar.min}
+                                      onChange={(event) =>
+                                        editField(f.id, {
+                                          radar: {
+                                            ...f.radar!,
+                                            min: Number(event.target.value),
+                                          },
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    最大値
+                                    <input
+                                      aria-label={`レーダーチャートの最大値${i + 1}`}
+                                      type="number"
+                                      min={1}
+                                      max={100}
+                                      disabled={existingField(f.id)}
+                                      value={f.radar.max}
+                                      onChange={(event) =>
+                                        editField(f.id, {
+                                          radar: {
+                                            ...f.radar!,
+                                            max: Number(event.target.value),
+                                          },
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                                {existingField(f.id) && (
+                                  <small>
+                                    回答との対応を保つため、既存の項目数・場面数・数値の範囲は変更できません。名称は変更できます。
+                                  </small>
+                                )}
+                              </div>
+                            )}
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={f.wide}
+                                onChange={(e) =>
+                                  editField(f.id, { wide: e.target.checked })
+                                }
+                              />
+                              横幅いっぱいに配置
+                            </label>
+                            <details className="worksheet-layout-settings">
+                              <summary>入力欄の大きさ・文字を調整</summary>
+                              <p>
+                                空欄では自動になります。幅は配置先の横幅に対する割合です。
+                              </p>
+                              <div className="worksheet-layout-controls">
+                                <label>
+                                  幅（%）
+                                  <input
+                                    type="number"
+                                    aria-label={`入力欄${i + 1}の幅`}
+                                    min={20}
+                                    max={100}
+                                    placeholder="自動"
+                                    value={f.widthPercent ?? ""}
+                                    onChange={(event) =>
+                                      editField(f.id, {
+                                        widthPercent:
+                                          event.target.value === ""
+                                            ? undefined
+                                            : Number(event.target.value),
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label>
+                                  高さ（px）
+                                  <input
+                                    type="number"
+                                    aria-label={`入力欄${i + 1}の高さ`}
+                                    min={32}
+                                    max={400}
+                                    placeholder="自動"
+                                    value={f.inputHeight ?? ""}
+                                    onChange={(event) =>
+                                      editField(f.id, {
+                                        inputHeight:
+                                          event.target.value === ""
+                                            ? undefined
+                                            : Number(event.target.value),
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label>
+                                  文字（px）
+                                  <input
+                                    type="number"
+                                    aria-label={`入力欄${i + 1}の文字の大きさ`}
+                                    min={12}
+                                    max={60}
+                                    placeholder="全体と同じ"
+                                    value={f.fontSize ?? ""}
+                                    onChange={(event) =>
+                                      editField(f.id, {
+                                        fontSize:
+                                          event.target.value === ""
+                                            ? undefined
+                                            : Number(event.target.value),
+                                      })
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            </details>
+                            <div className="worksheet-editor-actions">
+                              <button
+                                type="button"
+                                disabled={i === 0}
+                                aria-label={`入力欄${i + 1}を上へ移動`}
+                                onClick={() =>
+                                  setDefinition((d) => {
+                                    const fields = [...d.fields];
+                                    fields[i] = {
+                                      ...fields[i],
+                                      section: fields[i - 1].section,
+                                      sectionId: fields[i - 1].sectionId,
+                                    };
+                                    [fields[i - 1], fields[i]] = [
+                                      fields[i],
+                                      fields[i - 1],
+                                    ];
+                                    return { ...d, fields };
+                                  })
+                                }
+                              >
+                                上へ
+                              </button>
+                              <button
+                                type="button"
+                                disabled={i === definition.fields.length - 1}
+                                aria-label={`入力欄${i + 1}を下へ移動`}
+                                onClick={() =>
+                                  setDefinition((d) => {
+                                    const fields = [...d.fields];
+                                    fields[i] = {
+                                      ...fields[i],
+                                      section: fields[i + 1].section,
+                                      sectionId: fields[i + 1].sectionId,
+                                    };
+                                    [fields[i], fields[i + 1]] = [
+                                      fields[i + 1],
+                                      fields[i],
+                                    ];
+                                    return { ...d, fields };
+                                  })
+                                }
+                              >
+                                下へ
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  definition.fields.length === 1 ||
+                                  existingField(f.id)
+                                }
+                                onClick={() =>
+                                  setDefinition((d) => ({
+                                    ...d,
+                                    fields: d.fields.filter(
+                                      (x) => x.id !== f.id,
+                                    ),
+                                  }))
+                                }
+                              >
+                                項目を削除
+                              </button>
+                            </div>
+                          </fieldset>
+                        ),
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`セクション${sectionIndex + 1}に入力欄を追加`}
+                        className="button outline worksheet-add-field"
+                        disabled={definition.fields.length >= 40}
+                        onClick={() =>
+                          setDefinition((d) => {
+                            const fields = [...d.fields];
+                            const last = fields.reduce(
+                              (index, f, i) =>
+                                f.sectionId === section.id ? i : index,
+                              -1,
+                            );
+                            const followingIds = new Set(
+                              d
+                                .sections!.slice(sectionIndex + 1)
+                                .map((s) => s.id),
+                            );
+                            const next = fields.findIndex(
+                              (f) =>
+                                f.sectionId && followingIds.has(f.sectionId),
+                            );
+                            const position =
+                              last >= 0
+                                ? last + 1
+                                : next >= 0
+                                  ? next
+                                  : fields.length;
+                            fields.splice(position, 0, {
+                              ...worksheetTemplate("blank").fields[0],
+                              sectionId: section.id,
+                              section: section.title,
+                            });
+                            return { ...d, fields };
+                          })
+                        }
+                      >
+                        <Plus size={18} aria-hidden="true" /> 入力欄を追加
+                      </button>
+                      <button
+                        type="button"
+                        className="button outline"
+                        disabled={
+                          definition.sections!.length <= 1 ||
+                          definition.fields.some(
+                            (f) => f.sectionId === section.id,
+                          )
+                        }
+                        onClick={() =>
+                          setDefinition((d) => ({
+                            ...d,
+                            sections: d.sections!.filter(
+                              (s) => s.id !== section.id,
+                            ),
+                          }))
+                        }
+                      >
+                        空のセクションを削除
+                      </button>
+                    </section>
                   ))}
                   <button
                     type="button"
                     className="button outline worksheet-add-field"
-                    disabled={definition.fields.length >= 40}
+                    disabled={(definition.sections?.length ?? 0) >= 40}
                     onClick={() =>
                       setDefinition((d) => ({
                         ...d,
-                        fields: [
-                          ...d.fields,
-                          ...worksheetTemplate("blank").fields,
+                        sections: [
+                          ...(d.sections ?? []),
+                          { id: crypto.randomUUID(), title: "" },
                         ],
                       }))
                     }
                   >
                     <Plus size={18} aria-hidden="true" />
-                    入力欄を追加
+                    セクションを追加
                   </button>
                   <details>
                     <summary>レイアウトのプレビュー</summary>
@@ -970,6 +1078,7 @@ export function WorksheetPanel({
                             title: selected.title,
                             description: selected.description,
                             fields: selected.fields,
+                            sections: selected.sections,
                             fontSize: selected.fontSize,
                             modalLayout: selected.modalLayout,
                           });
@@ -994,8 +1103,9 @@ export function WorksheetPanel({
                             fontSize: selected.fontSize,
                             modalLayout: selected.modalLayout,
                             fields: selected.fields,
+                            sections: selected.sections,
                           });
-                          setDefinition(structuredClone(expected));
+                          setDefinition(sectionWorksheet(expected));
                           setEditing({ id: selected.id, expected });
                           setMessage("");
                           setError("");

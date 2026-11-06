@@ -62,6 +62,7 @@ export function WorksheetInputs({
   const groups: {
     section: string;
     originalSection: string;
+    sectionId?: string;
     fields: WorksheetField[];
   }[] = [];
   for (const f of sheet.fields) {
@@ -69,9 +70,22 @@ export function WorksheetInputs({
       editLayout?.fields.find((field) => field.id === f.id)?.section ??
       f.section;
     const last = groups[groups.length - 1];
-    if (originalSection && last?.originalSection === originalSection)
+    if (
+      last &&
+      (f.sectionId
+        ? last.sectionId === f.sectionId
+        : !!originalSection &&
+          last.originalSection === originalSection &&
+          !last.sectionId)
+    )
       last.fields.push(f);
-    else groups.push({ section: f.section, originalSection, fields: [f] });
+    else
+      groups.push({
+        section: f.section,
+        originalSection,
+        sectionId: f.sectionId,
+        fields: [f],
+      });
   }
   return (
     <>
@@ -100,6 +114,15 @@ export function WorksheetInputs({
                         );
                         onEdit({
                           ...sheet,
+                          ...(group.sectionId && sheet.sections
+                            ? {
+                                sections: sheet.sections.map((s) =>
+                                  s.id === group.sectionId
+                                    ? { ...s, title: section }
+                                    : s,
+                                ),
+                              }
+                            : {}),
                           fields: sheet.fields.map((field) =>
                             ids.has(field.id) ? { ...field, section } : field,
                           ),

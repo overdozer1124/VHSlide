@@ -135,11 +135,17 @@ test("host edits the student form layout while preserving answers and live updat
         .locator(".worksheet-modal-layout .worksheet-positioned-field")
         .first(),
     ).toHaveAttribute("style", finalStyle!);
-    await page.getByRole("button", { name: "入力画面のレイアウトを編集" }).click();
+    await page
+      .getByRole("button", { name: "入力画面のレイアウトを編集" })
+      .click();
     await page.getByRole("button", { name: "標準の配置に戻す" }).click();
     await page.getByRole("button", { name: "レイアウトを保存" }).click();
-    await expect(guest.locator(".worksheet-modal-layout")).toHaveCount(0, { timeout: 15000 });
-    await expect(guest.getByRole("textbox", { name: "選んだ理由", exact: true })).toHaveValue("保存後も入力");
+    await expect(guest.locator(".worksheet-modal-layout")).toHaveCount(0, {
+      timeout: 15000,
+    });
+    await expect(
+      guest.getByRole("textbox", { name: "選んだ理由", exact: true }),
+    ).toHaveValue("保存後も入力");
   } finally {
     await context.close();
   }
@@ -406,7 +412,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .getByRole("textbox", { name: "ワークシートのタイトル" })
       .fill("朝食の理由と工夫");
     await page
-      .getByRole("button", { name: "入力欄を追加", exact: true })
+      .getByRole("button", { name: "セクション2に入力欄を追加", exact: true })
       .click();
     await page
       .getByRole("textbox", { name: "項目名4", exact: true })
@@ -530,7 +536,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .fill("22");
     await page.getByRole("textbox", { name: "項目名1" }).fill("選んだ理由");
     await page
-      .getByRole("button", { name: "入力欄を追加", exact: true })
+      .getByRole("button", { name: "セクション2に入力欄を追加", exact: true })
       .click();
     await page.getByRole("textbox", { name: "項目名5" }).fill("新しい質問");
     await page.getByRole("button", { name: "変更を保存" }).click();
@@ -1204,4 +1210,85 @@ test("survey and worksheet share one wide dialog, select defaults and preserve d
     reason.title,
   );
   await expect(page.getByRole("dialog")).toHaveCount(1);
+});
+
+test("sections can be added and renamed independently while retaining existing answers", async ({
+  page,
+}) => {
+  await signIn(page, "sections-host");
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: sample(),
+  });
+  const { id } = await created.json();
+  const definition = worksheetTemplate("reason");
+  const made = await page.request.post(`/api/decks/${id}/worksheets`, {
+    headers,
+    data: definition,
+  });
+  expect(made.status()).toBe(200);
+  const worksheet = (await made.json()).worksheets[0];
+  expect(
+    (
+      await page.request.post(
+        `/api/decks/${id}/worksheets/${worksheet.id}/status`,
+        { headers, data: { status: "open" } },
+      )
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await page.request.post(
+        `/api/decks/${id}/worksheets/${worksheet.id}/answer`,
+        {
+          headers,
+          data: {
+            values: { [definition.fields[0].id]: "元の回答" },
+            patch: true,
+          },
+        },
+      )
+    ).status(),
+  ).toBe(200);
+  await page.goto(`/?room=${id}`);
+  await openWorksheets(page);
+  await page.getByRole("button", { name: "設定・内容の確認" }).click();
+  await page.getByRole("button", { name: "項目を編集・追加" }).click();
+  await page.getByLabel("セクション1の見出し").fill("改めた見出し");
+  await page
+    .getByRole("button", { name: "セクションを追加", exact: true })
+    .click();
+  await page.getByLabel("セクション3の見出し").fill("新しいまとまり");
+  await page.getByRole("button", { name: "セクション3に入力欄を追加" }).click();
+  await page
+    .getByRole("textbox", { name: "項目名4", exact: true })
+    .fill("新しい質問");
+  await page
+    .getByRole("button", { name: "セクションを追加", exact: true })
+    .click();
+  await page.getByLabel("セクション4の見出し").fill("後で作成するセクション");
+  await page.getByRole("button", { name: "変更を保存" }).click();
+  await expect(modal(page)).toContainText("保存しました。");
+  const saved = (
+    await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+  ).worksheets[0];
+  expect(saved.sections.map((s: { title: string }) => s.title)).toEqual([
+    "改めた見出し",
+    "話し合い",
+    "新しいまとまり",
+    "後で作成するセクション",
+  ]);
+  expect(saved.fields[0].id).toBe(definition.fields[0].id);
+  expect(saved.own.values[definition.fields[0].id]).toBe("元の回答");
+  await page.getByRole("button", { name: "項目を編集・追加" }).click();
+  await expect(page.getByLabel("セクション3の見出し")).toHaveValue(
+    "新しいまとまり",
+  );
+  await expect(page.getByLabel("セクション4の見出し")).toHaveValue(
+    "後で作成するセクション",
+  );
+  await expect(
+    page.getByRole("textbox", { name: "項目名4", exact: true }),
+  ).toHaveValue("新しい質問");
 });
