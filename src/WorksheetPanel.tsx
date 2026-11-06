@@ -16,6 +16,7 @@ import { worksheetCsv } from "./worksheetCsv";
 import { WorksheetResults } from "./WorksheetResults";
 import { api } from "./cloud";
 import { usePageVisible } from "./usePageVisible";
+import { Plus } from "lucide-react";
 import { parseWorksheet } from "./worksheets";
 import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
@@ -844,6 +845,7 @@ export function WorksheetPanel({
                   ))}
                   <button
                     type="button"
+                    className="button outline worksheet-add-field"
                     disabled={definition.fields.length >= 40}
                     onClick={() =>
                       setDefinition((d) => ({
@@ -855,6 +857,7 @@ export function WorksheetPanel({
                       }))
                     }
                   >
+                    <Plus size={18} aria-hidden="true" />
                     入力欄を追加
                   </button>
                   <details>

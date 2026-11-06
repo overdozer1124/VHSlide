@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.87.1",
+    date: "2026-11-06",
+    title: "ワークシートの項目追加を分かりやすく",
+    changes: [
+      "ワークシートの作成・編集画面で「入力欄を追加」をボタンとして表示し、見つけやすくしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.87.0",
     date: "2026-11-06",
     title: "ページ編集画面から列を削除",
