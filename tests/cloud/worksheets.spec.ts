@@ -1291,6 +1291,10 @@ test("sections can be added and renamed independently while retaining existing a
   await expect(
     page.getByRole("textbox", { name: "項目名4", exact: true }),
   ).toHaveValue("新しい質問");
+  await expect(
+    page.getByRole("combobox", { name: "入力欄1の移動先セクション" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "入力欄1のセクションを移動" }).click();
   await page
     .getByRole("combobox", { name: "入力欄1の移動先セクション" })
     .selectOption({ label: "セクション 4：後で作成するセクション" });

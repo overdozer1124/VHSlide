@@ -60,8 +60,10 @@ export function WorksheetPanel({
     sectionWorksheet(worksheetTemplate("reason")),
   );
   const [selectedId, setSelectedId] = useState("");
+  const [movingFieldId, setMovingFieldId] = useState<string>();
   useEffect(() => {
     content.current?.scrollTo({ top: 0 });
+    setMovingFieldId(undefined);
   }, [selectedId, creating, hostView]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -588,34 +590,6 @@ export function WorksheetPanel({
                             key={f.id}
                           >
                             <legend>入力欄 {i + 1}</legend>
-                            {(definition.sections?.length ?? 0) > 1 && (
-                              <label>
-                                移動先のセクション
-                                <select
-                                  aria-label={`入力欄${i + 1}の移動先セクション`}
-                                  value={f.sectionId}
-                                  onChange={(event) => {
-                                    const destination = event.target.value;
-                                    setDefinition((d) =>
-                                      moveWorksheetFieldToSection(
-                                        d,
-                                        f.id,
-                                        destination,
-                                      ),
-                                    );
-                                  }}
-                                >
-                                  {definition.sections?.map((s, index) => (
-                                    <option key={s.id} value={s.id}>
-                                      {`セクション ${index + 1}：${s.title || "見出しなし"}`}
-                                    </option>
-                                  ))}
-                                </select>
-                                <small>
-                                  選んだセクションの末尾に移動します。
-                                </small>
-                              </label>
-                            )}
                             <label>
                               項目名
                               <input
@@ -925,6 +899,21 @@ export function WorksheetPanel({
                               <button
                                 type="button"
                                 disabled={
+                                  (definition.sections?.length ?? 0) < 2
+                                }
+                                aria-label={`入力欄${i + 1}のセクションを移動`}
+                                aria-expanded={movingFieldId === f.id}
+                                onClick={() =>
+                                  setMovingFieldId((id) =>
+                                    id === f.id ? undefined : f.id,
+                                  )
+                                }
+                              >
+                                セクションを移動
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
                                   definition.fields.length === 1 ||
                                   existingField(f.id)
                                 }
@@ -940,6 +929,44 @@ export function WorksheetPanel({
                                 項目を削除
                               </button>
                             </div>
+                            {movingFieldId === f.id && (
+                              <label>
+                                移動先のセクション
+                                <select
+                                  aria-label={`入力欄${i + 1}の移動先セクション`}
+                                  value=""
+                                  autoFocus
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Escape")
+                                      setMovingFieldId(undefined);
+                                  }}
+                                  onChange={(event) => {
+                                    const destination = event.target.value;
+                                    if (!destination) return;
+                                    setDefinition((d) =>
+                                      moveWorksheetFieldToSection(
+                                        d,
+                                        f.id,
+                                        destination,
+                                      ),
+                                    );
+                                    setMovingFieldId(undefined);
+                                  }}
+                                >
+                                  <option value="">移動先を選択</option>
+                                  {definition.sections?.map((s, index) =>
+                                    s.id === f.sectionId ? null : (
+                                      <option key={s.id} value={s.id}>
+                                        {`セクション ${index + 1}：${s.title || "見出しなし"}`}
+                                      </option>
+                                    ),
+                                  )}
+                                </select>
+                                <small>
+                                  選んだセクションの末尾に移動します。
+                                </small>
+                              </label>
+                            )}
                           </fieldset>
                         ),
                       )}

@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.90.1",
+    date: "2026-11-06",
+    title: "入力欄の移動操作を整理",
+    changes: [
+      "入力欄の移動先は、各入力欄の操作ボタンを押したときに表示するようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.90.0",
     date: "2026-11-06",
     title: "入力欄をセクション間で移動",
