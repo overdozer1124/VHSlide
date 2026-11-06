@@ -6850,6 +6850,8 @@ h1 span {
 .worksheet-section-editor { border:1px solid #c5d9ce; border-radius:10px; background:#f6faf7; padding:16px; margin:16px 0; }
 .worksheet-section-editor > label { display:block; font-weight:700; color:#315d4e; margin-bottom:12px; }
 .worksheet-section-editor > .button { margin-right:8px; }
+.worksheet-section-actions, .worksheet-section-merge { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.worksheet-panel .worksheet-section-actions .button, .worksheet-panel .worksheet-section-merge .button { min-height:44px; margin:0; }
 .worksheet-panel .worksheet-add-field { min-height:44px; margin:12px 0; border-color:#8ba99a; color:#315d4e; }
 .worksheet-panel .worksheet-add-field:not(:disabled):hover { background:#edf5ef; border-color:#315d4e; }
 .worksheet-results { border-top:1px solid #d4dfd7;margin-top:20px;padding-top:16px; }

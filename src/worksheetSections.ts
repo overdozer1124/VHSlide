@@ -46,3 +46,41 @@ export function moveWorksheetFieldToSection(
   });
   return { ...sheet, fields };
 }
+
+/** Reorder entire sections, keeping their fields in the same order. */
+export function moveWorksheetSection(
+  sheet: WorksheetDefinition,
+  id: string,
+  direction: -1 | 1,
+): WorksheetDefinition {
+  const sections = [...(sheet.sections ?? [])];
+  const index = sections.findIndex((s) => s.id === id);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= sections.length) return sheet;
+  [sections[index], sections[target]] = [sections[target], sections[index]];
+  const fields = sections.flatMap((section) =>
+    sheet.fields.filter((field) => field.sectionId === section.id),
+  );
+  return { ...sheet, sections, fields };
+}
+
+/** Merge into the adjacent section, keeping its heading and all field IDs. */
+export function mergeWorksheetSection(
+  sheet: WorksheetDefinition,
+  id: string,
+  direction: -1 | 1,
+): WorksheetDefinition {
+  const sections = sheet.sections ?? [];
+  const index = sections.findIndex((s) => s.id === id);
+  const destination = sections[index + direction];
+  if (index < 0 || !destination) return sheet;
+  return {
+    ...sheet,
+    sections: sections.filter((s) => s.id !== id),
+    fields: sheet.fields.map((field) =>
+      field.sectionId === id
+        ? { ...field, sectionId: destination.id, section: destination.title }
+        : field,
+    ),
+  };
+}

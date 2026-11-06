@@ -1315,4 +1315,40 @@ test("sections can be added and renamed independently while retaining existing a
     section: "後で作成するセクション",
   });
   expect(moved.own.values[definition.fields[0].id]).toBe("元の回答");
+  await page.getByRole("button", { name: "項目を編集・追加" }).click();
+  const section4 = page.getByRole("region", { name: "セクション4" });
+  const addBox = await section4
+    .getByRole("button", { name: "セクション4に入力欄を追加" })
+    .boundingBox();
+  const mergeBox = await section4
+    .getByRole("button", { name: "セクション4を統合" })
+    .boundingBox();
+  const deleteBox = await section4
+    .getByRole("button", { name: "空のセクションを削除" })
+    .boundingBox();
+  expect(Math.abs(addBox!.y - mergeBox!.y)).toBeLessThan(1);
+  expect(Math.abs(addBox!.height - deleteBox!.height)).toBeLessThan(1);
+  await section4.getByRole("button", { name: "セクション4を上へ移動" }).click();
+  await expect(page.getByLabel("セクション3の見出し")).toHaveValue(
+    "後で作成するセクション",
+  );
+  await page.getByRole("button", { name: "セクション3を統合" }).click();
+  await page
+    .getByRole("group", { name: "セクション3の統合先" })
+    .getByRole("button", { name: "上のセクションと統合" })
+    .click();
+  await page.getByRole("button", { name: "変更を保存" }).click();
+  await expect(modal(page)).toContainText("保存しました。");
+  const merged = (
+    await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+  ).worksheets[0];
+  expect(merged.sections.map((s: { title: string }) => s.title)).toEqual([
+    "改めた見出し",
+    "話し合い",
+    "新しいまとまり",
+  ]);
+  expect(
+    merged.fields.find((f: { id: string }) => f.id === definition.fields[0].id),
+  ).toMatchObject({ sectionId: merged.sections[1].id, section: "話し合い" });
+  expect(merged.own.values[definition.fields[0].id]).toBe("元の回答");
 });

@@ -16,10 +16,35 @@ import { worksheetCsv } from "./worksheetCsv";
 import { sample, parseDeck, serializeDeck } from "./model";
 import { modalLayoutItems } from "./WorksheetModalLayout";
 import {
+  mergeWorksheetSection,
   moveWorksheetFieldToSection,
+  moveWorksheetSection,
   sectionWorksheet,
 } from "./worksheetSections";
 describe("worksheets", () => {
+  it("reorders and merges sections while preserving field order, IDs and answers", () => {
+    const original = sectionWorksheet(worksheetTemplate("reason"));
+    const [first, second] = original.sections!;
+    const ids = original.fields.map((f) => f.id);
+    const moved = moveWorksheetSection(original, second.id, -1);
+    expect(moved.sections!.map((s) => s.id)).toEqual([second.id, first.id]);
+    expect(moved.fields.map((f) => f.id)).toEqual([ids[2], ids[0], ids[1]]);
+    expect(parseWorksheet(moved)).toEqual(moved);
+    const merged = mergeWorksheetSection(moved, second.id, 1);
+    expect(merged.sections).toEqual([first]);
+    expect(merged.fields.map((f) => f.id)).toEqual([ids[2], ids[0], ids[1]]);
+    expect(
+      merged.fields.every(
+        (f) => f.sectionId === first.id && f.section === first.title,
+      ),
+    ).toBe(true);
+    expect(parseWorksheet(merged)).toEqual(merged);
+    expect(parseWorksheetValues(merged, { [ids[2]]: "回答" })[ids[2]]).toBe(
+      "回答",
+    );
+    expect(moveWorksheetSection(original, first.id, -1)).toBe(original);
+    expect(mergeWorksheetSection(original, second.id, 1)).toBe(original);
+  });
   it("moves fields between sections, including empty sections, without changing their IDs", () => {
     const original = sectionWorksheet(worksheetTemplate("reason"));
     const empty = { id: crypto.randomUUID(), title: "空のセクション" };

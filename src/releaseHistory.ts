@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.91.0",
+    date: "2026-11-07",
+    title: "ワークシートのセクションを整理",
+    changes: [
+      "セクションを上下に移動したり、隣のセクションと統合したりできるようになりました。",
+      "セクションの操作ボタンの高さをそろえました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.90.1",
     date: "2026-11-06",
     title: "入力欄の移動操作を整理",

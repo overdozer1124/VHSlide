@@ -19,7 +19,9 @@ import { api } from "./cloud";
 import { usePageVisible } from "./usePageVisible";
 import { Plus } from "lucide-react";
 import {
+  mergeWorksheetSection,
   moveWorksheetFieldToSection,
+  moveWorksheetSection,
   sectionWorksheet,
 } from "./worksheetSections";
 import { parseWorksheet } from "./worksheets";
@@ -61,9 +63,11 @@ export function WorksheetPanel({
   );
   const [selectedId, setSelectedId] = useState("");
   const [movingFieldId, setMovingFieldId] = useState<string>();
+  const [mergingSectionId, setMergingSectionId] = useState<string>();
   useEffect(() => {
     content.current?.scrollTo({ top: 0 });
     setMovingFieldId(undefined);
+    setMergingSectionId(undefined);
   }, [selectedId, creating, hostView]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -970,65 +974,148 @@ export function WorksheetPanel({
                           </fieldset>
                         ),
                       )}
-                      <button
-                        type="button"
-                        aria-label={`セクション${sectionIndex + 1}に入力欄を追加`}
-                        className="button outline worksheet-add-field"
-                        disabled={definition.fields.length >= 40}
-                        onClick={() =>
-                          setDefinition((d) => {
-                            const fields = [...d.fields];
-                            const last = fields.reduce(
-                              (index, f, i) =>
-                                f.sectionId === section.id ? i : index,
-                              -1,
+                      <div className="worksheet-section-actions">
+                        <button
+                          type="button"
+                          aria-label={`セクション${sectionIndex + 1}に入力欄を追加`}
+                          className="button outline worksheet-add-field"
+                          disabled={definition.fields.length >= 40}
+                          onClick={() =>
+                            setDefinition((d) => {
+                              const fields = [...d.fields];
+                              const last = fields.reduce(
+                                (index, f, i) =>
+                                  f.sectionId === section.id ? i : index,
+                                -1,
+                              );
+                              const followingIds = new Set(
+                                d
+                                  .sections!.slice(sectionIndex + 1)
+                                  .map((s) => s.id),
+                              );
+                              const next = fields.findIndex(
+                                (f) =>
+                                  f.sectionId && followingIds.has(f.sectionId),
+                              );
+                              const position =
+                                last >= 0
+                                  ? last + 1
+                                  : next >= 0
+                                    ? next
+                                    : fields.length;
+                              fields.splice(position, 0, {
+                                ...worksheetTemplate("blank").fields[0],
+                                sectionId: section.id,
+                                section: section.title,
+                              });
+                              return { ...d, fields };
+                            })
+                          }
+                        >
+                          <Plus size={18} aria-hidden="true" /> 入力欄を追加
+                        </button>
+                        <button
+                          type="button"
+                          className="button outline"
+                          aria-label={`セクション${sectionIndex + 1}を統合`}
+                          aria-expanded={mergingSectionId === section.id}
+                          disabled={definition.sections!.length < 2}
+                          onClick={() =>
+                            setMergingSectionId((id) =>
+                              id === section.id ? undefined : section.id,
+                            )
+                          }
+                        >
+                          セクションを統合
+                        </button>
+                        <button
+                          type="button"
+                          className="button outline"
+                          disabled={
+                            definition.sections!.length <= 1 ||
+                            definition.fields.some(
+                              (f) => f.sectionId === section.id,
+                            )
+                          }
+                          onClick={() =>
+                            setDefinition((d) => ({
+                              ...d,
+                              sections: d.sections!.filter(
+                                (s) => s.id !== section.id,
+                              ),
+                            }))
+                          }
+                        >
+                          空のセクションを削除
+                        </button>
+                        <button
+                          type="button"
+                          className="button outline"
+                          aria-label={`セクション${sectionIndex + 1}を上へ移動`}
+                          disabled={sectionIndex === 0}
+                          onClick={() => {
+                            setDefinition((d) =>
+                              moveWorksheetSection(d, section.id, -1),
                             );
-                            const followingIds = new Set(
-                              d
-                                .sections!.slice(sectionIndex + 1)
-                                .map((s) => s.id),
+                            setMergingSectionId(undefined);
+                          }}
+                        >
+                          セクションを上へ
+                        </button>
+                        <button
+                          type="button"
+                          className="button outline"
+                          aria-label={`セクション${sectionIndex + 1}を下へ移動`}
+                          disabled={
+                            sectionIndex === definition.sections!.length - 1
+                          }
+                          onClick={() => {
+                            setDefinition((d) =>
+                              moveWorksheetSection(d, section.id, 1),
                             );
-                            const next = fields.findIndex(
-                              (f) =>
-                                f.sectionId && followingIds.has(f.sectionId),
-                            );
-                            const position =
-                              last >= 0
-                                ? last + 1
-                                : next >= 0
-                                  ? next
-                                  : fields.length;
-                            fields.splice(position, 0, {
-                              ...worksheetTemplate("blank").fields[0],
-                              sectionId: section.id,
-                              section: section.title,
-                            });
-                            return { ...d, fields };
-                          })
-                        }
-                      >
-                        <Plus size={18} aria-hidden="true" /> 入力欄を追加
-                      </button>
-                      <button
-                        type="button"
-                        className="button outline"
-                        disabled={
-                          definition.sections!.length <= 1 ||
-                          definition.fields.some(
-                            (f) => f.sectionId === section.id,
-                          )
-                        }
-                        onClick={() =>
-                          setDefinition((d) => ({
-                            ...d,
-                            sections: d.sections!.filter(
-                              (s) => s.id !== section.id,
-                            ),
-                          }))
-                        }
-                      >
-                        空のセクションを削除
-                      </button>
+                            setMergingSectionId(undefined);
+                          }}
+                        >
+                          セクションを下へ
+                        </button>
+                      </div>
+                      {mergingSectionId === section.id && (
+                        <div
+                          className="worksheet-section-merge"
+                          role="group"
+                          aria-label={`セクション${sectionIndex + 1}の統合先`}
+                        >
+                          <span>統合先の見出しを残します。</span>
+                          <button
+                            type="button"
+                            className="button outline"
+                            disabled={sectionIndex === 0}
+                            onClick={() => {
+                              setDefinition((d) =>
+                                mergeWorksheetSection(d, section.id, -1),
+                              );
+                              setMergingSectionId(undefined);
+                            }}
+                          >
+                            上のセクションと統合
+                          </button>
+                          <button
+                            type="button"
+                            className="button outline"
+                            disabled={
+                              sectionIndex === definition.sections!.length - 1
+                            }
+                            onClick={() => {
+                              setDefinition((d) =>
+                                mergeWorksheetSection(d, section.id, 1),
+                              );
+                              setMergingSectionId(undefined);
+                            }}
+                          >
+                            下のセクションと統合
+                          </button>
+                        </div>
+                      )}
                     </section>
                   ))}
                   <button
