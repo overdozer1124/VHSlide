@@ -15,8 +15,44 @@ import {
 import { worksheetCsv } from "./worksheetCsv";
 import { sample, parseDeck, serializeDeck } from "./model";
 import { modalLayoutItems } from "./WorksheetModalLayout";
-import { sectionWorksheet } from "./worksheetSections";
+import {
+  moveWorksheetFieldToSection,
+  sectionWorksheet,
+} from "./worksheetSections";
 describe("worksheets", () => {
+  it("moves fields between sections, including empty sections, without changing their IDs", () => {
+    const original = sectionWorksheet(worksheetTemplate("reason"));
+    const empty = { id: crypto.randomUUID(), title: "空のセクション" };
+    const sheet = {
+      ...original,
+      sections: [original.sections![0], empty, ...original.sections!.slice(1)],
+    };
+    const field = sheet.fields[0];
+    const moved = moveWorksheetFieldToSection(sheet, field.id, empty.id);
+    expect(moved.fields.map((f) => f.id)).toEqual([
+      sheet.fields[1].id,
+      field.id,
+      ...sheet.fields.slice(2).map((f) => f.id),
+    ]);
+    expect(moved.fields[1]).toEqual({
+      ...field,
+      sectionId: empty.id,
+      section: empty.title,
+    });
+    expect(sheet.fields[0]).toEqual(field);
+    expect(parseWorksheet(moved)).toEqual(moved);
+    const value = { [field.id]: "保存済みの回答" };
+    expect(parseWorksheetValues(moved, value)[field.id]).toBe("保存済みの回答");
+    const last = moveWorksheetFieldToSection(
+      moved,
+      field.id,
+      original.sections![1].id,
+    );
+    expect(last.fields.at(-1)?.id).toBe(field.id);
+    expect(
+      moveWorksheetFieldToSection(last, field.id, original.sections![1].id),
+    ).toBe(last);
+  });
   it("keeps participant order stable and reveals only explicitly published anonymous summaries", () => {
     const db = new DatabaseSync(":memory:");
     db.exec(

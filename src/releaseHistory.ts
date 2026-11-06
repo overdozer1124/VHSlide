@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.90.0",
+    date: "2026-11-06",
+    title: "入力欄をセクション間で移動",
+    changes: [
+      "ワークシートの入力欄を、既存の回答を保ったまま別のセクションへ移動できるようになりました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.89.0",
     date: "2026-11-06",
     title: "ワークシートの選択式を集計",

@@ -1291,4 +1291,24 @@ test("sections can be added and renamed independently while retaining existing a
   await expect(
     page.getByRole("textbox", { name: "項目名4", exact: true }),
   ).toHaveValue("新しい質問");
+  await page
+    .getByRole("combobox", { name: "入力欄1の移動先セクション" })
+    .selectOption({ label: "セクション 4：後で作成するセクション" });
+  await expect(
+    page
+      .getByRole("region", { name: "セクション4" })
+      .getByRole("textbox", { name: "項目名4" }),
+  ).toHaveValue(definition.fields[0].label);
+  await page.getByRole("button", { name: "変更を保存" }).click();
+  await expect(modal(page)).toContainText("保存しました。");
+  const moved = (
+    await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+  ).worksheets[0];
+  expect(
+    moved.fields.find((f: { id: string }) => f.id === definition.fields[0].id),
+  ).toMatchObject({
+    sectionId: moved.sections[3].id,
+    section: "後で作成するセクション",
+  });
+  expect(moved.own.values[definition.fields[0].id]).toBe("元の回答");
 });

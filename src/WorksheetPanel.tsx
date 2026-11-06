@@ -18,7 +18,10 @@ import { WorksheetSummary } from "./WorksheetSummary";
 import { api } from "./cloud";
 import { usePageVisible } from "./usePageVisible";
 import { Plus } from "lucide-react";
-import { sectionWorksheet } from "./worksheetSections";
+import {
+  moveWorksheetFieldToSection,
+  sectionWorksheet,
+} from "./worksheetSections";
 import { parseWorksheet } from "./worksheets";
 import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
@@ -585,6 +588,34 @@ export function WorksheetPanel({
                             key={f.id}
                           >
                             <legend>入力欄 {i + 1}</legend>
+                            {(definition.sections?.length ?? 0) > 1 && (
+                              <label>
+                                移動先のセクション
+                                <select
+                                  aria-label={`入力欄${i + 1}の移動先セクション`}
+                                  value={f.sectionId}
+                                  onChange={(event) => {
+                                    const destination = event.target.value;
+                                    setDefinition((d) =>
+                                      moveWorksheetFieldToSection(
+                                        d,
+                                        f.id,
+                                        destination,
+                                      ),
+                                    );
+                                  }}
+                                >
+                                  {definition.sections?.map((s, index) => (
+                                    <option key={s.id} value={s.id}>
+                                      {`セクション ${index + 1}：${s.title || "見出しなし"}`}
+                                    </option>
+                                  ))}
+                                </select>
+                                <small>
+                                  選んだセクションの末尾に移動します。
+                                </small>
+                              </label>
+                            )}
                             <label>
                               項目名
                               <input
