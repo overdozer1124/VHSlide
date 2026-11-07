@@ -91,6 +91,20 @@ test("負例: aud の不一致は拒否される", async () => {
   await assert.rejects(verifyIdTokenLocal(token, opts), (e) => e.code === "bad_aud");
 });
 
+test("負例: aud が配列（期待値を含む）はサーバー側の厳密一致と揃えて拒否される", async () => {
+  const { privateKey, opts } = fixture();
+  const token = makeToken({ key: privateKey, payload: { aud: [AUD, "other-client.apps.googleusercontent.com"] } });
+  await assert.rejects(verifyIdTokenLocal(token, opts), (e) => e.code === "bad_aud");
+});
+
+test("負例: aud が文字列以外は拒否される", async () => {
+  const { privateKey, opts } = fixture();
+  const tokenNull = makeToken({ key: privateKey, payload: { aud: null } });
+  await assert.rejects(verifyIdTokenLocal(tokenNull, opts), (e) => e.code === "bad_aud");
+  const tokenNum = makeToken({ key: privateKey, payload: { aud: 12345 } });
+  await assert.rejects(verifyIdTokenLocal(tokenNum, opts), (e) => e.code === "bad_aud");
+});
+
 test("負例: iss の不一致は拒否される", async () => {
   const { privateKey, opts } = fixture();
   const token = makeToken({ key: privateKey, payload: { iss: "https://evil.example.com" } });

@@ -38,13 +38,13 @@
     },
     {
       "path": "public/subject-hash.html",
-      "sha256": "d69141cf2cd9b70f8187c4b5590448a484ceba8b49809c00d0978a9338aeaebb",
-      "bytes": 7754
+      "sha256": "b54aeca675c08d862a46b0ec3bbb939c92312097e1de72ba43bc9c75eef15e44",
+      "bytes": 8449
     },
     {
       "path": "tools/subject-hash-verify.mjs",
-      "sha256": "998e3331a8ebd51e8c205388043ef4f7dcf98a74b66319707986bee97668e18b",
-      "bytes": 6511
+      "sha256": "73d0740f04405971bcbc83dcc4f455d2c3af200c4e6cab2667caa806f664aed1",
+      "bytes": 7166
     },
     {
       "path": "tools/serve-real.mjs",
@@ -53,8 +53,8 @@
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
-      "sha256": "4315789ae2c7767bf4858ada35cd3de677e160068922bd6f3fda874cc22e14a7",
-      "bytes": 5212
+      "sha256": "efa94662eedb369d6e708d51d1bf68ad0ece44289f67f31bd2c955342d4ee9fe",
+      "bytes": 6038
     }
   ],
   "builds": {
@@ -472,11 +472,11 @@
     "subject_hash_verify_local_signature": {
       "found": [
         {
-          "line": 101,
+          "line": 104,
           "text": "{ name: \"RSASSA-PKCS1-v1_5\", hash: \"SHA-256\" },"
         },
         {
-          "line": 109,
+          "line": 112,
           "text": "{ name: \"RSASSA-PKCS1-v1_5\" },"
         }
       ],

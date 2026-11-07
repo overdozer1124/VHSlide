@@ -22,7 +22,7 @@ npm test   # = node test/run.mjs。全項目 PASS で終了コード 0
 | `fault-builds/apply-after-writes/` | 故障版ビルド（検証専用・非公開）。書込み「後」の途中失敗を実環境で確認するための別成果物。差分は `apply-after-writes.diff` に固定 |
 | `public/login-real.html` / `tools/serve-real.mjs` | 実ログイン画面と、その提供サーバー（PC 側運用）。フェーズ1の型でフェーズ2用に用意 |
 | `public/subject-hash.html` / `tools/subject-hash-verify.mjs` | 対象主体ハッシュの取得専用ページと、PC 内署名検証（公開鍵・JWKS 方式）の共用モジュール。ID トークンを外部へ送らず、検証が通った場合だけ SHA-256(sub) を表示する。提供は `tools/serve-real.mjs`（`/subject-hash`） |
-| `test/subject-hash-verify.test.mjs` | 上記検証モジュールの試験（`node --test`。正例1件＋負例8件＋ハッシュ相違1件＝11件。`npm test` は run.mjs と合わせて実行する） |
+| `test/subject-hash-verify.test.mjs` | 上記検証モジュールの試験（`node --test`。正例2件＋負例10件＋ハッシュ相違1件＝13件。`npm test` は run.mjs と合わせて実行する） |
 | `tools/build-realenv-manifest.mjs` / `realenv-manifest.json` | 実環境用マニフェスト（成果物ハッシュ・バインディング一覧・ソース検査）の生成ツールと生成結果 |
 | `test/run.mjs` | 試験ランナー（§2.7 の項目番号を各チェック名に付与） |
 | `test/real-ui.smoke.mjs` | 実ログイン画面と提供サーバーのローカル疎通確認（`node test/real-ui.smoke.mjs`。run.mjs とは別枠） |

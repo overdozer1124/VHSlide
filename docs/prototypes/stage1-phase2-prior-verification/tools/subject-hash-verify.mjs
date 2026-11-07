@@ -9,6 +9,9 @@
 // - Node（テスト）とブラウザー（取得ページ）の両方から同じ実装を使うため、
 //   依存するのは WebCrypto（globalThis.crypto.subtle）と atob だけである。
 // - 検証する観点はサーバー側と同じである（署名・iss・aud・exp・nonce）。
+//   aud はサーバー側と同一の文字列厳密一致であり、配列や文字列以外は
+//   拒否する。azp はサーバー側も取得側も照合しない（aud の厳密一致に
+//   より対象クライアントは一意に定まるため）。
 //   ただしサーバー側は既定の外部検証経路を使うのに対し、ここでは取得側
 //   が公開鍵で検証する。両者が同一のトークンに対して同じ結論になること
 //   が、ハッシュ固定の前提である。
@@ -114,7 +117,12 @@ export async function verifyIdTokenLocal(idToken, opts) {
   if (!signatureOk) fail("bad_signature", "署名が検証できません");
 
   if (typeof payload.sub !== "string" || !payload.sub) fail("missing_sub", "sub がありません");
-  if (payload.aud !== expectedAud && !(Array.isArray(payload.aud) && payload.aud.includes(expectedAud))) {
+  // aud は文字列の厳密一致で照合する。サーバー側（両ビルドの検証器。
+  // モック経路・実経路とも `aud !== GOOGLE_CLIENT_ID` で拒否）と同一の
+  // 判定である。aud が配列の場合や文字列以外の場合も、ここで拒否する。
+  // azp はサーバー側も取得側も照合しない（aud の文字列厳密一致により、
+  // 対象クライアントは一意に定まるため）。
+  if (payload.aud !== expectedAud) {
     fail("bad_aud", "aud が一致しません");
   }
   if (!expectedIssuers.includes(payload.iss)) fail("bad_iss", "iss が一致しません");
