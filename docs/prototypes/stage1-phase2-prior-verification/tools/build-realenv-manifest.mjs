@@ -129,6 +129,14 @@ const checks = {
     found: findLines(normalLines, /\/do\/apply/),
     expect: "absent",
   },
+  normal_exports_verificationdo_stub: {
+    found: findLines(normalLines, /export class VerificationDO/),
+    expect: "present",
+  },
+  platform_exports_verificationdo_stub: {
+    found: findLines(platformLines, /export class VerificationDO/),
+    expect: "present",
+  },
   fallback_exports_registrydo: {
     found: findLines(fallbackLines, /export class RegistryDO/),
     expect: "present",
@@ -174,6 +182,7 @@ const commonBindings = [
   { name: "ENV_ID", kind: "plain_text", value: "<set-on-pc>", note: "値は含めない。対象環境の識別子。手順0で2経路照合した値を使う" },
   { name: "GOOGLE_CLIENT_ID", kind: "plain_text", value: "<set-on-pc: verification OAuth client id>", note: "値は含めない。aud 照合の基準" },
   { name: "REGISTRY", kind: "durable_object", note: "RegistryDO へのバインディング。名前空間 ID は手順0で2経路照合する" },
+  { name: "VERIFY_ONLY", kind: "durable_object", note: "VerificationDO へのバインディング。既存名前空間 ef29957c85744eccaea6db64af433868 を引き継ぐ。このスクリプトの版は既存名前空間が依存する VerificationDO クラスを export し続けなければ作成できない（プラットフォームの検査、エラー 10064）。各ビルドは受動スタブを export する" },
 ];
 const mustNotBeSet = [
   { name: "MOCK_AUTH", reason: "tier=verify では設定検証が全経路を拒否する" },

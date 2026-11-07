@@ -173,6 +173,20 @@ function checkOrigin(request) {
 // 通常ビルドの DO は管理ルートの状態操作だけを持ち、プラット
 // フォーム経路の専用処理（apply）は含まない（ビルド成果物として
 // 分離する。プラットフォーム側の DO は src/platform-worker.js）。
+// 検証用 Worker の既存名前空間（VerificationDO、移行タグ verify-v1 で
+// 作成）のための受動スタブ。このスクリプトの版は、既存の Durable Object
+// 名前空間が依存するクラスを export し続けなければ作成・配置できない
+// （プラットフォームの検査、エラー 10064）。このクラスは状態に一切
+// 触れず、404 を返すだけである。
+export class VerificationDO {
+  constructor(ctx, env) {
+    this.ctx = ctx;
+    this.env = env;
+  }
+  async fetch() {
+    return new Response("not_configured", { status: 404 });
+  }
+}
 export class RegistryDO {
   constructor(ctx, env) {
     this.ctx = ctx;
