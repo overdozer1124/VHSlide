@@ -56,6 +56,7 @@ const ARTIFACTS = [
   "src/platform-worker.js",
   "fault-builds/apply-after-writes/worker.js",
   "fault-builds/apply-after-writes.diff",
+  "fallback-builds/baseline-passive/worker.js",
   "public/login-real.html",
   "tools/serve-real.mjs",
 ];
@@ -90,6 +91,7 @@ const artifacts = ARTIFACTS.map((rel) => {
 const normalLines = readRel("src/worker.js").split("\n");
 const platformLines = readRel("src/platform-worker.js").split("\n");
 const faultLines = readRel("fault-builds/apply-after-writes/worker.js").split("\n");
+const fallbackLines = readRel("fallback-builds/baseline-passive/worker.js").split("\n");
 const loginLines = readRel("public/login-real.html").split("\n");
 
 const checks = {
@@ -125,6 +127,22 @@ const checks = {
   },
   normal_has_no_platform_apply: {
     found: findLines(normalLines, /\/do\/apply/),
+    expect: "absent",
+  },
+  fallback_exports_registrydo: {
+    found: findLines(fallbackLines, /export class RegistryDO/),
+    expect: "present",
+  },
+  fallback_exports_verificationdo: {
+    found: findLines(fallbackLines, /export class VerificationDO/),
+    expect: "present",
+  },
+  fallback_returns_verification_only: {
+    found: findLines(fallbackLines, /"verification-only"/),
+    expect: "present",
+  },
+  fallback_has_no_platform_apply: {
+    found: findLines(fallbackLines, /\/platform\/apply/),
     expect: "absent",
   },
   login_page_placeholder: {
@@ -198,6 +216,15 @@ const manifest = {
       diff: "fault-builds/apply-after-writes.diff",
       role: "故障版ビルド（検証専用・非公開）。計画 2.7 項目9の途中失敗ドリルでのみ一時ビルドとして配置し、直後に通常ビルドへ復帰させる。通常の操作には決して使わない",
       bindings: "platform と同じ",
+      must_not_be_set: mustNotBeSet,
+    },
+    fallback: {
+      artifact: "fallback-builds/baseline-passive/worker.js",
+      role: "復旧用受動ビルド（ベースライン相当）。RegistryDO 移行の適用後は移行前の版へロールバックできない（Cloudflare Rollbacks 仕様）ため、通常ビルドの異常時にこのビルドを 100% 配置して、受付のないベースライン相当の状態へ戻す。初回配置の直後に未配信の版として作成し、配置可能性を実証してから温存する",
+      bindings: [
+        { name: "REGISTRY", kind: "durable_object", note: "RegistryDO へのバインディング。新規クラスを保持するため（スタブは状態に触れない）" },
+        { name: "VERIFY_ONLY", kind: "durable_object", note: "VerificationDO へのバインディング。既存クラス・名前空間・データを保持するため（スタブは状態に触れない）" },
+      ],
       must_not_be_set: mustNotBeSet,
     },
   },

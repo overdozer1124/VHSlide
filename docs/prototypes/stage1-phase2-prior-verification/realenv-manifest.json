@@ -27,6 +27,11 @@
       "bytes": 2168
     },
     {
+      "path": "fallback-builds/baseline-passive/worker.js",
+      "sha256": "789d48f7cc859db7ca829d7f1fa9cdb5de01f3e244711d5a9f20ca5163d3e092",
+      "bytes": 2164
+    },
+    {
       "path": "public/login-real.html",
       "sha256": "cd33b52444d8ac41ef0cef1f39a8d0c480f78cd7c938223ac113c941e706a849",
       "bytes": 9390
@@ -190,6 +195,40 @@
           "reason": "診断読み取りは local-mock＋フック有効時のみ。実環境の読み戻しはプラットフォーム経路（Data Studio 等）で行う"
         }
       ]
+    },
+    "fallback": {
+      "artifact": "fallback-builds/baseline-passive/worker.js",
+      "role": "復旧用受動ビルド（ベースライン相当）。RegistryDO 移行の適用後は移行前の版へロールバックできない（Cloudflare Rollbacks 仕様）ため、通常ビルドの異常時にこのビルドを 100% 配置して、受付のないベースライン相当の状態へ戻す。初回配置の直後に未配信の版として作成し、配置可能性を実証してから温存する",
+      "bindings": [
+        {
+          "name": "REGISTRY",
+          "kind": "durable_object",
+          "note": "RegistryDO へのバインディング。新規クラスを保持するため（スタブは状態に触れない）"
+        },
+        {
+          "name": "VERIFY_ONLY",
+          "kind": "durable_object",
+          "note": "VerificationDO へのバインディング。既存クラス・名前空間・データを保持するため（スタブは状態に触れない）"
+        }
+      ],
+      "must_not_be_set": [
+        {
+          "name": "MOCK_AUTH",
+          "reason": "tier=verify では設定検証が全経路を拒否する"
+        },
+        {
+          "name": "ALLOW_TEST_HOOKS",
+          "reason": "tier=verify では設定検証が全経路を拒否する。故障の注入はフックではなく故障版ビルドで行う"
+        },
+        {
+          "name": "TOKENINFO_URL",
+          "reason": "tier=verify では設定検証が全経路を拒否し、既定の Google tokeninfo だけを使う"
+        },
+        {
+          "name": "DIAG_KEY",
+          "reason": "診断読み取りは local-mock＋フック有効時のみ。実環境の読み戻しはプラットフォーム経路（Data Studio 等）で行う"
+        }
+      ]
     }
   },
   "pc_side": {
@@ -264,6 +303,41 @@
       "expect": "present"
     },
     "normal_has_no_platform_apply": {
+      "found": [],
+      "expect": "absent"
+    },
+    "fallback_exports_registrydo": {
+      "found": [
+        {
+          "line": 22,
+          "text": "export class RegistryDO {"
+        }
+      ],
+      "expect": "present"
+    },
+    "fallback_exports_verificationdo": {
+      "found": [
+        {
+          "line": 31,
+          "text": "export class VerificationDO {"
+        }
+      ],
+      "expect": "present"
+    },
+    "fallback_returns_verification_only": {
+      "found": [
+        {
+          "line": 17,
+          "text": "//   本文 \"verification-only\"）を返す。受付経路は存在しない。"
+        },
+        {
+          "line": 42,
+          "text": "return new Response(\"verification-only\", {"
+        }
+      ],
+      "expect": "present"
+    },
+    "fallback_has_no_platform_apply": {
       "found": [],
       "expect": "absent"
     },
