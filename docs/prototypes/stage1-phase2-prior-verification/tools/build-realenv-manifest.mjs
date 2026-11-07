@@ -239,7 +239,7 @@ const manifest = {
       deleted_classes: [],
       renamed_classes: [],
       transferred_classes: [],
-      note: "追加のみ。既存 VerificationDO の名前空間・データは削除・置換しない",
+      note: "追加のみ。既存 VerificationDO の名前空間・データは削除・置換しない。適用時の前提タグ（old_tag）は verify-v1（2026-11-08 の初回適用時に API の前提条件エラー 10079 が提示した現行タグ）。適用後の現行タグは stage1-phase2-registrydo（版リソースの migration_tag で読み戻し確認済み）",
     },
     bindings: [
       { name: "REGISTRY", kind: "durable_object", class_name: "RegistryDO", note: "名前空間 ID は配置時に新規採番され、読み戻しで記録する" },
