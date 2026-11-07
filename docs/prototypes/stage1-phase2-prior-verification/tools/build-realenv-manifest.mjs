@@ -220,13 +220,32 @@ const manifest = {
     },
     fallback: {
       artifact: "fallback-builds/baseline-passive/worker.js",
-      role: "復旧用受動ビルド（ベースライン相当）。RegistryDO 移行の適用後は移行前の版へロールバックできない（Cloudflare Rollbacks 仕様）ため、通常ビルドの異常時にこのビルドを 100% 配置して、受付のないベースライン相当の状態へ戻す。初回配置の直後に未配信の版として作成し、配置可能性を実証してから温存する",
+      role: "復旧用受動ビルド（ベースライン相当）。RegistryDO 移行の適用後は移行前の版へロールバックできない（Cloudflare Rollbacks 仕様）ため、初回配置はこのビルドと移行を同時に単一配置し、移行直後の受動状態をそのまま確保する。通常ビルドの異常時の復旧先でもある（移行後の版として 100% 配置できる）",
       bindings: [
         { name: "REGISTRY", kind: "durable_object", note: "RegistryDO へのバインディング。新規クラスを保持するため（スタブは状態に触れない）" },
         { name: "VERIFY_ONLY", kind: "durable_object", note: "VerificationDO へのバインディング。既存クラス・名前空間・データを保持するため（スタブは状態に触れない）" },
       ],
       must_not_be_set: mustNotBeSet,
     },
+  },
+  first_deployment: {
+    order: "受動版＋RegistryDO 追加移行を先に単一配置し、受動状態と両名前空間を実測で確認してから、通常版を未配信で作り照合して有効化する",
+    artifact: "fallback-builds/baseline-passive/worker.js",
+    method: "非バージョニング配置（PUT /workers/scripts/<検証用Worker>）。移行は版アップロードでは適用できない（エラー 10211）ため、移行と有効化を同時に行う",
+    compatibility_date: "2026-08-01",
+    migrations: {
+      tag: "stage1-phase2-registrydo",
+      new_sqlite_classes: ["RegistryDO"],
+      deleted_classes: [],
+      renamed_classes: [],
+      transferred_classes: [],
+      note: "追加のみ。既存 VerificationDO の名前空間・データは削除・置換しない",
+    },
+    bindings: [
+      { name: "REGISTRY", kind: "durable_object", class_name: "RegistryDO", note: "名前空間 ID は配置時に新規採番され、読み戻しで記録する" },
+      { name: "VERIFY_ONLY", kind: "durable_object", class_name: "VerificationDO", namespace_id: "ef29957c85744eccaea6db64af433868", note: "既存名前空間をそのまま引き継ぐ" },
+    ],
+    must_not_be_set: mustNotBeSet,
   },
   pc_side: {
     login_page: "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
