@@ -121,6 +121,29 @@ try {
     const nf = await fetch(base + "/no-such-path");
     check("スモーク: 転送対象外のパスは提供サーバーが 404 を返す", nf.status === 404);
 
+    // 対象主体ハッシュ取得ページの配信確認（Codex レビュー 6714139864
+    // への対応で追加）。実 GIS の確認ではなく、配管（配信・クライアント
+    // ID 差し込み・検証モジュールの配信）だけを確認する。
+    const shRes = await fetch(base + "/subject-hash");
+    const shHtml = await shRes.text();
+    check(
+      "スモーク: /subject-hash が取得ページを返し、クライアントIDが差し込まれ、外部検証への送信がない",
+      shRes.status === 200 &&
+        shHtml.includes(CLIENT_ID) &&
+        !shHtml.includes("REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID") &&
+        shHtml.includes("oauth2/v3/certs") &&
+        !/tokeninfo/i.test(shHtml)
+    );
+    const shJsRes = await fetch(base + "/subject-hash-verify.mjs");
+    const shJs = await shJsRes.text();
+    check(
+      "スモーク: /subject-hash-verify.mjs が検証モジュールを返し、署名検証を含む",
+      shJsRes.status === 200 &&
+        shJs.includes("RSASSA-PKCS1-v1_5") &&
+        shJs.includes("verifyIdTokenLocal") &&
+        !/tokeninfo/i.test(shJs)
+    );
+
     // 故障マーカーの素通し確認（手順書 v0.3 の実証前確認）:
     // 故障版ビルドを中継先にして /platform/apply を提供サーバー経由で
     // 実施し、500 の応答本文（detail のマーカー）が欠落せず届くことを

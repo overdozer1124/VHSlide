@@ -37,9 +37,24 @@
       "bytes": 9390
     },
     {
+      "path": "public/subject-hash.html",
+      "sha256": "d69141cf2cd9b70f8187c4b5590448a484ceba8b49809c00d0978a9338aeaebb",
+      "bytes": 7754
+    },
+    {
+      "path": "tools/subject-hash-verify.mjs",
+      "sha256": "998e3331a8ebd51e8c205388043ef4f7dcf98a74b66319707986bee97668e18b",
+      "bytes": 6511
+    },
+    {
       "path": "tools/serve-real.mjs",
-      "sha256": "28b5df8bdeb802e8d2b88947c5a76183177c52274d9cb0a0b2db1b1a45662de1",
-      "bytes": 10031
+      "sha256": "c603c057210f5e6b91f71fa0271b174a81c6c666c97973555c435db6b9430278",
+      "bytes": 11756
+    },
+    {
+      "path": "test/subject-hash-verify.test.mjs",
+      "sha256": "4315789ae2c7767bf4858ada35cd3de677e160068922bd6f3fda874cc22e14a7",
+      "bytes": 5212
     }
   ],
   "builds": {
@@ -292,6 +307,7 @@
   },
   "pc_side": {
     "login_page": "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
+    "subject_hash_page": "public/subject-hash.html（tools/serve-real.mjs が /subject-hash で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。ID トークンを外部へ送らず、公開鍵・JWKS による PC 内署名検証で SHA-256(sub) だけを表示する。検証モジュール tools/subject-hash-verify.mjs は Node 試験と共用）",
     "serve": "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）"
   },
   "source_checks": {
@@ -432,6 +448,65 @@
         {
           "line": 33,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
+        }
+      ],
+      "expect": "present"
+    },
+    "subject_hash_page_no_tokeninfo": {
+      "found": [],
+      "expect": "absent"
+    },
+    "subject_hash_verify_no_tokeninfo": {
+      "found": [],
+      "expect": "absent"
+    },
+    "subject_hash_page_uses_jwks": {
+      "found": [
+        {
+          "line": 70,
+          "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "subject_hash_verify_local_signature": {
+      "found": [
+        {
+          "line": 101,
+          "text": "{ name: \"RSASSA-PKCS1-v1_5\", hash: \"SHA-256\" },"
+        },
+        {
+          "line": 109,
+          "text": "{ name: \"RSASSA-PKCS1-v1_5\" },"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_subject_hash_route": {
+      "found": [
+        {
+          "line": 18,
+          "text": "// - GET /subject-hash → public/subject-hash.html を返す（対象主体ハッシュ"
+        },
+        {
+          "line": 22,
+          "text": "// - GET /subject-hash-verify.mjs → tools/subject-hash-verify.mjs をその"
+        },
+        {
+          "line": 169,
+          "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
+        },
+        {
+          "line": 170,
+          "text": "console.log(`GET /subject-hash -> 200`);"
+        },
+        {
+          "line": 175,
+          "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
+        },
+        {
+          "line": 176,
+          "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
       "expect": "present"

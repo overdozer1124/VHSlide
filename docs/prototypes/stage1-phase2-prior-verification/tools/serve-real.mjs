@@ -15,6 +15,12 @@
 //   GOOGLE_CLIENT_ID の値を HTML 内のプレースホルダ定数の位置に
 //   メモリ上で差し込む（ファイル自体は書き換えない）。
 //   GOOGLE_CLIENT_ID が未設定・空なら起動時にエラーで終了する
+// - GET /subject-hash → public/subject-hash.html を返す（対象主体ハッシュ
+//   の取得専用ページ。同じくクライアント ID をメモリ上で差し込む）。
+//   このページは ID トークンをどこへも送らない。公開鍵の取得はブラウザー
+//   が直接行い、このサーバーは中継しない。
+// - GET /subject-hash-verify.mjs → tools/subject-hash-verify.mjs をその
+//   まま返す（取得ページが import する検証モジュール）。
 // - /nonce・/platform/apply・/admin/*（verify-only・registry の
 //   add/revoke/rotate）への要求は、環境変数 RELAY_URL（既定
 //   http://127.0.0.1:8798）へ、メソッド・ヘッダー・ボディを変更せずに
@@ -132,6 +138,16 @@ if (!rawHtml.includes(PLACEHOLDER)) {
 // クライアント ID の差し込みはメモリ上だけで行う（ファイルは書き換えない）。
 const loginHtml = rawHtml.split(PLACEHOLDER).join(CLIENT_ID);
 
+// 対象主体ハッシュの取得ページも同じく、起動時に読み込み、クライアント ID
+// をメモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
+const rawSubjectHashHtml = await readFile(path.join(root, "public", "subject-hash.html"), "utf8");
+if (!rawSubjectHashHtml.includes(PLACEHOLDER)) {
+  console.error("error: subject-hash.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+const subjectHashHtml = rawSubjectHashHtml.split(PLACEHOLDER).join(CLIENT_ID);
+const subjectHashVerifyJs = await readFile(path.join(root, "tools", "subject-hash-verify.mjs"), "utf8");
+
 const FORWARD_PATHS = new Set([
   "/nonce",
   "/platform/apply",
@@ -148,6 +164,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET / -> 200`);
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(loginHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/subject-hash") {
+      console.log(`GET /subject-hash -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(subjectHashHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/subject-hash-verify.mjs") {
+      console.log(`GET /subject-hash-verify.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(subjectHashVerifyJs);
       return;
     }
     if (FORWARD_PATHS.has(pathname)) {

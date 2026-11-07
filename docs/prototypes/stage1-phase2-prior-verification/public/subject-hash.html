@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>段階①フェーズ2 対象主体ハッシュの取得（PC 内署名検証・実 Google ログイン）</title>
+<!--
+  対象主体ハッシュの取得専用ページ（PC 側のみ。Worker への配置物ではない）。
+  フェーズ2先行検証の、承認へ固定する対象主体ハッシュを、実 Google 認証
+  から安全に取得するためのページである。
+
+  方式（公開鍵・JWKS による PC 内署名検証）:
+  - Google Identity Services（GIS）で実 Google ログインを行い、ID トーク
+    ンを受け取る。nonce は通常版の /nonce で取得し、GIS の初期化時に渡す。
+  - 受け取った ID トークンは、ブラウザーのメモリー内だけで検証する。
+    Google の公開鍵集合（JWKS）を取得し、署名を検証する。公開鍵の取得
+    自体は Google への通信だが、トークンは含まれない。
+  - 検証する観点は、署名・iss・aud・exp・nonce である。検証の実装は
+    /subject-hash-verify.mjs（Node と共用）に置き、ここでは呼び出すだけ
+    である。
+  - ID トークン・sub は、どこへも送信しない。Worker へも送らないし、保
+    存領域（localStorage など）にも置かない。表示もしない。
+  - すべての検査が通った場合だけ、ブラウザー内で sub の SHA-256（64桁
+    hex）を計算し、画面にはそのハッシュだけを表示する。トークンは計算
+    後に破棄する。
+  - 1つでも検査が通らなければ、ハッシュは表示せず、そこで止める。
+
+  正直な範囲:
+  - Google へのログイン自体では、ID トークンは Google が発行する（発行
+    元への送信はログインの本質であり、このページが追加で送る先はない）。
+  - このページは承認の試験（apply）を行わない。取得したハッシュを承認
+    へ固定する手順と、版の作成・照合は、別途 Issue #3 で合意した分担に
+    従う。
+  - ハッシュは SHA-256(sub) であり、匿名化ではなく仮名化である。画面に
+    表示されたハッシュの扱い（受け渡し・記録）は、合意した範囲内に限る。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+  .ok { color: #0a0; }
+  .ng { color: #c00; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<h1>段階①フェーズ2 対象主体ハッシュの取得（PC 内署名検証）</h1>
+<p class="note">検証用 Google アカウントでログインし、ID トークンをブラウザー内だけで検証して、主体ハッシュ（SHA-256）だけを表示します。トークンや sub は画面・ログ・保存領域に出しません。</p>
+
+<fieldset>
+  <legend>手順</legend>
+  <p>1. <button id="prepHash" type="button">nonce を取得して Google ログインボタンを表示</button></p>
+  <div id="gisHash"></div>
+  <p class="note">2. 表示されたボタンで、承認の対象とする検証用アカウントでログインしてください。アカウント選択画面で対象のアカウントであることを目視で確認してください。</p>
+  <p>3. 検証がすべて通れば、下の「結果」に主体ハッシュだけが表示されます。</p>
+  <p><button id="clearHash" type="button">表示を消去</button>（表示中のハッシュを画面から消します）</p>
+</fieldset>
+
+<h2>結果</h2>
+<pre id="log"></pre>
+
+<script type="module">
+import { verifyIdTokenLocal, sha256hex } from "/subject-hash-verify.mjs";
+
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （tools/serve-real.mjs が起動時に環境変数 GOOGLE_CLIENT_ID から
+//   メモリ上で差し込みます）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const EXPECTED_ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+
+const logEl = document.getElementById("log");
+function log(...parts) {
+  // 検査の成否とハッシュだけを出す。トークン・sub の値は出さない。
+  logEl.textContent += parts.join(" ") + "\n";
+}
+function clearLog() {
+  logEl.textContent = "";
+}
+
+let jwksCache = null;
+async function fetchJwks() {
+  // 公開鍵の取得だけを行う。トークンは含まない。
+  if (jwksCache) return jwksCache;
+  const res = await fetch(JWKS_URL);
+  if (!res.ok) throw new Error("公開鍵を取得できませんでした");
+  jwksCache = await res.json();
+  return jwksCache;
+}
+
+async function fetchNonce() {
+  // credentials: "include" で、発行に結び付いた認証試行コンテキストの
+  // Cookie をブラウザーに保持させる（このページでは nonce の照合にだけ使う）。
+  const res = await fetch("/nonce", { credentials: "include" });
+  const data = await res.json().catch(() => null);
+  log("GET /nonce ->", res.status, data && data.nonce ? "ok" : "ng");
+  if (!res.ok || !data || !data.nonce) throw new Error("nonce が取得できませんでした");
+  return data.nonce;
+}
+
+const CHECK_LABELS = [
+  ["signature", "署名"],
+  ["iss", "iss"],
+  ["aud", "aud"],
+  ["exp", "exp"],
+  ["nonce", "nonce"],
+];
+
+async function submitToken(idToken, nonce) {
+  // idToken はこの関数内のメモリーだけで扱い、最後に破棄する。
+  let token = idToken;
+  try {
+    const jwks = await fetchJwks();
+    let sub;
+    try {
+      ({ sub } = await verifyIdTokenLocal(token, {
+        jwks,
+        expectedAud: GOOGLE_CLIENT_ID,
+        expectedIssuers: EXPECTED_ISSUERS,
+        expectedNonce: nonce,
+      }));
+    } catch (e) {
+      // 検査の失敗は code（理由の種類）だけを出す。値は出さない。
+      const code = (e && e.code) || "verify_failed";
+      for (const [key, label] of CHECK_LABELS) {
+        log(label, key === code || (code === "bad_signature" && key === "signature") ? "ng" : "-");
+      }
+      log("検証に失敗しました。ハッシュは表示しません。理由:", code);
+      return;
+    }
+    for (const [, label] of CHECK_LABELS) log(label, "ok");
+    const subjectHash = await sha256hex(sub);
+    log("主体ハッシュ（SHA-256）:", subjectHash);
+    log("このハッシュを、承認へ固定する対象の値として扱ってください。");
+  } catch (e) {
+    log("エラー:", e.message);
+  } finally {
+    token = null; // トークンへの参照を破棄する
+  }
+}
+
+document.getElementById("prepHash").addEventListener("click", async () => {
+  try {
+    clearLog();
+    const nonce = await fetchNonce();
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      nonce,
+      callback: async (response) => {
+        try {
+          await submitToken(response.credential, nonce);
+        } catch (e) {
+          log("エラー:", e.message);
+        }
+      },
+    });
+    const container = document.getElementById("gisHash");
+    container.innerHTML = "";
+    google.accounts.id.renderButton(container, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+    });
+  } catch (e) {
+    log("エラー:", e.message);
+  }
+});
+
+document.getElementById("clearHash").addEventListener("click", () => {
+  clearLog();
+  document.getElementById("gisHash").innerHTML = "";
+  log("表示を消去しました。");
+});
+</script>
+</body>
+</html>

@@ -58,7 +58,10 @@ const ARTIFACTS = [
   "fault-builds/apply-after-writes.diff",
   "fallback-builds/baseline-passive/worker.js",
   "public/login-real.html",
+  "public/subject-hash.html",
+  "tools/subject-hash-verify.mjs",
   "tools/serve-real.mjs",
+  "test/subject-hash-verify.test.mjs",
 ];
 
 function readRel(rel) {
@@ -93,6 +96,9 @@ const platformLines = readRel("src/platform-worker.js").split("\n");
 const faultLines = readRel("fault-builds/apply-after-writes/worker.js").split("\n");
 const fallbackLines = readRel("fallback-builds/baseline-passive/worker.js").split("\n");
 const loginLines = readRel("public/login-real.html").split("\n");
+const subjectHashLines = readRel("public/subject-hash.html").split("\n");
+const subjectHashVerifyLines = readRel("tools/subject-hash-verify.mjs").split("\n");
+const serveRealLines = readRel("tools/serve-real.mjs").split("\n");
 
 const checks = {
   clean_platform_has_no_fault_marker: {
@@ -159,6 +165,29 @@ const checks = {
   },
   login_page_gis: {
     found: findLines(loginLines, /accounts\.google\.com\/gsi\/client/),
+    expect: "present",
+  },
+  // 主体ハッシュ取得ページは、ID トークンを外部の検証サービスへ送らない
+  // （公開鍵・JWKS による PC 内署名検証）。検証用エンドポイントへの送信
+  // が残っていないことを、ページと検証モジュールの両方で確認する。
+  subject_hash_page_no_tokeninfo: {
+    found: findLines(subjectHashLines, /tokeninfo/i),
+    expect: "absent",
+  },
+  subject_hash_verify_no_tokeninfo: {
+    found: findLines(subjectHashVerifyLines, /tokeninfo/i),
+    expect: "absent",
+  },
+  subject_hash_page_uses_jwks: {
+    found: findLines(subjectHashLines, /oauth2\/v3\/certs/),
+    expect: "present",
+  },
+  subject_hash_verify_local_signature: {
+    found: findLines(subjectHashVerifyLines, /RSASSA-PKCS1-v1_5/),
+    expect: "present",
+  },
+  serve_real_subject_hash_route: {
+    found: findLines(serveRealLines, /\/subject-hash/),
     expect: "present",
   },
 };
@@ -258,6 +287,7 @@ const manifest = {
   },
   pc_side: {
     login_page: "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
+    subject_hash_page: "public/subject-hash.html（tools/serve-real.mjs が /subject-hash で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。ID トークンを外部へ送らず、公開鍵・JWKS による PC 内署名検証で SHA-256(sub) だけを表示する。検証モジュール tools/subject-hash-verify.mjs は Node 試験と共用）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,
