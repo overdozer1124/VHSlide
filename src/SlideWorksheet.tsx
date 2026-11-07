@@ -16,6 +16,10 @@ import { useWorksheets } from "./WorksheetContext";
 import { useAnswers } from "./AnswerStore";
 import { worksheetReasonKey } from "./worksheets";
 import { WorksheetSummary } from "./WorksheetSummary";
+import {
+  worksheetFieldGroups,
+  worksheetScoreFieldsForLayout,
+} from "./worksheetSections";
 export function WorksheetInputs({
   sheet,
   values,
@@ -27,6 +31,7 @@ export function WorksheetInputs({
   editLayout,
   ignoreFieldLayout = false,
   hideScore = false,
+  scoreFields,
 }: {
   sheet: WorksheetDefinition;
   values: WorksheetValues;
@@ -37,6 +42,7 @@ export function WorksheetInputs({
   editLayout?: WorksheetDefinition;
   ignoreFieldLayout?: boolean;
   hideScore?: boolean;
+  scoreFields?: WorksheetField[];
   onFieldChange?: (
     id: string,
     value: WorksheetValues[string],
@@ -59,39 +65,13 @@ export function WorksheetInputs({
         field.id === id ? { ...field, ...patch } : field,
       ),
     });
-  const checks = sheet.fields.filter((f) => f.kind === "checkbox");
-  const groups: {
-    section: string;
-    originalSection: string;
-    sectionId?: string;
-    fields: WorksheetField[];
-  }[] = [];
-  for (const f of sheet.fields) {
-    const originalSection =
-      editLayout?.fields.find((field) => field.id === f.id)?.section ??
-      f.section;
-    const last = groups[groups.length - 1];
-    if (
-      last &&
-      (f.sectionId
-        ? last.sectionId === f.sectionId
-        : !!originalSection &&
-          last.originalSection === originalSection &&
-          !last.sectionId)
-    )
-      last.fields.push(f);
-    else
-      groups.push({
-        section: f.section,
-        originalSection,
-        sectionId: f.sectionId,
-        fields: [f],
-      });
-  }
+  const groups = worksheetFieldGroups(sheet.fields, editLayout?.fields);
   return (
     <>
       <div className="worksheet-fields">
         {groups.map((group) => {
+          const checks =
+            scoreFields ?? group.fields.filter((f) => f.kind === "checkbox");
           const wide =
             group.fields.some((f) => f.wide) ||
             (!!group.section &&
@@ -312,19 +292,19 @@ export function WorksheetInputs({
                   </div>
                 ))}
               </div>
+              {!hideScore && checks.length > 0 && (
+                <p className="worksheet-score">
+                  チェックした数：
+                  {preview
+                    ? "—"
+                    : checks.filter((f) => values[f.id] === true).length}{" "}
+                  / {checks.length}
+                </p>
+              )}
             </section>
           );
         })}
       </div>
-      {!hideScore && checks.length > 0 && (
-        <p className="worksheet-score">
-          チェックした数：
-          {preview
-            ? "—"
-            : checks.filter((f) => values[f.id] === true).length} /{" "}
-          {checks.length}
-        </p>
-      )}
     </>
   );
 }
@@ -388,7 +368,8 @@ export function WorksheetAnswer({
                 )
               }
               disabled={!open}
-              hideScore
+              hideScore={!worksheetScoreFieldsForLayout(sheet, field.id)}
+              scoreFields={worksheetScoreFieldsForLayout(sheet, field.id)}
             />
           )}
         />
@@ -405,20 +386,6 @@ export function WorksheetAnswer({
           disabled={!open}
         />
       )}
-      {modal &&
-        sheet.modalLayout &&
-        sheet.fields.some((field) => field.kind === "checkbox") && (
-          <p className="worksheet-score">
-            チェックした数：
-            {
-              sheet.fields.filter(
-                (field) =>
-                  field.kind === "checkbox" && values[field.id] === true,
-              ).length
-            }{" "}
-            / {sheet.fields.filter((field) => field.kind === "checkbox").length}
-          </p>
-        )}
       {!edit && !ctx.readOnly && <WorksheetSummary sheet={sheet} />}
       {!ctx.readOnly && !edit && (
         <>

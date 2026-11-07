@@ -23,6 +23,7 @@ import {
   moveWorksheetFieldToSection,
   moveWorksheetSection,
   sectionWorksheet,
+  worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
 import { parseWorksheet } from "./worksheets";
 import type { FormDraft } from "./formEditing";
@@ -284,7 +285,8 @@ export function WorksheetPanel({
       onChange={() => {}}
       disabled
       preview
-      hideScore
+      hideScore={!worksheetScoreFieldsForLayout(sheet, field.id)}
+      scoreFields={worksheetScoreFieldsForLayout(sheet, field.id)}
     />
   );
   const existingField = (id: string) =>

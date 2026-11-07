@@ -1,4 +1,49 @@
-import type { WorksheetDefinition } from "./worksheets";
+import type { WorksheetDefinition, WorksheetField } from "./worksheets";
+
+/** Group adjacent fields, including legacy worksheets without section IDs. */
+export function worksheetFieldGroups(
+  fields: WorksheetField[],
+  originalFields = fields,
+) {
+  const groups: {
+    section: string;
+    originalSection: string;
+    sectionId?: string;
+    fields: WorksheetField[];
+  }[] = [];
+  for (const field of fields) {
+    const originalSection =
+      originalFields.find((f) => f.id === field.id)?.section ?? field.section;
+    const last = groups.at(-1);
+    if (
+      last &&
+      (field.sectionId
+        ? last.sectionId === field.sectionId
+        : !last.sectionId && last.originalSection === originalSection)
+    ) {
+      last.fields.push(field);
+    } else {
+      groups.push({
+        section: field.section,
+        originalSection,
+        sectionId: field.sectionId,
+        fields: [field],
+      });
+    }
+  }
+  return groups;
+}
+
+export function worksheetScoreFieldsForLayout(
+  sheet: WorksheetDefinition,
+  fieldId: string,
+): WorksheetField[] | undefined {
+  const group = worksheetFieldGroups(sheet.fields).find((g) =>
+    g.fields.some((f) => f.id === fieldId),
+  );
+  const checks = group?.fields.filter((f) => f.kind === "checkbox") ?? [];
+  return checks.at(-1)?.id === fieldId ? checks : undefined;
+}
 
 /** Preserve the order and identity of legacy contiguous section groups. */
 export function sectionWorksheet(

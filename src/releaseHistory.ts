@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.91.1",
+    date: "2026-11-07",
+    title: "チェック数をセクションごとに表示",
+    changes: [
+      "ワークシートのチェック数を各セクション内で個別に集計して表示するようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.91.0",
     date: "2026-11-07",
     title: "ワークシートのセクションを整理",

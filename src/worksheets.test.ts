@@ -20,8 +20,37 @@ import {
   moveWorksheetFieldToSection,
   moveWorksheetSection,
   sectionWorksheet,
+  worksheetFieldGroups,
+  worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
 describe("worksheets", () => {
+  it("groups checkboxes separately by section identity, including legacy sections", () => {
+    const sheet = sectionWorksheet(worksheetTemplate("check"));
+    const first = sheet.sections![0];
+    const second = { id: "another", title: first.title };
+    const fields = sheet.fields
+      .slice(0, 4)
+      .map((f, i) =>
+        i < 2 ? f : { ...f, sectionId: second.id, section: second.title },
+      );
+    const grouped = { ...sheet, sections: [first, second], fields };
+    expect(worksheetFieldGroups(fields).map((g) => g.fields.length)).toEqual([
+      2, 2,
+    ]);
+    expect(
+      worksheetScoreFieldsForLayout(grouped, fields[0].id),
+    ).toBeUndefined();
+    expect(
+      worksheetScoreFieldsForLayout(grouped, fields[1].id)?.map((f) => f.id),
+    ).toEqual(fields.slice(0, 2).map((f) => f.id));
+    expect(worksheetScoreFieldsForLayout(grouped, fields[3].id)?.length).toBe(
+      2,
+    );
+    const legacy = fields.map(({ sectionId: _id, ...f }) => f);
+    expect(worksheetFieldGroups(legacy).map((g) => g.fields.length)).toEqual([
+      4,
+    ]);
+  });
   it("reorders and merges sections while preserving field order, IDs and answers", () => {
     const original = sectionWorksheet(worksheetTemplate("reason"));
     const [first, second] = original.sections!;

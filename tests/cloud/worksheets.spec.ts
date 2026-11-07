@@ -1352,3 +1352,115 @@ test("sections can be added and renamed independently while retaining existing a
   ).toMatchObject({ sectionId: merged.sections[1].id, section: "話し合い" });
   expect(merged.own.values[definition.fields[0].id]).toBe("元の回答");
 });
+
+test("check counts stay inside their own sections in normal and custom layouts", async ({
+  page,
+}) => {
+  await signIn(page, "section-scores-host");
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const { id } = await (
+    await page.request.post("/api/decks", { headers, data: sample() })
+  ).json();
+  const template = worksheetTemplate("check");
+  const sections = [
+    { id: "first", title: "朝のチェック" },
+    { id: "second", title: "夜のチェック" },
+    { id: "notes", title: "ふり返り" },
+  ];
+  const fields = template.fields
+    .slice(0, 4)
+    .map((f, index) => ({
+      ...f,
+      label: `確認${index + 1}`,
+      sectionId: index < 2 ? "first" : "second",
+      section: index < 2 ? sections[0].title : sections[1].title,
+    }));
+  fields.push({
+    ...fields[0],
+    id: crypto.randomUUID(),
+    label: "メモ",
+    kind: "text",
+    sectionId: "notes",
+    section: sections[2].title,
+  });
+  for (const custom of [false, true]) {
+    const definition = {
+      title: custom ? "自由配置" : "セクション別",
+      description: "",
+      sections,
+      fields,
+      ...(custom
+        ? {
+            modalLayout: {
+              items: fields.map((f, i) => ({
+                id: f.id,
+                x: 0,
+                y: i * 160,
+                w: 1000,
+                h: 150,
+              })),
+            },
+          }
+        : {}),
+    };
+    const created = await page.request.post(`/api/decks/${id}/worksheets`, {
+      headers,
+      data: definition,
+    });
+    expect(created.status()).toBe(200);
+    const worksheet = (await created.json()).worksheets.find(
+      (s: { title: string }) => s.title === definition.title,
+    );
+    expect(
+      (
+        await page.request.post(
+          `/api/decks/${id}/worksheets/${worksheet.id}/status`,
+          { headers, data: { status: "open" } },
+        )
+      ).status(),
+    ).toBe(200);
+  }
+  await page.goto(`/?room=${id}`);
+  await openWorksheets(page);
+  for (const title of ["セクション別", "自由配置"]) {
+    await modal(page).getByRole("button", { name: title }).click();
+    await modal(page)
+      .getByRole("button", { name: "自分で入力", exact: true })
+      .click();
+    const scores = modal(page).locator(".worksheet-score");
+    await expect(scores).toHaveCount(2);
+    await expect(scores.nth(0)).toContainText("0 / 2");
+    await expect(scores.nth(1)).toContainText("0 / 2");
+    await modal(page).getByRole("checkbox", { name: "確認1" }).check();
+    await expect(scores.nth(0)).toContainText("1 / 2");
+    await expect(scores.nth(1)).toContainText("0 / 2");
+    await modal(page).getByRole("checkbox", { name: "確認3" }).check();
+    await expect(scores.nth(0)).toContainText("1 / 2");
+    await expect(scores.nth(1)).toContainText("1 / 2");
+    if (title === "セクション別") {
+      await expect(
+        modal(page)
+          .locator(".worksheet-group")
+          .filter({ hasText: "朝のチェック" })
+          .locator(".worksheet-score"),
+      ).toContainText("1 / 2");
+      await expect(
+        modal(page)
+          .locator(".worksheet-group")
+          .filter({ hasText: "ふり返り" })
+          .locator(".worksheet-score"),
+      ).toHaveCount(0);
+    } else {
+      await expect(
+        modal(page).locator(
+          `[data-field-id="${fields[1].id}"] .worksheet-score`,
+        ),
+      ).toContainText("1 / 2");
+      await expect(
+        modal(page).locator(
+          `[data-field-id="${fields[3].id}"] .worksheet-score`,
+        ),
+      ).toContainText("1 / 2");
+    }
+  }
+});

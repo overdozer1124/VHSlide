@@ -6874,6 +6874,7 @@ h1 span {
 .worksheet-positioned-content { height:100%; overflow:auto; box-sizing:border-box; }
 .worksheet-positioned-content .worksheet-fields { display:block; height:100%; }
 .worksheet-positioned-content .worksheet-group { display:flex; flex-direction:column; height:100%; }
+.worksheet-positioned-content .worksheet-score { flex:none; font-size:12px; padding:3px 6px; margin:2px 0; }
 .worksheet-positioned-content .worksheet-group-fields { display:block; flex:1; min-height:0; }
 .worksheet-positioned-content .worksheet-field { display:flex; flex-direction:column; height:100%; box-sizing:border-box; }
 .worksheet-positioned-content .worksheet-field textarea { flex:1; min-height:38px; height:auto; }
