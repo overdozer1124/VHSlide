@@ -585,13 +585,14 @@ test("送信器：応答喪失時は再送せず、no_response として記録�
   }
 });
 
-test("送信器：nonce の寿命は最初のスロットの発行から4分である", async () => {
+test("送信器：nonce の寿命は6件の発行開始から4分である", async () => {
   const ctx = await setupFullReplace("lifetime");
   try {
     let fakeNow = Date.now();
     const realFetch = fetch;
-    // /nonce の呼び出しごとに偽時刻を30秒進める。スロット0の発行時刻は
+    // /nonce の呼び出しごとに偽時刻を30秒進める。スロット0の応答受信は
     // 開始+30秒、スロット5は開始+180秒になる（発行中の遅延の模擬）。
+    // 寿命の起点は発行開始（start）であり、応答受信時刻ではない。
     const sender = createS5Sender({
       relayUrl: ctx.full.base,
       now: () => fakeNow,
@@ -603,8 +604,8 @@ test("送信器：nonce の寿命は最初のスロットの発行から4分で�
     const start = fakeNow;
     const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-lifetime" });
     assert.equal(nonces.length, 6);
-    // 最初のスロットの発行（start+30秒）から4分1秒後には、最後の
-    // スロットの発行からまだ91秒しか経っていなくても拒否される。
+    // 発行開始（start）から4分31秒後には、最後のスロットの応答受信
+    // からまだ91秒しか経っていなくても拒否される。
     fakeNow = start + 30 * 1000 + 4 * 60 * 1000 + 1000;
     const tokens = nonces.map((n) => mockToken(SUB_A, n));
     const requests = buildS5Requests({
@@ -625,7 +626,7 @@ test("送信器：nonce の寿命は最初のスロットの発行から4分で�
   }
 });
 
-test("送信器：最初の発行から4分以内なら、最後のスロットの発行直後でも送信できる", async () => {
+test("送信器：発行開始から4分以内なら、最後のスロットの発行直後でも送信できる", async () => {
   const ctx = await setupFullReplace("lifetime-ok");
   try {
     let fakeNow = Date.now();
@@ -640,8 +641,9 @@ test("送信器：最初の発行から4分以内なら、最後のスロット�
     });
     const start = fakeNow;
     const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-lifetime-ok" });
-    // 最初のスロットの発行（start+30秒）から3分59秒後なら送信できる。
-    fakeNow = start + 30 * 1000 + (4 * 60 - 1) * 1000;
+    // 発行開始（start）から3分59秒後なら送信できる。最後のスロットの
+    // 応答受信は開始+180秒のため、最後の応答からは59秒しか経っていない。
+    fakeNow = start + (4 * 60 - 1) * 1000;
     const tokens = nonces.map((n) => mockToken(SUB_A, n));
     const requests = buildS5Requests({
       tokens,
@@ -650,6 +652,91 @@ test("送信器：最初の発行から4分以内なら、最後のスロット�
       envId: ENV_ID,
     });
     const out = await sender.send({ trialId: "trial-s5-sender-lifetime-ok", requests });
+    assert.equal(out.aggregate.ok, true);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：最初の nonce の応答が1分以上遅れても、発行開始から4分を過ぎれば一切送らない", async () => {
+  const ctx = await setupFullReplace("delayed-resp");
+  try {
+    let fakeNow = Date.now();
+    let applyCalls = 0;
+    const realFetch = fetch;
+    // 最初の /nonce の応答だけを61秒遅らせる（応答遅延の模擬）。残りは即応答。
+    // 寿命の起点は発行開始（start）であり、最初の応答受信時刻（start+61秒）
+    // ではない。応答受信時刻を起点にすると、発行開始から5分後でも
+    // 「61秒経過から3分59秒」として送ってしまう（旧実装の不具合）。
+    let nonceCalls = 0;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      now: () => fakeNow,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/nonce")) {
+          nonceCalls += 1;
+          if (nonceCalls === 1) fakeNow += 61 * 1000;
+        }
+        if (url.endsWith("/platform/apply")) applyCalls += 1;
+        return realFetch(url, init);
+      },
+    });
+    const start = fakeNow;
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-delayed-resp" });
+    assert.equal(nonces.length, 6);
+    assert.equal(fakeNow, start + 61 * 1000, "最初の応答が61秒遅れた");
+    // 発行開始から5分後（最初の応答受信からは3分59秒後）に送信を試みる。
+    fakeNow = start + 5 * 60 * 1000;
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    await assert.rejects(
+      () => sender.send({ trialId: "trial-s5-sender-delayed-resp", requests }),
+      (e) => e.code === "s5_nonces_expired"
+    );
+    assert.equal(applyCalls, 0, "1件も送らない");
+    const state = await inspect(ctx.full.base);
+    assert.equal(state.generation, 1);
+    assert.equal(state.completion.length, 1);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：最初の nonce の応答が1分以上遅れても、発行開始から4分以内なら送信できる", async () => {
+  const ctx = await setupFullReplace("delayed-resp-ok");
+  try {
+    let fakeNow = Date.now();
+    const realFetch = fetch;
+    let nonceCalls = 0;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      now: () => fakeNow,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/nonce")) {
+          nonceCalls += 1;
+          if (nonceCalls === 1) fakeNow += 61 * 1000;
+        }
+        return realFetch(url, init);
+      },
+    });
+    const start = fakeNow;
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-delayed-resp-ok" });
+    assert.equal(nonces.length, 6);
+    // 発行開始から3分59秒後（最初の応答受信からは2分58秒後）なら送信できる。
+    fakeNow = start + (4 * 60 - 1) * 1000;
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    const out = await sender.send({ trialId: "trial-s5-sender-delayed-resp-ok", requests });
     assert.equal(out.aggregate.ok, true);
   } finally {
     await teardown(ctx);

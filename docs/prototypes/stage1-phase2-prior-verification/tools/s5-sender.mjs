@@ -22,17 +22,20 @@
 // 動作：
 // - issueNonces({ trialId }): 中継先の /nonce を6回呼び、スロットごと
 //   に { nonce, ctx, issuedAt } を保持する。ctx は Set-Cookie の
-//   op2_nonce_ctx の値である。issuedAt はスロットごとの発行時刻で
-//   あり、送信の寿命は最初のスロットの発行から4分で測る（Codex
-//   レビュー 6720755818 の指摘4。6件発行完了後に置いた単一の時刻では
-//   発行中の遅延が考慮されないため）。1件でも失敗すれば保持を破棄し、
-//   送信できない状態にする。返すのは nonce の配列だけであり、ctx は
-//   返さない。発行した6枠は、渡された試行 ID に結び付ける（送信指示
-//   の試行 ID と一致しなければ送信しない。別画面・別試行との競合防止）。
-//   発行中（busy）は、並行する発行と送信を拒否する（s5_busy）。
+//   op2_nonce_ctx の値である。issuedAt は6件の発行を始めた時刻で
+//   あり、全スロット共通の保守的な起点である。送信の寿命はその起点
+//   から4分で測る（Codex レビュー 6720906411。Worker は /nonce 要求
+//   の到着時に有効期限を開始するため、応答受信時刻では遅延分だけ
+//   新しく見積もってしまう。6件発行完了後に置いた単一の時刻でも、
+//   応答受信時刻でも、どちらも起点として不十分である）。1件でも失敗
+//   すれば保持を破棄し、送信できない状態にする。返すのは nonce の配
+//   列だけであり、ctx は返さない。発行した6枠は、渡された試行 ID に
+//   結び付ける（送信指示の試行 ID と一致しなければ送信しない。別画面・
+//   別試行との競合防止）。発行中（busy）は、並行する発行と送信を拒否
+//   する（s5_busy）。
 // - send({ trialId, requests }): 送信前に次を確認し、満たさなければ
 //   1件も送らない（fail-closed）。(1) nonce を発行済みであること。
-//   (2) 最初のスロットの発行から4分以内であること（nonce の有効期限
+//   (2) 6件の発行を開始した時刻から4分以内であること（nonce の有効期限
 //   は5分。期限切れの nonce で送ると trial が不成立になるため、余裕
 //   を持って拒否する。拒否された場合は再準備する。Worker の状態は
 //   消費されない）。(3) 要求が6件であること。(4) 6件の env_id・
@@ -71,8 +74,9 @@ import { normalizeResponseError } from "./trial-apply.mjs";
 
 const NONCE_CTX_COOKIE = "op2_nonce_ctx";
 const EXPECTED_ORIGIN = "http://localhost:8787";
-// nonce の有効期限は5分。送信は最初のスロットの発行から4分以内に限る
-// （余裕1分）。期限を過ぎた発行は送信せず、再準備する。
+// nonce の有効期限は5分。送信は6件の発行を開始した時刻から4分以内に限る
+// （余裕1分。起点は要求の開始時刻であり、応答の受信時刻ではない。
+// Worker は要求の到着時に有効期限を開始する）。期限を過ぎた発行は送信せず、再準備する。
 const SEND_WITHIN_MS = 4 * 60 * 1000;
 
 function fail(code, message) {
@@ -149,6 +153,13 @@ export function createS5Sender({ relayUrl, fetchImpl = fetch, now = () => Date.n
         fail("s5_busy", "発行中または送信中のため、nonce の発行はできません");
       }
       busy = "issuing";
+      // 寿命の起点は、6件の発行を始めた時刻（全スロット共通）である。
+      // 最初の await の前に同期的に記録する。Worker は /nonce 要求の
+      // 到着時に有効期限を開始するため、応答受信時刻を起点にすると、
+      // 応答の遅延分だけ実際の期限より新しく見積もってしまう（Codex
+      // レビュー 6720906411）。要求の開始時刻なら、応答がどれだけ
+      // 遅れても実際の期限より新しく見積もることはない。
+      const issueStartedAt = now();
       const slots = [];
       try {
         for (let i = 0; i < S5_SLOT_COUNT; i++) {
@@ -164,10 +175,6 @@ export function createS5Sender({ relayUrl, fetchImpl = fetch, now = () => Date.n
             } catch { /* 本文破棄の失敗は無視する */ }
             throw new Error("nonce redirect not followed");
           }
-          // 発行時刻はスロットごとに、応答を受け取った直後に記録する。
-          // 6件発行完了後に置いた単一の時刻では、発行中の遅延が考慮
-          // されないため（送信の寿命は最初のスロットの発行から測る）。
-          const issuedAt = now();
           const data = await res.json().catch(() => null);
           const setCookies =
             typeof res.headers.getSetCookie === "function"
@@ -177,7 +184,9 @@ export function createS5Sender({ relayUrl, fetchImpl = fetch, now = () => Date.n
           if (!res.ok || !data || !data.nonce || !ctx) {
             throw new Error("nonce issuance failed");
           }
-          slots.push({ nonce: data.nonce, ctx, issuedAt });
+          // issuedAt は全スロットで発行開始時刻（issueStartedAt）を
+          // 使う。スロットごとの応答受信時刻ではない。
+          slots.push({ nonce: data.nonce, ctx, issuedAt: issueStartedAt });
         }
       } catch {
         clear();
@@ -201,13 +210,13 @@ export function createS5Sender({ relayUrl, fetchImpl = fetch, now = () => Date.n
       if (trialId !== issued.trialId) {
         fail("s5_trial_mismatch", "発行した試行と送信指示の試行が一致しません");
       }
-      // 寿命は最初のスロットの発行から4分で測る（各スロットの発行時刻
-      // に基づく。発行中の遅延があっても、最初の nonce の残存寿命で
-      // 判断する）。
+      // 寿命は6件の発行を開始した時刻から4分で測る（全スロット共通の
+      // 保守的な起点。応答の遅延があっても、実際の期限より新しく
+      // 見積もることはない）。
       const earliestIssuedAt = Math.min(...issued.slots.map((s) => s.issuedAt));
       if (now() - earliestIssuedAt > SEND_WITHIN_MS) {
         clear();
-        fail("s5_nonces_expired", "最初の nonce の発行から4分を過ぎました。再準備してください");
+        fail("s5_nonces_expired", "nonce の発行開始から4分を過ぎました。再準備してください");
       }
       if (!Array.isArray(requests) || requests.length !== S5_SLOT_COUNT) {
         fail("s5_bad_request_count", "要求が6件ではありません");

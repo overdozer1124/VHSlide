@@ -78,8 +78,8 @@
     },
     {
       "path": "public/s5-apply.html",
-      "sha256": "94779beaa7ffab87a299706ff3e8598491f78cf93299ea1d2356fc586d1a0d39",
-      "bytes": 23465
+      "sha256": "17bc1c50e67f384764200bf630e7db42493cf5e4f91bb6256bcfb985ebf4eb4d",
+      "bytes": 23478
     },
     {
       "path": "tools/s5-apply.mjs",
@@ -88,8 +88,8 @@
     },
     {
       "path": "tools/s5-sender.mjs",
-      "sha256": "8035667541771b88ef730f9136136e81e0246fb2c504e454a65ef1d5536085bb",
-      "bytes": 14127
+      "sha256": "6e6827d81ca839d28d74b9fd3500ed5af756261948e95c91021ac1ec282c07fd",
+      "bytes": 14948
     },
     {
       "path": "test/s5-apply.test.mjs",
@@ -98,8 +98,8 @@
     },
     {
       "path": "test/s5-sender.test.mjs",
-      "sha256": "dfd7bd1e21ff7ca45dcf29831ba410e18e085e0c727dfbe5d9e11fe6cc4bffc0",
-      "bytes": 25035
+      "sha256": "f0c5685fe63eca6194f3d004790e09f10b7af2d95f941d4c8632d79c2b8f0908",
+      "bytes": 28567
     },
     {
       "path": "test/s5-apply.screen.mjs",
@@ -1059,7 +1059,7 @@
     "s5_apply_page_placeholder": {
       "found": [
         {
-          "line": 97,
+          "line": 96,
           "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
         }
       ],
@@ -1068,7 +1068,7 @@
     "s5_apply_page_gis": {
       "found": [
         {
-          "line": 78,
+          "line": 77,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
         }
       ],
@@ -1077,7 +1077,7 @@
     "s5_apply_page_uses_jwks": {
       "found": [
         {
-          "line": 103,
+          "line": 102,
           "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
         }
       ],
@@ -1146,7 +1146,7 @@
     "s5_sender_per_slot_cookie": {
       "found": [
         {
-          "line": 238,
+          "line": 247,
           "text": "Cookie: `${NONCE_CTX_COOKIE}=${slots[i].ctx}`,"
         }
       ],
@@ -1155,11 +1155,11 @@
     "s5_sender_parallel_send": {
       "found": [
         {
-          "line": 44,
+          "line": 47,
           "text": "//   （busy を \"sending\" にする）、6件を Promise.allSettled で並行"
         },
         {
-          "line": 231,
+          "line": 240,
           "text": "settled = await Promise.allSettled("
         }
       ],
@@ -1168,7 +1168,7 @@
     "s5_sender_slot_binding": {
       "found": [
         {
-          "line": 220,
+          "line": 229,
           "text": "fail(\"slot_nonce_mismatch\", \"スロットとトークンの nonce が一致しません\");"
         }
       ],
@@ -1177,15 +1177,15 @@
     "s5_sender_clears_after_send": {
       "found": [
         {
-          "line": 128,
+          "line": 132,
           "text": "let issued = null;"
         },
         {
-          "line": 132,
+          "line": 136,
           "text": "issued = null;"
         },
         {
-          "line": 227,
+          "line": 236,
           "text": "issued = null;"
         }
       ],
@@ -1194,11 +1194,11 @@
     "s5_sender_no_response_local_code": {
       "found": [
         {
-          "line": 65,
+          "line": 68,
           "text": "S5_NO_RESPONSE,"
         },
         {
-          "line": 267,
+          "line": 276,
           "text": "return { slot: i, status: null, error: S5_NO_RESPONSE };"
         }
       ],
@@ -1207,15 +1207,15 @@
     "s5_sender_redirect_manual": {
       "found": [
         {
-          "line": 54,
+          "line": 57,
           "text": "// - fetch はすべて redirect: \"manual\" を明示する。307/308 で中継先"
         },
         {
-          "line": 159,
+          "line": 170,
           "text": "redirect: \"manual\","
         },
         {
-          "line": 244,
+          "line": 253,
           "text": "redirect: \"manual\","
         }
       ],
@@ -1224,11 +1224,11 @@
     "s5_sender_redirect_not_followed": {
       "found": [
         {
-          "line": 66,
+          "line": 69,
           "text": "S5_REDIRECT_NOT_FOLLOWED,"
         },
         {
-          "line": 251,
+          "line": 260,
           "text": "return { slot: i, status: res.status, error: S5_REDIRECT_NOT_FOLLOWED };"
         }
       ],
@@ -1237,27 +1237,27 @@
     "s5_sender_busy_guard": {
       "found": [
         {
-          "line": 32,
-          "text": "//   発行中（busy）は、並行する発行と送信を拒否する（s5_busy）。"
+          "line": 35,
+          "text": "//   する（s5_busy）。"
         },
         {
-          "line": 46,
+          "line": 49,
           "text": "//   send は2件目が s5_busy で拒否され、同じ6枠が2回送られることは"
         },
         {
-          "line": 47,
+          "line": 50,
           "text": "//   ない。送信中の nonce 再発行も s5_busy で拒否する。各スロットの"
         },
         {
-          "line": 127,
+          "line": 131,
           "text": "// 遷移するため、並行する発行・送信の競合は2件目が s5_busy で拒否される）"
         },
         {
-          "line": 149,
+          "line": 153,
           "text": "fail(\"s5_busy\", \"発行中または送信中のため、nonce の発行はできません\");"
         },
         {
-          "line": 195,
+          "line": 204,
           "text": "fail(\"s5_busy\", \"発行中または送信中のため、送信はできません\");"
         }
       ],
@@ -1266,7 +1266,7 @@
     "s5_sender_trial_binding": {
       "found": [
         {
-          "line": 202,
+          "line": 211,
           "text": "fail(\"s5_trial_mismatch\", \"発行した試行と送信指示の試行が一致しません\");"
         }
       ],
@@ -1280,22 +1280,22 @@
         },
         {
           "line": 25,
-          "text": "//   op2_nonce_ctx の値である。issuedAt はスロットごとの発行時刻で"
+          "text": "//   op2_nonce_ctx の値である。issuedAt は6件の発行を始めた時刻で"
         },
         {
-          "line": 125,
+          "line": 129,
           "text": "// issued: { trialId, slots: [{ nonce, ctx, issuedAt }] }（送信前まで保持）"
         },
         {
-          "line": 170,
-          "text": "const issuedAt = now();"
+          "line": 187,
+          "text": "// issuedAt は全スロットで発行開始時刻（issueStartedAt）を"
         },
         {
-          "line": 180,
-          "text": "slots.push({ nonce: data.nonce, ctx, issuedAt });"
+          "line": 189,
+          "text": "slots.push({ nonce: data.nonce, ctx, issuedAt: issueStartedAt });"
         },
         {
-          "line": 207,
+          "line": 216,
           "text": "const earliestIssuedAt = Math.min(...issued.slots.map((s) => s.issuedAt));"
         }
       ],
@@ -1352,7 +1352,7 @@
     "s5_apply_page_session_placeholder": {
       "found": [
         {
-          "line": 102,
+          "line": 101,
           "text": "const S5_SESSION = \"REPLACE_WITH_S5_SESSION\";"
         }
       ],
@@ -1361,11 +1361,11 @@
     "s5_apply_page_sends_session": {
       "found": [
         {
-          "line": 320,
+          "line": 319,
           "text": "headers: { \"x-s5-session\": S5_SESSION },"
         },
         {
-          "line": 376,
+          "line": 375,
           "text": "\"x-s5-session\": S5_SESSION,"
         }
       ],
@@ -1374,7 +1374,7 @@
     "s5_apply_page_trial_binding": {
       "found": [
         {
-          "line": 318,
+          "line": 317,
           "text": "const res = await fetch(`${PATHS.nonces}?trial_id=${encodeURIComponent(next.trialId)}`, {"
         }
       ],

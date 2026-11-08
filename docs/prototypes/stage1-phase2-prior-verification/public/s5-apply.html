@@ -27,8 +27,7 @@
     ないためです。
   - nonce の発行は送信器が行います（GET /s5/nonces）。画面は6件の
     nonce の値を受け取りますが、表示・ログには出しません。各 nonce
-    は対応するスロットの GIS ログインにだけ使います。最初の nonce の
-    発行から4分以内に送信しなければ送信器が拒否します（nonce の有効
+    は対応するスロットの GIS ログインにだけ使います。最初の nonce の発行開始から4分以内に送信しなければ送信器が拒否します（nonce の有効
     期限は5分。期限を過ぎた場合は再準備します。Worker の状態は消費
     されません）。
   - Google ログインは、スロットごとに1つのログインボタンを順に
@@ -330,7 +329,7 @@ prepBtn.addEventListener("click", async () => {
     // nonce の値は表示しない。スロットごとの GIS ログインにだけ使う。
     verifyNoncesDistinct(data.nonces);
     slotNonces = [...data.nonces];
-    log("6件分の nonce を取得しました。最初の nonce の発行から4分以内に6件のログインと送信を終えてください");
+    log("6件分の nonce を取得しました。最初の nonce の発行開始から4分以内に6件のログインと送信を終えてください");
     renderNextSlotButton(next);
   } catch (e) {
     // 共有の状態を変えるのは、この試行が現行のときに限る。
@@ -435,7 +434,7 @@ sendBtn.addEventListener("click", async () => {
   （またはA専用のプライベートウィンドウ）を使ってください。A以外が
   アカウント選択に現れた場合は停止してください。</p>
   <button id="prepS5" type="button">6件分の nonce を取得する</button>
-  <p class="note">最初の nonce の発行から4分以内に6件のログインと送信を終えてください。
+  <p class="note">最初の nonce の発行開始から4分以内に6件のログインと送信を終えてください。
   4分を過ぎると送信器が拒否します（nonce の有効期限は5分）。
   期限を過ぎた場合は準備し直してください（Worker の状態は消費されません）。</p>
   <pre id="slotStatus">スロット 1/6: 未取得
