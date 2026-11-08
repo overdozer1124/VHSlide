@@ -66,6 +66,12 @@ const ARTIFACTS = [
   "tools/trial-apply.mjs",
   "test/trial-apply.test.mjs",
   "test/trial-apply.screen.mjs",
+  "public/s5-apply.html",
+  "tools/s5-apply.mjs",
+  "tools/s5-sender.mjs",
+  "test/s5-apply.test.mjs",
+  "test/s5-sender.test.mjs",
+  "test/s5-apply.screen.mjs",
 ];
 
 function readRel(rel) {
@@ -105,6 +111,10 @@ const subjectHashVerifyLines = readRel("tools/subject-hash-verify.mjs").split("\
 const serveRealLines = readRel("tools/serve-real.mjs").split("\n");
 const trialApplyLines = readRel("public/trial-apply.html").split("\n");
 const trialApplyModuleLines = readRel("tools/trial-apply.mjs").split("\n");
+const s5ApplyLines = readRel("public/s5-apply.html").split("\n");
+const s5ApplyModuleLines = readRel("tools/s5-apply.mjs").split("\n");
+const s5SenderLines = readRel("tools/s5-sender.mjs").split("\n");
+const s5ScreenLines = readRel("test/s5-apply.screen.mjs").split("\n");
 
 const checks = {
   clean_platform_has_no_fault_marker: {
@@ -298,6 +308,105 @@ const checks = {
     found: findLines(serveRealLines, /\/trial-apply/),
     expect: "present",
   },
+  // S4 の試験種別（消費済み・初期化済み）は trial-apply 画面の拡張
+  // （Codex レビュー 6720499137 への対応）。
+  trial_apply_module_s4_kinds: {
+    found: findLines(trialApplyModuleLines, /operation-consumed/),
+    expect: "present",
+  },
+  trial_apply_module_s4_purpose: {
+    found: findLines(trialApplyModuleLines, /purposeForKind/),
+    expect: "present",
+  },
+  trial_apply_page_s4_kinds: {
+    found: findLines(trialApplyLines, /operation-consumed/),
+    expect: "present",
+  },
+  // S5 並行試験専用画面は、送信する JSON の全文表示をしない（ID トークン
+  // と一回値が含まれるため）。画面のソースに秘密の項目名そのものが
+  // 現れないこと、6件の要求の組み立て・nonce の相異・集計があること、
+  // 送信器がスロットごとに Cookie を分けて並行送信し、送信後に保持を
+  // 破棄すること、提供サーバーが配信することを確認する。
+  s5_apply_page_no_secret_field_names: {
+    found: findLines(s5ApplyLines, /id_token|one_time_value/),
+    expect: "absent",
+  },
+  s5_apply_page_no_tokeninfo: {
+    found: findLines(s5ApplyLines, /tokeninfo/i),
+    expect: "absent",
+  },
+  s5_apply_page_placeholder: {
+    found: findLines(s5ApplyLines, /REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID/),
+    expect: "present",
+  },
+  s5_apply_page_gis: {
+    found: findLines(s5ApplyLines, /accounts\.google\.com\/gsi\/client/),
+    expect: "present",
+  },
+  s5_apply_page_uses_jwks: {
+    found: findLines(s5ApplyLines, /oauth2\/v3\/certs/),
+    expect: "present",
+  },
+  s5_apply_module_builds_requests: {
+    found: findLines(s5ApplyModuleLines, /buildS5Requests/),
+    expect: "present",
+  },
+  s5_apply_module_checks_nonces_distinct: {
+    found: findLines(s5ApplyModuleLines, /verifyNoncesDistinct/),
+    expect: "present",
+  },
+  s5_apply_module_checks_slots_equal: {
+    found: findLines(s5ApplyModuleLines, /verifyS5RequestsEqual/),
+    expect: "present",
+  },
+  s5_apply_module_aggregates: {
+    found: findLines(s5ApplyModuleLines, /aggregateS5Results/),
+    expect: "present",
+  },
+  s5_sender_per_slot_cookie: {
+    found: findLines(s5SenderLines, /\$\{slots\[i\]\.ctx\}/),
+    expect: "present",
+  },
+  s5_sender_parallel_send: {
+    found: findLines(s5SenderLines, /Promise\.allSettled/),
+    expect: "present",
+  },
+  s5_sender_slot_binding: {
+    found: findLines(s5SenderLines, /slot_nonce_mismatch/),
+    expect: "present",
+  },
+  s5_sender_clears_after_send: {
+    found: findLines(s5SenderLines, /issued = null/),
+    expect: "present",
+  },
+  s5_sender_no_response_local_code: {
+    found: findLines(s5SenderLines, /S5_NO_RESPONSE/),
+    expect: "present",
+  },
+  serve_real_s5_apply_route: {
+    found: findLines(serveRealLines, /\/s5-apply/),
+    expect: "present",
+  },
+  serve_real_s5_nonces_route: {
+    found: findLines(serveRealLines, /\/s5\/nonces/),
+    expect: "present",
+  },
+  serve_real_s5_send_route: {
+    found: findLines(serveRealLines, /\/s5\/send/),
+    expect: "present",
+  },
+  s5_screen_fake_gis: {
+    found: findLines(s5ScreenLines, /__gis/),
+    expect: "present",
+  },
+  s5_screen_jsdom: {
+    found: findLines(s5ScreenLines, /jsdom/),
+    expect: "present",
+  },
+  s5_screen_send_posts: {
+    found: findLines(s5ScreenLines, /__s5SendPosts/),
+    expect: "present",
+  },
 };
 for (const [name, c] of Object.entries(checks)) {
   const ok = c.expect === "present" ? c.found.length > 0 : c.found.length === 0;
@@ -396,7 +505,8 @@ const manifest = {
   pc_side: {
     login_page: "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
     subject_hash_page: "public/subject-hash.html（tools/serve-real.mjs が /subject-hash で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。ID トークンを外部へ送らず、公開鍵・JWKS による PC 内署名検証で SHA-256(sub) だけを表示する。検証モジュール tools/subject-hash-verify.mjs は Node 試験と共用）",
-    trial_apply_page: "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する）",
+    trial_apply_page: "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する。S4 の消費済み・初期化済み試験も同じ画面で行う（用途は試験種別で決まる固定値。不一致試験は full-replace、S4 の2試験は bootstrap）」",
+    s5_apply_page: "public/s5-apply.html（tools/serve-real.mjs が /s5-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。送信する JSON の全文表示はしない。検証モジュール tools/s5-apply.mjs は Node 試験 test/s5-apply.test.mjs と共用する。並行送信は提供サーバー側の tools/s5-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信器の試験は test/s5-sender.test.mjs、画面の実画面試験は test/s5-apply.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,

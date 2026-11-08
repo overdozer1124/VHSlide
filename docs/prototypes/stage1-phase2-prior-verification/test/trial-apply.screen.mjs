@@ -561,6 +561,83 @@ try {
     check("実画面: 遅延のあと新しいコールバックは表示を作る", shown);
     window.close();
   }
+  // ---- 場面6：S4 の消費済み試験は用途 bootstrap の表示を作り、送信できる ----
+  {
+    const { window } = await makeDom();
+    window.__applyBodies = [];
+    await fillTrial(window, {
+      kind: "operation-consumed",
+      envId: FIXED_ENV_ID,
+      fixed: "fixed-secret-A",
+      trial: "fixed-secret-A",
+    });
+    const idx = await prep(window);
+    const nonce = window.__gis.nonces[0];
+    await invokeCallback(window, idx, nonce);
+    const shown = await waitFor(() =>
+      !displayText(window).includes("まだ表示記録がありません")
+    );
+    check("実画面: S4 消費済み試験の表示ができる", shown);
+    const parsed = JSON.parse(displayText(window));
+    check(
+      "実画面: S4 消費済み試験の表示は用途 bootstrap・正しい env_id になる",
+      parsed.kind === "operation-consumed" &&
+        parsed.purpose === "bootstrap" &&
+        parsed.env_id === FIXED_ENV_ID &&
+        parsed.one_time === "一致",
+      displayText(window).slice(0, 300)
+    );
+    check("実画面: S4 消費済み試験で送信ボタンが有効になる", !sendDisabled(window));
+    el(window, "sendApply").click();
+    await sleep(1000);
+    check("実画面: S4 消費済み試験の送信は1回だけ行われる", window.__applyBodies.length === 1, `bodies=${window.__applyBodies.length}`);
+    const sent = window.__applyBodies[0] || {};
+    check(
+      "実画面: S4 消費済み試験の送信本体の用途が bootstrap になる",
+      sent.purpose === "bootstrap" && sent.env_id === FIXED_ENV_ID,
+      JSON.stringify({ purpose: sent.purpose, env_id: sent.env_id })
+    );
+    const m = logText(window).match(/試験ログ: (\{.*\})/);
+    let entry = null;
+    try {
+      entry = m ? JSON.parse(m[1]) : null;
+    } catch { /* 解析できなければ null のまま */ }
+    check(
+      "実画面: S4 消費済み試験のログが表示の試験 ID と対応する",
+      !!entry && entry.trial_id === parsed.trial_id,
+      logText(window).slice(-400)
+    );
+    window.close();
+  }
+
+  // ---- 場面7：S4 の初期化済み試験で環境IDが誤っていると送信不能になる ----
+  {
+    const { window } = await makeDom();
+    await fillTrial(window, {
+      kind: "already-initialized",
+      envId: "wrong-env-A", // 正しい環境IDでなければ S4 の前提違反
+      fixed: "fixed-secret-A",
+      trial: "fixed-secret-A",
+    });
+    const idx = await prep(window);
+    const nonce = window.__gis.nonces[0];
+    await invokeCallback(window, idx, nonce);
+    check(
+      "実画面: S4 初期化済み試験の環境条件の失敗は準備エラーとして記録される",
+      logText(window).includes("一致しません"),
+      logText(window).slice(-300)
+    );
+    check("実画面: S4 初期化済み試験の環境条件の失敗では送信ボタンが無効のまま", sendDisabled(window));
+    check(
+      "実画面: S4 初期化済み試験の環境条件の失敗では表示が作られない",
+      displayText(window).includes("まだ表示記録がありません")
+    );
+    check(
+      "実画面: S4 の現行の失敗時は一回値入力欄が消去される（環境条件の失敗）",
+      el(window, "fixedOneTime").value === "" && el(window, "trialOneTime").value === ""
+    );
+    window.close();
+  }
 } catch (e) {
   console.log("FAIL  実画面試験の実行中に例外:", e.message);
   results.push({ name: "実画面試験の実行", pass: false });

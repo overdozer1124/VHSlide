@@ -486,6 +486,43 @@ async function main() {
     );
     await old.mf.dispose();
   }
+  {
+    // S4 の局所確認（Codex レビュー 6720499137）：同じ消費済み操作IDを、
+    // 新しい有効期限と一回値に固定した「別版」で再提示しても、消費済み
+    // で拒否される。旧版そのものの再配置とは別の証拠である。期限切れの
+    // 版をそのまま使うと approval_expired が先行するため、期限の更新が
+    // 必要である（2.7-4 の確認とあわせて、検査順序が期限→消費済みで
+    // あることを確認する）。
+    const renewed = await startBuild("platform-worker.js", ".persist-p1",
+      approvalBindings({
+        operationId: "op-001",
+        purpose: "bootstrap",
+        subjectHash: HASH_A,
+        oneTime: "one-time-value-001-renewed",
+        expiresAtMs: FUTURE(),
+      })
+    );
+    const r = await platformApply(renewed.base, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-value-001-renewed",
+    });
+    check(
+      "2.7-2/S4: 期限を更新した別版での消費済み操作IDの再提示は 409 operation_consumed",
+      r.status === 409 && r.json.error === "operation_consumed",
+      `status=${r.status} body=${JSON.stringify(r.json)}`
+    );
+    const stateRenewed = await inspectPlatform(renewed.base);
+    check(
+      "2.7-2/S4: 別版での消費済み拒否では登録簿・消費・完了記録は変わらない",
+      operatorHashes(stateRenewed).join() === HASH_A &&
+        stateRenewed.consumed_ops.length === 1 &&
+        stateRenewed.completion.length === 1 &&
+        stateRenewed.generation === 1,
+      JSON.stringify(stateRenewed)
+    );
+    await renewed.mf.dispose();
+  }
 
   // ===== 2.7-5（ローカル代替）: 復帰・経路消滅・読み戻し =====
   section("2.7-5 終了手順のローカル代替（復帰・404観察・読み戻し）");

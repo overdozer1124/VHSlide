@@ -2,13 +2,15 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>段階①フェーズ2 先行検証 不一致試験専用画面（検証用）</title>
+<title>段階①フェーズ2 先行検証 試験専用画面（検証用）</title>
 <!--
-  フェーズ2先行検証の不一致試験（項目1の環境不一致・一回値不一致）専用
-  の検証画面です。Codex 再レビュー 6715453178 への対応で用意し、レビュー
-  6715525086・6715565254 の指摘で堅牢化したものです。既存の実ログイン
-  画面（public/login-real.html）では、送信直前の実値と応答の対応を示す
-  証拠を作れません。
+  フェーズ2先行検証の試験（項目1の環境不一致・一回値不一致、S4 の
+  消費済み・初期化済み）専用の検証画面です。Codex 再レビュー
+  6715453178 への対応で用意し、レビュー 6715525086・6715565254 の
+  指摘で堅牢化したものです。既存の実ログイン画面
+  （public/login-real.html）では、送信直前の実値と応答の対応を示す
+  証拠を作れません。S4 の2試験は Codex レビュー 6720499137 への
+  対応で追加しました。
 
   位置づけと制約:
   - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で配信
@@ -22,8 +24,10 @@
     表示はしません（ID トークンと一回値が含まれるため）。
   - 環境条件の機械検証を行います。凍結済み要求そのものの env_id を、
     検証環境に限定して固定した正しい環境IDと比べ、環境不一致試験は
-    「異なる」こと、一回値不一致試験は「一致」することを要求します。
-    条件を満たさなければ送信不能です（Codex レビュー 6715525086）。
+    「異なる」こと、一回値不一致試験・S4 の消費済み・初期化済み試験は
+    「一致」することを要求します。条件を満たさなければ送信不能です
+    （Codex レビュー 6715525086）。用途は試験種別で決まる固定値で、
+    不一致試験は full-replace、S4 の2試験は bootstrap です。
   - 試験 ID は準備の開始ごとに新しく発行します。前回の保留要求・
     送信ボタン・表示は新規準備の開始時に無効化し、非同期の古い
     コールバックは試行ごとの世代照合で拒否します。GIS コールバック
@@ -63,6 +67,8 @@ import {
   verifyEnvCondition,
   createTrialSession,
   makeTrialLogEntry,
+  purposeForKind,
+  expectedOneTimeFact,
 } from "./trial-apply.mjs";
 import { verifyIdTokenLocal } from "./subject-hash-verify.mjs";
 
@@ -131,10 +137,11 @@ async function onGoogleSignIn(response, snap) {
   try {
     if (!envId) throw new Error("送信する環境IDを入力してください");
     if (!fixedValue || !trialValue) throw new Error("固定の一回値と送信する一回値を両方入力してください");
-    // 試験の前提を、送信前に真偽で確認する。環境不一致試験は比較が
-    // 「一致」、一回値不一致試験は「不一致」でなければ進まない。
+    // 試験の前提を、送信前に真偽で確認する。試験種別ごとの前提は
+    // expectedOneTimeFact で決まる。環境不一致試験・S4 の2試験は
+    // 比較が「一致」、一回値不一致試験は「不一致」でなければ進まない。
     const fact = compareOneTime(trialValue, fixedValue);
-    const expected = trialKind === "env-mismatch" ? "一致" : "不一致";
+    const expected = expectedOneTimeFact(trialKind);
     if (fact !== expected) {
       throw new Error(`一回値の比較が「${expected}」ではありません（試験の前提を満たしません）`);
     }
@@ -166,10 +173,12 @@ async function onGoogleSignIn(response, snap) {
     if (!subjectConfirmed) {
       throw new Error("アカウント選択でテスト用アカウントAを選んだことを確認してください");
     }
+    // 用途は試験種別で決まる固定値である（不一致試験は
+    // full-replace、S4 の2試験は bootstrap）。画面の入力では変えられない。
     const request = buildTrialRequest({
       idToken: response.credential,
       oneTimeValue: trialValue,
-      purpose: "full-replace",
+      purpose: purposeForKind(trialKind),
       envId,
     });
     // 環境条件の機械検証。入力欄の表示値ではなく、実送信に使う
@@ -213,6 +222,19 @@ async function onGoogleSignIn(response, snap) {
     }
   }
 }
+
+// 用途の表示は試験種別で決まる（purposeForKind）。選択が変わるたびに
+// 更新する。表示だけであり、送信に使う用途は onGoogleSignIn で
+// purposeForKind から決める。
+const kindSelect = document.getElementById("trialKind");
+const purposeLine = document.getElementById("purposeLine");
+function updatePurposeLine() {
+  const purpose = purposeForKind(kindSelect.value);
+  const label = purpose === "bootstrap" ? "bootstrap（初期投入）" : "full-replace（全面復旧）";
+  purposeLine.innerHTML = `用途：<code>${label}</code>（試験種別で決まる固定値。変更できません）`;
+}
+kindSelect.addEventListener("change", updatePurposeLine);
+updatePurposeLine();
 
 const prepBtn = document.getElementById("prepTrial");
 prepBtn.addEventListener("click", async () => {
@@ -308,11 +330,12 @@ sendBtn.addEventListener("click", async () => {
 </script>
 </head>
 <body>
-<h1>段階①フェーズ2 先行検証 不一致試験専用画面（検証用）</h1>
-<p class="note">項目1の不一致試験（環境不一致・一回値不一致）専用の検証画面です。
-送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の
-事実だけを表示して、その同じ要求を送ります。ID トークン・一回値・
-Cookie・nonce・主体ハッシュは表示・ログに出しません。</p>
+<h1>段階①フェーズ2 先行検証 試験専用画面（検証用）</h1>
+<p class="note">項目1の不一致試験（環境不一致・一回値不一致）と S4 の消費済み・
+初期化済み試験の専用画面です。送信に使う単一の要求を凍結し、送信直前
+に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を送り
+ます。ID トークン・一回値・Cookie・nonce・主体ハッシュは表示・ログに
+出しません。</p>
 
 <p>試験 ID：<code id="trialId">（準備の開始ごとに発行します）</code></p>
 
@@ -322,15 +345,17 @@ Cookie・nonce・主体ハッシュは表示・ログに出しません。</p>
     <select id="trialKind">
       <option value="env-mismatch">環境不一致（env_id を誤った値で送る）</option>
       <option value="one-time-mismatch">一回値不一致（一回値を誤った値で送る）</option>
+      <option value="operation-consumed">消費済み（消費済みの操作IDを再提示する。S4 手順1）</option>
+      <option value="already-initialized">初期化済み（新規 bootstrap を初期化済みの登録簿へ送る。S4 手順2）</option>
     </select>
   </label>
-  <p>用途：<code>full-replace（全面復旧）</code>（固定。変更できません）</p>
+  <p id="purposeLine">用途：<code>full-replace（全面復旧）</code>（試験種別で決まる固定値。変更できません）</p>
   <label>送信する環境ID（非秘密。表示記録にそのまま出ます）
     <input type="text" id="trialEnvId" autocomplete="off">
   </label>
   <p class="note">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。
-  環境不一致試験ではこれと異なる値を、一回値不一致試験ではこれと
-  同じ値を入れてください。条件は送信前に凍結済み要求そのものに対して
+  環境不一致試験ではこれと異なる値を、一回値不一致試験・S4 の2試験では
+  これと同じ値を入れてください。条件は送信前に凍結済み要求そのものに対して
   機械検証し、満たさなければ送信できません。</p>
   <label>固定の一回値（承認に固定された値。表示・ログに出ません）
     <input type="password" id="fixedOneTime" autocomplete="off">
@@ -340,7 +365,10 @@ Cookie・nonce・主体ハッシュは表示・ログに出しません。</p>
   </label>
   <p class="note">環境不一致試験では「固定の一回値」と「送信する一回値」に同じ値を
   入れてください（比較が「一致」であることが前提です）。一回値不一致
-  試験では異なる値を入れてください（比較が「不一致」であることが前提です）。</p>
+  試験では異なる値を入れてください（比較が「不一致」であることが前提です）。
+  S4 の2試験では同じ値を入れてください（比較が「一致」であることが前提です。
+  消費済み試験は新しい期限と一回値を固定した別版、初期化済み試験は新しい
+  bootstrap 承認の版を使います）。</p>
   <label>
     <input type="checkbox" id="accountConfirmed">
     ログインボタンに表示されたアカウントがテスト用アカウントAであることを確認した

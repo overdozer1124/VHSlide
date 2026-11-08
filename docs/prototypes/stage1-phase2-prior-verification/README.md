@@ -8,7 +8,10 @@
 
 ```sh
 npm install
-npm test   # = node test/run.mjs。全項目 PASS で終了コード 0
+npm test   # = node test/run.mjs + 各モジュール試験。全項目 PASS で終了コード 0
+npm run test:screen   # trial-apply 画面の実画面試験（jsdom）
+npm run test:screen:s5   # s5-apply 画面の実画面試験（jsdom）
+node test/real-ui.smoke.mjs   # 配信の疎通確認
 ```
 
 試験ランナーは Miniflare をプログラムから起動し、プラットフォーム経路の一時ビルド（`src/platform-worker.js`）と通常ビルド（`src/worker.js`）を、同じ永続化ディレクトリに対して差し替えながら、「配置→操作→通常ビルドへ復帰→登録簿の読み戻し」という実際の手順の順序で確認します。
@@ -23,9 +26,14 @@ npm test   # = node test/run.mjs。全項目 PASS で終了コード 0
 | `public/login-real.html` / `tools/serve-real.mjs` | 実ログイン画面と、その提供サーバー（PC 側運用）。フェーズ1の型でフェーズ2用に用意 |
 | `public/subject-hash.html` / `tools/subject-hash-verify.mjs` | 対象主体ハッシュの取得専用ページと、PC 内署名検証（公開鍵・JWKS 方式）の共用モジュール。ID トークンを外部へ送らず、検証が通った場合だけ SHA-256(sub) を表示する。提供は `tools/serve-real.mjs`（`/subject-hash`） |
 | `test/subject-hash-verify.test.mjs` | 上記検証モジュールの試験（`node --test`。正例2件＋負例10件＋ハッシュ相違1件＝13件。`npm test` は run.mjs と合わせて実行する） |
-| `public/trial-apply.html` / `tools/trial-apply.mjs` | 不一致試験（環境不一致・一回値不一致）専用の検証画面と純粋モジュール。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を送る。送信する JSON の全文表示はしない。主体の確認は署名検証と `tools/subject-hash-verify.mjs` を再利用する。提供は `tools/serve-real.mjs`（`/trial-apply`） |
-| `test/trial-apply.test.mjs` | 上記モジュールの試験（`node --test`。14件。`npm test` は run.mjs・subject-hash 検証と合わせて実行する） |
-| `test/trial-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen`。34件。偽 GIS・偽 JWKS・遅延応答でページ自体を実行し、旧コールバック／古い finally が新試行を変更しないこと、送信とログが対応し二重送信されないこと、成功・現行の失敗・旧試行の遅延 finally の各ケースで一回値入力欄が適切に扱われることを確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
+| `public/trial-apply.html` / `tools/trial-apply.mjs` | 不一致試験（環境不一致・一回値不一致）と S4 の消費済み・初期化済み試験の専用画面と純粋モジュール。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を送る。送信する JSON の全文表示はしない。主体の確認は署名検証と `tools/subject-hash-verify.mjs` を再利用する。提供は `tools/serve-real.mjs`（`/trial-apply`）。用途は試験種別で決まる固定値（不一致試験は full-replace、S4 の2試験は bootstrap） |
+| `test/trial-apply.test.mjs` | 上記モジュールの試験（`node --test`。17件。`npm test` は run.mjs・subject-hash 検証と合わせて実行する） |
+| `test/trial-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen`。44件。偽 GIS・偽 JWKS・遅延応答でページ自体を実行し、旧コールバック／古い finally が新試行を変更しないこと、送信とログが対応し二重送信されないこと、成功・現行の失敗・旧試行の遅延 finally の各ケースで一回値入力欄が適切に扱われること、S4 の2試験の表示・送信・環境条件を確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
+| `public/s5-apply.html` / `tools/s5-apply.mjs` | S5 並行試験（full-replace への並行6件）専用の検証画面と純粋モジュール。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。提供は `tools/serve-real.mjs`（`/s5-apply`） |
+| `tools/s5-sender.mjs` | S5 の Node 側送信器（提供サーバー専用。ブラウザーには配信しない）。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信前の結び付け確認（トークンの nonce とスロットの nonce の一致、6件の条件の等しさ、発行から4分以内）に失敗すれば1件も送らない。送信の完了直後に保持を破棄する |
+| `test/s5-apply.test.mjs` | 上記純粋モジュールの試験（`node --test`。7件。`npm test` で合わせて実行する） |
+| `test/s5-sender.test.mjs` | 上記送信器の試験（`node --test`。6件。Miniflare の一時ビルド相手に、6件の並行送信で 201 が正確に1件・残りが 409 operation_consumed になることと、結び付け・条件・期限の各ガードを確認する。`npm test` で合わせて実行する） |
+| `test/s5-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen:s5`。37件。偽 GIS・偽 JWKS でページ自体を実行し、6スロットの準備・並行送信・ログ対応・二重送信防止・失敗時の扱いを確認する。送信器は本物を通すが、中継先は local-mock の通常ビルドのため応答は 404 になる。201・409 の判定は送信器の試験で確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
 | `tools/build-realenv-manifest.mjs` / `realenv-manifest.json` | 実環境用マニフェスト（成果物ハッシュ・バインディング一覧・ソース検査）の生成ツールと生成結果 |
 | `test/run.mjs` | 試験ランナー（§2.7 の項目番号を各チェック名に付与） |
 | `test/real-ui.smoke.mjs` | 実ログイン画面と提供サーバーのローカル疎通確認（`node test/real-ui.smoke.mjs`。run.mjs とは別枠） |

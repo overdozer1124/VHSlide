@@ -183,6 +183,68 @@ try {
         taJs.includes("createTrialSession") &&
         taJs.includes("normalizeResponseError")
     );
+    check(
+      "スモーク: /trial-apply と /trial-apply.mjs が S4 の試験種別（消費済み・初期化済み）を含む",
+      taHtml.includes("operation-consumed") &&
+        taHtml.includes("already-initialized") &&
+        taJs.includes("operation-consumed") &&
+        taJs.includes("already-initialized") &&
+        taJs.includes("purposeForKind")
+    );
+
+    // S5 並行試験専用画面の配信確認（Codex レビュー 6720499137 への
+    // 対応で追加）。実 GIS の確認ではなく、配管（配信・クライアント
+    // ID 差し込み・検証モジュールの配信）と、画面に秘密の項目名そのもの
+    // が現れないこと、送信器の入口（/s5/nonces・/s5/send）のふるまい
+    // だけを確認する。
+    const s5Res = await fetch(base + "/s5-apply");
+    const s5Html = await s5Res.text();
+    check(
+      "スモーク: /s5-apply が専用画面を返し、クライアントIDが差し込まれ、秘密の項目名がない",
+      s5Res.status === 200 &&
+        s5Html.includes(CLIENT_ID) &&
+        !s5Html.includes("REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID") &&
+        s5Html.includes("oauth2/v3/certs") &&
+        !/tokeninfo/i.test(s5Html) &&
+        !s5Html.includes("id_token") &&
+        !s5Html.includes("one_time_value")
+    );
+    const s5JsRes = await fetch(base + "/s5-apply.mjs");
+    const s5Js = await s5JsRes.text();
+    check(
+      "スモーク: /s5-apply.mjs が検証モジュールを返し、6件の要求の組み立てと集計を含む",
+      s5JsRes.status === 200 &&
+        s5Js.includes("buildS5Requests") &&
+        s5Js.includes("verifyNoncesDistinct") &&
+        s5Js.includes("aggregateS5Results")
+    );
+    // 準備なしの送信は、送信器が1件も送らずに拒否する。
+    const s5SendNoPrep = await fetch(base + "/s5/send", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ trial_id: "smoke-s5", requests: [] }),
+    });
+    const s5SendNoPrepJson = await s5SendNoPrep.json().catch(() => null);
+    check(
+      "スモーク: /s5/send は準備なしでは 409 s5_not_prepared で拒否される",
+      s5SendNoPrep.status === 409 &&
+        s5SendNoPrepJson &&
+        s5SendNoPrepJson.error === "s5_not_prepared",
+      `status=${s5SendNoPrep.status} body=${JSON.stringify(s5SendNoPrepJson)}`
+    );
+    // 6件分の nonce の発行。中継先は通常ビルドであり、/nonce は
+    // 存在するため、6件の nonce が返る（値は表示・記録しない）。
+    const s5NoncesRes = await fetch(base + "/s5/nonces");
+    const s5NoncesJson = await s5NoncesRes.json().catch(() => null);
+    const s5Nonces = (s5NoncesJson && s5NoncesJson.nonces) || [];
+    check(
+      "スモーク: /s5/nonces が6件の異なる nonce を返す（値は表示しない）",
+      s5NoncesRes.status === 200 &&
+        Array.isArray(s5Nonces) &&
+        s5Nonces.length === 6 &&
+        new Set(s5Nonces).size === 6 &&
+        s5Nonces.every((n) => typeof n === "string" && n.length > 0)
+    );
 
     // 故障マーカーの素通し確認（手順書 v0.3 の実証前確認）:
     // 故障版ビルドを中継先にして /platform/apply を提供サーバー経由で

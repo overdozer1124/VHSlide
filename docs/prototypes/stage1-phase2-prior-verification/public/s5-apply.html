@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>段階①フェーズ2 先行検証 S5 並行試験専用画面（検証用）</title>
+<!--
+  フェーズ2先行検証の S5（項目2 手順3：full-replace への並行6件）専用
+  の検証画面です。Codex レビュー 6720499137 への対応で用意しました。
+  6件の要求はそれぞれ有効な実 Google トークンと対応する別 nonce・
+  Cookie context を持ち、他の条件が等しいことを送信前に確認し、201
+  が正確に1件であることを記録します。
+
+  位置づけと制約:
+  - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で配信
+    し、どの Worker 版にも含めません（マニフェストの成果物には含め
+    ますが、Worker へのアップロード対象ではありません）。
+  - 並行送信はブラウザーではできません。nonce context は Cookie 経由
+    で結び付き、ブラウザーの fetch では Cookie ヘッダーを任意に設定
+    できない（forbidden header）ため、単一のブラウザープロファイル
+    からは6件それぞれに異なる nonce context Cookie を送れません。
+    この画面は6件の実トークンを集めて凍結した要求を作り、表示を確認
+    したうえで、送信指示を1回だけ提供サーバー側の送信器
+    （tools/s5-sender.mjs、Node）へ渡します。送信器はスロットごとに
+    Cookie jar を分け、6件を Promise.all で並行送信します。
+    6つの別ブラウザープロファイルで手動送信する案は採用しません。
+    手動の連打では6件が同時に送信中にならず、並行消費の証拠になら
+    ないためです。
+  - nonce の発行は送信器が行います（GET /s5/nonces）。画面は6件の
+    nonce の値を受け取りますが、表示・ログには出しません。各 nonce
+    は対応するスロットの GIS ログインにだけ使います。発行から4分以内
+    に送信しなければ送信器が拒否します（nonce の有効期限は5分。
+    期限を過ぎた場合は再準備します。Worker の状態は消費されません）。
+  - Google ログインは、スロットごとに1つのログインボタンを順に
+    使います。GIS の initialize は全体で1つの設定しか持たないため、
+    6つのボタンを一度に並べるのではなく、スロットごとに initialize
+    し直してボタンを描き直します。各スロットのトークンは PC 内で
+    JWKS 署名検証し、そのスロットに発行した nonce と一致することを
+    確認します（tools/subject-hash-verify.mjs を再利用）。
+  - 送信に使う6件の要求は tools/s5-apply.mjs の buildS5Requests で
+    作り、深く凍結します。表示の元と送信する本体はこの同じ配列です。
+    表示後に差し替えはできません。
+  - 送信直前に表示するのは、試験 ID・スロット番号・env_id・purpose・
+    主体の確認事実・一回値の使用事実・nonce の発行事実だけです。送信
+    する JSON の全文表示はしません（ID トークンと一回値が含まれるため）。
+    6件の env_id・purpose・一回値が等しいことと、6件の nonce が異なる
+    ことは、送信前に機械検証します（verifyS5RequestsEqual・
+    verifyNoncesDistinct）。
+  - 試験 ID は準備の開始ごとに新しく発行します。前回の保留要求・
+    送信ボタン・表示は新規準備の開始時に無効化し、非同期の古い
+    コールバックは試行ごとの世代照合で拒否します。GIS コールバック
+    は各 initialize 時にそのスロット・試行の ID・世代・nonce を閉じ
+    込めたものを渡し、グローバルな attempt は読みません。共有の
+    UI・状態の更新は、当該の世代が現行のときに限ります。送信中の
+    準備はできません（trial-apply 画面と同じ堅牢化）。
+  - 表示・ログ・Issue・チャットに ID トークン・一回値・Cookie・
+    nonce・主体ハッシュを出しません。画面のログには試験 ID・表示記録・
+    応答の状態と理由コードだけを出します。
+  - 主体の確認は、アカウント選択での所有者の確認と、ブラウザー内の
+    JWKS 署名検証（tools/subject-hash-verify.mjs）の通過の両方が
+    揃った場合にだけ「主体Aとして確認」と表示します。sub やハッシュ
+    の値は表示しません。
+  - 秘密の比較はブラウザーのメモリー内だけで行い、真偽だけを表示
+    します。送信後に password 欄の値とメモリー内の秘密を消去します。
+  - 応答が返らなかったスロットは再送しません。読み戻しで判断します。
+  - 転送先は同一生成元（http://localhost:8787）の固定パス
+    /s5/nonces・/s5/send だけです。URL を入力・変更できる欄はありません。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  input[type="password"], input[type="text"] { width: 32em; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+  button:disabled { opacity: 0.5; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import {
+  S5_SLOT_COUNT,
+  buildS5Requests,
+  buildS5SlotDisplay,
+  verifyNoncesDistinct,
+  verifyS5RequestsEqual,
+  verifyS5DisplayMatchesSent,
+  makeS5LogEntry,
+  aggregateS5Results,
+} from "./s5-apply.mjs";
+import { createTrialSession } from "./trial-apply.mjs";
+import { verifyIdTokenLocal } from "./subject-hash-verify.mjs";
+
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （検証用に作成した Web クライアントの ID を、tools/serve-real.mjs が
+// 起動時に環境変数 GOOGLE_CLIENT_ID からメモリ上で差し込みます）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+const PATHS = { nonces: "/s5/nonces", send: "/s5/send" };
+
+// 検証環境に限定して固定した正しい環境ID。S5 は完全一致の試行であり、
+// 6件すべてこの値を使います。秘密ではない（検証環境の識別子であり、
+// 承認のバインディングやマニフェストにも現れる公開の試験値）。
+const FIXED_ENV_ID = "stage1-verification-only-20261101";
+const PURPOSE = "full-replace";
+
+// 試験 ID はページ読込時に発行しない。準備の開始ごとに新しい ID を
+// 発行し、前回の保留要求を無効化する（試行ごとの世代管理）。
+// 非同期の古いコールバックは世代照合で拒否する。GIS コールバックは
+// 各 initialize 時にそのスロット・試行の ID・世代・nonce を閉じ込めた
+// ものを渡し、グローバルな attempt は読まない。共有の UI・状態の更新は、
+// 当該の世代が現行のときに限る。送信中の準備はできない。
+const session = createTrialSession();
+let attempt = null; // 最新の試行 { trialId, generation }（表示用）
+let sending = false; // 送信中のフラグ
+
+const logEl = document.getElementById("log");
+const displayEl = document.getElementById("display");
+const sendBtn = document.getElementById("sendS5");
+const accountCheck = document.getElementById("accountConfirmed");
+const gisBox = document.getElementById("gisSlot");
+const slotStatusEl = document.getElementById("slotStatus");
+
+function log(...parts) {
+  // 試験 ID・表示記録・応答の状態と理由コードだけを出す。
+  // トークン・秘密の値は出さない。
+  logEl.textContent += parts.join(" ") + "\n";
+}
+
+// メモリー内だけに置く秘密。送信後・失敗後に消去する。
+let pending = null; // { requests, displays, trialId, generation, nonces }
+let slotTokens = []; // スロットごとの ID トークン（メモリー内のみ）
+let slotNonces = []; // スロットごとの nonce（メモリー内のみ。表示しない）
+let slotReady = []; // スロットごとの準備完了の真偽
+
+function renderSlotStatus() {
+  const lines = [];
+  for (let i = 0; i < S5_SLOT_COUNT; i++) {
+    lines.push(`スロット ${i + 1}/6: ${slotReady[i] ? "トークン取得済み・署名検証通過" : "未取得"}`);
+  }
+  slotStatusEl.textContent = lines.join("\n");
+}
+
+function currentSlot() {
+  for (let i = 0; i < S5_SLOT_COUNT; i++) {
+    if (!slotReady[i]) return i;
+  }
+  return -1;
+}
+
+// 次の未取得スロットのログインボタンを描く。GIS の initialize は
+// 全体で1つの設定しか持たないため、スロットごとに initialize し直して
+// ボタンを描き直す。コールバックはそのスロット・試行の ID・世代・
+// nonce を閉じ込める。
+function renderNextSlotButton(snap) {
+  const slot = currentSlot();
+  if (slot < 0) return;
+  const slotSnap = {
+    trialId: snap.trialId,
+    generation: snap.generation,
+    nonce: slotNonces[slot],
+    slot,
+  };
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce: slotNonces[slot],
+    callback: (response) => onSlotSignIn(response, slotSnap),
+  });
+  gisBox.innerHTML = "";
+  google.accounts.id.renderButton(gisBox, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+  log(`スロット ${slot + 1}/6 の Google ログインボタンを表示しました。テスト用アカウントAでログインしてください`);
+}
+
+// スロットごとの GIS コールバック。ID トークンを受け取り、PC 内で
+// 署名検証し、そのスロットの要求を作る。トークンの値は表示・ログに
+// 出さない。snap は initialize 時に閉じ込めたこのスロット・試行の
+// ID・世代・nonce であり、グローバルな attempt は読まない。古い試行の
+// コールバックは、開始時と各 await 後の照合で破棄する。共有の UI・
+// 状態の更新は、この試行が現行のときに限る。
+async function onSlotSignIn(response, snap) {
+  if (!session.isCurrent(snap.trialId, snap.generation)) {
+    log("古い試行のコールバックを破棄しました");
+    return;
+  }
+  const fixedValue = document.getElementById("fixedOneTime").value;
+  try {
+    if (!fixedValue) throw new Error("固定の一回値を入力してください");
+    // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で署名を
+    // 検証する。トークンは外部の検証サービスへ送らない。期待する
+    // nonce はこのスロットに発行した値である。
+    const jwks = await (await fetch(JWKS_URL)).json();
+    if (!session.isCurrent(snap.trialId, snap.generation)) {
+      log("古い試行のコールバックを破棄しました");
+      return;
+    }
+    const verified = await verifyIdTokenLocal(response.credential, {
+      jwks,
+      expectedAud: GOOGLE_CLIENT_ID,
+      expectedIssuers: ISSUERS,
+      expectedNonce: snap.nonce,
+      nowSec: Math.floor(Date.now() / 1000),
+    }).then(() => true).catch((e) => {
+      log("署名検証 -> ng", e.code || "error");
+      return false;
+    });
+    if (!verified) throw new Error("署名検証が通りませんでした");
+    if (!session.isCurrent(snap.trialId, snap.generation)) {
+      log("古い試行のコールバックを破棄しました");
+      return;
+    }
+    // 主体の確認は、署名検証の通過と、所有者によるアカウント選択の
+    // 確認の両方が揃った場合にだけ真になる。sub やハッシュは扱わない。
+    const subjectConfirmed = verified && accountCheck.checked;
+    if (!subjectConfirmed) {
+      throw new Error("アカウント選択でテスト用アカウントAを選んだことを確認してください");
+    }
+    slotTokens[snap.slot] = response.credential;
+    slotReady[snap.slot] = true;
+    renderSlotStatus();
+    log(`スロット ${snap.slot + 1}/6 のトークンを取得しました`);
+    const next = currentSlot();
+    if (next < 0) {
+      // 6件すべて揃った。凍結した要求と表示記録を作る。
+      const requests = buildS5Requests({
+        tokens: slotTokens,
+        oneTimeValue: fixedValue,
+        purpose: PURPOSE,
+        envId: FIXED_ENV_ID,
+      });
+      verifyS5RequestsEqual(requests);
+      verifyNoncesDistinct(slotNonces);
+      const displays = requests.map((request, i) =>
+        buildS5SlotDisplay(request, {
+          trialId: snap.trialId,
+          slot: i,
+          subjectConfirmed,
+        })
+      );
+      session.markReady(snap.trialId, snap.generation);
+      pending = {
+        requests,
+        displays,
+        trialId: snap.trialId,
+        generation: snap.generation,
+        nonces: [...slotNonces],
+      };
+      displayEl.textContent = JSON.stringify(displays, null, 2);
+      log("6件の送信直前の表示 -> ok", `試験ID=${snap.trialId}`);
+      sendBtn.disabled = false;
+      // 6件の要求は凍結済みであり、送信は保留要求から行う。password 欄は
+      // ここで消す（送信待ちの間に一回値が欄に残らないようにする）。
+      document.getElementById("fixedOneTime").value = "";
+    } else {
+      renderNextSlotButton(snap);
+    }
+  } catch (e) {
+    // 共有の状態を変えるのは、この試行が現行のときに限る。古い試行の
+    // catch が新試行の保留要求・ボタン・表示を壊さないようにする。
+    if (session.isCurrent(snap.trialId, snap.generation)) {
+      log("準備エラー:", e.message);
+      // 無効化の前に password 欄を消す。failAttempt で無効化してから
+      // finally に入ると、finally の isCurrent が false になり、欄が
+      // 残ってしまうため（trial-apply 画面と同じ対応）。
+      document.getElementById("fixedOneTime").value = "";
+      session.failAttempt(snap.trialId, snap.generation);
+      pending = null;
+      slotTokens = [];
+      slotNonces = [];
+      slotReady = [];
+      renderSlotStatus();
+      sendBtn.disabled = true;
+      displayEl.textContent = "（まだ表示記録がありません）";
+      gisBox.innerHTML = "";
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
+    // finally での password 欄の消去は行わない。trial-apply 画面と異なり、
+    // S5 では6件のスロットのコールバックが順に来るため、途中のスロットの
+    // finally で欄を消すと、後のスロットのコールバックが一回値を読めなく
+    // なる。欄の消去は、現行の失敗時（catch での無効化の前）、6件揃った
+    // 時、送信の完了時の3か所で行う。
+  }
+}
+
+const prepBtn = document.getElementById("prepS5");
+prepBtn.addEventListener("click", async () => {
+  // 送信中の準備はできない。送信完了後に準備し直す。
+  if (sending) {
+    log("送信中のため準備できません。送信完了後に準備し直してください");
+    return;
+  }
+  // 新しい試行を開始する。前回の保留要求・送信ボタン・表示を無効化する。
+  const next = session.beginAttempt();
+  attempt = next;
+  pending = null;
+  slotTokens = [];
+  slotNonces = [];
+  slotReady = Array(S5_SLOT_COUNT).fill(false);
+  renderSlotStatus();
+  displayEl.textContent = "（まだ表示記録がありません）";
+  sendBtn.disabled = true;
+  gisBox.innerHTML = "";
+  document.getElementById("trialId").textContent = next.trialId;
+  try {
+    const res = await fetch(PATHS.nonces, { credentials: "include" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !Array.isArray(data.nonces) || data.nonces.length !== S5_SLOT_COUNT) {
+      throw new Error("6件分の nonce が取得できませんでした");
+    }
+    if (!session.isCurrent(next.trialId, next.generation)) {
+      log("古い試行の準備を破棄しました");
+      return;
+    }
+    // nonce の値は表示しない。スロットごとの GIS ログインにだけ使う。
+    verifyNoncesDistinct(data.nonces);
+    slotNonces = [...data.nonces];
+    log("6件分の nonce を取得しました。4分以内に6件のログインと送信を終えてください");
+    renderNextSlotButton(next);
+  } catch (e) {
+    // 共有の状態を変えるのは、この試行が現行のときに限る。
+    if (session.isCurrent(next.trialId, next.generation)) {
+      session.failAttempt(next.trialId, next.generation);
+      log("エラー:", e.message);
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
+  }
+});
+
+sendBtn.addEventListener("click", async () => {
+  if (sending) {
+    log("送信中です");
+    return;
+  }
+  if (
+    !pending || !pending.requests || !pending.displays ||
+    !attempt || !session.isCurrent(attempt.trialId, attempt.generation)
+  ) {
+    log("エラー: 送信できる要求がありません");
+    return;
+  }
+  // 二重送信の防止：送信中は送信ボタンと準備ボタンを無効化する。
+  sending = true;
+  sendBtn.disabled = true;
+  prepBtn.disabled = true;
+  const snap = { trialId: pending.trialId, generation: pending.generation };
+  const { requests, displays } = pending;
+  try {
+    // 表示の元と同一のオブジェクトを送る。表示と実送信の同一性は
+    // verifyS5DisplayMatchesSent で直前に確認する。6件の条件の等しさと
+    // nonce の相異も直前に再確認する。
+    verifyS5DisplayMatchesSent(displays, requests);
+    verifyS5RequestsEqual(requests);
+    verifyNoncesDistinct(pending.nonces);
+    session.markSent(snap.trialId, snap.generation);
+    const res = await fetch(PATHS.send, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ trial_id: snap.trialId, requests }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !Array.isArray(data.results)) {
+      // 送信指示の応答がない／拒否された。6件の実施有無は不明であり、
+      // 再送しない。読み戻しで判断する。
+      log("送信指示エラー:", data && data.error ? data.error : `HTTP ${res.status}`, "（6件の実施有無は不明。再送しません。読み戻しで判断してください）");
+    } else {
+      const entry = makeS5LogEntry({
+        trialId: snap.trialId,
+        slots: data.results.map((r, i) => ({
+          display: displays[i],
+          response: { status: r.status, error: r.error },
+        })),
+      });
+      log("試験ログ:", JSON.stringify(entry));
+      const agg = aggregateS5Results(data.results);
+      log(`集計: 201=${agg.success}件、409 operation_consumed=${agg.consumed}件、応答なし=${agg.no_response}件（期待は 201 が正確に1件）`);
+    }
+  } catch (e) {
+    log("送信エラー:", e.message);
+  } finally {
+    sending = false;
+    prepBtn.disabled = false;
+    // password 欄の消去と保留要求の消去は、この送信の試行のものに限る。
+    // 古い送信の finally が新試行の状態を壊さないようにする。
+    if (session.isCurrent(snap.trialId, snap.generation)) {
+      document.getElementById("fixedOneTime").value = "";
+    }
+    if (pending && pending.trialId === snap.trialId) pending = null;
+  }
+});
+</script>
+</head>
+<body>
+<h1>段階①フェーズ2 先行検証 S5 並行試験専用画面（検証用）</h1>
+<p class="note">項目2 手順3（full-replace への並行6件）の専用画面です。6件の
+要求はそれぞれ有効な実 Google トークンと対応する別 nonce を持ち、
+他の条件は等しいことを送信前に確認し、6件を並行送信して 201 が正確に
+1件であることを記録します。ID トークン・一回値・Cookie・nonce・主体
+ハッシュは表示・ログに出しません。</p>
+
+<p>試験 ID：<code id="trialId">（準備の開始ごとに発行します）</code></p>
+
+<fieldset>
+  <legend>試験の固定内容（送信対象は固定されています）</legend>
+  <p>用途：<code>full-replace（全面復旧）</code>（固定。変更できません）</p>
+  <p>環境ID：<code>stage1-verification-only-20261101</code>（固定の正しい値。変更できません）</p>
+  <label>固定の一回値（承認に固定された値。表示・ログに出ません）
+    <input type="password" id="fixedOneTime" autocomplete="off">
+  </label>
+  <label>
+    <input type="checkbox" id="accountConfirmed">
+    ログインボタンに表示されたアカウントがテスト用アカウントAであることを確認した
+  </label>
+  <p class="note">テスト用アカウントAだけがログインしたブラウザープロファイル
+  （またはA専用のプライベートウィンドウ）を使ってください。A以外が
+  アカウント選択に現れた場合は停止してください。</p>
+  <button id="prepS5" type="button">6件分の nonce を取得する</button>
+  <p class="note">nonce の発行から4分以内に6件のログインと送信を終えてください。
+  4分を過ぎると送信器が拒否します（nonce の有効期限は5分）。
+  期限を過ぎた場合は準備し直してください（Worker の状態は消費されません）。</p>
+  <pre id="slotStatus">スロット 1/6: 未取得
+スロット 2/6: 未取得
+スロット 3/6: 未取得
+スロット 4/6: 未取得
+スロット 5/6: 未取得
+スロット 6/6: 未取得</pre>
+  <div id="gisSlot"></div>
+</fieldset>
+
+<fieldset>
+  <legend>送信直前の表示（非秘密項目と真偽だけ。6件分）</legend>
+  <pre id="display">（まだ表示記録がありません）</pre>
+  <button id="sendS5" type="button" disabled>6件を並行送信する</button>
+</fieldset>
+
+<h2>結果（試験 ID・表示記録・応答だけ）</h2>
+<pre id="log"></pre>
+</body>
+</html>

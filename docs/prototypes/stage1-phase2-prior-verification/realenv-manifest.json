@@ -48,8 +48,8 @@
     },
     {
       "path": "tools/serve-real.mjs",
-      "sha256": "6be52f6c31c413d1c93443b0a35af50d40ee3f234d52f452f938f139e12d9c9f",
-      "bytes": 13647
+      "sha256": "7b14447af7a8b8de9af619c2ec568fd6227ff58ff2b956ac7c958e4d29b4c056",
+      "bytes": 18535
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
@@ -58,23 +58,53 @@
     },
     {
       "path": "public/trial-apply.html",
-      "sha256": "588233b7ac205be47375f0365578781540e3c0509afc748424cb89851ca28efa",
-      "bytes": 18775
+      "sha256": "ea49bc3fd55257d6da6dd591e38f76a650ae9f3ff770d37771d1b6ffc94583b3",
+      "bytes": 20708
     },
     {
       "path": "tools/trial-apply.mjs",
-      "sha256": "f0d7c6e84c8d3a6072e0e3649c41aef6a2fbfac3b8f86f41fb505f6e8ceab4ee",
-      "bytes": 13110
+      "sha256": "95d4b8cf6ab17f4f70bc109516870693cc5b1693968995a208e9e150974b3bab",
+      "bytes": 15224
     },
     {
       "path": "test/trial-apply.test.mjs",
-      "sha256": "7fe942933d053656f434aabe4961aadd4fd58c0c797c6c81c3da8a83df373185",
-      "bytes": 12710
+      "sha256": "34bf8ab09ae4fa5c299058f28f6fb279e2ffb145dd6dfacf76f4773452c6ea41",
+      "bytes": 16261
     },
     {
       "path": "test/trial-apply.screen.mjs",
-      "sha256": "9add2c23335d3d76821d8c0d53ac4aea6568c271b6677f09e71e356807f0394d",
-      "bytes": 24691
+      "sha256": "c05228d478e446808dd787e7cbed18103cc77f90e42cb0c644223e391249c629",
+      "bytes": 28041
+    },
+    {
+      "path": "public/s5-apply.html",
+      "sha256": "d78bb45b7e0a340956b39427613b9710ce96fd5549e3c245f93be88d3701793a",
+      "bytes": 22534
+    },
+    {
+      "path": "tools/s5-apply.mjs",
+      "sha256": "b90f8a1282864a80672ade8f9dddc5fe38669aa4217ecd4f27ca24798ab5020e",
+      "bytes": 12632
+    },
+    {
+      "path": "tools/s5-sender.mjs",
+      "sha256": "cf899262eca9756938d58d68a9277f73e231c86cb9b95011723848680d356ceb",
+      "bytes": 9330
+    },
+    {
+      "path": "test/s5-apply.test.mjs",
+      "sha256": "1e7123dfd8b74177b7fee7bfb1348f629e6a2ee715cd4a1ee013091961bcc572",
+      "bytes": 9701
+    },
+    {
+      "path": "test/s5-sender.test.mjs",
+      "sha256": "424cc1a2ecc0987da4f23bc28c37529901908026583632066d5d8e162bcbbdda",
+      "bytes": 12269
+    },
+    {
+      "path": "test/s5-apply.screen.mjs",
+      "sha256": "a61e946ceb7d63e2c669e465e93f2013d1e4a21e793462e6e1d0ffef0fb04b82",
+      "bytes": 24001
     }
   ],
   "builds": {
@@ -328,7 +358,8 @@
   "pc_side": {
     "login_page": "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
     "subject_hash_page": "public/subject-hash.html（tools/serve-real.mjs が /subject-hash で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。ID トークンを外部へ送らず、公開鍵・JWKS による PC 内署名検証で SHA-256(sub) だけを表示する。検証モジュール tools/subject-hash-verify.mjs は Node 試験と共用）",
-    "trial_apply_page": "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する）",
+    "trial_apply_page": "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する。S4 の消費済み・初期化済み試験も同じ画面で行う（用途は試験種別で決まる固定値。不一致試験は full-replace、S4 の2試験は bootstrap）」",
+    "s5_apply_page": "public/s5-apply.html（tools/serve-real.mjs が /s5-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。送信する JSON の全文表示はしない。検証モジュール tools/s5-apply.mjs は Node 試験 test/s5-apply.test.mjs と共用する。並行送信は提供サーバー側の tools/s5-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信器の試験は test/s5-sender.test.mjs、画面の実画面試験は test/s5-apply.screen.mjs）",
     "serve": "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）"
   },
   "source_checks": {
@@ -518,19 +549,23 @@
           "text": "//   tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 189,
+          "line": 37,
+          "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
+        },
+        {
+          "line": 220,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
         },
         {
-          "line": 190,
+          "line": 221,
           "text": "console.log(`GET /subject-hash -> 200`);"
         },
         {
-          "line": 195,
+          "line": 226,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
         },
         {
-          "line": 196,
+          "line": 227,
           "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
@@ -547,7 +582,7 @@
     "trial_apply_page_placeholder": {
       "found": [
         {
-          "line": 73,
+          "line": 79,
           "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
         }
       ],
@@ -556,7 +591,7 @@
     "trial_apply_page_gis": {
       "found": [
         {
-          "line": 56,
+          "line": 60,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
         }
       ],
@@ -565,7 +600,7 @@
     "trial_apply_page_uses_jwks": {
       "found": [
         {
-          "line": 74,
+          "line": 80,
           "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
         }
       ],
@@ -574,12 +609,16 @@
     "trial_apply_module_freezes_request": {
       "found": [
         {
-          "line": 36,
+          "line": 43,
           "text": "// のは Object.freeze と JSON だけである。秘密の比較は呼び出し側"
         },
         {
-          "line": 49,
+          "line": 56,
           "text": "return Object.freeze(obj);"
+        },
+        {
+          "line": 96,
+          "text": "export const TRIAL_KINDS = Object.freeze(["
         }
       ],
       "expect": "present"
@@ -587,7 +626,7 @@
     "trial_apply_module_checks_display_sent": {
       "found": [
         {
-          "line": 240,
+          "line": 286,
           "text": "export function verifyDisplayMatchesSent(display, sentBody) {"
         }
       ],
@@ -596,15 +635,15 @@
     "trial_apply_module_compares_one_time_fact_only": {
       "found": [
         {
-          "line": 15,
+          "line": 21,
           "text": "// - compareOneTime(trialValue, fixedValue) は「一致」／「不一致」の"
         },
         {
-          "line": 77,
+          "line": 84,
           "text": "export function compareOneTime(trialValue, fixedValue) {"
         },
         {
-          "line": 209,
+          "line": 255,
           "text": "// oneTimeFact は compareOneTime の戻り値（\"一致\"／\"不一致\"）だけを受け取る。"
         }
       ],
@@ -613,11 +652,11 @@
     "trial_apply_module_env_condition": {
       "found": [
         {
-          "line": 17,
+          "line": 23,
           "text": "// - verifyEnvCondition(request, { kind, expectedEnvId }) は、凍結済みの"
         },
         {
-          "line": 89,
+          "line": 131,
           "text": "export function verifyEnvCondition(request, { kind, expectedEnvId }) {"
         }
       ],
@@ -626,11 +665,11 @@
     "trial_apply_module_session_guard": {
       "found": [
         {
-          "line": 22,
+          "line": 29,
           "text": "// - createTrialSession() は試行ごとの世代管理を行う。準備の開始時に"
         },
         {
-          "line": 150,
+          "line": 196,
           "text": "export function createTrialSession() {"
         }
       ],
@@ -639,15 +678,15 @@
     "trial_apply_module_error_normalize": {
       "found": [
         {
-          "line": 25,
+          "line": 32,
           "text": "// - normalizeResponseError(error) は応答の理由コードを固定の許可一覧"
         },
         {
-          "line": 141,
+          "line": 187,
           "text": "export function normalizeResponseError(error) {"
         },
         {
-          "line": 263,
+          "line": 309,
           "text": "error: normalizeResponseError(response.error),"
         }
       ],
@@ -656,11 +695,11 @@
     "trial_apply_page_fixed_env_id": {
       "found": [
         {
-          "line": 81,
+          "line": 87,
           "text": "const FIXED_ENV_ID = \"stage1-verification-only-20261101\";"
         },
         {
-          "line": 331,
+          "line": 356,
           "text": "<p class=\"note\">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。"
         }
       ],
@@ -669,11 +708,11 @@
     "trial_apply_page_session_guard": {
       "found": [
         {
-          "line": 64,
+          "line": 68,
           "text": "createTrialSession,"
         },
         {
-          "line": 89,
+          "line": 95,
           "text": "const session = createTrialSession();"
         }
       ],
@@ -682,11 +721,11 @@
     "trial_apply_page_env_condition": {
       "found": [
         {
-          "line": 63,
+          "line": 67,
           "text": "verifyEnvCondition,"
         },
         {
-          "line": 178,
+          "line": 187,
           "text": "verifyEnvCondition(request, { kind: trialKind, expectedEnvId: FIXED_ENV_ID });"
         }
       ],
@@ -695,7 +734,7 @@
     "trial_apply_page_attempt_closure": {
       "found": [
         {
-          "line": 243,
+          "line": 265,
           "text": "callback: (response) => onGoogleSignIn(response, snap),"
         }
       ],
@@ -704,23 +743,23 @@
     "trial_apply_page_guarded_finally": {
       "found": [
         {
-          "line": 123,
+          "line": 129,
           "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 144,
+          "line": 151,
           "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 159,
+          "line": 166,
           "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 193,
+          "line": 202,
           "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 210,
+          "line": 219,
           "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
         }
       ],
@@ -729,7 +768,7 @@
     "trial_apply_page_send_guard": {
       "found": [
         {
-          "line": 276,
+          "line": 298,
           "text": "sending = true;"
         }
       ],
@@ -738,7 +777,7 @@
     "trial_apply_page_clear_before_invalidate": {
       "found": [
         {
-          "line": 195,
+          "line": 204,
           "text": "// 無効化の前に password 欄を消す。failAttempt で無効化してから"
         }
       ],
@@ -813,6 +852,14 @@
         {
           "line": 535,
           "text": "const nonceB = window.__gis.nonces[1];"
+        },
+        {
+          "line": 575,
+          "text": "const nonce = window.__gis.nonces[0];"
+        },
+        {
+          "line": 623,
+          "text": "const nonce = window.__gis.nonces[0];"
         }
       ],
       "expect": "present"
@@ -888,6 +935,10 @@
         {
           "line": 442,
           "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
+        },
+        {
+          "line": 637,
+          "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
         }
       ],
       "expect": "present"
@@ -907,20 +958,453 @@
           "text": "// - GET /trial-apply.mjs → tools/trial-apply.mjs をそのまま返す"
         },
         {
-          "line": 201,
+          "line": 37,
+          "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
+        },
+        {
+          "line": 232,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply\") {"
         },
         {
-          "line": 202,
+          "line": 233,
           "text": "console.log(`GET /trial-apply -> 200`);"
         },
         {
-          "line": 207,
+          "line": 238,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply.mjs\") {"
         },
         {
-          "line": 208,
+          "line": 239,
           "text": "console.log(`GET /trial-apply.mjs -> 200`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_module_s4_kinds": {
+      "found": [
+        {
+          "line": 91,
+          "text": "// S4 の2試験（operation-consumed／already-initialized）は、固定値の"
+        },
+        {
+          "line": 99,
+          "text": "\"operation-consumed\","
+        },
+        {
+          "line": 107,
+          "text": "if (kind === \"operation-consumed\" || kind === \"already-initialized\") {"
+        },
+        {
+          "line": 110,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+        },
+        {
+          "line": 116,
+          "text": "kind === \"operation-consumed\" ||"
+        },
+        {
+          "line": 122,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+        },
+        {
+          "line": 142,
+          "text": "kind === \"operation-consumed\" ||"
+        },
+        {
+          "line": 150,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+        },
+        {
+          "line": 259,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_module_s4_purpose": {
+      "found": [
+        {
+          "line": 12,
+          "text": "// - purposeForKind(kind) は試験種別ごとの用途（purpose）を返す。"
+        },
+        {
+          "line": 103,
+          "text": "export function purposeForKind(kind) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_s4_kinds": {
+      "found": [
+        {
+          "line": 348,
+          "text": "<option value=\"operation-consumed\">消費済み（消費済みの操作IDを再提示する。S4 手順1）</option>"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_page_no_secret_field_names": {
+      "found": [],
+      "expect": "absent"
+    },
+    "s5_apply_page_no_tokeninfo": {
+      "found": [],
+      "expect": "absent"
+    },
+    "s5_apply_page_placeholder": {
+      "found": [
+        {
+          "line": 96,
+          "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_page_gis": {
+      "found": [
+        {
+          "line": 77,
+          "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_page_uses_jwks": {
+      "found": [
+        {
+          "line": 97,
+          "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_module_builds_requests": {
+      "found": [
+        {
+          "line": 8,
+          "text": "// - buildS5Requests(...) は6件の要求オブジェクトを buildTrialRequest"
+        },
+        {
+          "line": 76,
+          "text": "export function buildS5Requests({ tokens, oneTimeValue, purpose, envId }) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_module_checks_nonces_distinct": {
+      "found": [
+        {
+          "line": 11,
+          "text": "// - verifyNoncesDistinct(nonces) は6件の nonce がすべて空でない文字列"
+        },
+        {
+          "line": 31,
+          "text": "//   （nonce の相異は verifyNoncesDistinct で送信前に確認する）。"
+        },
+        {
+          "line": 92,
+          "text": "export function verifyNoncesDistinct(nonces) {"
+        },
+        {
+          "line": 238,
+          "text": "// verifyNoncesDistinct で確認する）。"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_module_checks_slots_equal": {
+      "found": [
+        {
+          "line": 14,
+          "text": "// - verifyS5RequestsEqual(requests) は6件の要求の env_id・purpose・"
+        },
+        {
+          "line": 106,
+          "text": "export function verifyS5RequestsEqual(requests) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_module_aggregates": {
+      "found": [
+        {
+          "line": 27,
+          "text": "// - aggregateS5Results(results) は6件の応答を集計する。成功（201）が"
+        },
+        {
+          "line": 239,
+          "text": "export function aggregateS5Results(results) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_per_slot_cookie": {
+      "found": [
+        {
+          "line": 172,
+          "text": "Cookie: `${NONCE_CTX_COOKIE}=${slots[i].ctx}`,"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_parallel_send": {
+      "found": [
+        {
+          "line": 165,
+          "text": "const settled = await Promise.allSettled("
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_slot_binding": {
+      "found": [
+        {
+          "line": 161,
+          "text": "fail(\"slot_nonce_mismatch\", \"スロットとトークンの nonce が一致しません\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_clears_after_send": {
+      "found": [
+        {
+          "line": 108,
+          "text": "let issued = null; // { issuedAt, slots: [{ nonce, ctx }] }"
+        },
+        {
+          "line": 111,
+          "text": "issued = null;"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_no_response_local_code": {
+      "found": [
+        {
+          "line": 49,
+          "text": "S5_NO_RESPONSE,"
+        },
+        {
+          "line": 187,
+          "text": "return { slot: i, status: null, error: S5_NO_RESPONSE };"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_apply_route": {
+      "found": [
+        {
+          "line": 32,
+          "text": "// - GET /s5-apply → public/s5-apply.html を返す（S5 並行試験専用画面。"
+        },
+        {
+          "line": 36,
+          "text": "//   として送信器へ渡す。検証モジュール tools/s5-apply.mjs と"
+        },
+        {
+          "line": 38,
+          "text": "// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す"
+        },
+        {
+          "line": 244,
+          "text": "if (req.method === \"GET\" && pathname === \"/s5-apply\") {"
+        },
+        {
+          "line": 245,
+          "text": "console.log(`GET /s5-apply -> 200`);"
+        },
+        {
+          "line": 250,
+          "text": "if (req.method === \"GET\" && pathname === \"/s5-apply.mjs\") {"
+        },
+        {
+          "line": 251,
+          "text": "console.log(`GET /s5-apply.mjs -> 200`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_nonces_route": {
+      "found": [
+        {
+          "line": 40,
+          "text": "// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと"
+        },
+        {
+          "line": 259,
+          "text": "if (req.method === \"GET\" && pathname === \"/s5/nonces\") {"
+        },
+        {
+          "line": 262,
+          "text": "console.log(`GET /s5/nonces -> 200`);"
+        },
+        {
+          "line": 266,
+          "text": "console.log(`GET /s5/nonces -> 502`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_send_route": {
+      "found": [
+        {
+          "line": 43,
+          "text": "// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット"
+        },
+        {
+          "line": 272,
+          "text": "if (req.method === \"POST\" && pathname === \"/s5/send\") {"
+        },
+        {
+          "line": 282,
+          "text": "console.log(`POST /s5/send -> 400`);"
+        },
+        {
+          "line": 292,
+          "text": "console.log(`POST /s5/send -> 200`);"
+        },
+        {
+          "line": 299,
+          "text": "console.log(`POST /s5/send -> ${status}`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_screen_fake_gis": {
+      "found": [
+        {
+          "line": 209,
+          "text": "window.__gis = { callbacks: [], nonces: [] };"
+        },
+        {
+          "line": 212,
+          "text": "window.__gis.callbacks.push(opts.callback);"
+        },
+        {
+          "line": 213,
+          "text": "window.__gis.nonces.push(opts.nonce);"
+        },
+        {
+          "line": 294,
+          "text": "const ok = await waitFor(() => window.__gis.callbacks.length > idx);"
+        },
+        {
+          "line": 296,
+          "text": "const nonce = window.__gis.nonces[idx];"
+        },
+        {
+          "line": 298,
+          "text": "await window.__gis.callbacks[idx]({ credential: token });"
+        },
+        {
+          "line": 397,
+          "text": "const firstReady = await waitFor(() => window.__gis.callbacks.length > 0);"
+        },
+        {
+          "line": 403,
+          "text": "const secondReady = await waitFor(() => window.__gis.callbacks.length > 1);"
+        },
+        {
+          "line": 408,
+          "text": "const nonceA = window.__gis.nonces[0];"
+        },
+        {
+          "line": 409,
+          "text": "await window.__gis.callbacks[0]({ credential: mintToken(nonceA) });"
+        },
+        {
+          "line": 437,
+          "text": "const ready0 = await waitFor(() => window.__gis.callbacks.length > 0);"
+        },
+        {
+          "line": 441,
+          "text": "await window.__gis.callbacks[0]({ credential: wrongToken });"
+        },
+        {
+          "line": 460,
+          "text": "const reprepped = await waitFor(() => window.__gis.callbacks.length > 1);"
+        },
+        {
+          "line": 515,
+          "text": "const reprepped = await waitFor(() => window.__gis.callbacks.length > 0);"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_screen_jsdom": {
+      "found": [
+        {
+          "line": 11,
+          "text": "// 止まる）。そのため jsdom でページを実行する。jsdom 31 は"
+        },
+        {
+          "line": 42,
+          "text": "import pkg from \"jsdom\";"
+        },
+        {
+          "line": 182,
+          "text": "const jsdomErrors = [];"
+        },
+        {
+          "line": 183,
+          "text": "vc.on(\"jsdomError\", (e) => jsdomErrors.push(String(e && e.detail ? e.detail : e)));"
+        },
+        {
+          "line": 202,
+          "text": "// jsdom の window.crypto には subtle がないため、Node の"
+        },
+        {
+          "line": 219,
+          "text": "// jsdom 31 は window.fetch を持たないため、Node の fetch で"
+        },
+        {
+          "line": 265,
+          "text": "if (jsdomErrors.length) throw new Error(`ページの実行エラー: ${jsdomErrors[0]}`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_screen_send_posts": {
+      "found": [
+        {
+          "line": 177,
+          "text": "// 場面ごとの状態は各 window に置く（__s5SendPosts・"
+        },
+        {
+          "line": 224,
+          "text": "window.__s5SendPosts = [];"
+        },
+        {
+          "line": 246,
+          "text": "window.__s5SendPosts.push(JSON.parse(init.body));"
+        },
+        {
+          "line": 306,
+          "text": "window.__s5SendPosts = [];"
+        },
+        {
+          "line": 345,
+          "text": "window.__s5SendPosts.length === 1,"
+        },
+        {
+          "line": 346,
+          "text": "`posts=${window.__s5SendPosts.length}`"
+        },
+        {
+          "line": 348,
+          "text": "const sent = window.__s5SendPosts[0] || {};"
+        },
+        {
+          "line": 468,
+          "text": "window.__s5SendPosts = [];"
+        },
+        {
+          "line": 489,
+          "text": "window.__s5SendPosts.length === 1,"
+        },
+        {
+          "line": 490,
+          "text": "`posts=${window.__s5SendPosts.length}`"
         }
       ],
       "expect": "present"

@@ -29,6 +29,22 @@
 //   tools/subject-hash-verify.mjs を import する。
 // - GET /trial-apply.mjs → tools/trial-apply.mjs をそのまま返す
 //   （trial-apply 画面が import する純粋モジュール）。
+// - GET /s5-apply → public/s5-apply.html を返す（S5 並行試験専用画面。
+//   同じくクライアント ID をメモリ上で差し込む）。このページは6件の
+//   実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しい
+//   ことと nonce が異なることを表示して、その同じ6件の要求を送信指示
+//   として送信器へ渡す。検証モジュール tools/s5-apply.mjs と
+//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。
+// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す
+//   （s5-apply 画面が import する純粋モジュール）。
+// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
+//   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
+//   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
+// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット
+//   ごとに Cookie jar を分けて6件を並行送信し、スロットごとの応答
+//   （状態と理由コードだけ）を返す。ID トークン・一回値・Cookie・
+//   nonce の値はログ・応答に出さない。送信器は送信の完了直後に保持
+//   を破棄する。
 // - /nonce・/platform/apply・/admin/*（verify-only・registry の
 //   add/revoke/rotate）への要求は、環境変数 RELAY_URL（既定
 //   http://127.0.0.1:8798）へ、メソッド・ヘッダー・ボディを変更せずに
@@ -60,6 +76,7 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createS5Sender } from "./s5-sender.mjs";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
@@ -138,6 +155,10 @@ if (relayValidation.error) {
 const RELAY = relayValidation.relay;
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+// S5 並行試験の送信器（1プロセスに1つ）。nonce・ctx・要求の保持は
+// メモリー内だけであり、送信の完了直後に破棄する。
+const s5Sender = createS5Sender({ relayUrl: RELAY });
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -167,6 +188,16 @@ if (!rawTrialApplyHtml.includes(PLACEHOLDER)) {
 }
 const trialApplyHtml = rawTrialApplyHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const trialApplyJs = await readFile(path.join(root, "tools", "trial-apply.mjs"), "utf8");
+
+// S5 並行試験専用画面も同じく、起動時に読み込み、クライアント ID を
+// メモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
+const rawS5ApplyHtml = await readFile(path.join(root, "public", "s5-apply.html"), "utf8");
+if (!rawS5ApplyHtml.includes(PLACEHOLDER)) {
+  console.error("error: s5-apply.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s5ApplyHtml = rawS5ApplyHtml.split(PLACEHOLDER).join(CLIENT_ID);
+const s5ApplyJs = await readFile(path.join(root, "tools", "s5-apply.mjs"), "utf8");
 
 const FORWARD_PATHS = new Set([
   "/nonce",
@@ -208,6 +239,67 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /trial-apply.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(trialApplyJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s5-apply") {
+      console.log(`GET /s5-apply -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s5ApplyHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s5-apply.mjs") {
+      console.log(`GET /s5-apply.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s5ApplyJs);
+      return;
+    }
+    // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
+    // み動く。要求・応答の本体、トークン・一回値・Cookie・nonce の値は
+    // ログに出さない。送信器の局所エラーは理由コードだけを返す。
+    if (req.method === "GET" && pathname === "/s5/nonces") {
+      try {
+        const nonces = await s5Sender.issueNonces();
+        console.log(`GET /s5/nonces -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ nonces }));
+      } catch (e) {
+        console.log(`GET /s5/nonces -> 502`);
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s5_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (req.method === "POST" && pathname === "/s5/send") {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      let parsed = null;
+      try {
+        parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        console.log(`POST /s5/send -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        const out = await s5Sender.send({
+          trialId: parsed.trial_id,
+          requests: parsed.requests,
+        });
+        console.log(`POST /s5/send -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(out));
+      } catch (e) {
+        // 送信前の確認に失敗した場合は1件も送っていない。理由コード
+        // だけを返し、値は返さない。期限切れは 410、その他は 409 とする。
+        const status = e.code === "s5_nonces_expired" ? 410 : 409;
+        console.log(`POST /s5/send -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s5_send_failed" }));
+      }
       return;
     }
     if (FORWARD_PATHS.has(pathname)) {

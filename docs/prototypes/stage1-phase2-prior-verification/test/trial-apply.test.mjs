@@ -16,6 +16,8 @@ import {
   makeTrialLogEntry,
   assertNoSecrets,
   assertDisplayKeys,
+  purposeForKind,
+  expectedOneTimeFact,
 } from "../tools/trial-apply.mjs";
 
 // ダミー値。秘密の体裁を持つが、試験のためだけの値である。
@@ -276,6 +278,92 @@ test("応答の理由コードは固定の許可一覧へ正規化される", ()
     response: { status: 500, error: "internal boom" },
   });
   assert.equal(entry.response.error, "unexpected_error");
+});
+
+test("S4 の試験種別：用途と一回値の前提は種別で決まる", () => {
+  assert.equal(purposeForKind("env-mismatch"), "full-replace");
+  assert.equal(purposeForKind("one-time-mismatch"), "full-replace");
+  assert.equal(purposeForKind("operation-consumed"), "bootstrap");
+  assert.equal(purposeForKind("already-initialized"), "bootstrap");
+  assert.equal(expectedOneTimeFact("env-mismatch"), "一致");
+  assert.equal(expectedOneTimeFact("one-time-mismatch"), "不一致");
+  assert.equal(expectedOneTimeFact("operation-consumed"), "一致");
+  assert.equal(expectedOneTimeFact("already-initialized"), "一致");
+  assert.throws(() => purposeForKind("full-match"), (e) => e.code === "bad_trial_input");
+  assert.throws(() => expectedOneTimeFact("full-match"), (e) => e.code === "bad_trial_input");
+});
+
+test("S4 の環境条件の機械検証：消費済み・初期化済み試験は正しい env_id が前提", () => {
+  const FIXED = "stage1-verification-only-20261101";
+  const rightEnv = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "bootstrap",
+    envId: FIXED,
+  });
+  const wrongEnv = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "bootstrap",
+    envId: "wrong-env-id-dummy",
+  });
+  // S4 の2試験は正しい env_id なら通り、誤った env_id なら送信不能。
+  assert.equal(
+    verifyEnvCondition(rightEnv, { kind: "operation-consumed", expectedEnvId: FIXED }),
+    true
+  );
+  assert.equal(
+    verifyEnvCondition(rightEnv, { kind: "already-initialized", expectedEnvId: FIXED }),
+    true
+  );
+  assert.throws(
+    () => verifyEnvCondition(wrongEnv, { kind: "operation-consumed", expectedEnvId: FIXED }),
+    (e) => e.code === "env_condition_failed"
+  );
+  assert.throws(
+    () => verifyEnvCondition(wrongEnv, { kind: "already-initialized", expectedEnvId: FIXED }),
+    (e) => e.code === "env_condition_failed"
+  );
+});
+
+test("S4 の表示記録は許された鍵だけで、用途は bootstrap になる", () => {
+  const req = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "bootstrap",
+    envId: "stage1-verification-only-20261101",
+  });
+  const consumed = preSendView(req, {
+    trialId: "trial-s4-001",
+    kind: "operation-consumed",
+    subjectConfirmed: true,
+    oneTimeFact: "一致",
+  });
+  assertDisplayKeys(consumed);
+  assert.equal(consumed.purpose, "bootstrap");
+  assert.equal(consumed.kind, "operation-consumed");
+  assertNoSecrets(JSON.stringify(consumed), SECRETS);
+  const initialized = preSendView(req, {
+    trialId: "trial-s4-002",
+    kind: "already-initialized",
+    subjectConfirmed: true,
+    oneTimeFact: "一致",
+  });
+  assert.equal(initialized.kind, "already-initialized");
+  assert.equal(initialized.purpose, "bootstrap");
+  // S4 の応答（409 operation_consumed／409 already_initialized）は
+  // 許可一覧の理由コードとして記録される。
+  const entryConsumed = makeTrialLogEntry({
+    display: consumed,
+    response: { status: 409, error: "operation_consumed" },
+  });
+  assert.equal(entryConsumed.response.error, "operation_consumed");
+  const entryInitialized = makeTrialLogEntry({
+    display: initialized,
+    response: { status: 409, error: "already_initialized" },
+  });
+  assert.equal(entryInitialized.response.error, "already_initialized");
+  assertNoSecrets(JSON.stringify(entryConsumed) + JSON.stringify(entryInitialized), SECRETS);
 });
 
 test("不正な入力は拒否される", () => {
