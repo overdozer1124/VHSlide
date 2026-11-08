@@ -209,6 +209,19 @@ try {
         !s5Html.includes("id_token") &&
         !s5Html.includes("one_time_value")
     );
+    // 試験単位のセッションは、配信された画面から読み取る（画面が受け取る
+    // 方法と同じ。値は表示・記録しない）。
+    const s5SessionMatch = s5Html.match(/const S5_SESSION = "([^"]+)"/);
+    const s5Session = s5SessionMatch ? s5SessionMatch[1] : "";
+    check(
+      "スモーク: /s5-apply に試験単位のセッションが差し込まれ、プレースホルダが残らない",
+      s5Session.length >= 20 && !s5Html.includes("REPLACE_WITH_S5_SESSION")
+    );
+    const s5Headers = {
+      "content-type": "application/json",
+      "x-s5-session": s5Session,
+      Origin: base,
+    };
     const s5JsRes = await fetch(base + "/s5-apply.mjs");
     const s5Js = await s5JsRes.text();
     check(
@@ -218,10 +231,11 @@ try {
         s5Js.includes("verifyNoncesDistinct") &&
         s5Js.includes("aggregateS5Results")
     );
-    // 準備なしの送信は、送信器が1件も送らずに拒否する。
+    // 準備なしの送信は、送信器が1件も送らずに拒否する。呼び出し元の
+    // 境界（セッション・Origin）を通ったうえでの拒否である。
     const s5SendNoPrep = await fetch(base + "/s5/send", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: s5Headers,
       body: JSON.stringify({ trial_id: "smoke-s5", requests: [] }),
     });
     const s5SendNoPrepJson = await s5SendNoPrep.json().catch(() => null);
@@ -232,9 +246,40 @@ try {
         s5SendNoPrepJson.error === "s5_not_prepared",
       `status=${s5SendNoPrep.status} body=${JSON.stringify(s5SendNoPrepJson)}`
     );
+    // 呼び出し元の境界：セッションなし・別オリジンでは状態を変更せず
+    // 403 で拒否される。
+    const s5SendNoSession = await fetch(base + "/s5/send", {
+      method: "POST",
+      headers: { "content-type": "application/json", Origin: base },
+      body: JSON.stringify({ trial_id: "smoke-s5", requests: [] }),
+    });
+    check(
+      "スモーク: /s5/send はセッションなしでは 403 s5_bad_session で拒否される",
+      s5SendNoSession.status === 403 &&
+        (await s5SendNoSession.json().catch(() => null))?.error === "s5_bad_session",
+      `status=${s5SendNoSession.status}`
+    );
+    const s5NoncesNoSession = await fetch(base + "/s5/nonces?trial_id=smoke-s5");
+    check(
+      "スモーク: /s5/nonces はセッションなしでは 403 s5_bad_session で拒否される",
+      s5NoncesNoSession.status === 403 &&
+        (await s5NoncesNoSession.json().catch(() => null))?.error === "s5_bad_session",
+      `status=${s5NoncesNoSession.status}`
+    );
+    const s5NoncesBadOrigin = await fetch(base + "/s5/nonces?trial_id=smoke-s5", {
+      headers: { "x-s5-session": s5Session, Origin: "https://evil.example" },
+    });
+    check(
+      "スモーク: /s5/nonces は別オリジンでは 403 s5_bad_origin で拒否される",
+      s5NoncesBadOrigin.status === 403 &&
+        (await s5NoncesBadOrigin.json().catch(() => null))?.error === "s5_bad_origin",
+      `status=${s5NoncesBadOrigin.status}`
+    );
     // 6件分の nonce の発行。中継先は通常ビルドであり、/nonce は
     // 存在するため、6件の nonce が返る（値は表示・記録しない）。
-    const s5NoncesRes = await fetch(base + "/s5/nonces");
+    const s5NoncesRes = await fetch(base + "/s5/nonces?trial_id=smoke-s5", {
+      headers: { "x-s5-session": s5Session, Origin: base },
+    });
     const s5NoncesJson = await s5NoncesRes.json().catch(() => null);
     const s5Nonces = (s5NoncesJson && s5NoncesJson.nonces) || [];
     check(

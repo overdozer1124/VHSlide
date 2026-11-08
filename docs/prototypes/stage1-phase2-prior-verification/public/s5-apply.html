@@ -27,9 +27,10 @@
     ないためです。
   - nonce の発行は送信器が行います（GET /s5/nonces）。画面は6件の
     nonce の値を受け取りますが、表示・ログには出しません。各 nonce
-    は対応するスロットの GIS ログインにだけ使います。発行から4分以内
-    に送信しなければ送信器が拒否します（nonce の有効期限は5分。
-    期限を過ぎた場合は再準備します。Worker の状態は消費されません）。
+    は対応するスロットの GIS ログインにだけ使います。最初の nonce の
+    発行から4分以内に送信しなければ送信器が拒否します（nonce の有効
+    期限は5分。期限を過ぎた場合は再準備します。Worker の状態は消費
+    されません）。
   - Google ログインは、スロットごとに1つのログインボタンを順に
     使います。GIS の initialize は全体で1つの設定しか持たないため、
     6つのボタンを一度に並べるのではなく、スロットごとに initialize
@@ -94,6 +95,11 @@ import { verifyIdTokenLocal } from "./subject-hash-verify.mjs";
 // （検証用に作成した Web クライアントの ID を、tools/serve-real.mjs が
 // 起動時に環境変数 GOOGLE_CLIENT_ID からメモリ上で差し込みます）
 const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+// 試験単位の不可推測セッション。提供サーバーが起動時に発行し、メモリ上で
+// 差し込む（ファイル自体は書き換えない）。/s5/nonces・/s5/send の呼び出し
+// 時にヘッダーで示し、別オリジン・別画面からの状態変更を拒否する。
+// 秘密の値ではないが、表示・ログには出さない。
+const S5_SESSION = "REPLACE_WITH_S5_SESSION";
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 const PATHS = { nonces: "/s5/nonces", send: "/s5/send" };
@@ -306,7 +312,13 @@ prepBtn.addEventListener("click", async () => {
   gisBox.innerHTML = "";
   document.getElementById("trialId").textContent = next.trialId;
   try {
-    const res = await fetch(PATHS.nonces, { credentials: "include" });
+    // nonce の発行は試行 ID に結び付ける。送信指示の試行 ID と一致
+    // しなければ送信器は送信しない。試験単位のセッションもヘッダーで
+    // 示す（別オリジン・別画面からの呼び出しは拒否される）。
+    const res = await fetch(`${PATHS.nonces}?trial_id=${encodeURIComponent(next.trialId)}`, {
+      credentials: "include",
+      headers: { "x-s5-session": S5_SESSION },
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || !Array.isArray(data.nonces) || data.nonces.length !== S5_SLOT_COUNT) {
       throw new Error("6件分の nonce が取得できませんでした");
@@ -318,7 +330,7 @@ prepBtn.addEventListener("click", async () => {
     // nonce の値は表示しない。スロットごとの GIS ログインにだけ使う。
     verifyNoncesDistinct(data.nonces);
     slotNonces = [...data.nonces];
-    log("6件分の nonce を取得しました。4分以内に6件のログインと送信を終えてください");
+    log("6件分の nonce を取得しました。最初の nonce の発行から4分以内に6件のログインと送信を終えてください");
     renderNextSlotButton(next);
   } catch (e) {
     // 共有の状態を変えるのは、この試行が現行のときに限る。
@@ -359,7 +371,10 @@ sendBtn.addEventListener("click", async () => {
     session.markSent(snap.trialId, snap.generation);
     const res = await fetch(PATHS.send, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-s5-session": S5_SESSION,
+      },
       credentials: "include",
       body: JSON.stringify({ trial_id: snap.trialId, requests }),
     });
@@ -420,7 +435,7 @@ sendBtn.addEventListener("click", async () => {
   （またはA専用のプライベートウィンドウ）を使ってください。A以外が
   アカウント選択に現れた場合は停止してください。</p>
   <button id="prepS5" type="button">6件分の nonce を取得する</button>
-  <p class="note">nonce の発行から4分以内に6件のログインと送信を終えてください。
+  <p class="note">最初の nonce の発行から4分以内に6件のログインと送信を終えてください。
   4分を過ぎると送信器が拒否します（nonce の有効期限は5分）。
   期限を過ぎた場合は準備し直してください（Worker の状態は消費されません）。</p>
   <pre id="slotStatus">スロット 1/6: 未取得

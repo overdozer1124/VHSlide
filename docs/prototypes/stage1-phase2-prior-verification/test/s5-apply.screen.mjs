@@ -222,6 +222,8 @@ try {
         // する（Secure 属性は課さない）。
         window.__fakeJwks = FAKE_JWKS;
         window.__s5SendPosts = [];
+        window.__s5NoncesRequests = [];
+        window.__s5SendHeaders = [];
         window.__noncesShouldFail = false;
         const cookieStore = new Map();
         const nodeFetch = fetch;
@@ -235,6 +237,16 @@ try {
               headers: { "Content-Type": "application/json" },
             });
           }
+          // /s5/nonces の呼び出しを記録する（セッション・試行 ID の
+          // 送信確認用）。試験単位のセッションは、配信された画面に
+          // 差し込まれた値であり、値はここでは表示しない。
+          if (url.includes("/s5/nonces")) {
+            const reqHeaders = new Headers(init.headers || {});
+            window.__s5NoncesRequests.push({
+              url,
+              session: reqHeaders.get("x-s5-session"),
+            });
+          }
           if (url.includes("/s5/nonces") && window.__noncesShouldFail) {
             return new Response(JSON.stringify({ error: "s5_nonce_issuance_failed" }), {
               status: 502,
@@ -244,6 +256,7 @@ try {
           if (url.includes("/s5/send")) {
             try {
               window.__s5SendPosts.push(JSON.parse(init.body));
+              window.__s5SendHeaders.push(new Headers(init.headers || {}).get("x-s5-session"));
             } catch { /* 本体が読めなければ記録しない */ }
           }
           const headers = new Headers(init.headers || {});
@@ -362,6 +375,24 @@ try {
       requests.length === 6 &&
         tokenNonces.every(Boolean) && new Set(tokenNonces).size === 6,
       `nonces=${tokenNonces.join(",")}`
+    );
+    // 画面から /s5/nonces・/s5/send への呼び出しが、試験単位の
+    // セッションとその試行の ID を示していること（呼び出し元境界の
+    // 画面側の配線）。セッションの値は表示しない（一致の真偽だけ）。
+    const pageSession = (testHtml.match(/const S5_SESSION = "([^"]+)"/) || [])[1];
+    check(
+      "実画面: /s5/nonces の呼び出しは1回で、セッションと試行 ID を示す",
+      window.__s5NoncesRequests.length === 1 &&
+        !!pageSession &&
+        window.__s5NoncesRequests[0].session === pageSession &&
+        window.__s5NoncesRequests[0].url.includes(`trial_id=${trialId}`),
+      `requests=${window.__s5NoncesRequests.length}`
+    );
+    check(
+      "実画面: /s5/send の呼び出しも同じセッションを示す",
+      window.__s5SendHeaders.length === 1 &&
+        window.__s5SendHeaders[0] === pageSession,
+      `headers=${window.__s5SendHeaders.length}`
     );
     const m = logText(window).match(/試験ログ: (\{.*\})/);
     let entry = null;

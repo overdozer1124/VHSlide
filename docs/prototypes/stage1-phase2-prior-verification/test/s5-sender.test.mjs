@@ -156,7 +156,7 @@ test("送信器：6件の並行送信で 201 が正確に1件、残りは 409 op
   const ctx = await setupFullReplace("conc");
   try {
     const sender = createS5Sender({ relayUrl: ctx.full.base });
-    const nonces = await sender.issueNonces();
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-001" });
     assert.equal(nonces.length, 6);
     assert.equal(new Set(nonces).size, 6);
     assert.equal(sender.isPrepared(), true);
@@ -197,7 +197,7 @@ test("送信器：スロットとトークンの nonce が違えば1件も送ら
   const ctx = await setupFullReplace("mismatch");
   try {
     const sender = createS5Sender({ relayUrl: ctx.full.base });
-    const nonces = await sender.issueNonces();
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-002" });
     // スロット0のトークンに、スロット1の nonce を入れる（取り違え）。
     const tokens = nonces.map((n) => mockToken(SUB_A, n));
     tokens[0] = mockToken(SUB_A, nonces[1]);
@@ -225,7 +225,7 @@ test("送信器：6件の条件が等しくなければ1件も送らない", asy
   const ctx = await setupFullReplace("differ");
   try {
     const sender = createS5Sender({ relayUrl: ctx.full.base });
-    const nonces = await sender.issueNonces();
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-003" });
     const tokens = nonces.map((n) => mockToken(SUB_A, n));
     const requests = buildS5Requests({
       tokens,
@@ -255,7 +255,7 @@ test("送信器：発行から4分を過ぎれば送信せず、再準備が必�
       relayUrl: ctx.full.base,
       now: () => fakeNow,
     });
-    const nonces = await sender.issueNonces();
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-004" });
     assert.equal(sender.isPrepared(), true);
     fakeNow += 5 * 60 * 1000; // 5分進める
     const tokens = nonces.map((n) => mockToken(SUB_A, n));
@@ -294,7 +294,7 @@ test("送信器：準備なしの送信と、送信後の再送は拒否され�
       (e) => e.code === "s5_not_prepared"
     );
     // 正常に送信したあと、同じ要求での再送は準備なしとして拒否される。
-    const nonces = await sender.issueNonces();
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-006" });
     const realTokens = nonces.map((n) => mockToken(SUB_A, n));
     const realRequests = buildS5Requests({
       tokens: realTokens,
@@ -329,4 +329,329 @@ test("送信器の純粋関数：ctx の取り出しとトークンの nonce ク
   const payload = Buffer.from(JSON.stringify({ sub: "s", nonce: "jwt-nonce-xyz" })).toString("base64url");
   assert.equal(tokenNonce(`${header}.${payload}.sig`), "jwt-nonce-xyz");
   assert.equal(tokenNonce("not-a-jwt"), null);
+});
+
+// ---- Codex レビュー 6720755818 への対応で追加した試験 ----
+
+// 偽の fetch 応答。送信器が使う res.ok・res.status・res.json・
+// res.headers.getSetCookie・res.body.cancel だけを持つ。
+function fakeResponse({ status, json = {} }) {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: { getSetCookie: () => [] },
+    json: async () => json,
+    body: { cancel: async () => {} },
+  };
+}
+
+test("送信器：/platform/apply が 3xx を返しても追従せず、実リダイレクト先は受信しない", async () => {
+  const ctx = await setupFullReplace("redir-apply");
+  try {
+    const redirectTarget = "http://redirect-target.example/apply";
+    let applyCalls = 0;
+    const realFetch = fetch;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      fetchImpl: async (url, init = {}) => {
+        if (url.startsWith(redirectTarget)) {
+          throw new Error("redirect target was fetched");
+        }
+        if (url.endsWith("/platform/apply")) {
+          applyCalls += 1;
+          assert.equal(init.redirect, "manual", "redirect: manual が指定されること");
+          // 中継が 307 で外部 URL へ誘導する模擬（Location は返さない。
+          // fetch が追従しないため、実リダイレクト先へは要求しない）。
+          return fakeResponse({ status: 307 });
+        }
+        return realFetch(url, init);
+      },
+    });
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-redirect-apply" });
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    const out = await sender.send({ trialId: "trial-s5-sender-redirect-apply", requests });
+    assert.equal(applyCalls, 6, "各スロットは1回だけ呼ばれる（追従・再送なし）");
+    assert.ok(
+      out.results.every((r) => r.status === 307 && r.error === "redirect_not_followed"),
+      `results=${JSON.stringify(out.results)}`
+    );
+    assert.equal(out.aggregate.ok, false);
+    // 1件も Worker に届いていないため、登録簿は初期化直後のままである。
+    const state = await inspect(ctx.full.base);
+    assert.equal(state.generation, 1);
+    assert.equal(state.consumed_ops.length, 1);
+    assert.equal(state.completion.length, 1);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：/nonce が 3xx を返しても追従せず、発行は失敗する", async () => {
+  const requested = [];
+  const sender = createS5Sender({
+    relayUrl: "http://127.0.0.1:9",
+    fetchImpl: async (url, init = {}) => {
+      requested.push(url);
+      assert.equal(init.redirect, "manual", "redirect: manual が指定されること");
+      return fakeResponse({ status: 307 });
+    },
+  });
+  await assert.rejects(
+    () => sender.issueNonces({ trialId: "trial-s5-sender-redirect-nonce" }),
+    (e) => e.code === "s5_nonce_issuance_failed"
+  );
+  assert.equal(sender.isPrepared(), false);
+  // リダイレクト先へは要求しておらず、/nonce への要求は1回だけである。
+  assert.deepEqual(requested, ["http://127.0.0.1:9/nonce"]);
+});
+
+test("送信器：2並行 send は2件目を拒否し、6件は1回だけ送られる", async () => {
+  const ctx = await setupFullReplace("conc-send");
+  try {
+    let applyCalls = 0;
+    const realFetch = fetch;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/platform/apply")) {
+          applyCalls += 1;
+          await new Promise((r) => setTimeout(r, 200)); // 応答を遅らせる
+        }
+        return realFetch(url, init);
+      },
+    });
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-conc-1" });
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    const first = sender.send({ trialId: "trial-s5-sender-conc-1", requests });
+    // 送信中に2件目を呼ぶ。送信前の同期的な消費により拒否される。
+    await assert.rejects(
+      () => sender.send({ trialId: "trial-s5-sender-conc-1", requests }),
+      (e) => e.code === "s5_busy"
+    );
+    const out = await first;
+    assert.equal(out.aggregate.ok, true);
+    assert.equal(applyCalls, 6, "同じ6枠が2回送られていないこと");
+    const state = await inspect(ctx.full.base);
+    assert.equal(state.generation, 2);
+    assert.equal(state.consumed_ops.length, 2);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：送信中の nonce 再発行と並行 issue は拒否される", async () => {
+  const ctx = await setupFullReplace("conc-issue");
+  try {
+    const realFetch = fetch;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/platform/apply")) {
+          await new Promise((r) => setTimeout(r, 200)); // 応答を遅らせる
+        }
+        return realFetch(url, init);
+      },
+    });
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-issue-1" });
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    const sending = sender.send({ trialId: "trial-s5-sender-issue-1", requests });
+    // 送信中に nonce を再発行しようとすると拒否される。
+    await assert.rejects(
+      () => sender.issueNonces({ trialId: "trial-s5-sender-issue-2" }),
+      (e) => e.code === "s5_busy"
+    );
+    const out = await sending;
+    assert.equal(out.aggregate.ok, true);
+    // 送信が終われば、改めて nonce を発行できる。
+    const nonces2 = await sender.issueNonces({ trialId: "trial-s5-sender-issue-3" });
+    assert.equal(nonces2.length, 6);
+    assert.equal(sender.isPrepared(), true);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：並行する2件の issue は1件だけが成功する", async () => {
+  const ctx = await setupFullReplace("conc-issue2");
+  try {
+    const realFetch = fetch;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/nonce")) {
+          await new Promise((r) => setTimeout(r, 100)); // 発行を遅らせる
+        }
+        return realFetch(url, init);
+      },
+    });
+    const first = sender.issueNonces({ trialId: "trial-s5-sender-issue-4" });
+    await assert.rejects(
+      () => sender.issueNonces({ trialId: "trial-s5-sender-issue-5" }),
+      (e) => e.code === "s5_busy"
+    );
+    const nonces = await first;
+    assert.equal(nonces.length, 6);
+    assert.equal(sender.isPrepared(), true);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：発行した試行と異なる試行の送信指示は拒否される", async () => {
+  const ctx = await setupFullReplace("trial-mismatch");
+  try {
+    const sender = createS5Sender({ relayUrl: ctx.full.base });
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-trial-a" });
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    await assert.rejects(
+      () => sender.send({ trialId: "trial-s5-sender-trial-b", requests }),
+      (e) => e.code === "s5_trial_mismatch"
+    );
+    // 拒否されても発行状態は残るため、正しい試行では送信できる。
+    const out = await sender.send({ trialId: "trial-s5-sender-trial-a", requests });
+    assert.equal(out.aggregate.ok, true);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：応答喪失時は再送せず、no_response として記録される", async () => {
+  const ctx = await setupFullReplace("noresp");
+  try {
+    let applyCalls = 0;
+    const realFetch = fetch;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/platform/apply")) {
+          applyCalls += 1;
+          // 3件目の apply 呼び出しで応答を喪失させる（ネットワーク断の模擬）。
+          if (applyCalls === 3) throw new Error("simulated network loss");
+        }
+        return realFetch(url, init);
+      },
+    });
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-noresp" });
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    const out = await sender.send({ trialId: "trial-s5-sender-noresp", requests });
+    assert.equal(applyCalls, 6, "各スロットは1回だけ送られる（再送なし）");
+    const noResp = out.results.filter((r) => r.status === null && r.error === "no_response");
+    assert.equal(noResp.length, 1);
+    assert.equal(out.aggregate.ok, false);
+    // 応答を喪失したスロット以外は、1件の 201 と4件の 409 になる。
+    assert.equal(out.results.filter((r) => r.status === 201).length, 1);
+    assert.equal(
+      out.results.filter((r) => r.status === 409 && r.error === "operation_consumed").length,
+      4
+    );
+    // 送信後は保持が破棄され、再送は拒否される。
+    assert.equal(sender.isPrepared(), false);
+    await assert.rejects(
+      () => sender.send({ trialId: "trial-s5-sender-noresp", requests }),
+      (e) => e.code === "s5_not_prepared"
+    );
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：nonce の寿命は最初のスロットの発行から4分である", async () => {
+  const ctx = await setupFullReplace("lifetime");
+  try {
+    let fakeNow = Date.now();
+    const realFetch = fetch;
+    // /nonce の呼び出しごとに偽時刻を30秒進める。スロット0の発行時刻は
+    // 開始+30秒、スロット5は開始+180秒になる（発行中の遅延の模擬）。
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      now: () => fakeNow,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/nonce")) fakeNow += 30 * 1000;
+        return realFetch(url, init);
+      },
+    });
+    const start = fakeNow;
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-lifetime" });
+    assert.equal(nonces.length, 6);
+    // 最初のスロットの発行（start+30秒）から4分1秒後には、最後の
+    // スロットの発行からまだ91秒しか経っていなくても拒否される。
+    fakeNow = start + 30 * 1000 + 4 * 60 * 1000 + 1000;
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    await assert.rejects(
+      () => sender.send({ trialId: "trial-s5-sender-lifetime", requests }),
+      (e) => e.code === "s5_nonces_expired"
+    );
+    const state = await inspect(ctx.full.base);
+    assert.equal(state.generation, 1);
+    assert.equal(state.completion.length, 1);
+  } finally {
+    await teardown(ctx);
+  }
+});
+
+test("送信器：最初の発行から4分以内なら、最後のスロットの発行直後でも送信できる", async () => {
+  const ctx = await setupFullReplace("lifetime-ok");
+  try {
+    let fakeNow = Date.now();
+    const realFetch = fetch;
+    const sender = createS5Sender({
+      relayUrl: ctx.full.base,
+      now: () => fakeNow,
+      fetchImpl: async (url, init = {}) => {
+        if (url.endsWith("/nonce")) fakeNow += 30 * 1000;
+        return realFetch(url, init);
+      },
+    });
+    const start = fakeNow;
+    const nonces = await sender.issueNonces({ trialId: "trial-s5-sender-lifetime-ok" });
+    // 最初のスロットの発行（start+30秒）から3分59秒後なら送信できる。
+    fakeNow = start + 30 * 1000 + (4 * 60 - 1) * 1000;
+    const tokens = nonces.map((n) => mockToken(SUB_A, n));
+    const requests = buildS5Requests({
+      tokens,
+      oneTimeValue: ONE_TIME,
+      purpose: "full-replace",
+      envId: ENV_ID,
+    });
+    const out = await sender.send({ trialId: "trial-s5-sender-lifetime-ok", requests });
+    assert.equal(out.aggregate.ok, true);
+  } finally {
+    await teardown(ctx);
+  }
 });

@@ -6,7 +6,7 @@
   "name": "stage1-phase2-harness",
   "private": true,
   "scripts": {
-    "test": "node test/run.mjs && node --test test/subject-hash-verify.test.mjs && node --test test/trial-apply.test.mjs && node --test test/s5-apply.test.mjs && node --test test/s5-sender.test.mjs",
+    "test": "node test/run.mjs && node --test test/subject-hash-verify.test.mjs && node --test test/trial-apply.test.mjs && node --test test/s5-apply.test.mjs && node --test test/s5-sender.test.mjs && node --test test/serve-real-s5.test.mjs",
     "test:screen": "node test/trial-apply.screen.mjs",
     "test:screen:s5": "node test/s5-apply.screen.mjs"
   },

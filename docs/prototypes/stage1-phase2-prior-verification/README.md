@@ -30,11 +30,12 @@ node test/real-ui.smoke.mjs   # 配信の疎通確認
 | `test/trial-apply.test.mjs` | 上記モジュールの試験（`node --test`。17件。`npm test` は run.mjs・subject-hash 検証と合わせて実行する） |
 | `test/trial-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen`。44件。偽 GIS・偽 JWKS・遅延応答でページ自体を実行し、旧コールバック／古い finally が新試行を変更しないこと、送信とログが対応し二重送信されないこと、成功・現行の失敗・旧試行の遅延 finally の各ケースで一回値入力欄が適切に扱われること、S4 の2試験の表示・送信・環境条件を確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
 | `public/s5-apply.html` / `tools/s5-apply.mjs` | S5 並行試験（full-replace への並行6件）専用の検証画面と純粋モジュール。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。提供は `tools/serve-real.mjs`（`/s5-apply`） |
-| `tools/s5-sender.mjs` | S5 の Node 側送信器（提供サーバー専用。ブラウザーには配信しない）。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信前の結び付け確認（トークンの nonce とスロットの nonce の一致、6件の条件の等しさ、発行から4分以内）に失敗すれば1件も送らない。送信の完了直後に保持を破棄する |
+| `tools/s5-sender.mjs` | S5 の Node 側送信器（提供サーバー専用。ブラウザーには配信しない）。スロットごとに Cookie jar を分け、6件を Promise.allSettled で並行送信する。fetch はすべて redirect: "manual" で、3xx は追従せず再送なしの失敗として記録する。送信前の結び付け確認（トークンの nonce とスロットの nonce の一致、6件の条件の等しさ、最初のスロットの発行から4分以内、送信指示の試行 ID と発行した試行 ID の一致）に失敗すれば1件も送らない。確認が通れば送信前に同期的に発行状態を消費して送信中へ遷移し、並行 send・送信中の再発行は s5_busy で拒否する。送信の完了直後に保持を破棄する |
 | `test/s5-apply.test.mjs` | 上記純粋モジュールの試験（`node --test`。7件。`npm test` で合わせて実行する） |
-| `test/s5-sender.test.mjs` | 上記送信器の試験（`node --test`。6件。Miniflare の一時ビルド相手に、6件の並行送信で 201 が正確に1件・残りが 409 operation_consumed になることと、結び付け・条件・期限の各ガードを確認する。`npm test` で合わせて実行する） |
-| `test/s5-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen:s5`。37件。偽 GIS・偽 JWKS でページ自体を実行し、6スロットの準備・並行送信・ログ対応・二重送信防止・失敗時の扱いを確認する。送信器は本物を通すが、中継先は local-mock の通常ビルドのため応答は 404 になる。201・409 の判定は送信器の試験で確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
-| `tools/build-realenv-manifest.mjs` / `realenv-manifest.json` | 実環境用マニフェスト（成果物ハッシュ・バインディング一覧・ソース検査）の生成ツールと生成結果 |
+| `test/s5-sender.test.mjs` | 上記送信器の試験（`node --test`。15件。Miniflare の一時ビルド相手に、6件の並行送信で 201 が正確に1件・残りが 409 operation_consumed になることと、結び付け・条件・期限の各ガードを確認する。Codex レビュー 6720755818 への対応で、3xx 非追従・2並行 send の拒否・送信中の再発行と並行 issue の拒否・試行の結び付け・応答喪失時の再送なし・nonce 寿命の起点（最初の発行から4分）の試験を追加した。`npm test` で合わせて実行する） |
+| `test/serve-real-s5.test.mjs` | 提供サーバーの S5 入口（/s5/nonces・/s5/send）の呼び出し元境界の実行試験（`node --test`。12件。Codex レビュー 6720755818 の指摘3への対応。偽の中継を相手に、セッションなし・不一致・別オリジン・DNS rebinding の模擬（Host 別名・ポート違い）の拒否、JSON content-type・本体サイズ上限、試行の結び付けと別画面との競合を確認する。`npm test` で合わせて実行する） |
+| `test/s5-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen:s5`。39件。偽 GIS・偽 JWKS でページ自体を実行し、6スロットの準備・並行送信・ログ対応・二重送信防止・失敗時の扱いを確認する。Codex レビュー 6720755818 への対応で、/s5/nonces・/s5/send の呼び出しが試験単位のセッションと試行 ID を示すことの確認を追加した。送信器は本物を通すが、中継先は local-mock の通常ビルドのため応答は 404 になる。201・409 の判定は送信器の試験で確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
+| `tools/build-realenv-manifest.mjs` / `realenv-manifest.json` | 実環境用マニフェスト（成果物ハッシュ・バインディング一覧・ソース検査）の生成ツールと生成結果。成果物 21 件・ソース検査 79 件 |
 | `test/run.mjs` | 試験ランナー（§2.7 の項目番号を各チェック名に付与） |
 | `test/real-ui.smoke.mjs` | 実ログイン画面と提供サーバーのローカル疎通確認（`node test/real-ui.smoke.mjs`。run.mjs とは別枠） |
 | `DESIGN.md` | 設計、§2.7 対応表、試作としての解釈、未決定事項 |

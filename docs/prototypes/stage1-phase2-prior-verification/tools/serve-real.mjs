@@ -40,11 +40,15 @@
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
+//   呼び出し元は、試験単位の不可推測セッション（起動時に発行し、
+//   /s5-apply 画面へメモリ上で差し込む）と、発行に結び付ける試験 ID
+//   を示す。別オリジン・別画面・別試行からの状態変更は拒否する。
 // - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット
 //   ごとに Cookie jar を分けて6件を並行送信し、スロットごとの応答
 //   （状態と理由コードだけ）を返す。ID トークン・一回値・Cookie・
 //   nonce の値はログ・応答に出さない。送信器は送信の完了直後に保持
-//   を破棄する。
+//   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・
+//   Origin・Host・JSON content-type・本体サイズ上限）。
 // - /nonce・/platform/apply・/admin/*（verify-only・registry の
 //   add/revoke/rotate）への要求は、環境変数 RELAY_URL（既定
 //   http://127.0.0.1:8798）へ、メソッド・ヘッダー・ボディを変更せずに
@@ -73,6 +77,7 @@
 //   （PORT 環境変数で待ち受けポートを変更できる。既定 8787）
 
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -159,6 +164,75 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 // メモリー内だけであり、送信の完了直後に破棄する。
 const s5Sender = createS5Sender({ relayUrl: RELAY });
 
+// S5 入口の試験単位セッション。起動ごとに不可推測の値を新規発行し、
+// /s5-apply 画面へメモリ上で差し込む（ファイルは書き換えない）。画面
+// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。
+// 別オリジンのページは配信された画面を読めない（CORS なし）ため値を
+// 知ることはできず、セッションなし・不一致の呼び出しは状態を変更
+// しない。同一 PC の別プロセス（ブラウザー外）は 127.0.0.1 へ直接
+// 要求できるため、この仕組みはその範囲を防御しない（脅威範囲は
+// DESIGN.md に明記する）。
+const S5_SESSION = randomUUID();
+const S5_SESSION_PLACEHOLDER = "REPLACE_WITH_S5_SESSION";
+// /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は
+// 10 KiB 程度であり、64 KiB で十分に足りる。超過は 413 で拒否する。
+const S5_MAX_BODY_BYTES = 64 * 1024;
+
+// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ
+// なければ、状態を変更せず理由コードだけを返す。失敗時は { ok, error }
+// を返し、ok が偽なら呼び出し側は状態に応じた HTTP 状態で拒否する。
+// - Host がこのサーバーのループバック宛て（127.0.0.1 / localhost /
+//   ::1 にこのサーバーのポート）であること。DNS rebinding で別名から
+//   届いた要求は Host が異なるため拒否する。
+// - Origin があれば、このサーバーの同一生成元（http://127.0.0.1:PORT
+//   または http://localhost:PORT）であること。同一生成元の GET には
+//   Origin が付かないため、Origin なしは Host・セッションで判断する。
+// - 試験単位のセッション（x-s5-session ヘッダー）が起動時に発行した
+//   値と一致すること。別オリジンのページ・別画面からの呼び出しは
+//   値を知らないため拒否する。
+function checkS5Entry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "s5_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "s5_bad_origin" };
+    }
+  }
+  if (req.headers["x-s5-session"] !== S5_SESSION) {
+    return { ok: false, status: 403, error: "s5_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /s5/send の本体をサイズ上限付きで読む。上限を超えれば
+// { tooLarge: true } を返す。呼び出し側は 413 で拒否し、応答の送信
+// 後にソケットを破棄する（応答より先に破棄すると、クライアントに
+// 413 が届かない）。
+async function readS5SendBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > S5_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -196,7 +270,14 @@ if (!rawS5ApplyHtml.includes(PLACEHOLDER)) {
   console.error("error: s5-apply.html にクライアント ID のプレースホルダが見つかりません");
   process.exit(1);
 }
-const s5ApplyHtml = rawS5ApplyHtml.split(PLACEHOLDER).join(CLIENT_ID);
+if (!rawS5ApplyHtml.includes(S5_SESSION_PLACEHOLDER)) {
+  console.error("error: s5-apply.html に S5 セッションのプレースホルダが見つかりません");
+  process.exit(1);
+}
+// クライアント ID と S5 セッションはメモリ上で差し込む（ファイルは書き換えない）。
+const s5ApplyHtml = rawS5ApplyHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(S5_SESSION_PLACEHOLDER).join(S5_SESSION);
 const s5ApplyJs = await readFile(path.join(root, "tools", "s5-apply.mjs"), "utf8");
 
 const FORWARD_PATHS = new Set([
@@ -256,9 +337,25 @@ const server = http.createServer(async (req, res) => {
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
     // み動く。要求・応答の本体、トークン・一回値・Cookie・nonce の値は
     // ログに出さない。送信器の局所エラーは理由コードだけを返す。
+    // 呼び出し元の境界（Host・Origin・試験単位セッション）を先に確認し、
+    // 通らなければ状態を変更しない。
     if (req.method === "GET" && pathname === "/s5/nonces") {
+      const entry = checkS5Entry(req);
+      if (!entry.ok) {
+        console.log(`GET /s5/nonces -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const trialId = new URL(req.url, "http://127.0.0.1").searchParams.get("trial_id");
+      if (!trialId) {
+        console.log(`GET /s5/nonces -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
       try {
-        const nonces = await s5Sender.issueNonces();
+        const nonces = await s5Sender.issueNonces({ trialId });
         console.log(`GET /s5/nonces -> 200`);
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ nonces }));
@@ -270,11 +367,36 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === "POST" && pathname === "/s5/send") {
-      const chunks = [];
-      for await (const c of req) chunks.push(c);
+      const entry = checkS5Entry(req);
+      if (!entry.ok) {
+        console.log(`POST /s5/send -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST /s5/send -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS5SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST /s5/send -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        // 読み残した本体がソケットに残るため、応答の送信後に破棄する。
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
       let parsed = null;
       try {
-        parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        parsed = JSON.parse(read.body.toString("utf8"));
       } catch {
         parsed = null;
       }

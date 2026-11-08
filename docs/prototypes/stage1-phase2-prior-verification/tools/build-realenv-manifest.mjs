@@ -72,6 +72,7 @@ const ARTIFACTS = [
   "test/s5-apply.test.mjs",
   "test/s5-sender.test.mjs",
   "test/s5-apply.screen.mjs",
+  "test/serve-real-s5.test.mjs",
 ];
 
 function readRel(rel) {
@@ -381,6 +382,59 @@ const checks = {
   },
   s5_sender_no_response_local_code: {
     found: findLines(s5SenderLines, /S5_NO_RESPONSE/),
+    expect: "present",
+  },
+  // S5 送信器の修正（Codex レビュー 6720755818 への対応）。
+  // 1) リダイレクト非追従、2) 発行中・送信中の排他と試行の結び付け、
+  // 4) nonce 寿命の起点は最初のスロットの発行時刻。
+  s5_sender_redirect_manual: {
+    found: findLines(s5SenderLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s5_sender_redirect_not_followed: {
+    found: findLines(s5SenderLines, /S5_REDIRECT_NOT_FOLLOWED/),
+    expect: "present",
+  },
+  s5_sender_busy_guard: {
+    found: findLines(s5SenderLines, /s5_busy/),
+    expect: "present",
+  },
+  s5_sender_trial_binding: {
+    found: findLines(s5SenderLines, /s5_trial_mismatch/),
+    expect: "present",
+  },
+  s5_sender_per_slot_issued_at: {
+    found: findLines(s5SenderLines, /issuedAt/),
+    expect: "present",
+  },
+  // S5 入口の呼び出し元境界（Codex レビュー 6720755818 の指摘3）。
+  // 試験単位セッション・Host・Origin・JSON content-type・本体サイズ上限。
+  serve_real_s5_session_guard: {
+    found: findLines(serveRealLines, /x-s5-session/),
+    expect: "present",
+  },
+  serve_real_s5_session_placeholder: {
+    found: findLines(serveRealLines, /REPLACE_WITH_S5_SESSION/),
+    expect: "present",
+  },
+  serve_real_s5_origin_guard: {
+    found: findLines(serveRealLines, /s5_bad_origin/),
+    expect: "present",
+  },
+  serve_real_s5_body_limit: {
+    found: findLines(serveRealLines, /S5_MAX_BODY_BYTES/),
+    expect: "present",
+  },
+  s5_apply_page_session_placeholder: {
+    found: findLines(s5ApplyLines, /REPLACE_WITH_S5_SESSION/),
+    expect: "present",
+  },
+  s5_apply_page_sends_session: {
+    found: findLines(s5ApplyLines, /x-s5-session/),
+    expect: "present",
+  },
+  s5_apply_page_trial_binding: {
+    found: findLines(s5ApplyLines, /trial_id=\$\{encodeURIComponent/),
     expect: "present",
   },
   serve_real_s5_apply_route: {

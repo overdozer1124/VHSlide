@@ -52,6 +52,11 @@ export const S5_SLOT_COUNT = 6;
 // 送信側の局所コード：応答が返らなかったスロット（再送しない）。
 export const S5_NO_RESPONSE = "no_response";
 
+// 送信側の局所コード：3xx の応答を追従せず、再送なしの失敗として記録した
+// スロット（送信器が redirect: "manual" で受けた 3xx。Worker の理由コード
+// ではない）。
+export const S5_REDIRECT_NOT_FOLLOWED = "redirect_not_followed";
+
 function fail(code, message) {
   const e = new Error(message);
   e.code = code;
@@ -193,10 +198,12 @@ export function verifyS5DisplayMatchesSent(displays, requests) {
 }
 
 // 応答の理由コードを正規化する。応答が返らなかったスロットの局所
-// コード "no_response" はそのまま通す（Worker の理由コードではなく、
-// 送信側で「応答なし・再送しない」を示す記録である）。
+// コード "no_response" と、3xx 非追従の局所コード
+// "redirect_not_followed" はそのまま通す（Worker の理由コードではなく、
+// 送信側で「応答なし・再送しない」「転送せず再送しない」を示す記録である）。
 export function normalizeS5ResponseError(error) {
   if (error === S5_NO_RESPONSE) return S5_NO_RESPONSE;
+  if (error === "redirect_not_followed") return "redirect_not_followed";
   return normalizeResponseError(error);
 }
 

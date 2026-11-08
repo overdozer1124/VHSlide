@@ -48,8 +48,8 @@
     },
     {
       "path": "tools/serve-real.mjs",
-      "sha256": "7b14447af7a8b8de9af619c2ec568fd6227ff58ff2b956ac7c958e4d29b4c056",
-      "bytes": 18535
+      "sha256": "d02c76b7ee835a3eaad5f3795b814e29483046f90992ccd5ddc66ea081391446",
+      "bytes": 24567
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
@@ -78,18 +78,18 @@
     },
     {
       "path": "public/s5-apply.html",
-      "sha256": "d78bb45b7e0a340956b39427613b9710ce96fd5549e3c245f93be88d3701793a",
-      "bytes": 22534
+      "sha256": "94779beaa7ffab87a299706ff3e8598491f78cf93299ea1d2356fc586d1a0d39",
+      "bytes": 23465
     },
     {
       "path": "tools/s5-apply.mjs",
-      "sha256": "b90f8a1282864a80672ade8f9dddc5fe38669aa4217ecd4f27ca24798ab5020e",
-      "bytes": 12632
+      "sha256": "4f35ca318e946630b3b68ae2b4cb384a8223dac1e5e6b242ce0e867481d57fc7",
+      "bytes": 13093
     },
     {
       "path": "tools/s5-sender.mjs",
-      "sha256": "cf899262eca9756938d58d68a9277f73e231c86cb9b95011723848680d356ceb",
-      "bytes": 9330
+      "sha256": "8035667541771b88ef730f9136136e81e0246fb2c504e454a65ef1d5536085bb",
+      "bytes": 14127
     },
     {
       "path": "test/s5-apply.test.mjs",
@@ -98,13 +98,18 @@
     },
     {
       "path": "test/s5-sender.test.mjs",
-      "sha256": "424cc1a2ecc0987da4f23bc28c37529901908026583632066d5d8e162bcbbdda",
-      "bytes": 12269
+      "sha256": "dfd7bd1e21ff7ca45dcf29831ba410e18e085e0c727dfbe5d9e11fe6cc4bffc0",
+      "bytes": 25035
     },
     {
       "path": "test/s5-apply.screen.mjs",
-      "sha256": "a61e946ceb7d63e2c669e465e93f2013d1e4a21e793462e6e1d0ffef0fb04b82",
-      "bytes": 24001
+      "sha256": "278254550e9cbf8544f7bc0ac4a22b2728221b5ff99f9b1a857655df0904ab42",
+      "bytes": 25678
+    },
+    {
+      "path": "test/serve-real-s5.test.mjs",
+      "sha256": "e73b6652777b86274d55b9c36c110b0816648eb86aafa2d1345afe3b8f13cf7a",
+      "bytes": 14160
     }
   ],
   "builds": {
@@ -553,19 +558,19 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 220,
+          "line": 301,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
         },
         {
-          "line": 221,
+          "line": 302,
           "text": "console.log(`GET /subject-hash -> 200`);"
         },
         {
-          "line": 226,
+          "line": 307,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
         },
         {
-          "line": 227,
+          "line": 308,
           "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
@@ -962,19 +967,19 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 232,
+          "line": 313,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply\") {"
         },
         {
-          "line": 233,
+          "line": 314,
           "text": "console.log(`GET /trial-apply -> 200`);"
         },
         {
-          "line": 238,
+          "line": 319,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply.mjs\") {"
         },
         {
-          "line": 239,
+          "line": 320,
           "text": "console.log(`GET /trial-apply.mjs -> 200`);"
         }
       ],
@@ -1054,7 +1059,7 @@
     "s5_apply_page_placeholder": {
       "found": [
         {
-          "line": 96,
+          "line": 97,
           "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
         }
       ],
@@ -1063,7 +1068,7 @@
     "s5_apply_page_gis": {
       "found": [
         {
-          "line": 77,
+          "line": 78,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
         }
       ],
@@ -1072,7 +1077,7 @@
     "s5_apply_page_uses_jwks": {
       "found": [
         {
-          "line": 97,
+          "line": 103,
           "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
         }
       ],
@@ -1085,7 +1090,7 @@
           "text": "// - buildS5Requests(...) は6件の要求オブジェクトを buildTrialRequest"
         },
         {
-          "line": 76,
+          "line": 81,
           "text": "export function buildS5Requests({ tokens, oneTimeValue, purpose, envId }) {"
         }
       ],
@@ -1102,11 +1107,11 @@
           "text": "//   （nonce の相異は verifyNoncesDistinct で送信前に確認する）。"
         },
         {
-          "line": 92,
+          "line": 97,
           "text": "export function verifyNoncesDistinct(nonces) {"
         },
         {
-          "line": 238,
+          "line": 245,
           "text": "// verifyNoncesDistinct で確認する）。"
         }
       ],
@@ -1119,7 +1124,7 @@
           "text": "// - verifyS5RequestsEqual(requests) は6件の要求の env_id・purpose・"
         },
         {
-          "line": 106,
+          "line": 111,
           "text": "export function verifyS5RequestsEqual(requests) {"
         }
       ],
@@ -1132,7 +1137,7 @@
           "text": "// - aggregateS5Results(results) は6件の応答を集計する。成功（201）が"
         },
         {
-          "line": 239,
+          "line": 246,
           "text": "export function aggregateS5Results(results) {"
         }
       ],
@@ -1141,7 +1146,7 @@
     "s5_sender_per_slot_cookie": {
       "found": [
         {
-          "line": 172,
+          "line": 238,
           "text": "Cookie: `${NONCE_CTX_COOKIE}=${slots[i].ctx}`,"
         }
       ],
@@ -1150,8 +1155,12 @@
     "s5_sender_parallel_send": {
       "found": [
         {
-          "line": 165,
-          "text": "const settled = await Promise.allSettled("
+          "line": 44,
+          "text": "//   （busy を \"sending\" にする）、6件を Promise.allSettled で並行"
+        },
+        {
+          "line": 231,
+          "text": "settled = await Promise.allSettled("
         }
       ],
       "expect": "present"
@@ -1159,7 +1168,7 @@
     "s5_sender_slot_binding": {
       "found": [
         {
-          "line": 161,
+          "line": 220,
           "text": "fail(\"slot_nonce_mismatch\", \"スロットとトークンの nonce が一致しません\");"
         }
       ],
@@ -1168,11 +1177,15 @@
     "s5_sender_clears_after_send": {
       "found": [
         {
-          "line": 108,
-          "text": "let issued = null; // { issuedAt, slots: [{ nonce, ctx }] }"
+          "line": 128,
+          "text": "let issued = null;"
         },
         {
-          "line": 111,
+          "line": 132,
+          "text": "issued = null;"
+        },
+        {
+          "line": 227,
           "text": "issued = null;"
         }
       ],
@@ -1181,12 +1194,188 @@
     "s5_sender_no_response_local_code": {
       "found": [
         {
-          "line": 49,
+          "line": 65,
           "text": "S5_NO_RESPONSE,"
         },
         {
-          "line": 187,
+          "line": 267,
           "text": "return { slot: i, status: null, error: S5_NO_RESPONSE };"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_redirect_manual": {
+      "found": [
+        {
+          "line": 54,
+          "text": "// - fetch はすべて redirect: \"manual\" を明示する。307/308 で中継先"
+        },
+        {
+          "line": 159,
+          "text": "redirect: \"manual\","
+        },
+        {
+          "line": 244,
+          "text": "redirect: \"manual\","
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_redirect_not_followed": {
+      "found": [
+        {
+          "line": 66,
+          "text": "S5_REDIRECT_NOT_FOLLOWED,"
+        },
+        {
+          "line": 251,
+          "text": "return { slot: i, status: res.status, error: S5_REDIRECT_NOT_FOLLOWED };"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_busy_guard": {
+      "found": [
+        {
+          "line": 32,
+          "text": "//   発行中（busy）は、並行する発行と送信を拒否する（s5_busy）。"
+        },
+        {
+          "line": 46,
+          "text": "//   send は2件目が s5_busy で拒否され、同じ6枠が2回送られることは"
+        },
+        {
+          "line": 47,
+          "text": "//   ない。送信中の nonce 再発行も s5_busy で拒否する。各スロットの"
+        },
+        {
+          "line": 127,
+          "text": "// 遷移するため、並行する発行・送信の競合は2件目が s5_busy で拒否される）"
+        },
+        {
+          "line": 149,
+          "text": "fail(\"s5_busy\", \"発行中または送信中のため、nonce の発行はできません\");"
+        },
+        {
+          "line": 195,
+          "text": "fail(\"s5_busy\", \"発行中または送信中のため、送信はできません\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_trial_binding": {
+      "found": [
+        {
+          "line": 202,
+          "text": "fail(\"s5_trial_mismatch\", \"発行した試行と送信指示の試行が一致しません\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_sender_per_slot_issued_at": {
+      "found": [
+        {
+          "line": 24,
+          "text": "//   に { nonce, ctx, issuedAt } を保持する。ctx は Set-Cookie の"
+        },
+        {
+          "line": 25,
+          "text": "//   op2_nonce_ctx の値である。issuedAt はスロットごとの発行時刻で"
+        },
+        {
+          "line": 125,
+          "text": "// issued: { trialId, slots: [{ nonce, ctx, issuedAt }] }（送信前まで保持）"
+        },
+        {
+          "line": 170,
+          "text": "const issuedAt = now();"
+        },
+        {
+          "line": 180,
+          "text": "slots.push({ nonce: data.nonce, ctx, issuedAt });"
+        },
+        {
+          "line": 207,
+          "text": "const earliestIssuedAt = Math.min(...issued.slots.map((s) => s.issuedAt));"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_session_guard": {
+      "found": [
+        {
+          "line": 190,
+          "text": "// - 試験単位のセッション（x-s5-session ヘッダー）が起動時に発行した"
+        },
+        {
+          "line": 213,
+          "text": "if (req.headers[\"x-s5-session\"] !== S5_SESSION) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_session_placeholder": {
+      "found": [
+        {
+          "line": 176,
+          "text": "const S5_SESSION_PLACEHOLDER = \"REPLACE_WITH_S5_SESSION\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_origin_guard": {
+      "found": [
+        {
+          "line": 201,
+          "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
+        },
+        {
+          "line": 210,
+          "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
+        }
+      ],
+      "expect": "present"
+    },
+    "serve_real_s5_body_limit": {
+      "found": [
+        {
+          "line": 179,
+          "text": "const S5_MAX_BODY_BYTES = 64 * 1024;"
+        },
+        {
+          "line": 228,
+          "text": "if (size > S5_MAX_BODY_BYTES) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_page_session_placeholder": {
+      "found": [
+        {
+          "line": 102,
+          "text": "const S5_SESSION = \"REPLACE_WITH_S5_SESSION\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_page_sends_session": {
+      "found": [
+        {
+          "line": 320,
+          "text": "headers: { \"x-s5-session\": S5_SESSION },"
+        },
+        {
+          "line": 376,
+          "text": "\"x-s5-session\": S5_SESSION,"
+        }
+      ],
+      "expect": "present"
+    },
+    "s5_apply_page_trial_binding": {
+      "found": [
+        {
+          "line": 318,
+          "text": "const res = await fetch(`${PATHS.nonces}?trial_id=${encodeURIComponent(next.trialId)}`, {"
         }
       ],
       "expect": "present"
@@ -1206,19 +1395,27 @@
           "text": "// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す"
         },
         {
-          "line": 244,
+          "line": 44,
+          "text": "//   /s5-apply 画面へメモリ上で差し込む）と、発行に結び付ける試験 ID"
+        },
+        {
+          "line": 168,
+          "text": "// /s5-apply 画面へメモリ上で差し込む（ファイルは書き換えない）。画面"
+        },
+        {
+          "line": 325,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply\") {"
         },
         {
-          "line": 245,
+          "line": 326,
           "text": "console.log(`GET /s5-apply -> 200`);"
         },
         {
-          "line": 250,
+          "line": 331,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply.mjs\") {"
         },
         {
-          "line": 251,
+          "line": 332,
           "text": "console.log(`GET /s5-apply.mjs -> 200`);"
         }
       ],
@@ -1231,15 +1428,35 @@
           "text": "// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと"
         },
         {
-          "line": 259,
+          "line": 50,
+          "text": "//   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・"
+        },
+        {
+          "line": 169,
+          "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
+        },
+        {
+          "line": 181,
+          "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
+        },
+        {
+          "line": 342,
           "text": "if (req.method === \"GET\" && pathname === \"/s5/nonces\") {"
         },
         {
-          "line": 262,
+          "line": 345,
+          "text": "console.log(`GET /s5/nonces -> ${entry.status}`);"
+        },
+        {
+          "line": 352,
+          "text": "console.log(`GET /s5/nonces -> 400`);"
+        },
+        {
+          "line": 359,
           "text": "console.log(`GET /s5/nonces -> 200`);"
         },
         {
-          "line": 266,
+          "line": 363,
           "text": "console.log(`GET /s5/nonces -> 502`);"
         }
       ],
@@ -1248,23 +1465,51 @@
     "serve_real_s5_send_route": {
       "found": [
         {
-          "line": 43,
+          "line": 46,
           "text": "// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット"
         },
         {
-          "line": 272,
+          "line": 169,
+          "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
+        },
+        {
+          "line": 177,
+          "text": "// /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は"
+        },
+        {
+          "line": 181,
+          "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
+        },
+        {
+          "line": 219,
+          "text": "// /s5/send の本体をサイズ上限付きで読む。上限を超えれば"
+        },
+        {
+          "line": 369,
           "text": "if (req.method === \"POST\" && pathname === \"/s5/send\") {"
         },
         {
-          "line": 282,
+          "line": 372,
+          "text": "console.log(`POST /s5/send -> ${entry.status}`);"
+        },
+        {
+          "line": 379,
+          "text": "console.log(`POST /s5/send -> 415`);"
+        },
+        {
+          "line": 386,
+          "text": "console.log(`POST /s5/send -> 413`);"
+        },
+        {
+          "line": 404,
           "text": "console.log(`POST /s5/send -> 400`);"
         },
         {
-          "line": 292,
+          "line": 414,
           "text": "console.log(`POST /s5/send -> 200`);"
         },
         {
-          "line": 299,
+          "line": 421,
           "text": "console.log(`POST /s5/send -> ${status}`);"
         }
       ],
@@ -1285,47 +1530,47 @@
           "text": "window.__gis.nonces.push(opts.nonce);"
         },
         {
-          "line": 294,
+          "line": 307,
           "text": "const ok = await waitFor(() => window.__gis.callbacks.length > idx);"
         },
         {
-          "line": 296,
+          "line": 309,
           "text": "const nonce = window.__gis.nonces[idx];"
         },
         {
-          "line": 298,
+          "line": 311,
           "text": "await window.__gis.callbacks[idx]({ credential: token });"
         },
         {
-          "line": 397,
+          "line": 428,
           "text": "const firstReady = await waitFor(() => window.__gis.callbacks.length > 0);"
         },
         {
-          "line": 403,
+          "line": 434,
           "text": "const secondReady = await waitFor(() => window.__gis.callbacks.length > 1);"
         },
         {
-          "line": 408,
+          "line": 439,
           "text": "const nonceA = window.__gis.nonces[0];"
         },
         {
-          "line": 409,
+          "line": 440,
           "text": "await window.__gis.callbacks[0]({ credential: mintToken(nonceA) });"
         },
         {
-          "line": 437,
+          "line": 468,
           "text": "const ready0 = await waitFor(() => window.__gis.callbacks.length > 0);"
         },
         {
-          "line": 441,
+          "line": 472,
           "text": "await window.__gis.callbacks[0]({ credential: wrongToken });"
         },
         {
-          "line": 460,
+          "line": 491,
           "text": "const reprepped = await waitFor(() => window.__gis.callbacks.length > 1);"
         },
         {
-          "line": 515,
+          "line": 546,
           "text": "const reprepped = await waitFor(() => window.__gis.callbacks.length > 0);"
         }
       ],
@@ -1358,7 +1603,7 @@
           "text": "// jsdom 31 は window.fetch を持たないため、Node の fetch で"
         },
         {
-          "line": 265,
+          "line": 278,
           "text": "if (jsdomErrors.length) throw new Error(`ページの実行エラー: ${jsdomErrors[0]}`);"
         }
       ],
@@ -1375,35 +1620,35 @@
           "text": "window.__s5SendPosts = [];"
         },
         {
-          "line": 246,
+          "line": 258,
           "text": "window.__s5SendPosts.push(JSON.parse(init.body));"
         },
         {
-          "line": 306,
+          "line": 319,
           "text": "window.__s5SendPosts = [];"
         },
         {
-          "line": 345,
+          "line": 358,
           "text": "window.__s5SendPosts.length === 1,"
         },
         {
-          "line": 346,
+          "line": 359,
           "text": "`posts=${window.__s5SendPosts.length}`"
         },
         {
-          "line": 348,
+          "line": 361,
           "text": "const sent = window.__s5SendPosts[0] || {};"
         },
         {
-          "line": 468,
+          "line": 499,
           "text": "window.__s5SendPosts = [];"
         },
         {
-          "line": 489,
+          "line": 520,
           "text": "window.__s5SendPosts.length === 1,"
         },
         {
-          "line": 490,
+          "line": 521,
           "text": "`posts=${window.__s5SendPosts.length}`"
         }
       ],
