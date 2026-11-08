@@ -211,6 +211,7 @@ try {
         window.__applyBodies = [];
         window.__applyDelayMs = 0;
         window.__nonceShouldFail = false;
+        window.__jwksDelayMs = 0;
         const cookieStore = new Map();
         const nodeFetch = fetch;
         window.fetch = async (input, init = {}) => {
@@ -218,6 +219,9 @@ try {
           const url = new URL(rawUrl, window.location.href).href;
           const method = (init.method || "GET").toUpperCase();
           if (url.includes("oauth2/v3/certs")) {
+            if (window.__jwksDelayMs > 0) {
+              await new Promise((r) => setTimeout(r, window.__jwksDelayMs));
+            }
             return new Response(JSON.stringify(window.__fakeJwks), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -346,6 +350,10 @@ try {
       displayText(window).slice(0, 200)
     );
     check("実画面: 新しいコールバックで送信ボタンが有効になる", !sendDisabled(window));
+    check(
+      "実画面: 成功時は一回値入力欄が消去される",
+      el(window, "fixedOneTime").value === "" && el(window, "trialOneTime").value === ""
+    );
     window.close();
   }
 
@@ -401,6 +409,37 @@ try {
     check(
       "実画面: 環境条件の失敗では表示が作られない",
       displayText(window).includes("まだ表示記録がありません")
+    );
+    check(
+      "実画面: 現行の失敗時は一回値入力欄が消去される（環境条件の失敗）",
+      el(window, "fixedOneTime").value === "" && el(window, "trialOneTime").value === ""
+    );
+    window.close();
+  }
+
+  // ---- 場面3b：現行の署名検証の失敗でも一回値入力欄が消去される ----
+  {
+    const { window } = await makeDom();
+    await fillTrial(window, {
+      kind: "env-mismatch",
+      envId: "wrong-env-A",
+      fixed: "fixed-secret-A",
+      trial: "fixed-secret-A",
+    });
+    const idx = await prep(window);
+    // 誤った nonce のトークンで署名検証を失敗させる。
+    const wrongToken = mintToken("wrong-nonce-for-screen-test");
+    await window.__gis.callbacks[idx]({ credential: wrongToken });
+    await sleep(500);
+    check(
+      "実画面: 署名検証の失敗が準備エラーとして記録される",
+      logText(window).includes("署名検証が通りませんでした"),
+      logText(window).slice(-300)
+    );
+    check("実画面: 署名検証の失敗では送信ボタンが無効のまま", sendDisabled(window));
+    check(
+      "実画面: 現行の失敗時は一回値入力欄が消去される（署名検証の失敗）",
+      el(window, "fixedOneTime").value === "" && el(window, "trialOneTime").value === ""
     );
     window.close();
   }
@@ -467,6 +506,59 @@ try {
       reprepped && trialIdAfter !== shownTrialId,
       `${shownTrialId} / ${trialIdAfter}`
     );
+    window.close();
+  }
+
+  // ---- 場面5：遅延した旧コールバックの finally は新試行の入力欄を消さない ----
+  {
+    const { window } = await makeDom();
+    window.__jwksDelayMs = 800;
+    await fillTrial(window, {
+      kind: "env-mismatch",
+      envId: "wrong-env-A",
+      fixed: "fixed-secret-A",
+      trial: "fixed-secret-A",
+    });
+    const idxA = await prep(window);
+    const nonceA = window.__gis.nonces[0];
+    // コールバック A を呼び、JWKS 取得の遅延中に試行 B の準備を始める。
+    const tokenA = mintToken(nonceA);
+    const pendingA = window.__gis.callbacks[idxA]({ credential: tokenA });
+    await sleep(200); // A が JWKS 取得の待ちに入る
+    await fillTrial(window, {
+      kind: "env-mismatch",
+      envId: "wrong-env-B",
+      fixed: "fixed-secret-B",
+      trial: "fixed-secret-B",
+    });
+    const idxB = await prep(window);
+    const nonceB = window.__gis.nonces[1];
+    // A の遅延 JWKS が返り、try 内の照合で return する。finally が動く。
+    await pendingA;
+    await sleep(300);
+    check(
+      "実画面: 遅延した旧コールバックの finally は新試行の入力欄を消さない",
+      el(window, "fixedOneTime").value === "fixed-secret-B" &&
+        el(window, "trialOneTime").value === "fixed-secret-B" &&
+        el(window, "trialEnvId").value === "wrong-env-B",
+      "新試行の入力が消えたか変わった"
+    );
+    check(
+      "実画面: 遅延した旧コールバックの破棄がログに残る",
+      logText(window).includes("古い試行のコールバックを破棄しました"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: 遅延した旧コールバックは表示を作らない",
+      displayText(window).includes("まだ表示記録がありません")
+    );
+    check("実画面: 遅延した旧コールバックは送信ボタンを有効化しない", sendDisabled(window));
+    window.__jwksDelayMs = 0;
+    await invokeCallback(window, idxB, nonceB);
+    const shown = await waitFor(() =>
+      !displayText(window).includes("まだ表示記録がありません")
+    );
+    check("実画面: 遅延のあと新しいコールバックは表示を作る", shown);
     window.close();
   }
 } catch (e) {

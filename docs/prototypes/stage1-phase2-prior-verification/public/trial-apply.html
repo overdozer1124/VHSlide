@@ -192,6 +192,11 @@ async function onGoogleSignIn(response, snap) {
     // catch が新試行の保留要求・ボタン・表示を壊さないようにする。
     if (session.isCurrent(snap.trialId, snap.generation)) {
       log("準備エラー:", e.message);
+      // 無効化の前に password 欄を消す。failAttempt で無効化してから
+      // finally に入ると、finally の isCurrent が false になり、欄が
+      // 残ってしまうため（Codex レビュー 6715858226）。
+      document.getElementById("fixedOneTime").value = "";
+      document.getElementById("trialOneTime").value = "";
       session.failAttempt(snap.trialId, snap.generation);
       pending = null;
       sendBtn.disabled = true;

@@ -133,3 +133,9 @@
 2. **共有状態の現行世代ガード**：旧コールバックの catch が `pending=null`・ボタン無効化・表示消去で新試行の状態を壊し、finally が新試行の一回値欄を消す問題があった。修正では、catch・finally・送信の finally による共有状態の更新は、当該の世代が現行のときに限る。送信中の準備はできないことを明確化した（送信中は準備ボタンを無効化し、準備ハンドラーが送信中を拒否する。二重送信は送信中の送信ボタン無効化と `sending` フラグの両方で防ぐ）。
 3. **実画面試験**（`test/trial-apply.screen.mjs`、`npm run test:screen`）：文字列の存在確認ではなく、ページ自体を DOM で実行する。偽 GIS（コールバックと nonce を記録）、偽 JWKS（その場で生成した RSA 鍵で署名した RS256 JWT で画面の署名検証を通す）、/platform/apply の要求本体の記録と遅延（応答は local-mock へ素通し。トークンが MOCK_AUTH 形式でないため 401 になるが、送信・ログ対応の確認には十分）で、旧コールバック／古い finally が新試行を変更しないこと、送信とログが対応し二重送信されないこと、準備失敗・環境条件の失敗が送信を不能にすること、送信中の準備が拒否されることを確認する。結果は 24/24 PASS。
    - 実行環境の制約：この VM では実ブラウザーの起動ができない（管理下の Chrome は直接起動できず、Playwright 用ブラウザーの取得も承認待ちで止まる）。そのため jsdom 31 で実行する。jsdom は `<script type="module">` を実行しないため、試験ではページ内のインライン・モジュールの import を、配信中の2つの検証モジュール（tools/trial-apply.mjs・tools/subject-hash-verify.mjs）の実ソースを結合して解決し、古典スクリプトとして </body> 直前で実行する。変換は import／export の除去だけで、文の内容は変えない（`export async function` の `async` は残す）。2つのモジュールは `fail` という同名の関数を持つが内容は同一である。jsdom は window.fetch と window.crypto.subtle を持たないため、試験の beforeParse で Node の fetch（簡易 Cookie 保存庫付き）と WebCrypto の subtle を補う。実ブラウザーではこれらの補いは不要である。
+
+## 付録（続々々）：現行試行の失敗時の password 欄の消去（Codex レビュー 6715858226 への対応）
+
+再レビュー（seq 472）で、現行試行の失敗時に一回値入力欄が残ることが指摘された。`onGoogleSignIn` の現行世代の catch は `session.failAttempt(...)` で現行試行を無効化してから finally に入るため、finally の `session.isCurrent(...)` が false になり、署名検証失敗や環境条件失敗などで入力済みの一回値2欄が消去されずに残った。
+
+修正は、無効化の前に欄を消すことである。catch の現行世代の分岐で、ログの記録の直後に2欄を空にしてから `failAttempt` を呼ぶ。finally の現行世代チェックはそのまま残し、古い試行の finally が新試行の入力を消さない条件を維持する。成功時は finally が欄を消す（表示の確定後、送信前）。実画面試験では、成功時・現行の失敗時（環境条件の失敗と署名検証の失敗の両方）・旧試行の遅延 finally（JWKS 取得を遅延させ、旧コールバックの待ちの間に新試行の準備を始める）の各ケースで password 欄を検査する。結果は 34/34 PASS。

@@ -272,12 +272,26 @@ const checks = {
     found: findLines(trialApplyLines, /sending = true/),
     expect: "present",
   },
+  // 現行の失敗時は無効化の前に password 欄を消す
+  // （Codex レビュー 6715858226 への対応）。
+  trial_apply_page_clear_before_invalidate: {
+    found: findLines(trialApplyLines, /無効化の前に password 欄を消す/),
+    expect: "present",
+  },
   trial_apply_screen_fake_gis: {
     found: findLines(readRel("test/trial-apply.screen.mjs").split("\n"), /__gis/),
     expect: "present",
   },
   trial_apply_screen_jsdom: {
     found: findLines(readRel("test/trial-apply.screen.mjs").split("\n"), /jsdom/),
+    expect: "present",
+  },
+  trial_apply_screen_delayed_finally: {
+    found: findLines(readRel("test/trial-apply.screen.mjs").split("\n"), /__jwksDelayMs/),
+    expect: "present",
+  },
+  trial_apply_screen_password_checks: {
+    found: findLines(readRel("test/trial-apply.screen.mjs").split("\n"), /fixedOneTime"\)\.value === ""/),
     expect: "present",
   },
   serve_real_trial_apply_route: {

@@ -58,8 +58,8 @@
     },
     {
       "path": "public/trial-apply.html",
-      "sha256": "7a88e9b7eda60b52e49b7b585bd89cf7f3e82b38e3c96e3d1050ebf34c1348d9",
-      "bytes": 18415
+      "sha256": "588233b7ac205be47375f0365578781540e3c0509afc748424cb89851ca28efa",
+      "bytes": 18775
     },
     {
       "path": "tools/trial-apply.mjs",
@@ -73,8 +73,8 @@
     },
     {
       "path": "test/trial-apply.screen.mjs",
-      "sha256": "2fcd96e8dff546dcb6c489e9f66338c2f87abf957189e1ff840af39ccc2c6c77",
-      "bytes": 20753
+      "sha256": "9add2c23335d3d76821d8c0d53ac4aea6568c271b6677f09e71e356807f0394d",
+      "bytes": 24691
     }
   ],
   "builds": {
@@ -660,7 +660,7 @@
           "text": "const FIXED_ENV_ID = \"stage1-verification-only-20261101\";"
         },
         {
-          "line": 326,
+          "line": 331,
           "text": "<p class=\"note\">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。"
         }
       ],
@@ -695,7 +695,7 @@
     "trial_apply_page_attempt_closure": {
       "found": [
         {
-          "line": 238,
+          "line": 243,
           "text": "callback: (response) => onGoogleSignIn(response, snap),"
         }
       ],
@@ -720,7 +720,7 @@
           "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 205,
+          "line": 210,
           "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
         }
       ],
@@ -729,8 +729,17 @@
     "trial_apply_page_send_guard": {
       "found": [
         {
-          "line": 271,
+          "line": 276,
           "text": "sending = true;"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_clear_before_invalidate": {
+      "found": [
+        {
+          "line": 195,
+          "text": "// 無効化の前に password 欄を消す。failAttempt で無効化してから"
         }
       ],
       "expect": "present"
@@ -750,44 +759,60 @@
           "text": "window.__gis.nonces.push(opts.nonce);"
         },
         {
-          "line": 271,
+          "line": 275,
           "text": "const before = window.__gis.callbacks.length;"
         },
         {
-          "line": 273,
+          "line": 277,
           "text": "const ok = await waitFor(() => window.__gis.callbacks.length > before);"
         },
         {
-          "line": 275,
+          "line": 279,
           "text": "return window.__gis.callbacks.length - 1;"
         },
         {
-          "line": 279,
+          "line": 283,
           "text": "await window.__gis.callbacks[index]({ credential: token });"
         },
         {
-          "line": 306,
+          "line": 310,
           "text": "const nonceA = window.__gis.nonces[0];"
         },
         {
-          "line": 315,
+          "line": 319,
           "text": "const nonceB = window.__gis.nonces[1];"
         },
         {
-          "line": 393,
+          "line": 401,
           "text": "const nonce = window.__gis.nonces[0];"
         },
         {
-          "line": 420,
+          "line": 432,
+          "text": "await window.__gis.callbacks[idx]({ credential: wrongToken });"
+        },
+        {
+          "line": 459,
           "text": "const nonce = window.__gis.nonces[0];"
         },
         {
-          "line": 461,
+          "line": 500,
           "text": "const before = window.__gis.callbacks.length;"
         },
         {
-          "line": 463,
+          "line": 502,
           "text": "const reprepped = await waitFor(() => window.__gis.callbacks.length > before);"
+        },
+        {
+          "line": 523,
+          "text": "const nonceA = window.__gis.nonces[0];"
+        },
+        {
+          "line": 526,
+          "text": "const pendingA = window.__gis.callbacks[idxA]({ credential: tokenA });"
+        },
+        {
+          "line": 535,
+          "text": "const nonceB = window.__gis.nonces[1];"
         }
       ],
       "expect": "present"
@@ -819,8 +844,50 @@
           "text": "// jsdom 31 は window.fetch を持たないため、Node の fetch で"
         },
         {
-          "line": 256,
+          "line": 260,
           "text": "if (jsdomErrors.length) throw new Error(`ページの実行エラー: ${jsdomErrors[0]}`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_screen_delayed_finally": {
+      "found": [
+        {
+          "line": 214,
+          "text": "window.__jwksDelayMs = 0;"
+        },
+        {
+          "line": 222,
+          "text": "if (window.__jwksDelayMs > 0) {"
+        },
+        {
+          "line": 223,
+          "text": "await new Promise((r) => setTimeout(r, window.__jwksDelayMs));"
+        },
+        {
+          "line": 515,
+          "text": "window.__jwksDelayMs = 800;"
+        },
+        {
+          "line": 556,
+          "text": "window.__jwksDelayMs = 0;"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_screen_password_checks": {
+      "found": [
+        {
+          "line": 355,
+          "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
+        },
+        {
+          "line": 415,
+          "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
+        },
+        {
+          "line": 442,
+          "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
         }
       ],
       "expect": "present"
