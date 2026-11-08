@@ -62,6 +62,9 @@ const ARTIFACTS = [
   "tools/subject-hash-verify.mjs",
   "tools/serve-real.mjs",
   "test/subject-hash-verify.test.mjs",
+  "public/trial-apply.html",
+  "tools/trial-apply.mjs",
+  "test/trial-apply.test.mjs",
 ];
 
 function readRel(rel) {
@@ -99,6 +102,8 @@ const loginLines = readRel("public/login-real.html").split("\n");
 const subjectHashLines = readRel("public/subject-hash.html").split("\n");
 const subjectHashVerifyLines = readRel("tools/subject-hash-verify.mjs").split("\n");
 const serveRealLines = readRel("tools/serve-real.mjs").split("\n");
+const trialApplyLines = readRel("public/trial-apply.html").split("\n");
+const trialApplyModuleLines = readRel("tools/trial-apply.mjs").split("\n");
 
 const checks = {
   clean_platform_has_no_fault_marker: {
@@ -188,6 +193,46 @@ const checks = {
   },
   serve_real_subject_hash_route: {
     found: findLines(serveRealLines, /\/subject-hash/),
+    expect: "present",
+  },
+  // 不一致試験専用画面は、送信する JSON の全文表示をしない（ID トークン
+  // と一回値が含まれるため）。画面のソースに秘密の項目名そのものが
+  // 現れないこと、要求の凍結と表示・実送信の同一性確認があること、
+  // 提供サーバーが配信することを確認する。
+  trial_apply_page_no_secret_field_names: {
+    found: findLines(trialApplyLines, /id_token|one_time_value/),
+    expect: "absent",
+  },
+  trial_apply_page_no_tokeninfo: {
+    found: findLines(trialApplyLines, /tokeninfo/i),
+    expect: "absent",
+  },
+  trial_apply_page_placeholder: {
+    found: findLines(trialApplyLines, /REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID/),
+    expect: "present",
+  },
+  trial_apply_page_gis: {
+    found: findLines(trialApplyLines, /accounts\.google\.com\/gsi\/client/),
+    expect: "present",
+  },
+  trial_apply_page_uses_jwks: {
+    found: findLines(trialApplyLines, /oauth2\/v3\/certs/),
+    expect: "present",
+  },
+  trial_apply_module_freezes_request: {
+    found: findLines(trialApplyModuleLines, /Object\.freeze/),
+    expect: "present",
+  },
+  trial_apply_module_checks_display_sent: {
+    found: findLines(trialApplyModuleLines, /verifyDisplayMatchesSent/),
+    expect: "present",
+  },
+  trial_apply_module_compares_one_time_fact_only: {
+    found: findLines(trialApplyModuleLines, /compareOneTime/),
+    expect: "present",
+  },
+  serve_real_trial_apply_route: {
+    found: findLines(serveRealLines, /\/trial-apply/),
     expect: "present",
   },
 };
@@ -288,6 +333,7 @@ const manifest = {
   pc_side: {
     login_page: "public/login-real.html（tools/serve-real.mjs が GOOGLE_CLIENT_ID をメモリ上で差し込んで配信する）",
     subject_hash_page: "public/subject-hash.html（tools/serve-real.mjs が /subject-hash で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。ID トークンを外部へ送らず、公開鍵・JWKS による PC 内署名検証で SHA-256(sub) だけを表示する。検証モジュール tools/subject-hash-verify.mjs は Node 試験と共用）",
+    trial_apply_page: "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,

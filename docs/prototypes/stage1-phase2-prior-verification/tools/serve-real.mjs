@@ -21,6 +21,14 @@
 //   が直接行い、このサーバーは中継しない。
 // - GET /subject-hash-verify.mjs → tools/subject-hash-verify.mjs をその
 //   まま返す（取得ページが import する検証モジュール）。
+// - GET /trial-apply → public/trial-apply.html を返す（不一致試験専用
+//   画面。同じくクライアント ID をメモリ上で差し込む）。このページは
+//   送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致
+//   の事実だけを表示して、その同じ要求を送る。送信する JSON の全文
+//   表示はしない。検証モジュール tools/trial-apply.mjs と
+//   tools/subject-hash-verify.mjs を import する。
+// - GET /trial-apply.mjs → tools/trial-apply.mjs をそのまま返す
+//   （trial-apply 画面が import する純粋モジュール）。
 // - /nonce・/platform/apply・/admin/*（verify-only・registry の
 //   add/revoke/rotate）への要求は、環境変数 RELAY_URL（既定
 //   http://127.0.0.1:8798）へ、メソッド・ヘッダー・ボディを変更せずに
@@ -148,6 +156,18 @@ if (!rawSubjectHashHtml.includes(PLACEHOLDER)) {
 const subjectHashHtml = rawSubjectHashHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const subjectHashVerifyJs = await readFile(path.join(root, "tools", "subject-hash-verify.mjs"), "utf8");
 
+// 不一致試験専用画面も同じく、起動時に読み込み、クライアント ID を
+// メモリ上で差し込む（ファイルは書き換えない）。検証モジュールは
+// そのまま返す。trial-apply 画面は subject-hash の検証モジュールも
+// import する。
+const rawTrialApplyHtml = await readFile(path.join(root, "public", "trial-apply.html"), "utf8");
+if (!rawTrialApplyHtml.includes(PLACEHOLDER)) {
+  console.error("error: trial-apply.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+const trialApplyHtml = rawTrialApplyHtml.split(PLACEHOLDER).join(CLIENT_ID);
+const trialApplyJs = await readFile(path.join(root, "tools", "trial-apply.mjs"), "utf8");
+
 const FORWARD_PATHS = new Set([
   "/nonce",
   "/platform/apply",
@@ -176,6 +196,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /subject-hash-verify.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(subjectHashVerifyJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/trial-apply") {
+      console.log(`GET /trial-apply -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(trialApplyHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/trial-apply.mjs") {
+      console.log(`GET /trial-apply.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(trialApplyJs);
       return;
     }
     if (FORWARD_PATHS.has(pathname)) {

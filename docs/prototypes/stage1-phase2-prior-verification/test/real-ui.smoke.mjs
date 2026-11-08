@@ -144,6 +144,32 @@ try {
         !/tokeninfo/i.test(shJs)
     );
 
+    // 不一致試験専用画面の配信確認（Codex 再レビュー 6715453178 への
+    // 対応で追加）。実 GIS の確認ではなく、配管（配信・クライアント
+    // ID 差し込み・検証モジュールの配信）と、画面に秘密の項目名そのもの
+    // が現れないことだけを確認する。
+    const taRes = await fetch(base + "/trial-apply");
+    const taHtml = await taRes.text();
+    check(
+      "スモーク: /trial-apply が専用画面を返し、クライアントIDが差し込まれ、秘密の項目名がない",
+      taRes.status === 200 &&
+        taHtml.includes(CLIENT_ID) &&
+        !taHtml.includes("REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID") &&
+        taHtml.includes("oauth2/v3/certs") &&
+        !/tokeninfo/i.test(taHtml) &&
+        !taHtml.includes("id_token") &&
+        !taHtml.includes("one_time_value")
+    );
+    const taJsRes = await fetch(base + "/trial-apply.mjs");
+    const taJs = await taJsRes.text();
+    check(
+      "スモーク: /trial-apply.mjs が検証モジュールを返し、要求の凍結と表示・実送信の同一性確認を含む",
+      taJsRes.status === 200 &&
+        taJs.includes("buildTrialRequest") &&
+        taJs.includes("verifyDisplayMatchesSent") &&
+        taJs.includes("Object.freeze")
+    );
+
     // 故障マーカーの素通し確認（手順書 v0.3 の実証前確認）:
     // 故障版ビルドを中継先にして /platform/apply を提供サーバー経由で
     // 実施し、500 の応答本文（detail のマーカー）が欠落せず届くことを

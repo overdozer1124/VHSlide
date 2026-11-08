@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>段階①フェーズ2 先行検証 不一致試験専用画面（検証用）</title>
+<!--
+  フェーズ2先行検証の不一致試験（項目1の環境不一致・一回値不一致）専用
+  の検証画面です。Codex 再レビュー 6715453178 への対応で用意したもの
+  です。既存の実ログイン画面（public/login-real.html）では、送信直前
+  の実値と応答の対応を示す証拠を作れません。
+
+  位置づけと制約:
+  - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で配信
+    し、どの Worker 版にも含めません（マニフェストの成果物には含め
+    ますが、Worker へのアップロード対象ではありません）。
+  - 送信に使う単一の要求オブジェクトを tools/trial-apply.mjs の
+    buildTrialRequest で作り、深く凍結します。表示の元と送信する本体
+    はこの同じオブジェクトです。表示後に差し替えはできません。
+  - 送信直前に表示するのは、試験 ID・試験種別・env_id・purpose・
+    主体の確認事実・一回値の比較事実だけです。送信する JSON の全文
+    表示はしません（ID トークンと一回値が含まれるため）。
+  - 表示・ログ・Issue・チャットに ID トークン・一回値・Cookie・
+    nonce・主体ハッシュを出しません。画面のログには試験 ID・表示記
+    録・応答の状態と理由コードだけを出します。
+  - 主体の確認は、アカウント選択での所有者の確認と、ブラウザー内の
+    JWKS 署名検証（tools/subject-hash-verify.mjs）の通過の両方が
+    揃った場合にだけ「主体Aとして確認」と表示します。sub やハッシュ
+    の値は表示しません。
+  - 秘密の比較（固定の一回値と送信する一回値）はブラウザーのメモリー
+    内だけで行い、真偽だけを表示します。送信後に password 欄の値と
+    メモリー内の秘密を消去します。
+  - 転送先は同一生成元（http://localhost:8787）の固定パス
+    /platform/apply だけです。URL を入力・変更できる欄はありません。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  input[type="password"], input[type="text"] { width: 32em; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+  button:disabled { opacity: 0.5; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import {
+  buildTrialRequest,
+  compareOneTime,
+  preSendView,
+  verifyDisplayMatchesSent,
+  makeTrialLogEntry,
+} from "./trial-apply.mjs";
+import { verifyIdTokenLocal } from "./subject-hash-verify.mjs";
+
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （検証用に作成した Web クライアントの ID を、tools/serve-real.mjs が
+// 起動時に環境変数 GOOGLE_CLIENT_ID からメモリ上で差し込みます）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+const PATHS = { nonce: "/nonce", apply: "/platform/apply" };
+
+// 試験 ID は画面を開いたときに1つだけ発行し、表示と応答を結び付ける。
+const TRIAL_ID = crypto.randomUUID();
+
+const logEl = document.getElementById("log");
+const displayEl = document.getElementById("display");
+const sendBtn = document.getElementById("sendApply");
+const accountCheck = document.getElementById("accountConfirmed");
+const gisBox = document.getElementById("gisTrial");
+
+function log(...parts) {
+  // 試験 ID・表示記録・応答の状態と理由コードだけを出す。
+  // トークン・秘密の値は出さない。
+  logEl.textContent += parts.join(" ") + "\n";
+}
+
+// メモリー内だけに置く秘密。送信後・失敗後に消去する。
+let pending = null; // { request, display, nonce }
+
+document.getElementById("trialId").textContent = TRIAL_ID;
+
+async function fetchNonce() {
+  const res = await fetch(PATHS.nonce, { credentials: "include" });
+  const data = await res.json().catch(() => null);
+  log("GET /nonce ->", res.status, data && data.nonce ? "ok" : "ng");
+  if (!res.ok || !data || !data.nonce) throw new Error("nonce が取得できませんでした");
+  return data.nonce;
+}
+
+// GIS コールバック。ID トークンを受け取り、PC 内で署名検証し、
+// 送信直前の表示記録を作る。トークンの値は表示・ログに出さない。
+async function onGoogleSignIn(response) {
+  const trialKind = document.getElementById("trialKind").value;
+  const envId = document.getElementById("trialEnvId").value;
+  const fixedValue = document.getElementById("fixedOneTime").value;
+  const trialValue = document.getElementById("trialOneTime").value;
+  try {
+    if (!envId) throw new Error("送信する環境IDを入力してください");
+    if (!fixedValue || !trialValue) throw new Error("固定の一回値と送信する一回値を両方入力してください");
+    // 試験の前提を、送信前に真偽で確認する。環境不一致試験は比較が
+    // 「一致」、一回値不一致試験は「不一致」でなければ進まない。
+    const fact = compareOneTime(trialValue, fixedValue);
+    const expected = trialKind === "env-mismatch" ? "一致" : "不一致";
+    if (fact !== expected) {
+      throw new Error(`一回値の比較が「${expected}」ではありません（試験の前提を満たしません）`);
+    }
+    // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で署名を
+    // 検証する。トークンは外部の検証サービスへ送らない。
+    const jwks = await (await fetch(JWKS_URL)).json();
+    const verified = await verifyIdTokenLocal(response.credential, {
+      jwks,
+      expectedAud: GOOGLE_CLIENT_ID,
+      expectedIssuers: ISSUERS,
+      expectedNonce: pending.nonce,
+      nowSec: Math.floor(Date.now() / 1000),
+    }).then(() => true).catch((e) => {
+      log("署名検証 -> ng", e.code || "error");
+      return false;
+    });
+    if (!verified) throw new Error("署名検証が通りませんでした");
+    // 主体の確認は、署名検証の通過と、所有者によるアカウント選択の
+    // 確認の両方が揃った場合にだけ真になる。sub やハッシュは扱わない。
+    const subjectConfirmed = verified && accountCheck.checked;
+    if (!subjectConfirmed) {
+      throw new Error("アカウント選択でテスト用アカウントAを選んだことを確認してください");
+    }
+    const request = buildTrialRequest({
+      idToken: response.credential,
+      oneTimeValue: trialValue,
+      purpose: "full-replace",
+      envId,
+    });
+    const display = preSendView(request, {
+      trialId: TRIAL_ID,
+      kind: trialKind,
+      subjectConfirmed,
+      oneTimeFact: fact,
+    });
+    pending = { request, display, nonce: pending.nonce };
+    displayEl.textContent = JSON.stringify(display, null, 2);
+    log("送信直前の表示 -> ok", `試験ID=${TRIAL_ID}`);
+    sendBtn.disabled = false;
+  } catch (e) {
+    log("準備エラー:", e.message);
+    pending = null;
+    sendBtn.disabled = true;
+  } finally {
+    // 入力欄の秘密はこの場で消去する（比較と要求の組み立ては済んだ）。
+    document.getElementById("fixedOneTime").value = "";
+    document.getElementById("trialOneTime").value = "";
+  }
+}
+
+document.getElementById("prepTrial").addEventListener("click", async () => {
+  try {
+    const nonce = await fetchNonce();
+    pending = { request: null, display: null, nonce };
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      nonce,
+      callback: onGoogleSignIn,
+    });
+    gisBox.innerHTML = "";
+    google.accounts.id.renderButton(gisBox, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+    });
+    log("Google ログインボタンを表示しました。テスト用アカウントAでログインしてください");
+  } catch (e) {
+    log("エラー:", e.message);
+  }
+});
+
+sendBtn.addEventListener("click", async () => {
+  if (!pending || !pending.request || !pending.display) {
+    log("エラー: 送信できる要求がありません");
+    return;
+  }
+  sendBtn.disabled = true;
+  const { request, display } = pending;
+  try {
+    // 表示の元と同一のオブジェクトを送る。表示と実送信の同一性は
+    // verifyDisplayMatchesSent で直前に確認する。
+    verifyDisplayMatchesSent(display, request);
+    const res = await fetch(PATHS.apply, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(request),
+    });
+    const data = await res.json().catch(() => null);
+    const entry = makeTrialLogEntry({
+      display,
+      response: { status: res.status, error: data && data.error ? data.error : null },
+    });
+    log("試験ログ:", JSON.stringify(entry));
+  } catch (e) {
+    log("送信エラー:", e.message);
+  } finally {
+    // メモリー内の秘密を消去する。
+    pending = null;
+  }
+});
+</script>
+</head>
+<body>
+<h1>段階①フェーズ2 先行検証 不一致試験専用画面（検証用）</h1>
+<p class="note">項目1の不一致試験（環境不一致・一回値不一致）専用の検証画面です。
+送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の
+事実だけを表示して、その同じ要求を送ります。ID トークン・一回値・
+Cookie・nonce・主体ハッシュは表示・ログに出しません。</p>
+
+<p>試験 ID：<code id="trialId"></code></p>
+
+<fieldset>
+  <legend>試験の固定内容（送信対象は固定されています）</legend>
+  <label>試験種別
+    <select id="trialKind">
+      <option value="env-mismatch">環境不一致（env_id を誤った値で送る）</option>
+      <option value="one-time-mismatch">一回値不一致（一回値を誤った値で送る）</option>
+    </select>
+  </label>
+  <p>用途：<code>full-replace（全面復旧）</code>（固定。変更できません）</p>
+  <label>送信する環境ID（非秘密。表示記録にそのまま出ます）
+    <input type="text" id="trialEnvId" autocomplete="off">
+  </label>
+  <label>固定の一回値（承認に固定された値。表示・ログに出ません）
+    <input type="password" id="fixedOneTime" autocomplete="off">
+  </label>
+  <label>送信する一回値（表示・ログに出ません）
+    <input type="password" id="trialOneTime" autocomplete="off">
+  </label>
+  <p class="note">環境不一致試験では「固定の一回値」と「送信する一回値」に同じ値を
+  入れてください（比較が「一致」であることが前提です）。一回値不一致
+  試験では異なる値を入れてください（比較が「不一致」であることが前提です）。</p>
+  <label>
+    <input type="checkbox" id="accountConfirmed">
+    ログインボタンに表示されたアカウントがテスト用アカウントAであることを確認した
+  </label>
+  <p class="note">テスト用アカウントAだけがログインしたブラウザープロファイル
+  （またはA専用のプライベートウィンドウ）を使ってください。A以外が
+  アカウント選択に現れた場合は停止してください。</p>
+  <button id="prepTrial" type="button">nonce を取得して Google ログインボタンを表示</button>
+  <div id="gisTrial"></div>
+</fieldset>
+
+<fieldset>
+  <legend>送信直前の表示（非秘密項目と真偽だけ）</legend>
+  <pre id="display">（まだ表示記録がありません）</pre>
+  <button id="sendApply" type="button" disabled>この要求を送信する</button>
+</fieldset>
+
+<h2>結果（試験 ID・表示記録・応答だけ）</h2>
+<pre id="log"></pre>
+</body>
+</html>
