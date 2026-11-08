@@ -65,6 +65,7 @@ const ARTIFACTS = [
   "public/trial-apply.html",
   "tools/trial-apply.mjs",
   "test/trial-apply.test.mjs",
+  "test/trial-apply.screen.mjs",
 ];
 
 function readRel(rel) {
@@ -255,6 +256,28 @@ const checks = {
   },
   trial_apply_page_env_condition: {
     found: findLines(trialApplyLines, /verifyEnvCondition/),
+    expect: "present",
+  },
+  // 試行ごとの閉じ込みコールバックと共有状態の現行世代ガード
+  // （Codex レビュー 6715565254 への対応）。
+  trial_apply_page_attempt_closure: {
+    found: findLines(trialApplyLines, /callback: \(response\) => onGoogleSignIn\(response, snap\)/),
+    expect: "present",
+  },
+  trial_apply_page_guarded_finally: {
+    found: findLines(trialApplyLines, /isCurrent\(snap\.trialId, snap\.generation\)/),
+    expect: "present",
+  },
+  trial_apply_page_send_guard: {
+    found: findLines(trialApplyLines, /sending = true/),
+    expect: "present",
+  },
+  trial_apply_screen_fake_gis: {
+    found: findLines(readRel("test/trial-apply.screen.mjs").split("\n"), /__gis/),
+    expect: "present",
+  },
+  trial_apply_screen_jsdom: {
+    found: findLines(readRel("test/trial-apply.screen.mjs").split("\n"), /jsdom/),
     expect: "present",
   },
   serve_real_trial_apply_route: {

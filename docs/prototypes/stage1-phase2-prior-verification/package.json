@@ -1,1 +1,17 @@
-{"dependencies":{"miniflare":"^4.20260730.0"},"description":"VHSlide stage-1 phase-2 prior-verification harness (LOCAL MOCK ONLY - plan v0.5 section 2.7)","name":"stage1-phase2-harness","private":true,"scripts":{"test":"node test/run.mjs && node --test test/subject-hash-verify.test.mjs && node --test test/trial-apply.test.mjs"},"type":"module","version":"0.1.0"}
+{
+  "dependencies": {
+    "miniflare": "^4.20260730.0"
+  },
+  "description": "VHSlide stage-1 phase-2 prior-verification harness (LOCAL MOCK ONLY - plan v0.5 section 2.7)",
+  "name": "stage1-phase2-harness",
+  "private": true,
+  "scripts": {
+    "test": "node test/run.mjs && node --test test/subject-hash-verify.test.mjs && node --test test/trial-apply.test.mjs",
+    "test:screen": "node test/trial-apply.screen.mjs"
+  },
+  "type": "module",
+  "version": "0.1.0",
+  "devDependencies": {
+    "jsdom": "^31.0.0"
+  }
+}

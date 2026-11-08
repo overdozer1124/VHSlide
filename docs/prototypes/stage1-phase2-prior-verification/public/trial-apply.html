@@ -5,9 +5,10 @@
 <title>段階①フェーズ2 先行検証 不一致試験専用画面（検証用）</title>
 <!--
   フェーズ2先行検証の不一致試験（項目1の環境不一致・一回値不一致）専用
-  の検証画面です。Codex 再レビュー 6715453178 への対応で用意したもの
-  です。既存の実ログイン画面（public/login-real.html）では、送信直前
-  の実値と応答の対応を示す証拠を作れません。
+  の検証画面です。Codex 再レビュー 6715453178 への対応で用意し、レビュー
+  6715525086・6715565254 の指摘で堅牢化したものです。既存の実ログイン
+  画面（public/login-real.html）では、送信直前の実値と応答の対応を示す
+  証拠を作れません。
 
   位置づけと制約:
   - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で配信
@@ -16,16 +17,20 @@
   - 送信に使う単一の要求オブジェクトを tools/trial-apply.mjs の
     buildTrialRequest で作り、深く凍結します。表示の元と送信する本体
     はこの同じオブジェクトです。表示後に差し替えはできません。
+  - 送信直前に表示するのは、試験 ID・試験種別・env_id・purpose・
+    主体の確認事実・一回値の比較事実だけです。送信する JSON の全文
+    表示はしません（ID トークンと一回値が含まれるため）。
   - 環境条件の機械検証を行います。凍結済み要求そのものの env_id を、
     検証環境に限定して固定した正しい環境IDと比べ、環境不一致試験は
     「異なる」こと、一回値不一致試験は「一致」することを要求します。
     条件を満たさなければ送信不能です（Codex レビュー 6715525086）。
   - 試験 ID は準備の開始ごとに新しく発行します。前回の保留要求・
     送信ボタン・表示は新規準備の開始時に無効化し、非同期の古い
-    コールバックは試行ごとの世代照合で拒否します（同レビュー）。
-  - 送信直前に表示するのは、試験 ID・試験種別・env_id・purpose・
-    主体の確認事実・一回値の比較事実だけです。送信する JSON の全文
-    表示はしません（ID トークンと一回値が含まれるため）。
+    コールバックは試行ごとの世代照合で拒否します。GIS コールバック
+    は各 initialize 時にその試行の ID・世代・nonce を閉じ込めたもの
+    を渡し、グローバルな attempt は読みません。共有の UI・状態の更新
+    は、当該の世代が現行のときに限ります。送信中の準備はできません
+    （Codex レビュー 6715565254）。
   - 表示・ログ・Issue・チャットに ID トークン・一回値・Cookie・
     nonce・主体ハッシュを出しません。画面のログには試験 ID・表示記
     録・応答の状態と理由コードだけを出します。
@@ -77,10 +82,13 @@ const FIXED_ENV_ID = "stage1-verification-only-20261101";
 
 // 試験 ID はページ読込時に発行しない。準備の開始ごとに新しい ID を
 // 発行し、前回の保留要求を無効化する（試行ごとの世代管理）。
-// 非同期の古いコールバックは世代照合で拒否する。
+// 非同期の古いコールバックは世代照合で拒否する。GIS コールバックは
+// 各 initialize 時にその試行の ID・世代・nonce を閉じ込めたものを
+// 渡し、グローバルな attempt は読まない。共有の UI・状態の更新は、
+// 当該の世代が現行のときに限る。送信中の準備はできない。
 const session = createTrialSession();
-let attempt = null; // { trialId, generation }
-let currentNonce = null;
+let attempt = null; // 最新の試行 { trialId, generation }（表示用）
+let sending = false; // 送信中のフラグ
 
 const logEl = document.getElementById("log");
 const displayEl = document.getElementById("display");
@@ -107,13 +115,15 @@ async function fetchNonce() {
 
 // GIS コールバック。ID トークンを受け取り、PC 内で署名検証し、
 // 送信直前の表示記録を作る。トークンの値は表示・ログに出さない。
-// 古い試行のコールバックは、世代照合で破棄する。
-async function onGoogleSignIn(response) {
-  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) {
+// snap は initialize 時に閉じ込めたこの試行の ID・世代・nonce であり、
+// グローバルな attempt は読まない。古い試行のコールバックは、開始時と
+// 各 await 後の照合で破棄する。共有の UI・状態の更新は、この試行が
+// 現行のときに限る。
+async function onGoogleSignIn(response, snap) {
+  if (!session.isCurrent(snap.trialId, snap.generation)) {
     log("古い試行のコールバックを破棄しました");
     return;
   }
-  const { trialId, generation } = attempt;
   const trialKind = document.getElementById("trialKind").value;
   const envId = document.getElementById("trialEnvId").value;
   const fixedValue = document.getElementById("fixedOneTime").value;
@@ -131,7 +141,7 @@ async function onGoogleSignIn(response) {
     // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で署名を
     // 検証する。トークンは外部の検証サービスへ送らない。
     const jwks = await (await fetch(JWKS_URL)).json();
-    if (!session.isCurrent(trialId, generation)) {
+    if (!session.isCurrent(snap.trialId, snap.generation)) {
       log("古い試行のコールバックを破棄しました");
       return;
     }
@@ -139,14 +149,14 @@ async function onGoogleSignIn(response) {
       jwks,
       expectedAud: GOOGLE_CLIENT_ID,
       expectedIssuers: ISSUERS,
-      expectedNonce: currentNonce,
+      expectedNonce: snap.nonce,
       nowSec: Math.floor(Date.now() / 1000),
     }).then(() => true).catch((e) => {
       log("署名検証 -> ng", e.code || "error");
       return false;
     });
     if (!verified) throw new Error("署名検証が通りませんでした");
-    if (!session.isCurrent(trialId, generation)) {
+    if (!session.isCurrent(snap.trialId, snap.generation)) {
       log("古い試行のコールバックを破棄しました");
       return;
     }
@@ -167,35 +177,49 @@ async function onGoogleSignIn(response) {
     // 条件を満たさなければ送信不能（例外）。
     verifyEnvCondition(request, { kind: trialKind, expectedEnvId: FIXED_ENV_ID });
     const display = preSendView(request, {
-      trialId,
+      trialId: snap.trialId,
       kind: trialKind,
       subjectConfirmed,
       oneTimeFact: fact,
     });
-    session.markReady(trialId, generation);
-    pending = { request, display, trialId, generation };
+    session.markReady(snap.trialId, snap.generation);
+    pending = { request, display, trialId: snap.trialId, generation: snap.generation };
     displayEl.textContent = JSON.stringify(display, null, 2);
-    log("送信直前の表示 -> ok", `試験ID=${trialId}`);
+    log("送信直前の表示 -> ok", `試験ID=${snap.trialId}`);
     sendBtn.disabled = false;
   } catch (e) {
-    log("準備エラー:", e.message);
-    if (attempt) session.failAttempt(trialId, generation);
-    pending = null;
-    sendBtn.disabled = true;
-    displayEl.textContent = "（まだ表示記録がありません）";
+    // 共有の状態を変えるのは、この試行が現行のときに限る。古い試行の
+    // catch が新試行の保留要求・ボタン・表示を壊さないようにする。
+    if (session.isCurrent(snap.trialId, snap.generation)) {
+      log("準備エラー:", e.message);
+      session.failAttempt(snap.trialId, snap.generation);
+      pending = null;
+      sendBtn.disabled = true;
+      displayEl.textContent = "（まだ表示記録がありません）";
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
   } finally {
-    // 入力欄の秘密はこの場で消去する（比較と要求の組み立ては済んだ）。
-    document.getElementById("fixedOneTime").value = "";
-    document.getElementById("trialOneTime").value = "";
+    // password 欄の消去も、この試行が現行のときに限る。古い試行の
+    // finally が新試行の入力欄を消さないようにする。
+    if (session.isCurrent(snap.trialId, snap.generation)) {
+      document.getElementById("fixedOneTime").value = "";
+      document.getElementById("trialOneTime").value = "";
+    }
   }
 }
 
-document.getElementById("prepTrial").addEventListener("click", async () => {
+const prepBtn = document.getElementById("prepTrial");
+prepBtn.addEventListener("click", async () => {
+  // 送信中の準備はできない。送信完了後に準備し直す。
+  if (sending) {
+    log("送信中のため準備できません。送信完了後に準備し直してください");
+    return;
+  }
   // 新しい試行を開始する。前回の保留要求・送信ボタン・表示を無効化する。
   const next = session.beginAttempt();
   attempt = next;
   pending = null;
-  currentNonce = null;
   displayEl.textContent = "（まだ表示記録がありません）";
   sendBtn.disabled = true;
   document.getElementById("trialId").textContent = next.trialId;
@@ -205,11 +229,13 @@ document.getElementById("prepTrial").addEventListener("click", async () => {
       log("古い試行の準備を破棄しました");
       return;
     }
-    currentNonce = nonce;
+    // この試行の ID・世代・nonce を閉じ込めたコールバックを渡す。
+    // コールバックはグローバルな attempt を読まない。
+    const snap = { trialId: next.trialId, generation: next.generation, nonce };
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       nonce,
-      callback: onGoogleSignIn,
+      callback: (response) => onGoogleSignIn(response, snap),
     });
     gisBox.innerHTML = "";
     google.accounts.id.renderButton(gisBox, {
@@ -219,12 +245,21 @@ document.getElementById("prepTrial").addEventListener("click", async () => {
     });
     log("Google ログインボタンを表示しました。テスト用アカウントAでログインしてください");
   } catch (e) {
-    session.failAttempt(next.trialId, next.generation);
-    log("エラー:", e.message);
+    // 共有の状態を変えるのは、この試行が現行のときに限る。
+    if (session.isCurrent(next.trialId, next.generation)) {
+      session.failAttempt(next.trialId, next.generation);
+      log("エラー:", e.message);
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
   }
 });
 
 sendBtn.addEventListener("click", async () => {
+  if (sending) {
+    log("送信中です");
+    return;
+  }
   if (
     !pending || !pending.request || !pending.display ||
     !attempt || !session.isCurrent(attempt.trialId, attempt.generation)
@@ -232,14 +267,17 @@ sendBtn.addEventListener("click", async () => {
     log("エラー: 送信できる要求がありません");
     return;
   }
-  // 二重送信の防止：送信中はボタンを無効化する。
+  // 二重送信の防止：送信中は送信ボタンと準備ボタンを無効化する。
+  sending = true;
   sendBtn.disabled = true;
-  const { request, display, trialId, generation } = pending;
+  prepBtn.disabled = true;
+  const snap = { trialId: pending.trialId, generation: pending.generation };
+  const { request, display } = pending;
   try {
     // 表示の元と同一のオブジェクトを送る。表示と実送信の同一性は
     // verifyDisplayMatchesSent で直前に確認する。
     verifyDisplayMatchesSent(display, request);
-    session.markSent(trialId, generation);
+    session.markSent(snap.trialId, snap.generation);
     const res = await fetch(PATHS.apply, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -255,8 +293,11 @@ sendBtn.addEventListener("click", async () => {
   } catch (e) {
     log("送信エラー:", e.message);
   } finally {
-    // メモリー内の秘密を消去する。同一の試行での再送はできない。
-    pending = null;
+    sending = false;
+    prepBtn.disabled = false;
+    // 保留要求の消去は、この送信の試行のものに限る。古い送信の
+    // finally が新試行の保留要求を消さないようにする。
+    if (pending && pending.trialId === snap.trialId) pending = null;
   }
 });
 </script>

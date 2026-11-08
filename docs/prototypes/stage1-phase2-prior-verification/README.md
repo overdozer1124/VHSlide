@@ -24,7 +24,8 @@ npm test   # = node test/run.mjs。全項目 PASS で終了コード 0
 | `public/subject-hash.html` / `tools/subject-hash-verify.mjs` | 対象主体ハッシュの取得専用ページと、PC 内署名検証（公開鍵・JWKS 方式）の共用モジュール。ID トークンを外部へ送らず、検証が通った場合だけ SHA-256(sub) を表示する。提供は `tools/serve-real.mjs`（`/subject-hash`） |
 | `test/subject-hash-verify.test.mjs` | 上記検証モジュールの試験（`node --test`。正例2件＋負例10件＋ハッシュ相違1件＝13件。`npm test` は run.mjs と合わせて実行する） |
 | `public/trial-apply.html` / `tools/trial-apply.mjs` | 不一致試験（環境不一致・一回値不一致）専用の検証画面と純粋モジュール。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を送る。送信する JSON の全文表示はしない。主体の確認は署名検証と `tools/subject-hash-verify.mjs` を再利用する。提供は `tools/serve-real.mjs`（`/trial-apply`） |
-| `test/trial-apply.test.mjs` | 上記モジュールの試験（`node --test`。10件。`npm test` は run.mjs・subject-hash 検証と合わせて実行する） |
+| `test/trial-apply.test.mjs` | 上記モジュールの試験（`node --test`。14件。`npm test` は run.mjs・subject-hash 検証と合わせて実行する） |
+| `test/trial-apply.screen.mjs` | 上記画面の実画面試験（`npm run test:screen`。24件。偽 GIS・偽 JWKS・遅延応答でページ自体を実行し、旧コールバック／古い finally が新試行を変更しないこと、送信とログが対応し二重送信されないことを確認する。実ブラウザーが使えない環境のため jsdom で実行する。詳細は DESIGN.md の付録を参照） |
 | `tools/build-realenv-manifest.mjs` / `realenv-manifest.json` | 実環境用マニフェスト（成果物ハッシュ・バインディング一覧・ソース検査）の生成ツールと生成結果 |
 | `test/run.mjs` | 試験ランナー（§2.7 の項目番号を各チェック名に付与） |
 | `test/real-ui.smoke.mjs` | 実ログイン画面と提供サーバーのローカル疎通確認（`node test/real-ui.smoke.mjs`。run.mjs とは別枠） |

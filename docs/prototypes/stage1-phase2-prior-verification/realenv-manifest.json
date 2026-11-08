@@ -58,8 +58,8 @@
     },
     {
       "path": "public/trial-apply.html",
-      "sha256": "5409f4b1e92903a817a2943bfa38ba13978efd14b99d40d4948e3f04944e4192",
-      "bytes": 15861
+      "sha256": "7a88e9b7eda60b52e49b7b585bd89cf7f3e82b38e3c96e3d1050ebf34c1348d9",
+      "bytes": 18415
     },
     {
       "path": "tools/trial-apply.mjs",
@@ -70,6 +70,11 @@
       "path": "test/trial-apply.test.mjs",
       "sha256": "7fe942933d053656f434aabe4961aadd4fd58c0c797c6c81c3da8a83df373185",
       "bytes": 12710
+    },
+    {
+      "path": "test/trial-apply.screen.mjs",
+      "sha256": "2fcd96e8dff546dcb6c489e9f66338c2f87abf957189e1ff840af39ccc2c6c77",
+      "bytes": 20753
     }
   ],
   "builds": {
@@ -542,7 +547,7 @@
     "trial_apply_page_placeholder": {
       "found": [
         {
-          "line": 68,
+          "line": 73,
           "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
         }
       ],
@@ -551,7 +556,7 @@
     "trial_apply_page_gis": {
       "found": [
         {
-          "line": 51,
+          "line": 56,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
         }
       ],
@@ -560,7 +565,7 @@
     "trial_apply_page_uses_jwks": {
       "found": [
         {
-          "line": 69,
+          "line": 74,
           "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
         }
       ],
@@ -651,11 +656,11 @@
     "trial_apply_page_fixed_env_id": {
       "found": [
         {
-          "line": 76,
+          "line": 81,
           "text": "const FIXED_ENV_ID = \"stage1-verification-only-20261101\";"
         },
         {
-          "line": 285,
+          "line": 326,
           "text": "<p class=\"note\">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。"
         }
       ],
@@ -664,11 +669,11 @@
     "trial_apply_page_session_guard": {
       "found": [
         {
-          "line": 59,
+          "line": 64,
           "text": "createTrialSession,"
         },
         {
-          "line": 81,
+          "line": 89,
           "text": "const session = createTrialSession();"
         }
       ],
@@ -677,12 +682,145 @@
     "trial_apply_page_env_condition": {
       "found": [
         {
-          "line": 58,
+          "line": 63,
           "text": "verifyEnvCondition,"
         },
         {
-          "line": 168,
+          "line": 178,
           "text": "verifyEnvCondition(request, { kind: trialKind, expectedEnvId: FIXED_ENV_ID });"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_attempt_closure": {
+      "found": [
+        {
+          "line": 238,
+          "text": "callback: (response) => onGoogleSignIn(response, snap),"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_guarded_finally": {
+      "found": [
+        {
+          "line": 123,
+          "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
+        },
+        {
+          "line": 144,
+          "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
+        },
+        {
+          "line": 159,
+          "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
+        },
+        {
+          "line": 193,
+          "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
+        },
+        {
+          "line": 205,
+          "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_send_guard": {
+      "found": [
+        {
+          "line": 271,
+          "text": "sending = true;"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_screen_fake_gis": {
+      "found": [
+        {
+          "line": 196,
+          "text": "window.__gis = { callbacks: [], nonces: [] };"
+        },
+        {
+          "line": 199,
+          "text": "window.__gis.callbacks.push(opts.callback);"
+        },
+        {
+          "line": 200,
+          "text": "window.__gis.nonces.push(opts.nonce);"
+        },
+        {
+          "line": 271,
+          "text": "const before = window.__gis.callbacks.length;"
+        },
+        {
+          "line": 273,
+          "text": "const ok = await waitFor(() => window.__gis.callbacks.length > before);"
+        },
+        {
+          "line": 275,
+          "text": "return window.__gis.callbacks.length - 1;"
+        },
+        {
+          "line": 279,
+          "text": "await window.__gis.callbacks[index]({ credential: token });"
+        },
+        {
+          "line": 306,
+          "text": "const nonceA = window.__gis.nonces[0];"
+        },
+        {
+          "line": 315,
+          "text": "const nonceB = window.__gis.nonces[1];"
+        },
+        {
+          "line": 393,
+          "text": "const nonce = window.__gis.nonces[0];"
+        },
+        {
+          "line": 420,
+          "text": "const nonce = window.__gis.nonces[0];"
+        },
+        {
+          "line": 461,
+          "text": "const before = window.__gis.callbacks.length;"
+        },
+        {
+          "line": 463,
+          "text": "const reprepped = await waitFor(() => window.__gis.callbacks.length > before);"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_screen_jsdom": {
+      "found": [
+        {
+          "line": 11,
+          "text": "// 止まる）。そのため jsdom でページを実行する。jsdom 31 は"
+        },
+        {
+          "line": 39,
+          "text": "import pkg from \"jsdom\";"
+        },
+        {
+          "line": 169,
+          "text": "const jsdomErrors = [];"
+        },
+        {
+          "line": 170,
+          "text": "vc.on(\"jsdomError\", (e) => jsdomErrors.push(String(e && e.detail ? e.detail : e)));"
+        },
+        {
+          "line": 189,
+          "text": "// jsdom の window.crypto には subtle がないため、Node の"
+        },
+        {
+          "line": 206,
+          "text": "// jsdom 31 は window.fetch を持たないため、Node の fetch で"
+        },
+        {
+          "line": 256,
+          "text": "if (jsdomErrors.length) throw new Error(`ページの実行エラー: ${jsdomErrors[0]}`);"
         }
       ],
       "expect": "present"
