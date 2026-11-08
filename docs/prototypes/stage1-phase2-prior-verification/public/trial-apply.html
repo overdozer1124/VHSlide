@@ -16,6 +16,13 @@
   - 送信に使う単一の要求オブジェクトを tools/trial-apply.mjs の
     buildTrialRequest で作り、深く凍結します。表示の元と送信する本体
     はこの同じオブジェクトです。表示後に差し替えはできません。
+  - 環境条件の機械検証を行います。凍結済み要求そのものの env_id を、
+    検証環境に限定して固定した正しい環境IDと比べ、環境不一致試験は
+    「異なる」こと、一回値不一致試験は「一致」することを要求します。
+    条件を満たさなければ送信不能です（Codex レビュー 6715525086）。
+  - 試験 ID は準備の開始ごとに新しく発行します。前回の保留要求・
+    送信ボタン・表示は新規準備の開始時に無効化し、非同期の古い
+    コールバックは試行ごとの世代照合で拒否します（同レビュー）。
   - 送信直前に表示するのは、試験 ID・試験種別・env_id・purpose・
     主体の確認事実・一回値の比較事実だけです。送信する JSON の全文
     表示はしません（ID トークンと一回値が含まれるため）。
@@ -48,6 +55,8 @@ import {
   compareOneTime,
   preSendView,
   verifyDisplayMatchesSent,
+  verifyEnvCondition,
+  createTrialSession,
   makeTrialLogEntry,
 } from "./trial-apply.mjs";
 import { verifyIdTokenLocal } from "./subject-hash-verify.mjs";
@@ -61,8 +70,17 @@ const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 const PATHS = { nonce: "/nonce", apply: "/platform/apply" };
 
-// 試験 ID は画面を開いたときに1つだけ発行し、表示と応答を結び付ける。
-const TRIAL_ID = crypto.randomUUID();
+// 検証環境に限定して固定した正しい環境ID。環境条件の機械検証の基準。
+// 秘密ではない（検証環境の識別子であり、承認のバインディングや
+// マニフェストにも現れる公開の試験値）。
+const FIXED_ENV_ID = "stage1-verification-only-20261101";
+
+// 試験 ID はページ読込時に発行しない。準備の開始ごとに新しい ID を
+// 発行し、前回の保留要求を無効化する（試行ごとの世代管理）。
+// 非同期の古いコールバックは世代照合で拒否する。
+const session = createTrialSession();
+let attempt = null; // { trialId, generation }
+let currentNonce = null;
 
 const logEl = document.getElementById("log");
 const displayEl = document.getElementById("display");
@@ -77,9 +95,7 @@ function log(...parts) {
 }
 
 // メモリー内だけに置く秘密。送信後・失敗後に消去する。
-let pending = null; // { request, display, nonce }
-
-document.getElementById("trialId").textContent = TRIAL_ID;
+let pending = null; // { request, display, trialId, generation }
 
 async function fetchNonce() {
   const res = await fetch(PATHS.nonce, { credentials: "include" });
@@ -91,7 +107,13 @@ async function fetchNonce() {
 
 // GIS コールバック。ID トークンを受け取り、PC 内で署名検証し、
 // 送信直前の表示記録を作る。トークンの値は表示・ログに出さない。
+// 古い試行のコールバックは、世代照合で破棄する。
 async function onGoogleSignIn(response) {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) {
+    log("古い試行のコールバックを破棄しました");
+    return;
+  }
+  const { trialId, generation } = attempt;
   const trialKind = document.getElementById("trialKind").value;
   const envId = document.getElementById("trialEnvId").value;
   const fixedValue = document.getElementById("fixedOneTime").value;
@@ -109,17 +131,25 @@ async function onGoogleSignIn(response) {
     // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で署名を
     // 検証する。トークンは外部の検証サービスへ送らない。
     const jwks = await (await fetch(JWKS_URL)).json();
+    if (!session.isCurrent(trialId, generation)) {
+      log("古い試行のコールバックを破棄しました");
+      return;
+    }
     const verified = await verifyIdTokenLocal(response.credential, {
       jwks,
       expectedAud: GOOGLE_CLIENT_ID,
       expectedIssuers: ISSUERS,
-      expectedNonce: pending.nonce,
+      expectedNonce: currentNonce,
       nowSec: Math.floor(Date.now() / 1000),
     }).then(() => true).catch((e) => {
       log("署名検証 -> ng", e.code || "error");
       return false;
     });
     if (!verified) throw new Error("署名検証が通りませんでした");
+    if (!session.isCurrent(trialId, generation)) {
+      log("古い試行のコールバックを破棄しました");
+      return;
+    }
     // 主体の確認は、署名検証の通過と、所有者によるアカウント選択の
     // 確認の両方が揃った場合にだけ真になる。sub やハッシュは扱わない。
     const subjectConfirmed = verified && accountCheck.checked;
@@ -132,20 +162,27 @@ async function onGoogleSignIn(response) {
       purpose: "full-replace",
       envId,
     });
+    // 環境条件の機械検証。入力欄の表示値ではなく、実送信に使う
+    // 凍結済み要求そのものの env_id を、固定の正しい環境IDと比べる。
+    // 条件を満たさなければ送信不能（例外）。
+    verifyEnvCondition(request, { kind: trialKind, expectedEnvId: FIXED_ENV_ID });
     const display = preSendView(request, {
-      trialId: TRIAL_ID,
+      trialId,
       kind: trialKind,
       subjectConfirmed,
       oneTimeFact: fact,
     });
-    pending = { request, display, nonce: pending.nonce };
+    session.markReady(trialId, generation);
+    pending = { request, display, trialId, generation };
     displayEl.textContent = JSON.stringify(display, null, 2);
-    log("送信直前の表示 -> ok", `試験ID=${TRIAL_ID}`);
+    log("送信直前の表示 -> ok", `試験ID=${trialId}`);
     sendBtn.disabled = false;
   } catch (e) {
     log("準備エラー:", e.message);
+    if (attempt) session.failAttempt(trialId, generation);
     pending = null;
     sendBtn.disabled = true;
+    displayEl.textContent = "（まだ表示記録がありません）";
   } finally {
     // 入力欄の秘密はこの場で消去する（比較と要求の組み立ては済んだ）。
     document.getElementById("fixedOneTime").value = "";
@@ -154,9 +191,21 @@ async function onGoogleSignIn(response) {
 }
 
 document.getElementById("prepTrial").addEventListener("click", async () => {
+  // 新しい試行を開始する。前回の保留要求・送信ボタン・表示を無効化する。
+  const next = session.beginAttempt();
+  attempt = next;
+  pending = null;
+  currentNonce = null;
+  displayEl.textContent = "（まだ表示記録がありません）";
+  sendBtn.disabled = true;
+  document.getElementById("trialId").textContent = next.trialId;
   try {
     const nonce = await fetchNonce();
-    pending = { request: null, display: null, nonce };
+    if (!session.isCurrent(next.trialId, next.generation)) {
+      log("古い試行の準備を破棄しました");
+      return;
+    }
+    currentNonce = nonce;
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       nonce,
@@ -170,21 +219,27 @@ document.getElementById("prepTrial").addEventListener("click", async () => {
     });
     log("Google ログインボタンを表示しました。テスト用アカウントAでログインしてください");
   } catch (e) {
+    session.failAttempt(next.trialId, next.generation);
     log("エラー:", e.message);
   }
 });
 
 sendBtn.addEventListener("click", async () => {
-  if (!pending || !pending.request || !pending.display) {
+  if (
+    !pending || !pending.request || !pending.display ||
+    !attempt || !session.isCurrent(attempt.trialId, attempt.generation)
+  ) {
     log("エラー: 送信できる要求がありません");
     return;
   }
+  // 二重送信の防止：送信中はボタンを無効化する。
   sendBtn.disabled = true;
-  const { request, display } = pending;
+  const { request, display, trialId, generation } = pending;
   try {
     // 表示の元と同一のオブジェクトを送る。表示と実送信の同一性は
     // verifyDisplayMatchesSent で直前に確認する。
     verifyDisplayMatchesSent(display, request);
+    session.markSent(trialId, generation);
     const res = await fetch(PATHS.apply, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -200,7 +255,7 @@ sendBtn.addEventListener("click", async () => {
   } catch (e) {
     log("送信エラー:", e.message);
   } finally {
-    // メモリー内の秘密を消去する。
+    // メモリー内の秘密を消去する。同一の試行での再送はできない。
     pending = null;
   }
 });
@@ -213,7 +268,7 @@ sendBtn.addEventListener("click", async () => {
 事実だけを表示して、その同じ要求を送ります。ID トークン・一回値・
 Cookie・nonce・主体ハッシュは表示・ログに出しません。</p>
 
-<p>試験 ID：<code id="trialId"></code></p>
+<p>試験 ID：<code id="trialId">（準備の開始ごとに発行します）</code></p>
 
 <fieldset>
   <legend>試験の固定内容（送信対象は固定されています）</legend>
@@ -227,6 +282,10 @@ Cookie・nonce・主体ハッシュは表示・ログに出しません。</p>
   <label>送信する環境ID（非秘密。表示記録にそのまま出ます）
     <input type="text" id="trialEnvId" autocomplete="off">
   </label>
+  <p class="note">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。
+  環境不一致試験ではこれと異なる値を、一回値不一致試験ではこれと
+  同じ値を入れてください。条件は送信前に凍結済み要求そのものに対して
+  機械検証し、満たさなければ送信できません。</p>
   <label>固定の一回値（承認に固定された値。表示・ログに出ません）
     <input type="password" id="fixedOneTime" autocomplete="off">
   </label>

@@ -231,6 +231,32 @@ const checks = {
     found: findLines(trialApplyModuleLines, /compareOneTime/),
     expect: "present",
   },
+  // 環境条件の機械検証・試行ごとの世代管理・応答エラーの正規化
+  // （Codex レビュー 6715525086 への対応）。
+  trial_apply_module_env_condition: {
+    found: findLines(trialApplyModuleLines, /verifyEnvCondition/),
+    expect: "present",
+  },
+  trial_apply_module_session_guard: {
+    found: findLines(trialApplyModuleLines, /createTrialSession/),
+    expect: "present",
+  },
+  trial_apply_module_error_normalize: {
+    found: findLines(trialApplyModuleLines, /normalizeResponseError/),
+    expect: "present",
+  },
+  trial_apply_page_fixed_env_id: {
+    found: findLines(trialApplyLines, /stage1-verification-only-20261101/),
+    expect: "present",
+  },
+  trial_apply_page_session_guard: {
+    found: findLines(trialApplyLines, /createTrialSession/),
+    expect: "present",
+  },
+  trial_apply_page_env_condition: {
+    found: findLines(trialApplyLines, /verifyEnvCondition/),
+    expect: "present",
+  },
   serve_real_trial_apply_route: {
     found: findLines(serveRealLines, /\/trial-apply/),
     expect: "present",

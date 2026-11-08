@@ -58,18 +58,18 @@
     },
     {
       "path": "public/trial-apply.html",
-      "sha256": "ccec5de7286c89ac7c942be96ca7a606bb9a14ca9d481abe871c98ddaf5a8460",
-      "bytes": 12365
+      "sha256": "5409f4b1e92903a817a2943bfa38ba13978efd14b99d40d4948e3f04944e4192",
+      "bytes": 15861
     },
     {
       "path": "tools/trial-apply.mjs",
-      "sha256": "add3c84dd7c118f7e1512c8eb1ae9424e0369e194e553758b2bd63432b9bad90",
-      "bytes": 7541
+      "sha256": "f0d7c6e84c8d3a6072e0e3649c41aef6a2fbfac3b8f86f41fb505f6e8ceab4ee",
+      "bytes": 13110
     },
     {
       "path": "test/trial-apply.test.mjs",
-      "sha256": "378f6f4408acd74a8b9f65a2056f7c79daaf9bf30466542ff952b9bee3a2192a",
-      "bytes": 7416
+      "sha256": "7fe942933d053656f434aabe4961aadd4fd58c0c797c6c81c3da8a83df373185",
+      "bytes": 12710
     }
   ],
   "builds": {
@@ -542,7 +542,7 @@
     "trial_apply_page_placeholder": {
       "found": [
         {
-          "line": 59,
+          "line": 68,
           "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
         }
       ],
@@ -551,7 +551,7 @@
     "trial_apply_page_gis": {
       "found": [
         {
-          "line": 44,
+          "line": 51,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
         }
       ],
@@ -560,7 +560,7 @@
     "trial_apply_page_uses_jwks": {
       "found": [
         {
-          "line": 60,
+          "line": 69,
           "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
         }
       ],
@@ -569,11 +569,11 @@
     "trial_apply_module_freezes_request": {
       "found": [
         {
-          "line": 28,
+          "line": 36,
           "text": "// のは Object.freeze と JSON だけである。秘密の比較は呼び出し側"
         },
         {
-          "line": 41,
+          "line": 49,
           "text": "return Object.freeze(obj);"
         }
       ],
@@ -582,11 +582,7 @@
     "trial_apply_module_checks_display_sent": {
       "found": [
         {
-          "line": 17,
-          "text": "// - verifyDisplayMatchesSent(display, sentBody) は表示の env_id・purpose"
-        },
-        {
-          "line": 105,
+          "line": 240,
           "text": "export function verifyDisplayMatchesSent(display, sentBody) {"
         }
       ],
@@ -599,12 +595,94 @@
           "text": "// - compareOneTime(trialValue, fixedValue) は「一致」／「不一致」の"
         },
         {
-          "line": 69,
+          "line": 77,
           "text": "export function compareOneTime(trialValue, fixedValue) {"
         },
         {
-          "line": 78,
+          "line": 209,
           "text": "// oneTimeFact は compareOneTime の戻り値（\"一致\"／\"不一致\"）だけを受け取る。"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_module_env_condition": {
+      "found": [
+        {
+          "line": 17,
+          "text": "// - verifyEnvCondition(request, { kind, expectedEnvId }) は、凍結済みの"
+        },
+        {
+          "line": 89,
+          "text": "export function verifyEnvCondition(request, { kind, expectedEnvId }) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_module_session_guard": {
+      "found": [
+        {
+          "line": 22,
+          "text": "// - createTrialSession() は試行ごとの世代管理を行う。準備の開始時に"
+        },
+        {
+          "line": 150,
+          "text": "export function createTrialSession() {"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_module_error_normalize": {
+      "found": [
+        {
+          "line": 25,
+          "text": "// - normalizeResponseError(error) は応答の理由コードを固定の許可一覧"
+        },
+        {
+          "line": 141,
+          "text": "export function normalizeResponseError(error) {"
+        },
+        {
+          "line": 263,
+          "text": "error: normalizeResponseError(response.error),"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_fixed_env_id": {
+      "found": [
+        {
+          "line": 76,
+          "text": "const FIXED_ENV_ID = \"stage1-verification-only-20261101\";"
+        },
+        {
+          "line": 285,
+          "text": "<p class=\"note\">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_session_guard": {
+      "found": [
+        {
+          "line": 59,
+          "text": "createTrialSession,"
+        },
+        {
+          "line": 81,
+          "text": "const session = createTrialSession();"
+        }
+      ],
+      "expect": "present"
+    },
+    "trial_apply_page_env_condition": {
+      "found": [
+        {
+          "line": 58,
+          "text": "verifyEnvCondition,"
+        },
+        {
+          "line": 168,
+          "text": "verifyEnvCondition(request, { kind: trialKind, expectedEnvId: FIXED_ENV_ID });"
         }
       ],
       "expect": "present"

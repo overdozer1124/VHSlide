@@ -10,6 +10,9 @@ import {
   compareOneTime,
   preSendView,
   verifyDisplayMatchesSent,
+  verifyEnvCondition,
+  createTrialSession,
+  normalizeResponseError,
   makeTrialLogEntry,
   assertNoSecrets,
   assertDisplayKeys,
@@ -65,7 +68,10 @@ test("表示記録は許された鍵だけで、秘密を含まない", () => {
   assert.equal(display.env_id, "wrong-env-id-dummy");
   assert.equal(display.purpose, "full-replace");
   assert.equal(display.one_time, "不一致");
-  assert.equal(display.subject, "主体Aとして確認（署名・iss・aud・exp・nonce 通過）");
+  assert.equal(
+    display.subject,
+    "アカウント選択でA（所有者の申告）・署名検証通過（subと承認主体ハッシュの機械的照合ではない）"
+  );
   const shown = JSON.stringify(display);
   assertNoSecrets(shown, SECRETS);
   // 表示に秘密の項目名そのものも現れない（「nonce」という語そのものは
@@ -152,9 +158,124 @@ test("主体の確認は真偽だけを示し、ハッシュや sub を含まな
     subjectConfirmed: false,
     oneTimeFact: "一致",
   });
-  assert.equal(ok.subject, "主体Aとして確認（署名・iss・aud・exp・nonce 通過）");
+  assert.equal(
+    ok.subject,
+    "アカウント選択でA（所有者の申告）・署名検証通過（subと承認主体ハッシュの機械的照合ではない）"
+  );
   assert.equal(ng.subject, "未確認");
   assertNoSecrets(JSON.stringify(ok) + JSON.stringify(ng), [DUMMY_SUBJECT_HASH]);
+});
+
+test("環境条件の機械検証：凍結済み要求の env_id を固定の正しい値と比べる", () => {
+  const FIXED = "stage1-verification-only-20261101";
+  // 環境不一致試験：誤った env_id なら通り、正しい env_id なら送信不能。
+  const wrongEnv = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "full-replace",
+    envId: "wrong-env-id-dummy",
+  });
+  assert.equal(
+    verifyEnvCondition(wrongEnv, { kind: "env-mismatch", expectedEnvId: FIXED }),
+    true
+  );
+  const rightEnv = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "full-replace",
+    envId: FIXED,
+  });
+  assert.throws(
+    () => verifyEnvCondition(rightEnv, { kind: "env-mismatch", expectedEnvId: FIXED }),
+    (e) => e.code === "env_condition_failed"
+  );
+  // 一回値不一致試験：正しい env_id なら通り、誤った env_id なら送信不能。
+  assert.equal(
+    verifyEnvCondition(rightEnv, { kind: "one-time-mismatch", expectedEnvId: FIXED }),
+    true
+  );
+  assert.throws(
+    () => verifyEnvCondition(wrongEnv, { kind: "one-time-mismatch", expectedEnvId: FIXED }),
+    (e) => e.code === "env_condition_failed"
+  );
+  // 検証は凍結済み要求そのものに対して行う（要求は書き換えられない）。
+  assert.equal(Object.isFrozen(rightEnv), true);
+  assert.throws(() => {
+    rightEnv.env_id = "wrong-env-id-dummy";
+  }, TypeError);
+});
+
+test("試行ごとの世代管理：新しい準備が旧試行を無効化し、古いコールバックを拒否する", () => {
+  const session = createTrialSession();
+  const first = session.beginAttempt();
+  const second = session.beginAttempt();
+  assert.notEqual(first.trialId, second.trialId);
+  assert.notEqual(first.generation, second.generation);
+  // 旧試行はもう現行ではない。
+  assert.equal(session.isCurrent(first.trialId, first.generation), false);
+  assert.equal(session.isCurrent(second.trialId, second.generation), true);
+  // 旧試行のコールバックは拒否される。
+  assert.throws(
+    () => session.markReady(first.trialId, first.generation),
+    (e) => e.code === "stale_attempt"
+  );
+  // 新試行は準備中→送信可→送信済みへ進む。
+  assert.equal(session.markReady(second.trialId, second.generation), true);
+  assert.equal(session.markSent(second.trialId, second.generation), true);
+  // 送信済みの試行をもう一度送信可・送信済みにはできない。
+  assert.throws(
+    () => session.markReady(second.trialId, second.generation),
+    (e) => e.code === "stale_attempt"
+  );
+  assert.throws(
+    () => session.markSent(second.trialId, second.generation),
+    (e) => e.code === "stale_attempt"
+  );
+});
+
+test("試行ごとの世代管理：準備失敗で保留要求は無効化される", () => {
+  const session = createTrialSession();
+  const attempt = session.beginAttempt();
+  assert.equal(session.currentTrialId(), attempt.trialId);
+  // 準備失敗（nonce 取得失敗・署名検証失敗など）は試行を無効化する。
+  assert.equal(session.failAttempt(attempt.trialId, attempt.generation), true);
+  assert.equal(session.currentTrialId(), null);
+  assert.equal(session.isCurrent(attempt.trialId, attempt.generation), false);
+  assert.throws(
+    () => session.markReady(attempt.trialId, attempt.generation),
+    (e) => e.code === "stale_attempt"
+  );
+  // 古い試行に対する失敗処理は無害（何もしない）。
+  const next = session.beginAttempt();
+  assert.equal(session.failAttempt(attempt.trialId, attempt.generation), false);
+  assert.equal(session.isCurrent(next.trialId, next.generation), true);
+});
+
+test("応答の理由コードは固定の許可一覧へ正規化される", () => {
+  assert.equal(normalizeResponseError("env_mismatch"), "env_mismatch");
+  assert.equal(normalizeResponseError("bad_one_time_value"), "bad_one_time_value");
+  assert.equal(normalizeResponseError("subject_mismatch"), "subject_mismatch");
+  assert.equal(normalizeResponseError("approval_expired"), "approval_expired");
+  // 一覧にない値・空・文字列以外は unexpected_error へ置き換える。
+  assert.equal(normalizeResponseError("some_new_error"), "unexpected_error");
+  assert.equal(normalizeResponseError(""), "unexpected_error");
+  assert.equal(normalizeResponseError(null), "unexpected_error");
+  assert.equal(normalizeResponseError(403), "unexpected_error");
+  // 値の混入（秘密らしい文字列を含む理由コード）も置き換える。
+  assert.equal(normalizeResponseError(`ok ${DUMMY_TOKEN}`), "unexpected_error");
+  // 試験ログの応答も正規化される。
+  const req = dummyRequest();
+  const display = preSendView(req, {
+    trialId: "trial-007",
+    kind: "env-mismatch",
+    subjectConfirmed: true,
+    oneTimeFact: "不一致",
+  });
+  const entry = makeTrialLogEntry({
+    display,
+    response: { status: 500, error: "internal boom" },
+  });
+  assert.equal(entry.response.error, "unexpected_error");
 });
 
 test("不正な入力は拒否される", () => {

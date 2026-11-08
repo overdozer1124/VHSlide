@@ -169,6 +169,20 @@ try {
         taJs.includes("verifyDisplayMatchesSent") &&
         taJs.includes("Object.freeze")
     );
+    check(
+      "スモーク: /trial-apply が環境条件の機械検証と試行ごとの世代管理の配線を含む",
+      taRes.status === 200 &&
+        taHtml.includes("verifyEnvCondition") &&
+        taHtml.includes("createTrialSession") &&
+        taHtml.includes("stage1-verification-only-20261101")
+    );
+    check(
+      "スモーク: /trial-apply.mjs が環境条件・世代管理・応答エラー正規化を含む",
+      taJsRes.status === 200 &&
+        taJs.includes("verifyEnvCondition") &&
+        taJs.includes("createTrialSession") &&
+        taJs.includes("normalizeResponseError")
+    );
 
     // 故障マーカーの素通し確認（手順書 v0.3 の実証前確認）:
     // 故障版ビルドを中継先にして /platform/apply を提供サーバー経由で
