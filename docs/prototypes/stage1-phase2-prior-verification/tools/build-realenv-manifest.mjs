@@ -23,6 +23,9 @@
 //      こと
 //   5) 実ログイン画面にクライアントIDのプレースホルダと GIS の
 //      読み込みがあること
+//   6) クリーン起動試験の終了処理が、子プロセスの終了待ち →
+//      中継の閉鎖待ち → ミラーの削除の順であること（Windows の
+//      EBUSY 対策。Codex レビュー 6737085464 への対応）
 //
 // このスクリプト自体はデプロイを行わない。対象同一性の確認は、
 // このマニフェストや成果物自身の設定の読み返しでは行わない
@@ -79,6 +82,8 @@ const ARTIFACTS = [
   "test/s9-negative.screen.mjs",
   "test/serve-real-s9.test.mjs",
   "test/clean-boot.test.mjs",
+  "test/teardown-helper.mjs",
+  "test/clean-boot-teardown.test.mjs",
 ];
 
 function readRel(rel) {
@@ -125,6 +130,13 @@ const s5ScreenLines = readRel("test/s5-apply.screen.mjs").split("\n");
 const s9NegativeLines = readRel("public/s9-negative.html").split("\n");
 const s9NegativeModuleLines = readRel("tools/s9-negative.mjs").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
+const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
+const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
+
+// 行番号を返す（見つからなければ -1）。終了順序の構造検査で使う。
+function firstLineIndex(lines, re) {
+  return lines.findIndex((l) => re.test(l));
+}
 
 const checks = {
   clean_platform_has_no_fault_marker: {
@@ -512,6 +524,51 @@ const checks = {
   },
   clean_boot_no_persist: {
     found: findLines(cleanBootLines, /\.persist-/),
+    expect: "present",
+  },
+  // 終了処理の共通手順は、SIGTERM で終了しない子プロセスに
+  // SIGKILL を送り、待ち時間は上限付きであること（指摘 6737085464）。
+  teardown_helper_sigkill_fallback: {
+    found: findLines(teardownHelperLines, /SIGKILL/),
+    expect: "present",
+  },
+  teardown_helper_no_child_guard: {
+    found: findLines(teardownHelperLines, /no-child/),
+    expect: "present",
+  },
+  teardown_helper_bounded_wait: {
+    found: findLines(teardownHelperLines, /kill-timeout/),
+    expect: "present",
+  },
+  // クリーン起動試験の終了処理は、子プロセスの終了待ちと中継の
+  // 閉鎖待ちを await し、その後でミラーを削除すること。
+  clean_boot_waits_child_exit: {
+    found: findLines(cleanBootLines, /await stopChild\(child\)/),
+    expect: "present",
+  },
+  clean_boot_waits_relay_close: {
+    found: findLines(cleanBootLines, /await closeServer\(relay\)/),
+    expect: "present",
+  },
+  // 終了順序の構造検査：after() 内で stopChild → closeServer → rm
+  // の順に行番号が並ぶこと。Windows では子プロセスがミラー内の
+  // ファイルを開いたまま削除すると EBUSY になるため、削除は必ず
+  // 子プロセスの終了確認の後でなければならない。
+  clean_boot_teardown_order: {
+    found: (() => {
+      const iStop = firstLineIndex(cleanBootLines, /await stopChild\(child\)/);
+      const iClose = firstLineIndex(cleanBootLines, /await closeServer\(relay\)/);
+      const iRm = firstLineIndex(cleanBootLines, /await rm\(mirrorDir/);
+      return iStop !== -1 && iClose !== -1 && iRm !== -1 && iStop < iClose && iClose < iRm
+        ? [{ line: 0, text: "stopChild < closeServer < rm" }]
+        : [];
+    })(),
+    expect: "present",
+  },
+  // 終了順序試験は、kill → 子プロセス exit → 中継の閉鎖完了 → rm
+  // の順をイベントの記録と照合で確認すること。
+  teardown_test_checks_event_order: {
+    found: findLines(teardownTestLines, /kill-sent.*child-exit.*relay-closed.*rm-done/),
     expect: "present",
   },
 };

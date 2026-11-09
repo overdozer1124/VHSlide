@@ -21,6 +21,7 @@ import { copyFile, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stopChild, closeServer } from "./teardown-helper.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SERVE_PORT = 8896;
@@ -155,7 +156,12 @@ test("クリーン起動：未知のパスは 404 になる", async () => {
 });
 
 after(async () => {
-  child.kill("SIGTERM");
-  relay.close();
+  // 終了順序：子プロセスの終了待ち → 中継サーバーの閉鎖待ち →
+  // ミラー（mirrorDir）のみ削除。Windows では子プロセスがミラー内
+  // のファイルを開いたまま削除すると EBUSY になるため、削除は
+  // 終了確認の後で行う（Codex レビュー 6737085464 への対応）。
+  // 対象以外は削除しない。待ち時間は上限付きで無限待ちにならない。
+  await stopChild(child);
+  await closeServer(relay);
   await rm(mirrorDir, { recursive: true, force: true });
 });

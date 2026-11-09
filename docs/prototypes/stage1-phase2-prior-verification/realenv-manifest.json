@@ -138,8 +138,18 @@
     },
     {
       "path": "test/clean-boot.test.mjs",
-      "sha256": "251fa8c9cb93c4531d0dc203c80d1bb837a77ea98ddb10cb18ebd6353b20e124",
-      "bytes": 6985
+      "sha256": "f4e4dd0de476bfc6f7eb6ea8b279708c00f9b0c102fca10f11884bc662d9e989",
+      "bytes": 7514
+    },
+    {
+      "path": "test/teardown-helper.mjs",
+      "sha256": "fff344bae83c9abee3eb58b6598e264ee89fede3ab83789928ef5dd6ae38aeb2",
+      "bytes": 4263
+    },
+    {
+      "path": "test/clean-boot-teardown.test.mjs",
+      "sha256": "7724dbc01e99033f35059f2ad7872238e61c35452154fead7d9f019faed413ee",
+      "bytes": 7938
     }
   ],
   "builds": {
@@ -1791,15 +1801,15 @@
     "clean_boot_mirror_list": {
       "found": [
         {
-          "line": 33,
+          "line": 34,
           "text": "const MIRROR_FILES = ["
         },
         {
-          "line": 49,
+          "line": 50,
           "text": "for (const rel of MIRROR_FILES) {"
         },
         {
-          "line": 105,
+          "line": 106,
           "text": "assert.deepEqual(listed, [...MIRROR_FILES].sort());"
         }
       ],
@@ -1812,16 +1822,119 @@
           "text": "// ことを確認する。ミラーには .persist-*・node_modules・ローカル専用"
         },
         {
-          "line": 32,
+          "line": 33,
           "text": "// test・node_modules・.persist-* は読まない。"
         },
         {
-          "line": 106,
+          "line": 107,
           "text": "// node_modules・.persist-* がミラーに含まれないこと。"
         },
         {
-          "line": 108,
+          "line": 109,
           "text": "assert.equal(listed.some((f) => f.includes(\".persist-\")), false);"
+        }
+      ],
+      "expect": "present"
+    },
+    "teardown_helper_sigkill_fallback": {
+      "found": [
+        {
+          "line": 16,
+          "text": "// SIGKILL 送信後、子プロセスの終了を待つ上限（ミリ秒）。この上限を"
+        },
+        {
+          "line": 25,
+          "text": "// ければ SIGKILL を送って再度待つ。戻り値："
+        },
+        {
+          "line": 27,
+          "text": "//   \"killed\"         SIGKILL で終了した"
+        },
+        {
+          "line": 28,
+          "text": "//   \"kill-timeout\"   SIGKILL 後も所定時間内に終了しなかった"
+        },
+        {
+          "line": 57,
+          "text": "// 所定時間内に終了しなかった：SIGKILL で強制終了する。"
+        },
+        {
+          "line": 59,
+          "text": "child.kill(\"SIGKILL\");"
+        },
+        {
+          "line": 65,
+          "text": "// SIGKILL 後に終了した（error で終わった場合も、子プロセスは"
+        }
+      ],
+      "expect": "present"
+    },
+    "teardown_helper_no_child_guard": {
+      "found": [
+        {
+          "line": 30,
+          "text": "//   \"no-child\"       子プロセスが存在しない（起動しなかった場合など）"
+        },
+        {
+          "line": 37,
+          "text": "if (!child) return \"no-child\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "teardown_helper_bounded_wait": {
+      "found": [
+        {
+          "line": 17,
+          "text": "// 過ぎても終了しなければ \"kill-timeout\" を返し、呼び出し元が先へ"
+        },
+        {
+          "line": 28,
+          "text": "//   \"kill-timeout\"   SIGKILL 後も所定時間内に終了しなかった"
+        },
+        {
+          "line": 63,
+          "text": "const second = await Promise.race([ended, delay(killTimeoutMs).then(() => \"kill-timeout\")]);"
+        },
+        {
+          "line": 64,
+          "text": "if (second === \"kill-timeout\") return \"kill-timeout\";"
+        }
+      ],
+      "expect": "present"
+    },
+    "clean_boot_waits_child_exit": {
+      "found": [
+        {
+          "line": 164,
+          "text": "await stopChild(child);"
+        }
+      ],
+      "expect": "present"
+    },
+    "clean_boot_waits_relay_close": {
+      "found": [
+        {
+          "line": 165,
+          "text": "await closeServer(relay);"
+        }
+      ],
+      "expect": "present"
+    },
+    "clean_boot_teardown_order": {
+      "found": [
+        {
+          "line": 0,
+          "text": "stopChild < closeServer < rm"
+        }
+      ],
+      "expect": "present"
+    },
+    "teardown_test_checks_event_order": {
+      "found": [
+        {
+          "line": 87,
+          "text": "assert.deepEqual(events, [\"kill-sent\", \"child-exit\", \"relay-closed\", \"rm-done\"]);"
         }
       ],
       "expect": "present"
