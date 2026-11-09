@@ -83,8 +83,8 @@
     },
     {
       "path": "tools/s5-apply.mjs",
-      "sha256": "4f35ca318e946630b3b68ae2b4cb384a8223dac1e5e6b242ce0e867481d57fc7",
-      "bytes": 13093
+      "sha256": "775f0213d1f79c5fd38d6a33873e0d64fc32e3099021b2ef3c65b49e942492d1",
+      "bytes": 13514
     },
     {
       "path": "tools/s5-sender.mjs",
@@ -93,8 +93,8 @@
     },
     {
       "path": "test/s5-apply.test.mjs",
-      "sha256": "1e7123dfd8b74177b7fee7bfb1348f629e6a2ee715cd4a1ee013091961bcc572",
-      "bytes": 9701
+      "sha256": "486f14c5c320d73cada7549da25ca09621385481f1136d081d66b74e94f14bae",
+      "bytes": 10117
     },
     {
       "path": "test/s5-sender.test.mjs",
@@ -1111,7 +1111,7 @@
           "text": "export function verifyNoncesDistinct(nonces) {"
         },
         {
-          "line": 245,
+          "line": 250,
           "text": "// verifyNoncesDistinct で確認する）。"
         }
       ],
@@ -1137,7 +1137,7 @@
           "text": "// - aggregateS5Results(results) は6件の応答を集計する。成功（201）が"
         },
         {
-          "line": 246,
+          "line": 251,
           "text": "export function aggregateS5Results(results) {"
         }
       ],

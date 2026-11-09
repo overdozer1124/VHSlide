@@ -242,3 +242,15 @@ S4/S5 試験準備の共有（Issue 6720746656、コミット 1f679e96）に対�
 - スモーク試験：21/21 PASS（17件から4件追加。セッションなし・別オリジンの拒否、セッション付きの /s5/nonces・/s5/send の確認）。
 - マニフェスト：成果物 21 件・ソース検査 79 件（新規試験ファイルと、リダイレクト非追従・排他・試行の結び付け・寿命の起点・入口の境界の検査を追加）。
 - ローカル試験では確認できない点：実ブラウザーでの連続 GIS ログイン（S5 のスロット切り替え）、実 Google トークンと実 Worker での 201・409 の判定、実環境での Data Studio 読み戻しの差分。これらは PC 側での確認項目であり、実環境での試験の範囲である。
+
+## 付録（続々々々々々）：S5 成功ログの誤表示修正（Codex seq 558 への対応）
+
+S5 の実環境試験（2026-11-09、試験 ID b7abb51a）では、期待どおり slot1 = 201・他 5 件 = 409 `operation_consumed`・応答なし 0 件が観測されたが、201 の画面ログに `error:unexpected_error` と表示される問題があった。201 自体は観測済みで、試験結果には影響しない。
+
+原因：`tools/s5-sender.mjs` は成功応答で `error: null` を返す（理由コードを持たない）が、`tools/s5-apply.mjs` の `makeS5LogEntry` が `response.error` を無条件に `normalizeS5ResponseError` へ渡し、そこから下位の `normalizeResponseError`（`tools/trial-apply.mjs`、許可一覧による正規化）へ到達すると、非文字列である null が `unexpected_error` へ変換されていた。
+
+修正：`normalizeS5ResponseError` の先頭で `null` / `undefined` をそのまま `null` として通す（成功は理由コードを持たない、という契約を明記）。`no_response`・`redirect_not_followed`・許可一覧の扱いは変更なし。
+
+回帰試験（`test/s5-apply.test.mjs`）：既存の試験ログ試験が 201 スロット（`error: null`）を作りながら error 欄を検証していなかったため、すり抜けていた。`entry.slots[0].response.error === null` の検証を追加し、`normalizeS5ResponseError(null)` / `(undefined)` が `null` を返す直接の検証も追加した。旧経路では `normalizeResponseError(null)` が `unexpected_error` を返すこと（判別力を確認済み）。
+
+ローカル試験結果（この修正の時点）：`npm test` 85/85（run.mjs 85、subject-hash 検証 13/13、trial-apply 17/17、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12）、`npm run test:screen` 44/44、`npm run test:screen:s5` 39/39、スモーク 21/21、マニフェスト 21 成果物 / 79 検査。件数は変更なし。

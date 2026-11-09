@@ -174,6 +174,9 @@ test("試験ログは6件の表示と応答を同一の試験 ID で結び、秘
   assert.equal(entry.trial_id, "trial-s5-003");
   assert.equal(entry.slots.length, 6);
   assert.equal(entry.slots[0].response.status, 201);
+  // 成功応答は理由コードを持たない。null が unexpected_error へ変換
+  // されてはならない（S5 実環境試験 seq 558 の誤表示の回帰）。
+  assert.equal(entry.slots[0].response.error, null);
   assert.equal(entry.slots[5].response.error, "operation_consumed");
   const shown = JSON.stringify(entry);
   for (const s of SECRETS) assert.equal(shown.includes(s), false);
@@ -200,6 +203,9 @@ test("試験ログは6件の表示と応答を同一の試験 ID で結び、秘
   assert.equal(entryBad.slots[0].response.error, "unexpected_error");
   assert.equal(normalizeS5ResponseError("no_response"), S5_NO_RESPONSE);
   assert.equal(normalizeS5ResponseError("operation_consumed"), "operation_consumed");
+  // 成功の error は null のまま通す（undefined も同様）。
+  assert.equal(normalizeS5ResponseError(null), null);
+  assert.equal(normalizeS5ResponseError(undefined), null);
 });
 
 test("集計：201 が正確に1件で残りがすべて 409 operation_consumed のときにだけ ok になる", () => {

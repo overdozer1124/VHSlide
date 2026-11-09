@@ -201,7 +201,12 @@ export function verifyS5DisplayMatchesSent(displays, requests) {
 // コード "no_response" と、3xx 非追従の局所コード
 // "redirect_not_followed" はそのまま通す（Worker の理由コードではなく、
 // 送信側で「応答なし・再送しない」「転送せず再送しない」を示す記録である）。
+// 成功応答は理由コードを持たない（error は null）ため、null / undefined
+// はそのまま null として通す。ここで下位の normalizeResponseError へ
+// 渡すと、非文字列は unexpected_error へ変換されてしまう（S5 実環境
+// 試験 seq 558 で 201 のログが error:unexpected_error と誤表示された）。
 export function normalizeS5ResponseError(error) {
+  if (error === null || error === undefined) return null;
   if (error === S5_NO_RESPONSE) return S5_NO_RESPONSE;
   if (error === "redirect_not_followed") return "redirect_not_followed";
   return normalizeResponseError(error);
