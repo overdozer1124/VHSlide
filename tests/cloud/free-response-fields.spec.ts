@@ -451,3 +451,37 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await context.close();
   }
 });
+
+test("creates an image and drawing response field directly on a slide", async ({
+  page,
+}) => {
+  await signIn(page, "drawing-field-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "画像回答", slides: [blank(0, 0)] },
+  });
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await expect(
+    page.getByRole("button", { name: "ゲストの設定" }),
+  ).toBeVisible();
+  await page.locator(".thumbnail").first().click();
+  await launcher(page).click();
+  await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
+  const tools = page.getByRole("region", { name: "回答欄の追加", exact: true });
+  await tools
+    .getByRole("textbox", { name: "新しい入力項目名" })
+    .fill("絵で説明しよう");
+  await tools.getByRole("button", { name: /^画像・手描き/ }).click();
+  await expect(tools).not.toContainText("選択肢（1行1項目");
+  await tools
+    .getByRole("button", { name: "スライドに追加", exact: true })
+    .click();
+  const field = page.locator(".editor-workspace .response-field");
+  await expect(field.getByLabel("絵で説明しようの手描き欄")).toBeVisible();
+  const worksheets = (
+    await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+  ).worksheets;
+  expect(worksheets[0].fields[0].kind).toBe("drawing");
+  expect(worksheets[0].status).toBe("open");
+});

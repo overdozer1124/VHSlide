@@ -9,14 +9,16 @@ import type { WorksheetField, WorksheetView } from "./worksheets";
 import type { SurveyView } from "./surveys";
 import { api } from "./cloud";
 export function makeResponseElement(binding: ResponseFieldBinding): Element {
+  const drawing =
+    binding.source === "worksheet" && binding.field.kind === "drawing";
   return {
     id: crypto.randomUUID(),
     type: "shape",
     shape: "rounded",
     x: 60,
     y: 150,
-    w: 400,
-    h: 170,
+    w: drawing ? 560 : 400,
+    h: drawing ? 340 : 170,
     fill: "#ffffff",
     stroke: "#a7c0ab",
     strokeWidth: 1,
@@ -142,9 +144,14 @@ export function ResponseFieldTools({
               method: "POST",
               body: JSON.stringify({
                 question: label,
-                kind: kind === "checkbox" ? "multiple" : kind,
+                kind:
+                  kind === "checkbox"
+                    ? "multiple"
+                    : kind === "drawing"
+                      ? "text"
+                      : kind,
                 options:
-                  kind === "text"
+                  kind === "text" || kind === "drawing"
                     ? []
                     : options.split("\n").map((s) => s.trim()),
               }),
@@ -285,9 +292,12 @@ export function ResponseFieldTools({
         id: "preview",
         label: label || "質問・項目名",
         kind,
-        options: previewOptions.length
-          ? previewOptions
-          : ["選択肢1", "選択肢2"],
+        options:
+          kind === "single" || kind === "multiple"
+            ? previewOptions.length
+              ? previewOptions
+              : ["選択肢1", "選択肢2"]
+            : [],
         placeholder,
         section: "",
         wide: true,
@@ -323,7 +333,9 @@ export function ResponseFieldTools({
           kind: create
             ? kind === "checkbox"
               ? "multiple"
-              : kind
+              : kind === "drawing"
+                ? "text"
+                : kind
             : (survey?.kind ?? "text"),
           options: create
             ? previewOptions.length
@@ -393,8 +405,11 @@ export function ResponseFieldTools({
                   value={source}
                   onChange={(e) => {
                     setSource(e.target.value as typeof source);
-                    if (e.target.value === "survey" && kind === "checkbox")
-                      setKind("multiple");
+                    if (
+                      e.target.value === "survey" &&
+                      (kind === "checkbox" || kind === "drawing")
+                    )
+                      setKind(kind === "checkbox" ? "multiple" : "text");
                     setRecord("");
                   }}
                 >
@@ -488,6 +503,7 @@ export function ResponseFieldTools({
                     {(
                       [
                         ["text", "記述", "自分の考えを文章で"],
+                        ["drawing", "画像・手描き", "画像の貼り付けと描画"],
                         ["checkbox", "チェック", "あてはまるかを確認"],
                         ["single", "単一選択", "選択肢から1つ"],
                         ["multiple", "複数選択", "選択肢から複数"],
@@ -495,7 +511,8 @@ export function ResponseFieldTools({
                     )
                       .filter(
                         ([value]) =>
-                          source === "worksheet" || value !== "checkbox",
+                          source === "worksheet" ||
+                          (value !== "checkbox" && value !== "drawing"),
                       )
                       .map(([value, title, description]) => (
                         <button
@@ -520,7 +537,8 @@ export function ResponseFieldTools({
                     />
                   </label>
                 ) : (
-                  kind !== "checkbox" && (
+                  kind !== "checkbox" &&
+                  kind !== "drawing" && (
                     <label>
                       選択肢（1行1項目）
                       <textarea

@@ -3,7 +3,7 @@ import { SurveyError } from "./surveys.ts";
 export type WorksheetField = {
   id: string;
   label: string;
-  kind: "text" | "checkbox" | "single" | "multiple" | "radar";
+  kind: "text" | "checkbox" | "single" | "multiple" | "radar" | "drawing";
   options: string[];
   placeholder: string;
   section: string;
@@ -129,7 +129,9 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         str(f.placeholder, 200) &&
         str(f.section, 200) &&
         typeof f.wide === "boolean" &&
-        ["text", "checkbox", "single", "multiple", "radar"].includes(f.kind),
+        ["text", "checkbox", "single", "multiple", "radar", "drawing"].includes(
+          f.kind,
+        ),
       "入力欄の設定を確認してください。",
     );
     check(
@@ -277,8 +279,20 @@ export function parseWorksheetValues(
   for (const f of sheet.fields) {
     const x =
       (Object.hasOwn(v, f.id) ? v[f.id] : undefined) ??
-      (f.kind === "text" ? "" : f.kind === "checkbox" ? false : []);
+      (f.kind === "text" || f.kind === "drawing"
+        ? ""
+        : f.kind === "checkbox"
+          ? false
+          : []);
     if (f.kind === "text") check(str(x, 2000), "記述欄は2000文字までです。");
+    else if (f.kind === "drawing")
+      check(
+        typeof x === "string" &&
+          (x === "" ||
+            (x.length <= 120000 &&
+              /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(x))),
+        "画像・手描きの回答を確認してください。",
+      );
     else if (f.kind === "checkbox")
       check(typeof x === "boolean", "チェック項目が不正です。");
     else if (f.kind === "radar")
@@ -461,6 +475,11 @@ export function worksheetCommand(
             ),
           }
         : incoming;
+    check(
+      JSON.stringify(values).length <= 1_500_000,
+      "ワークシートの回答容量が上限を超えています。",
+      413,
+    );
     const prior = [
       ...sql(
         "SELECT author FROM worksheet_answers WHERE worksheet=? AND author=?",

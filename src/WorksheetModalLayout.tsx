@@ -12,7 +12,7 @@ export function modalLayoutItems(sheet: WorksheetDefinition): Item[] {
     if (existing) return existing;
     const h =
       field.inputHeight === undefined
-        ? field.kind === "radar"
+        ? field.kind === "radar" || field.kind === "drawing"
           ? 560
           : field.kind === "checkbox"
             ? 80

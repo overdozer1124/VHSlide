@@ -24,6 +24,40 @@ import {
   worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
 describe("worksheets", () => {
+  it("validates image answers as bounded JPEG data and keeps empty answers compatible", () => {
+    const sheet = worksheetTemplate("blank");
+    sheet.fields[0].kind = "drawing";
+    const parsed = parseWorksheet(sheet);
+    const id = parsed.fields[0].id;
+    expect(parseWorksheetValues(parsed, {})[id]).toBe("");
+    const image = "data:image/jpeg;base64,/9j/4AAQ";
+    expect(parseWorksheetValues(parsed, { [id]: image })[id]).toBe(image);
+    const csv = worksheetCsv({
+      ...parsed,
+      id: "sheet",
+      created: 0,
+      status: "open",
+      results: {
+        responses: [
+          {
+            respondentId: "u",
+            name: "生徒",
+            email: "",
+            updated: 0,
+            values: { [id]: image },
+          },
+        ],
+      },
+    });
+    expect(csv).toContain("画像・手描きの回答あり");
+    expect(csv).not.toContain("data:image");
+    for (const invalid of [
+      "data:image/svg+xml;base64,PHN2Zz4=",
+      "https://example.com/a.jpg",
+      "data:image/jpeg;base64,/9j/" + "A".repeat(120000),
+    ])
+      expect(() => parseWorksheetValues(parsed, { [id]: invalid })).toThrow();
+  });
   it("groups checkboxes separately by section identity, including legacy sections", () => {
     const sheet = sectionWorksheet(worksheetTemplate("check"));
     const first = sheet.sections![0];

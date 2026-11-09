@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.95.0",
+    date: "2026-11-09",
+    title: "ワークシートに画像・手描きで回答",
+    changes: [
+      "ワークシートに画像・手描きの入力欄を追加し、画像の貼り付けや手描きの回答を自動保存できるようにしました。",
+      "ホストは回答一覧で画像を確認・保存できます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.94.0",
     date: "2026-11-09",
     title: "JSON作品のページを追加",

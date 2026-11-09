@@ -1367,14 +1367,12 @@ test("check counts stay inside their own sections in normal and custom layouts",
     { id: "second", title: "夜のチェック" },
     { id: "notes", title: "ふり返り" },
   ];
-  const fields = template.fields
-    .slice(0, 4)
-    .map((f, index) => ({
-      ...f,
-      label: `確認${index + 1}`,
-      sectionId: index < 2 ? "first" : "second",
-      section: index < 2 ? sections[0].title : sections[1].title,
-    }));
+  const fields = template.fields.slice(0, 4).map((f, index) => ({
+    ...f,
+    label: `確認${index + 1}`,
+    sectionId: index < 2 ? "first" : "second",
+    section: index < 2 ? sections[0].title : sections[1].title,
+  }));
   fields.push({
     ...fields[0],
     id: crypto.randomUUID(),
@@ -1462,5 +1460,211 @@ test("check counts stay inside their own sections in normal and custom layouts",
         ),
       ).toContainText("1 / 2");
     }
+  }
+});
+
+test("students paste an image, draw, save privately, and the host views their answer", async ({
+  page,
+  browser,
+}, info) => {
+  const guestContext = await browser.newContext(info.project.use);
+  const otherContext = await browser.newContext(info.project.use);
+  const guest = await guestContext.newPage(),
+    other = await otherContext.newPage();
+  try {
+    await signIn(page, "drawing-host");
+    await signIn(guest, "drawing-guest");
+    await signIn(other, "drawing-other");
+    const headers = { Origin: "http://127.0.0.1:3187" };
+    const { id } = await (
+      await page.request.post("/api/decks", { headers, data: sample() })
+    ).json();
+    const invite = await (
+      await page.request.post(`/api/decks/${id}/invite`, { headers })
+    ).json();
+    const token = new URL(invite.url).searchParams.get("join");
+    for (const participant of [guest, other]) {
+      const accepted = await (
+        await participant.request.post(`/api/invites/${token}/accept`, {
+          headers,
+        })
+      ).json();
+      if (accepted.status === "pending")
+        await page.request.post(`/api/decks/${id}/join-requests/approve`, {
+          headers,
+          data: { requestIds: [accepted.requestId] },
+        });
+    }
+    const template = worksheetTemplate("blank");
+    template.title = "描いて考えよう";
+    template.fields[0].kind = "drawing";
+    template.fields[0].label = "自分の絵";
+    const created = await page.request.post(`/api/decks/${id}/worksheets`, {
+      headers,
+      data: template,
+    });
+    expect(created.status()).toBe(200);
+    const sheet = (await created.json()).worksheets[0];
+    expect(
+      (
+        await page.request.post(
+          `/api/decks/${id}/worksheets/${sheet.id}/status`,
+          { headers, data: { status: "open" } },
+        )
+      ).status(),
+    ).toBe(200);
+    await guest.goto(`/?room=${id}`);
+    await openWorksheets(guest);
+    const canvas = modal(guest).getByLabel("自分の絵の手描き欄");
+    await expect(canvas).toBeVisible();
+    const emptyRect = (await canvas.boundingBox())!;
+    await guest.mouse.move(emptyRect.x + 20, emptyRect.y + 20);
+    await guest.mouse.down();
+    await guest.mouse.move(emptyRect.x + 50, emptyRect.y + 50);
+    await guest.mouse.up();
+    await expect(
+      modal(guest).getByRole("button", { name: "戻す", exact: true }),
+    ).toBeEnabled();
+    await modal(guest)
+      .getByRole("button", { name: "戻す", exact: true })
+      .click();
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await guest.request.get(`/api/decks/${id}/worksheets`)
+            ).json()
+          ).worksheets[0].own?.values[template.fields[0].id],
+        { timeout: 15000 },
+      )
+      .toBe("");
+    // Paste a PNG into the focused answer area; the saved answer is a bounded JPEG.
+    await canvas.focus();
+    await canvas.evaluate((node) => {
+      const bytes = Uint8Array.from(
+        atob(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+        ),
+        (c) => c.charCodeAt(0),
+      );
+      const data = new DataTransfer();
+      data.items.add(new File([bytes], "example.png", { type: "image/png" }));
+      node.dispatchEvent(
+        new ClipboardEvent("paste", {
+          clipboardData: data,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    await expect(modal(guest)).toContainText("入力は保存済みです。", {
+      timeout: 15000,
+    });
+    let saved = (
+      await (await guest.request.get(`/api/decks/${id}/worksheets`)).json()
+    ).worksheets[0].own.values[template.fields[0].id] as string;
+    expect(saved).toMatch(/^data:image\/jpeg;base64,/);
+    const rect = (await canvas.boundingBox())!;
+    await guest.mouse.move(
+      rect.x + rect.width * 0.2,
+      rect.y + rect.height * 0.2,
+    );
+    await guest.mouse.down();
+    await guest.mouse.move(
+      rect.x + rect.width * 0.6,
+      rect.y + rect.height * 0.6,
+      { steps: 8 },
+    );
+    await guest.mouse.up();
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await guest.request.get(`/api/decks/${id}/worksheets`)
+            ).json()
+          ).worksheets[0].own.values[template.fields[0].id],
+        { timeout: 15000 },
+      )
+      .not.toBe(saved);
+    saved = (
+      await (await guest.request.get(`/api/decks/${id}/worksheets`)).json()
+    ).worksheets[0].own.values[template.fields[0].id];
+    const otherView = (
+      await (await other.request.get(`/api/decks/${id}/worksheets`)).json()
+    ).worksheets[0];
+    expect(otherView.own).toBeUndefined();
+    expect(otherView.results).toBeUndefined();
+    expect(JSON.stringify(otherView)).not.toContain(saved);
+    await guest.reload();
+    await openWorksheets(guest);
+    await expect(modal(guest).getByLabel("自分の絵の手描き欄")).toBeVisible();
+    await page.goto(`/?room=${id}`);
+    await openWorksheets(page);
+    await page.getByRole("button", { name: /回答結果（1人）/ }).click();
+    await expect(
+      modal(page).getByRole("img", { name: "自分の絵の画像・手描き回答" }),
+    ).toBeVisible();
+    await expect(modal(page)).toContainText("CSVには画像の有無を記録します");
+    await page
+      .getByRole("button", { name: "このワークシートをスライドに配置" })
+      .click();
+    await guest.reload();
+    await guest.locator(".thumbnail").first().click();
+    const slideCanvas = guest
+      .locator(".editor-workspace .slide-worksheet")
+      .getByLabel("自分の絵の手描き欄");
+    await expect(slideCanvas).toBeVisible();
+    const slideRect = (await slideCanvas.boundingBox())!;
+    await guest.mouse.move(
+      slideRect.x + slideRect.width * 0.25,
+      slideRect.y + slideRect.height * 0.25,
+    );
+    await guest.mouse.down();
+    await guest.mouse.move(
+      slideRect.x + slideRect.width * 0.5,
+      slideRect.y + slideRect.height * 0.5,
+      { steps: 5 },
+    );
+    await guest.mouse.up();
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await guest.request.get(`/api/decks/${id}/worksheets`)
+            ).json()
+          ).worksheets[0].own.values[template.fields[0].id],
+        { timeout: 15000 },
+      )
+      .not.toBe(saved);
+    await expect(page.locator(".cloud-presence")).toContainText(
+      "クラウドに保存済み",
+    );
+    const shared = await (await page.request.get(`/api/decks/${id}`)).json();
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, fromBase64(shared.state));
+    const slide = readSharedDeck(doc).slides.find((s) =>
+      s.elements.some((e) => e.worksheet?.worksheetId === sheet.id),
+    )!;
+    doc.destroy();
+    expect(
+      (
+        await page.request.post(`/api/decks/${id}/gallery/publish`, {
+          headers,
+          data: { slide, participants: null, names: false, live: false },
+        })
+      ).status(),
+    ).toBe(200);
+    const gallery = (
+      await (await other.request.get(`/api/decks/${id}/gallery`)).json()
+    ).gallery;
+    expect(
+      gallery.cards[0].worksheets[0].own.values[template.fields[0].id],
+    ).toMatch(/^data:image\/jpeg;base64,/);
+  } finally {
+    await guestContext.close();
+    await otherContext.close();
   }
 });

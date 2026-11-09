@@ -652,6 +652,7 @@ export function WorksheetPanel({
                                 }}
                               >
                                 <option value="text">記述欄</option>
+                                <option value="drawing">画像・手描き</option>
                                 <option value="checkbox">チェック欄</option>
                                 <option value="single">単一選択</option>
                                 <option value="multiple">複数選択</option>

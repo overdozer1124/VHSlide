@@ -6842,6 +6842,16 @@ h1 span {
 .worksheet-move { float:right;touch-action:none;cursor:grab;padding:6px 12px;border:1px solid #a6662f;border-radius:6px;background:#fff3e5; }
 .worksheet-panel input:not([type=checkbox]):not([type=radio]) { width:100%;box-sizing:border-box;border:1px solid #b8cabe;border-radius:7px;padding:9px;font:inherit; }
 .worksheet-field-editor label { display:block;margin:8px 0; }
+.worksheet-drawing { display:grid; gap:6px; min-width:0; }
+.worksheet-drawing canvas { display:block; width:100%; height:auto; aspect-ratio:16/9; border:1px solid #dfaa7f; border-radius:7px; background:#fff; touch-action:none; cursor:crosshair; }
+.worksheet-drawing-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+.worksheet-drawing-toolbar button, .worksheet-drawing-upload { border:1px solid #c08a5f; border-radius:6px; padding:6px 9px; background:#fffaf4; color:#633811; font:inherit; font-size:13px; cursor:pointer; }
+.worksheet-drawing-toolbar button[aria-pressed="true"] { background:#f7dfc8; border-color:#a45e26; }
+.worksheet-drawing-upload { display:inline-flex; position:relative; overflow:hidden; }
+.worksheet-drawing-upload input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+.worksheet-drawing small { color:#63766a; font-size:12px; }
+.worksheet-drawing-image { display:block; max-width:100%; max-height:300px; object-fit:contain; border:1px solid #dfaa7f; border-radius:7px; }
+.worksheet-drawing-placeholder { min-height:70px; display:grid; place-items:center; border:1px dashed #cba584; border-radius:7px; color:#796b60; font-size:13px; }
 .worksheet-editor-actions { display:flex;gap:8px; }
 .worksheet-aggregates { margin:18px 0; border-top:1px solid #dce6df; padding-top:12px; }
 .worksheet-aggregate-details { margin:12px 0; padding:12px; border:1px solid #c9d8ce; border-radius:8px; }

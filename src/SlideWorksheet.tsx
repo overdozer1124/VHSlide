@@ -1,5 +1,6 @@
 import { FormDraftInput } from "./formEditing";
 import { WorksheetRadar } from "./WorksheetRadar";
+import { WorksheetDrawing } from "./WorksheetDrawing";
 import { WorksheetModalLayout } from "./WorksheetModalLayout";
 import type { FormDraft } from "./formEditing";
 import { canDragForm } from "./formDrag";
@@ -188,6 +189,18 @@ export function WorksheetInputs({
                                 : []
                             }
                             disabled={disabled || !!onEdit}
+                            onChange={(value) => change(f.id, value)}
+                          />
+                        ) : f.kind === "drawing" ? (
+                          <WorksheetDrawing
+                            label={f.label}
+                            value={
+                              typeof values[f.id] === "string"
+                                ? (values[f.id] as string)
+                                : ""
+                            }
+                            disabled={disabled || !!onEdit}
+                            preview={preview}
                             onChange={(value) => change(f.id, value)}
                           />
                         ) : onEdit && f.kind === "text" ? (

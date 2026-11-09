@@ -3,6 +3,32 @@ import type { WorksheetView } from "./worksheets";
 import { worksheetValueText } from "./worksheetCsv";
 import { surveyResponseTime } from "./surveyCsv";
 import { useWorksheets } from "./WorksheetContext";
+import type { WorksheetField, WorksheetValues } from "./worksheets";
+
+function AnswerValue({
+  field,
+  values,
+}: {
+  field: WorksheetField;
+  values: WorksheetValues;
+}) {
+  const value = values[field.id];
+  if (field.kind === "drawing" && typeof value === "string" && value)
+    return (
+      <a href={value} download="worksheet-answer.jpg" title="回答画像を保存">
+        <img
+          className="worksheet-drawing-image"
+          src={value}
+          alt={`${field.label}の画像・手描き回答`}
+        />
+      </a>
+    );
+  return (
+    worksheetValueText(field, values) || (
+      <span className="worksheet-unanswered">未入力</span>
+    )
+  );
+}
 
 /** Host-only results. Callers must also enforce host access at the API boundary. */
 export function WorksheetResults({
@@ -121,6 +147,8 @@ export function WorksheetResults({
           <p className="worksheet-result-count">
             {filtered.length}人を表示 / 保存した参加者 {responses.length}人 ·
             CSVには検索に関係なく全員・全項目を保存します。
+            {sheet.fields.some((f) => f.kind === "drawing") &&
+              " 画像は一覧から個別に保存できます。CSVには画像の有無を記録します。"}
           </p>
           {customOrder.length > 0 && (
             <button
@@ -184,9 +212,7 @@ export function WorksheetResults({
                         </strong>
                       </dt>
                       <dd>
-                        {worksheetValueText(f, person.values) || (
-                          <span className="worksheet-unanswered">未入力</span>
-                        )}
+                        <AnswerValue field={f} values={person.values} />
                       </dd>
                     </div>
                   ))}
@@ -318,11 +344,7 @@ export function WorksheetResults({
                         </th>
                         {sheet.fields.map((f) => (
                           <td key={f.id} className="worksheet-answer-cell">
-                            {worksheetValueText(f, r.values) || (
-                              <span className="worksheet-unanswered">
-                                未入力
-                              </span>
-                            )}
+                            <AnswerValue field={f} values={r.values} />
                           </td>
                         ))}
                         <td className="worksheet-pin-right">

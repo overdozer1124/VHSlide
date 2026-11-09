@@ -124,7 +124,16 @@ function AnswerSession({
       !Object.keys(e.pending).length
     )
       return;
-    const patch = structuredClone(e.pending);
+    // Image answers can be much larger than text; send them one at a time so
+    // a batch of fields never exceeds the worksheet request limit.
+    const image =
+      kind === "worksheet" &&
+      Object.entries(e.pending).find(
+        ([, value]) =>
+          typeof value === "string" &&
+          value.startsWith("data:image/jpeg;base64,"),
+      );
+    const patch = structuredClone(image ? { [image[0]]: image[1] } : e.pending);
     e.running = true;
     e.error = "";
     e.immediate = false;

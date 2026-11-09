@@ -28,15 +28,19 @@ export function worksheetValueText(
       .join(" / ");
   }
   const answer =
-    field.kind === "checkbox"
-      ? value === true
-        ? "はい"
-        : "いいえ"
-      : field.kind === "text"
-        ? String(value ?? "")
-        : Array.isArray(value)
-          ? value.map((i) => (i === null ? "" : field.options[i])).join(" / ")
-          : "";
+    field.kind === "drawing"
+      ? value
+        ? "画像・手描きの回答あり"
+        : ""
+      : field.kind === "checkbox"
+        ? value === true
+          ? "はい"
+          : "いいえ"
+        : field.kind === "text"
+          ? String(value ?? "")
+          : Array.isArray(value)
+            ? value.map((i) => (i === null ? "" : field.options[i])).join(" / ")
+            : "";
   const reason = field.reason
     ? String(values[worksheetReasonKey(field.id)] ?? "")
     : "";

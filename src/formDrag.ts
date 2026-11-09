@@ -4,7 +4,7 @@ export function canDragForm(event: PointerEvent<HTMLElement>): boolean {
   const target = event.target;
   if (
     !(target instanceof Element) ||
-    target.closest("input,textarea,select,button")
+    target.closest("input,textarea,select,button,canvas")
   )
     return false;
   const label = target.closest("label");
