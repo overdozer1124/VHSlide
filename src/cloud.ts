@@ -35,6 +35,12 @@ import {
   toBase64,
 } from "./sharedDeck";
 import { collectForeignForms, rewriteFormBindings } from "./formAdoption";
+import {
+  dataUrlToFile,
+  embeddedImageSources,
+  rewriteImageSources,
+  withoutEmbeddedImages,
+} from "./imageAdoption";
 
 export interface CloudUser {
   id: string;
@@ -843,9 +849,18 @@ export class CloudWorkspace {
           "現在の作品の保存が完了してからコピーを作ってください。",
         );
       const portable = await portableDeck(deck);
+      // Image adoption (upload half): a room validates image sources
+      // already at creation time and only accepts its own assets, so a
+      // deck carrying embedded data: URL images first goes up without
+      // those elements; the images are uploaded below and the full deck
+      // is applied once the room is open.
+      const imageSources = embeddedImageSources(portable);
+      const initialDeck = imageSources.length
+        ? withoutEmbeddedImages(portable)
+        : portable;
       const result = await api<{ id: string }>("/api/decks", {
         method: "POST",
-        body: serializeDeck(portable),
+        body: serializeDeck(initialDeck),
       });
       // Form adoption: worksheets / surveys created in another deck (a
       // copied work, or a work loaded from a file) only accept answers in
@@ -927,6 +942,29 @@ export class CloudWorkspace {
             surveyIds,
           );
       }
+      // Image adoption (rewrite half): upload each embedded image as an
+      // asset of the new deck, then point the image elements at the
+      // asset URLs. Images that fail to upload are dropped from the
+      // applied deck, since the room would reject the whole save
+      // otherwise.
+      const imageFailures: string[] = [];
+      if (imageSources.length) {
+        const uploaded = new Map<string, string>();
+        for (const [index, source] of imageSources.entries()) {
+          try {
+            const file = dataUrlToFile(source, `embedded-${index + 1}`);
+            if (!file) throw new Error("画像データを読み取れませんでした。");
+            uploaded.set(source, await this.upload(file, result.id));
+          } catch {
+            imageFailures.push(
+              imageSources.length > 1
+                ? `画像（${index + 1}枚目）`
+                : "画像",
+            );
+          }
+        }
+        finalDeck = rewriteImageSources(finalDeck, uploaded).deck;
+      }
       try {
         localStorage.setItem(
           `vhslide-cloud-deck:${result.id}`,
@@ -939,10 +977,20 @@ export class CloudWorkspace {
       if (finalDeck !== portable && this.doc)
         this.apply(readSharedDeck(this.doc), finalDeck);
       await this.refresh();
-      if (adoptionFailures.length)
+      if (adoptionFailures.length || imageFailures.length) {
+        const parts: string[] = [];
+        if (adoptionFailures.length)
+          parts.push(
+            `一部のフォームを引き継げませんでした（${adoptionFailures.join("、")}）。引き継げなかった回答欄は表示のみになります`,
+          );
+        if (imageFailures.length)
+          parts.push(
+            `一部の画像を取り込めませんでした（${imageFailures.join("、")}）`,
+          );
         throw new Error(
-          `作品はクラウドに保存しましたが、一部のフォームを引き継げませんでした（${adoptionFailures.join("、")}）。引き継げなかった回答欄は表示のみになります。`,
+          `作品はクラウドに保存しましたが、${parts.join("。")}。`,
         );
+      }
     });
   }
   get readyForBackupRestore() {
