@@ -28,7 +28,7 @@ import type { TextController } from "./TextSelectionControls";
 import { TableCellControls } from "./TableCellControls";
 import type { CellSelection } from "./TableCellControls";
 import { ImageControls } from "./ImageTools";
-import { ObjectPalette, Palette } from "./ObjectPalette";
+import { LinePalette, Palette, ShapePalette } from "./ObjectPalette";
 import { ObjectLayout, StrokeControls } from "./ObjectLayout";
 import { MultiFormatting } from "./MultiFormatting";
 import type { MultiTextPatch } from "./multiFormatting";
@@ -149,6 +149,7 @@ interface EditorProps {
   onOpenMenu: OpenThumbnailMenu;
   menuOpen: boolean;
   historyActions: ReactNode;
+  helpActions: ReactNode;
   railCollapsed: boolean;
   railScale: number;
   railNumbers: boolean;
@@ -210,6 +211,7 @@ export function Editor({
   onOpenMenu,
   menuOpen,
   historyActions,
+  helpActions,
   railCollapsed,
   railScale,
   railNumbers,
@@ -634,7 +636,8 @@ export function Editor({
                 マップ
               </span>
             </button>
-            <span className="small-divider" />
+            {historyActions}
+            <span className="small-divider" aria-hidden="true" />
             <button
               className="tool-button"
               disabled={!editable}
@@ -643,10 +646,6 @@ export function Editor({
               <Type size={20} />
               文字
             </button>
-            <ResponseFieldLauncher
-              key={`${cloud?.active?.id}:${slide.id}`}
-              disabled={!!cloud?.viewingRevoked || !!cloud?.recoveryOnly}
-            />
             <button
               className="tool-button"
               disabled={!editable}
@@ -655,6 +654,29 @@ export function Editor({
               <ImagePlus size={20} />
               画像
             </button>
+            <TableInsert disabled={!editable} onInsert={addTable} />
+            <ShapePalette disabled={!editable} onAdd={addElement} />
+            <ResponseFieldLauncher
+              key={`${cloud?.active?.id}:${slide.id}`}
+              disabled={!!cloud?.viewingRevoked || !!cloud?.recoveryOnly}
+            />
+            <span className="small-divider" aria-hidden="true" />
+            {cloud && (
+              <button
+                className="tool-button"
+                aria-label="付箋を追加"
+                title={
+                  cloud.access.comment
+                    ? "付箋を追加して、そのまま入力"
+                    : "コメントの投稿は許可されていません。"
+                }
+                disabled={!cloud.access.comment}
+                onClick={() => setNoteRequest((n) => n + 1)}
+              >
+                <StickyNote size={20} />
+                付箋
+              </button>
+            )}
             <button
               className="tool-button"
               disabled={!editable}
@@ -678,29 +700,12 @@ export function Editor({
               <Pencil size={20} aria-hidden="true" />
               手描き
             </button>
-
-            {cloud && (
-              <button
-                className="tool-button"
-                aria-label="付箋を追加"
-                title={
-                  cloud.access.comment
-                    ? "付箋を追加して、そのまま入力"
-                    : "コメントの投稿は許可されていません。"
-                }
-                disabled={!cloud.access.comment}
-                onClick={() => setNoteRequest((n) => n + 1)}
-              >
-                <StickyNote size={20} />
-                付箋
-              </button>
-            )}
-            <TableInsert disabled={!editable} onInsert={addTable} />
-            <ObjectPalette disabled={!editable} onAdd={addElement} />
+            <LinePalette disabled={!editable} onAdd={addElement} />
             <StructureInsert
               disabled={!editable}
               onInsert={onInsertStructure}
             />
+            <span className="small-divider" aria-hidden="true" />
             <button
               className="tool-button touch-multiselect"
               aria-label="まとめて選択"
@@ -782,7 +787,7 @@ export function Editor({
                 <span>編集も絞り込み</span>
               </button>
             )}
-            {historyActions}
+            {helpActions}
           </div>
         )}
       </ToolbarScroller>

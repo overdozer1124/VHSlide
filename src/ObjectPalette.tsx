@@ -146,10 +146,7 @@ export function Palette({
     </>
   );
 }
-export function ObjectPalette({
-  disabled,
-  onAdd,
-}: {
+type ObjectPaletteProps = {
   disabled: boolean;
   onAdd: (
     type: "text" | "shape" | "line",
@@ -158,10 +155,10 @@ export function ObjectPalette({
     endArrow?: Element["endArrow"],
     startArrow?: Element["startArrow"],
   ) => void;
-}) {
+};
+export function ShapePalette({ disabled, onAdd }: ObjectPaletteProps) {
   const [category, setCategory] = useState("基本");
   return (
-    <>
       <Palette
         label="図形を追加"
         text="図形"
@@ -222,6 +219,10 @@ export function ObjectPalette({
           </>
         )}
       </Palette>
+  );
+}
+export function LinePalette({ disabled, onAdd }: ObjectPaletteProps) {
+  return (
       <Palette
         label="線を追加"
         text="線"
@@ -272,6 +273,13 @@ export function ObjectPalette({
           </div>
         )}
       </Palette>
+  );
+}
+export function ObjectPalette(props: ObjectPaletteProps) {
+  return (
+    <>
+      <ShapePalette {...props} />
+      <LinePalette {...props} />
     </>
   );
 }

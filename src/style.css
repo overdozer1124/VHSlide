@@ -147,6 +147,29 @@ p {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+/* UI review M1: only the pinned group (follow + present) is guaranteed
+   visible; the remaining header actions scroll horizontally. */
+.header-scroll {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  min-width: 0;
+  scrollbar-width: none;
+}
+.header-scroll::-webkit-scrollbar {
+  display: none;
+}
+.header-scroll[data-role="guest"] .file-actions {
+  order: 2;
+}
+.header-pinned {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 .button {
   display: inline-flex;
@@ -2236,7 +2259,11 @@ h1 span {
 }
 .workspace-mode .header-actions {
   gap: 6px;
-  flex-shrink: 0;
+  min-width: 0;
+}
+.workspace-mode .header-scroll,
+.workspace-mode .header-pinned {
+  gap: 6px;
 }
 .workspace-mode .header-actions .button {
   padding: 7px 12px;
@@ -2261,8 +2288,10 @@ h1 span {
   padding: 5px 7px;
 }
 .editing .editor-toolbar .history {
-  margin-left: auto;
   flex-shrink: 0;
+}
+.editing .editor-toolbar .history.help-actions {
+  margin-left: auto;
 }
 .editing .editor-toolbar .history .quiet {
   padding: 5px;
@@ -2316,7 +2345,7 @@ h1 span {
     padding: 3px 5px;
     flex-wrap: wrap;
   }
-  .editing .editor-toolbar .history {
+  .editing .editor-toolbar .history.help-actions {
     margin-left: auto;
   }
   .editing .editor-toolbar .history .quiet span {

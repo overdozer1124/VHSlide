@@ -2262,8 +2262,8 @@ export default function App() {
       )}
     </>
   );
-  const historyActions = (
-    <div className="history">
+  const undoRedoButtons = (
+    <>
       <button
         className="icon-button"
         aria-label="もとに戻す"
@@ -2294,6 +2294,10 @@ export default function App() {
       >
         <Redo2 size={18} />
       </button>
+    </>
+  );
+  const helpMenu = (
+    <>
       <span className="small-divider" />
       <ActionMenu
         label="ヘルプ"
@@ -2304,8 +2308,19 @@ export default function App() {
           { label: "使い方", action: toggleHelp },
         ]}
       />
+    </>
+  );
+  const historyActions = (
+    <div className="history">
+      {undoRedoButtons}
+      {helpMenu}
     </div>
   );
+  // Editor toolbar layout (UI review M2): undo/redo sit at the left end,
+  // right after the back-to-map button, while the help menu stays at the
+  // right end. The map toolbar keeps the combined block above.
+  const editorUndoRedo = <div className="history undo-actions">{undoRedoButtons}</div>;
+  const editorHelp = <div className="history help-actions">{helpMenu}</div>;
   if (cloud.viewingRevoked)
     return (
       <CloudDocument.Provider value={cloud.doc}>
@@ -2524,6 +2539,12 @@ export default function App() {
                 )}
               </div>
               <div className="header-actions">
+                <div
+                  className="header-scroll"
+                  data-role={
+                    cloud.active && !cloud.isHost ? "guest" : "host"
+                  }
+                >
                 <div className="file-actions">
                   <ActionMenu
                     label="ファイル"
@@ -2614,7 +2635,6 @@ export default function App() {
                     <span>クラウド</span>
                   </button>
                 )}
-                {followControls}
                 {cloud.active && cloud.isHost && (
                   <GuestSettings>
                     {cloud.active && cloud.isHost && (
@@ -2662,6 +2682,9 @@ export default function App() {
                       )}
                   </GuestSettings>
                 )}
+                </div>
+                <div className="header-pinned">
+                  {followControls}
                 <div className="split-action present-action">
                   <button
                     className="button primary"
@@ -2732,6 +2755,7 @@ export default function App() {
                       },
                     ]}
                   />
+                </div>
                 </div>
               </div>
             </header>
@@ -3168,7 +3192,8 @@ export default function App() {
             onToggleLinkedRows={toggleLinkedRows}
             onOpenMenu={openThumbnailMenu}
             menuOpen={!!thumbnailMenu}
-            historyActions={historyActions}
+            historyActions={editorUndoRedo}
+            helpActions={editorHelp}
             railCollapsed={preferences.railCollapsed}
             railNumbers={preferences.railNumbers}
             onToggleRailNumbers={() =>
