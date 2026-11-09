@@ -834,6 +834,13 @@ h1 span {
   box-shadow: 0 0 0 1px #759865;
   background: #e4eedb;
 }
+.rail-trigger.drop-target,
+.row-page.drop-target,
+.rail-row-number.drop-target {
+  outline: 3px solid #365d50;
+  outline-offset: -3px;
+  background: #dcebe4;
+}
 .rail-coordinate {
   width: 100%;
   display: flex;

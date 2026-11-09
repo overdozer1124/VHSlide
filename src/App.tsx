@@ -988,6 +988,39 @@ export default function App() {
     });
     setSelected(undefined);
   }
+  function moveElementsToSlide(targetSlideId: string, elements: Element[]) {
+    const target = workbook.slides.find((s) => s.id === targetSlideId);
+    if (!target || target.id === slide.id || !elements.length) return false;
+    if (!cloud.canEdit(slide)) return false;
+    if (!cloud.canEdit(target)) {
+      notify("移動先のスライドを編集する権限がありません。");
+      return false;
+    }
+    const ids = elements.map((e) => e.id);
+    const moving = slide.elements.filter((e) => ids.includes(e.id));
+    if (!moving.length) return false;
+    if (target.elements.length + moving.length > 200) {
+      notify("移動先のページの要素は200個までです。");
+      return false;
+    }
+    const next = {
+      ...workbook,
+      slides: workbook.slides.map((s) =>
+        s.id === slide.id
+          ? { ...s, elements: s.elements.filter((e) => !ids.includes(e.id)) }
+          : s.id === target.id
+            ? { ...s, elements: [...s.elements, ...moving] }
+            : s,
+      ),
+    };
+    if (!commitWorkbook(next)) return false;
+    selectEditorPage(target.id);
+    setSelectionIds(moving.map((e) => e.id));
+    setPrimarySelected(moving.at(-1)?.id);
+    editorNavigationActive.current = false;
+    notify(`「${target.title}」へ移動しました。`);
+    return true;
+  }
   function copyObjectSelection() {
     if (!cloud.canEdit(slide) || !selectionIds.length) return;
     const elements = copyElements(slide.elements, selectionIds, uid);
@@ -1428,6 +1461,49 @@ export default function App() {
     };
     window.addEventListener("copy", handler, true);
     return () => window.removeEventListener("copy", handler, true);
+  });
+  useEffect(() => {
+    const handler = (event: ClipboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        view !== "editor" ||
+        !event.clipboardData ||
+        (cloud.follow.active && !cloud.isHost) ||
+        cloud.viewingRevoked ||
+        updatesOpen ||
+        cloud.panel ||
+        toolsOpen ||
+        fitRequest ||
+        backupOpen ||
+        historyPending ||
+        [
+          ...document.querySelectorAll<HTMLElement>(
+            '[role="dialog"][aria-modal="true"]',
+          ),
+        ].some((el) => el.getClientRects().length > 0)
+      )
+        return;
+      const target =
+        event.target instanceof globalThis.Element ? event.target : null;
+      if (
+        target?.closest(
+          "input,textarea,select,[role=menu],[role=dialog],.help-panel,.slide-table",
+        ) ||
+        (target?.closest("[contenteditable]") &&
+          !target.closest(".editor-page-current .element")) ||
+        window.getSelection()?.toString()
+      )
+        return;
+      const copied = copyObjectSelection();
+      if (!copied) return;
+      event.clipboardData.setData("text/plain", clipboardText(copied.token));
+      event.preventDefault();
+      event.stopPropagation();
+      deleteSelection();
+      notify("切り取りました。別のスライドにも貼り付けできます。");
+    };
+    window.addEventListener("cut", handler, true);
+    return () => window.removeEventListener("cut", handler, true);
   });
   useEffect(() => {
     const handler = (e: ClipboardEvent) => {
@@ -3164,6 +3240,7 @@ export default function App() {
             onPaste={pasteObjectSelection}
             canPaste={clipboardMatches}
             onDeleteSelection={deleteSelection}
+            onMoveElementsToSlide={moveElementsToSlide}
             updateSlide={updateSlide}
             updateElement={updateElement}
             onFormSaved={syncSavedForm}
