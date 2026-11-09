@@ -4,6 +4,7 @@ export type TextController = {
   id: string;
   defaultSize?: number;
   length: number;
+  total: number;
   formats: Record<string, unknown>;
   format: (name: keyof TextAttributes, value: unknown) => void;
   clear: () => void;
@@ -21,7 +22,13 @@ export function TextSelectionControls({
         if ((e.target as HTMLElement).closest("button")) e.preventDefault();
       }}
     >
-      <h3>{c.length ? `選択した${c.length}文字` : "これから入力する文字"}</h3>
+      <h3>
+        {c.length
+          ? `選択した${c.length}文字`
+          : c.total
+            ? `ボックス内の全${c.total}文字`
+            : "これから入力する文字"}
+      </h3>
       <div className="text-style-toggles">
         {(
           [
@@ -151,7 +158,11 @@ export function TextSelectionControls({
           </select>
         </label>
       </details>
-      <button className="quiet" disabled={!c.length} onClick={c.clear}>
+      <button
+        className="quiet"
+        disabled={!c.length && !c.total}
+        onClick={c.clear}
+      >
         選択文字の書式をリセット
       </button>
     </section>

@@ -1202,10 +1202,7 @@ export function Editor({
                         {textController?.id === element.id && (
                           <TextSelectionControls control={textController} />
                         )}
-                        <details
-                          className="whole-text-settings"
-                          open={textController?.id !== element.id}
-                        >
+                        <details className="whole-text-settings" open>
                           <summary>ボックス全体の基本書式</summary>
                           <p className="inspector-note inline-edit-note">
                             文字の内容はキャンバス内で直接入力できます。文字の枠をクリックして編集します。

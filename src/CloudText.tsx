@@ -77,6 +77,7 @@ export function CloudText({ element, ...props }: RichEditorProps) {
         id: element.id,
         defaultSize: latest.current.element.fontSize ?? 24,
         length: range.length,
+        total: Math.max(0, quill.getLength() - 1),
         formats: quill.getFormat(range.index, range.length),
         format: (name, v) => {
           quill.focus({ preventScroll: true });
@@ -91,12 +92,18 @@ export function CloudText({ element, ...props }: RichEditorProps) {
             );
           else if (range.length)
             quill.formatText(range.index, range.length, name, v, "user");
+          else if (quill.getLength() > 1)
+            // No range selected: apply to the whole text in the box, so
+            // clicking into a text and changing its size just works.
+            quill.formatText(0, quill.getLength() - 1, name, v, "user");
           else quill.format(name, v, "user");
           publish();
         },
         clear: () => {
           if (range.length)
             quill.removeFormat(range.index, range.length, "user");
+          else if (quill.getLength() > 1)
+            quill.removeFormat(0, quill.getLength() - 1, "user");
           quill.focus({ preventScroll: true });
           quill.setSelection(range.index, range.length, "silent");
           publish();
