@@ -7,6 +7,7 @@ import {
   sheetDeck,
   mergeSheet,
   appendSlidesAsRow,
+  appendJsonRows,
 } from "./workbook";
 import {
   balancedGrid,
@@ -25,6 +26,44 @@ import {
 } from "./sharedDeck";
 
 describe("sheets and filtered maps", () => {
+  it("appends JSON sheets below the current sheet, preserving grids, labels and internal links", () => {
+    const target = sample();
+    const source = changeSheet(sample(), "add");
+    const firstSheet = source.sheets![0];
+    const secondSheet = source.sheets![1];
+    firstSheet.rowLabels = { "0": "導入" };
+    firstSheet.columnLabels = { "0": "話題" };
+    secondSheet.rowLabels = { "0": "まとめ" };
+    const first = source.slides.find(
+      (s) => (s.sheetId ?? "main") === firstSheet.id,
+    )!;
+    const second = source.slides.find((s) => s.sheetId === secondSheet.id)!;
+    first.elements[0].link = { slideId: second.id };
+    const result = appendJsonRows(target, source, "main");
+    const added = result.slides.slice(target.slides.length);
+    const oldRows = Math.max(...target.slides.map((s) => s.y)) + 1;
+    expect(added.find((s) => s.title === first.title)?.y).toBe(
+      first.y + oldRows,
+    );
+    expect(added.at(-1)?.y).toBe(oldRows + 2);
+    expect(added[0].elements[0].link?.slideId).toBe(added.at(-1)?.id);
+    expect(result.sheets![0].rowLabels![String(oldRows)]).toBe("導入");
+    expect(result.sheets![0].rowLabels![String(oldRows + 2)]).toBe("まとめ");
+    expect(result.sheets![0].columnLabels!["0"]).toBe("話題");
+    expect(parseDeck(JSON.stringify(result)).slides).toHaveLength(
+      target.slides.length + source.slides.length,
+    );
+    expect(new Set(result.slides.map((s) => s.id)).size).toBe(
+      result.slides.length,
+    );
+    expect(() =>
+      appendJsonRows(
+        { ...target, slides: [{ ...target.slides[0], y: 99 }] },
+        source,
+        "main",
+      ),
+    ).toThrow("100行");
+  });
   it("isolates sheets at identical coordinates and roundtrips names, ordering and active choice", () => {
     const original = sample(),
       added = changeSheet(original, "add");

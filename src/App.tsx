@@ -23,6 +23,7 @@ import { parseSurveyBinding } from "./surveyBinding";
 import { SurveyPanel } from "./SurveyPanel";
 import { insertSurveyResults } from "./surveySlides";
 import { importPptx, dataUrlToFile } from "./pptx";
+import { prepareImportedForms } from "./importForms";
 import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget } from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
@@ -136,6 +137,7 @@ import {
   mergeSheet,
   changeSheet,
   appendSlidesAsRow,
+  appendJsonRows,
 } from "./workbook";
 import { SheetTabs } from "./SheetTabs";
 import { matchesFilter } from "./mapFilter";
@@ -473,6 +475,7 @@ export default function App() {
   const [thumbnailMenu, setThumbnailMenu] = useState<ThumbnailMenuState>();
   const [direction, setDirection] = useState("right");
   const jsonRef = useRef<HTMLInputElement>(null),
+    jsonAppendRef = useRef<HTMLInputElement>(null),
     pptxRowRef = useRef<HTMLInputElement>(null),
     imageRef = useRef<HTMLInputElement>(null);
   const presenting = useMemo(
@@ -1740,7 +1743,7 @@ export default function App() {
         }
         const file = dataUrlToFile(e.src, `pptx-image-${++count}`);
         if (!file)
-          throw new Error("PPTX内の画像を写真として登録できませんでした。");
+          throw new Error("読み込むファイルの画像を写真として登録できませんでした。");
         const src = await cloud.upload(file, roomId);
         cache.set(e.src, src);
         elements.push({ ...e, src: src });
@@ -1787,6 +1790,60 @@ export default function App() {
       );
     } catch (error) {
       notify(error instanceof Error ? error.message : "読み込めませんでした。");
+    }
+  }
+  async function appendJsonFile(file?: File) {
+    if (!file) return;
+    if (!cloud.isHost) return notify("ページの追加はホストだけが行えます。");
+    const original = latestWorkbook.current;
+    const sheetId = activeSheet(original).id;
+    const roomId = cloud.active?.id;
+    let staged: Awaited<ReturnType<typeof prepareImportedForms>> | undefined;
+    let inserted = false;
+    try {
+      if (!/\.json$/i.test(file.name))
+        throw new Error("JSONファイルを選んでください。");
+      if (file.size > MAX_FILE_BYTES)
+        throw new Error("ファイルは25MBまでです。");
+      let imported = parseDeck(await file.text());
+      serializeDeck(appendJsonRows(original, imported, sheetId));
+      imported = await portableDeck(imported);
+      if (roomId) {
+        imported = {
+          ...imported,
+          slides: await uploadEmbeddedImages(imported.slides, roomId),
+        };
+        staged = await prepareImportedForms(imported, roomId);
+        imported = staged.deck;
+      }
+      if (
+        cloud.active?.id !== roomId ||
+        latestWorkbook.current !== original ||
+        !cloud.isHost ||
+        activeSheet(latestWorkbook.current).id !== sheetId
+      )
+        throw new Error(
+          "読み込み中に作品が変更されました。もう一度お試しください。",
+        );
+      const next = appendJsonRows(original, imported, sheetId);
+      if (!commitWorkbook(next, original)) return;
+      inserted = true;
+      setViewFilters({});
+      setActiveId(next.slides[original.slides.length].id);
+      setSelected(undefined);
+      setView("map");
+      setMoving(undefined);
+      const failures = (await staged?.activate()) ?? 0;
+      setSurveyRefresh((n) => n + 1);
+      notify(
+        `JSONの${imported.slides.length}ページを現在のシートの下に追加しました。${failures ? ` ${failures}件のフォームは受付を開始できませんでした。ユーザーフォームで確認してください。` : ""}`,
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : "JSONを追加できませんでした。",
+      );
+    } finally {
+      if (staged && !inserted) await staged.cleanup();
     }
   }
   async function download() {
@@ -2409,6 +2466,16 @@ export default function App() {
           }}
         />
         <input
+          ref={jsonAppendRef}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          onChange={(e) => {
+            void appendJsonFile(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <input
           ref={imageRef}
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
@@ -2495,6 +2562,11 @@ export default function App() {
                         label: "PPTXを1行として読み込む",
                         detail: "今のシートの末尾に新しい行として追加",
                         action: () => pptxRowRef.current?.click(),
+                      },
+                      {
+                        label: "JSONを現在のシートに追加",
+                        detail: "行・列の配置を保ち、現在のシートの下に追加",
+                        action: () => jsonAppendRef.current?.click(),
                       },
 
                       {

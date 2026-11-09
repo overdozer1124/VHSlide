@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.94.0",
+    date: "2026-11-09",
+    title: "JSON作品のページを追加",
+    changes: [
+      "JSON作品のページを、元の配置を保ちながら現在のシートの下に追加できるようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.93.0",
     date: "2026-11-09",
     title: "複数の文字・図形をまとめて書式変更",

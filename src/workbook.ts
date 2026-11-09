@@ -181,3 +181,66 @@ export function appendSlidesAsRow(
     slides: [...book.slides, ...placed],
   };
 }
+
+/** Append all source sheets below the active sheet, keeping each grid intact. */
+export function appendJsonRows(
+  book: Deck,
+  imported: Deck,
+  sheetId: string,
+): Deck {
+  const target = sheetList(book).find((s) => s.id === sheetId);
+  if (!target) throw new Error("追加先のシートが見つかりません。");
+  if (book.slides.length + imported.slides.length > MAX_SLIDES)
+    throw new Error(`作品全体で${MAX_SLIDES}ページまでです。`);
+  const sourceSheets = sheetList(imported);
+  let offset =
+    Math.max(
+      -1,
+      ...book.slides
+        .filter((s) => (s.sheetId ?? "main") === sheetId)
+        .map((s) => s.y),
+    ) + 1;
+  const offsets = new Map<string, number>();
+  const rowLabels = { ...target.rowLabels };
+  const columnLabels = { ...target.columnLabels };
+  for (const sheet of sourceSheets) {
+    const slides = imported.slides.filter(
+      (s) => (s.sheetId ?? "main") === sheet.id,
+    );
+    if (!slides.length) continue;
+    offsets.set(sheet.id, offset);
+    const rows = Math.max(...slides.map((s) => s.y)) + 1;
+    if (offset + rows > 100) throw new Error("追加後の行数が100行を超えます。");
+    for (const [key, value] of Object.entries(sheet.rowLabels ?? {})) {
+      const y = Number(key);
+      if (y < rows) rowLabels[String(offset + y)] = value;
+    }
+    for (const [key, value] of Object.entries(sheet.columnLabels ?? {}))
+      if (columnLabels[key] === undefined) columnLabels[key] = value;
+    offset += rows;
+  }
+  const copies = copyPages(imported.slides, uid);
+  const slideIds = new Map(imported.slides.map((s, i) => [s.id, copies[i].id]));
+  const slides = copies.map((slide, i) => ({
+    ...slide,
+    sheetId,
+    y: slide.y + offsets.get(imported.slides[i].sheetId ?? "main")!,
+  }));
+  return {
+    ...book,
+    sheets: sheetList(book).map((s) =>
+      s.id === sheetId ? { ...s, rowLabels, columnLabels } : s,
+    ),
+    slides: [...book.slides, ...slides],
+    ...(imported.rowSelections?.length
+      ? {
+          rowSelections: [
+            ...(book.rowSelections ?? []),
+            ...imported.rowSelections
+              .map((id) => slideIds.get(id))
+              .filter((id): id is string => !!id),
+          ],
+        }
+      : {}),
+  };
+}

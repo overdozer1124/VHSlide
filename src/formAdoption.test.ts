@@ -155,6 +155,26 @@ describe("collectForeignForms", () => {
 });
 
 describe("rewriteFormBindings", () => {
+  it("rewrites live survey result references alongside the adopted question", () => {
+    const deck = deckOf([
+      el({
+        type: "text",
+        surveyResult: { deckId: OTHER, surveyId: SURVEY_A, part: "caption" },
+      }),
+    ]);
+    const newSurvey = "77777777-7777-4777-8777-777777777777";
+    const next = rewriteFormBindings(
+      deck,
+      OWNER,
+      new Map(),
+      new Map([[`${OTHER}:${SURVEY_A}`, newSurvey]]),
+    );
+    expect(next.slides[0].elements[0].surveyResult).toEqual({
+      deckId: OWNER,
+      surveyId: newSurvey,
+      part: "caption",
+    });
+  });
   it("rewrites mapped bindings to the new deck and ids", () => {
     const deck = deckOf([
       wsField(SHEET_A, textField("q1", "質問1")),
