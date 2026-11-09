@@ -8,11 +8,20 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
-    version: "0.92.0",
+    version: "0.93.0",
     date: "2026-11-09",
     title: "複数の文字・図形をまとめて書式変更",
     changes: [
       "複数選択した文字の位置・大きさ・色・書体などや、図形の形と色を一括で変更できるようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
+    version: "0.92.0",
+    date: "2026-11-09",
+    title: "ファイルの画像もクラウドに取り込むように",
+    changes: [
+      "ファイルから開いた作品やコピーした作品をクラウドに保存したとき、作品の中に埋め込まれた画像も一緒に取り込まれ、そのまま表示・共有できるようになりました。これまでは、埋め込み画像のある作品はクラウドに保存できませんでした。",
     ],
     retrospective: false,
   },
