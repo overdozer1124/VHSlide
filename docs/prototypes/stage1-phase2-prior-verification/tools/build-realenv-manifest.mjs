@@ -73,6 +73,11 @@ const ARTIFACTS = [
   "test/s5-sender.test.mjs",
   "test/s5-apply.screen.mjs",
   "test/serve-real-s5.test.mjs",
+  "public/s9-negative.html",
+  "tools/s9-negative.mjs",
+  "test/s9-negative.test.mjs",
+  "test/s9-negative.screen.mjs",
+  "test/serve-real-s9.test.mjs",
 ];
 
 function readRel(rel) {

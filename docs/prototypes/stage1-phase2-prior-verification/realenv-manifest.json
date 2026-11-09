@@ -48,8 +48,8 @@
     },
     {
       "path": "tools/serve-real.mjs",
-      "sha256": "d02c76b7ee835a3eaad5f3795b814e29483046f90992ccd5ddc66ea081391446",
-      "bytes": 24567
+      "sha256": "e7f5f10c1d333db34002fc9d5e68627c1ef03956e934fa43a0da609caa0b6a2f",
+      "bytes": 36012
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
@@ -110,6 +110,31 @@
       "path": "test/serve-real-s5.test.mjs",
       "sha256": "e73b6652777b86274d55b9c36c110b0816648eb86aafa2d1345afe3b8f13cf7a",
       "bytes": 14160
+    },
+    {
+      "path": "public/s9-negative.html",
+      "sha256": "9b05ec9ea6e361dfa484dc81b84601dcd41bb883708643e88ab4fb7c10e935e9",
+      "bytes": 26884
+    },
+    {
+      "path": "tools/s9-negative.mjs",
+      "sha256": "eff3f886d97eeee8d0dcd98972a8463c17192aba5db02bbf21a62681903f1341",
+      "bytes": 20708
+    },
+    {
+      "path": "test/s9-negative.test.mjs",
+      "sha256": "ddd00cb6834b406e86c8bfd32e009fab9547de8da3e2a30f5f25c74d0c724d37",
+      "bytes": 21426
+    },
+    {
+      "path": "test/s9-negative.screen.mjs",
+      "sha256": "0dd182dc752726bd422150874cd468b047ca31c09c9ae9410c4719fff378abce",
+      "bytes": 30487
+    },
+    {
+      "path": "test/serve-real-s9.test.mjs",
+      "sha256": "75f72c06e7809a1cca13ab56962312ec0fbcb8bd46ab0f9e0bd31729613584fe",
+      "bytes": 4026
     }
   ],
   "builds": {
@@ -558,19 +583,23 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 301,
+          "line": 44,
+          "text": "//   tools/s9-negative.mjs と tools/subject-hash-verify.mjs を import する。"
+        },
+        {
+          "line": 462,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
         },
         {
-          "line": 302,
+          "line": 463,
           "text": "console.log(`GET /subject-hash -> 200`);"
         },
         {
-          "line": 307,
+          "line": 468,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
         },
         {
-          "line": 308,
+          "line": 469,
           "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
@@ -979,19 +1008,19 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 313,
+          "line": 474,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply\") {"
         },
         {
-          "line": 314,
+          "line": 475,
           "text": "console.log(`GET /trial-apply -> 200`);"
         },
         {
-          "line": 319,
+          "line": 480,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply.mjs\") {"
         },
         {
-          "line": 320,
+          "line": 481,
           "text": "console.log(`GET /trial-apply.mjs -> 200`);"
         }
       ],
@@ -1316,11 +1345,11 @@
     "serve_real_s5_session_guard": {
       "found": [
         {
-          "line": 190,
+          "line": 228,
           "text": "// - 試験単位のセッション（x-s5-session ヘッダー）が起動時に発行した"
         },
         {
-          "line": 213,
+          "line": 251,
           "text": "if (req.headers[\"x-s5-session\"] !== S5_SESSION) {"
         }
       ],
@@ -1329,7 +1358,7 @@
     "serve_real_s5_session_placeholder": {
       "found": [
         {
-          "line": 176,
+          "line": 197,
           "text": "const S5_SESSION_PLACEHOLDER = \"REPLACE_WITH_S5_SESSION\";"
         }
       ],
@@ -1338,11 +1367,11 @@
     "serve_real_s5_origin_guard": {
       "found": [
         {
-          "line": 201,
+          "line": 239,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         },
         {
-          "line": 210,
+          "line": 248,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         }
       ],
@@ -1351,11 +1380,11 @@
     "serve_real_s5_body_limit": {
       "found": [
         {
-          "line": 179,
+          "line": 217,
           "text": "const S5_MAX_BODY_BYTES = 64 * 1024;"
         },
         {
-          "line": 228,
+          "line": 266,
           "text": "if (size > S5_MAX_BODY_BYTES) {"
         }
       ],
@@ -1407,27 +1436,27 @@
           "text": "// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す"
         },
         {
-          "line": 44,
+          "line": 51,
           "text": "//   /s5-apply 画面へメモリ上で差し込む）と、発行に結び付ける試験 ID"
         },
         {
-          "line": 168,
+          "line": 189,
           "text": "// /s5-apply 画面へメモリ上で差し込む（ファイルは書き換えない）。画面"
         },
         {
-          "line": 325,
+          "line": 486,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply\") {"
         },
         {
-          "line": 326,
+          "line": 487,
           "text": "console.log(`GET /s5-apply -> 200`);"
         },
         {
-          "line": 331,
+          "line": 492,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply.mjs\") {"
         },
         {
-          "line": 332,
+          "line": 493,
           "text": "console.log(`GET /s5-apply.mjs -> 200`);"
         }
       ],
@@ -1436,39 +1465,43 @@
     "serve_real_s5_nonces_route": {
       "found": [
         {
-          "line": 40,
+          "line": 47,
           "text": "// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと"
         },
         {
-          "line": 50,
+          "line": 57,
           "text": "//   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・"
         },
         {
-          "line": 169,
+          "line": 71,
+          "text": "//   呼び出し元の境界は /s5/nonces と同じ型（セッション・Origin・"
+        },
+        {
+          "line": 190,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 181,
+          "line": 219,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 342,
+          "line": 515,
           "text": "if (req.method === \"GET\" && pathname === \"/s5/nonces\") {"
         },
         {
-          "line": 345,
+          "line": 518,
           "text": "console.log(`GET /s5/nonces -> ${entry.status}`);"
         },
         {
-          "line": 352,
+          "line": 525,
           "text": "console.log(`GET /s5/nonces -> 400`);"
         },
         {
-          "line": 359,
+          "line": 532,
           "text": "console.log(`GET /s5/nonces -> 200`);"
         },
         {
-          "line": 363,
+          "line": 536,
           "text": "console.log(`GET /s5/nonces -> 502`);"
         }
       ],
@@ -1477,51 +1510,51 @@
     "serve_real_s5_send_route": {
       "found": [
         {
-          "line": 46,
+          "line": 53,
           "text": "// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット"
         },
         {
-          "line": 169,
+          "line": 190,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 177,
+          "line": 215,
           "text": "// /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は"
         },
         {
-          "line": 181,
+          "line": 219,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 219,
+          "line": 257,
           "text": "// /s5/send の本体をサイズ上限付きで読む。上限を超えれば"
         },
         {
-          "line": 369,
+          "line": 542,
           "text": "if (req.method === \"POST\" && pathname === \"/s5/send\") {"
         },
         {
-          "line": 372,
+          "line": 545,
           "text": "console.log(`POST /s5/send -> ${entry.status}`);"
         },
         {
-          "line": 379,
+          "line": 552,
           "text": "console.log(`POST /s5/send -> 415`);"
         },
         {
-          "line": 386,
+          "line": 559,
           "text": "console.log(`POST /s5/send -> 413`);"
         },
         {
-          "line": 404,
+          "line": 577,
           "text": "console.log(`POST /s5/send -> 400`);"
         },
         {
-          "line": 414,
+          "line": 587,
           "text": "console.log(`POST /s5/send -> 200`);"
         },
         {
-          "line": 421,
+          "line": 594,
           "text": "console.log(`POST /s5/send -> ${status}`);"
         }
       ],

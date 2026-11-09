@@ -266,3 +266,15 @@ S7 の実環境試行は、試行前に停止した。原因は trial-apply 画�
 判別力の確認：新試験を旧モジュール（コミット `4ca898b6` 時点）で実行すると、S7 の試験と S4 の種別試験の2件が `bad_trial_input` で失敗し（16/18）、新モジュールでは 18/18 が通る。すなわち新試験は旧モジュールの不足を検出できる。実画面試験の場面追加の際、一度場面7（S4 初期化済みの環境条件失敗）を誤って置き換えてしまったが、旧版との照合で検出し、復旧して 54/54 とした。置き換えの検出は、新旧の検査名の一覧照合による。
 
 ローカル試験結果（この修正の時点）：`npm test` 85/85（run.mjs 85、subject-hash 検証 13/13、trial-apply 18/18、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12）、`npm run test:screen` 54/54、`npm run test:screen:s5` 39/39、スモーク 22/22、マニフェスト 21 成果物 / 79 検査（件数は変更なし）。新ハッシュ：tools/trial-apply.mjs `84888142…`（15559 B）、public/trial-apply.html `1c68919f…`（21247 B）、test/trial-apply.test.mjs `9732fe2a…`（18266 B）、test/trial-apply.screen.mjs `f17b90b3…`（31420 B）。
+
+## 付録（続々々々々々々々）：S9 負例専用画面の追加（Codex seq 637・コメント 6734343549、設計レビュー 6734391864 への対応）
+
+S9 の負例試験（項目8：署名改変・nonce再送・Cookieなし・Origin不一致）は、当初 DevTools・Console・端末へのトークン／Cookie 複写による手順で共有したが、Codex のレビューで実行保留となった。理由は2点：(1) 秘密の複写は露出・誤送信のリスクがあり、要求と応答の結び付けを再現可能に確認できない。(2) T1 の改変試験は消費済み nonce での提示であり、署名拒否と nonce 拒否の区別をソースの検査順の推測だけに依存する。改変試験は未使用 nonce で行うべきである。T3（実トークン期限切れの約1時間待機）は行わず未実証とする。
+
+修正：検証専用画面 `public/s9-negative.html` と純粋モジュール `tools/s9-negative.mjs` を新設し、提供サーバーに経路 `/s9-negative`・`/s9-negative.mjs` を追加した（trial-apply／s5-apply と同じ段取り）。GIS ログインのコールバックは送信せずトークンをページ内メモリーにのみ保持する（捕捉モード）。記録は試行ID・変更条件1点・応答の状態と理由コードのみ。チェーンA（改変→対照→再送）とチェーンB（Cookieなし→対照）を、試行ごとの世代管理で順序強制する。正常対照が成功した後のみ再送を許可し、期待外れの応答なら後続を停止する。レスポンスなしは状態未確定として再送しない。送信中の排他、試行単位のトークン消去（完了・停止・破棄・新規試行）、nonce 期限（発行時刻＋5分）の表示、転送先固定（POST /admin/verify-only のみ、URL入力欄なし）、fetch の redirect:"manual" を実装した。Origin 試験は画面の対象外とし、秘密なし curl 対（本文 {}、Cookie なし：9999番→403 bad_origin、8787番→400 missing_id_token）で事前に確認する。
+
+改変は Codex 設計レビュー（コメント 6734391864）の指摘どおり、header・payload を変えず署名バイトの先頭1ビットを反転（XOR 0x01）し base64url で正しく再符号化する（`tamperSignature`）。改変前後で署名バイト以外と JWT 構造が同一なことは `verifyTamperPreservesStructure` が5つの真偽（sameHeader・samePayload・threeParts・validBase64url・signatureDiffersByOneBit）で返す。成功応答のログで error が null のまま通るよう、trial-apply の正規化をそのまま通すと `unexpected_error` に化ける点を S5 と同じ扱い（null は null のまま）にした。nonce 期限の開始時点は /nonce 応答にサーバー側発行時刻が含まれないため受信時刻と定義し、画面の期限表示は目安で最終判定はサーバー側である旨を注記した。
+
+回帰試験：純粋モジュール試験（`test/s9-negative.test.mjs`、16件）で改変の構造維持・1ビット差・正規再符号化、ローカル鍵で元トークン通過／改変トークン拒否の識別力、チェーンの順序強制・停止条件・世代管理・期限・秘密不出力を確認した。実画面試験（`test/s9-negative.screen.mjs`、59件）で jsdom による画面実行を確認した。経路試験（`test/serve-real-s9.test.mjs`、3件）を追加した。
+
+ローカル試験結果（この修正の時点）：`npm test` 85/85（run.mjs 85、subject-hash 検証 13/13、trial-apply 18/18、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12、s9-negative 16/16、serve-real-s9 3/3）、`npm run test:screen` 54/54、`npm run test:screen:s5` 39/39、`npm run test:screen:s9` 59/59、スモーク 22/22、マニフェスト 26 成果物 / 79 検査。新ハッシュ：tools/s9-negative.mjs `eff3f886…`（20708 B）、public/s9-negative.html `9b05ec9e…`（26884 B）、test/s9-negative.test.mjs `ddd00cb6…`（21426 B）、test/s9-negative.screen.mjs `0dd182dc…`（30487 B）、test/serve-real-s9.test.mjs `75f72c06…`（4026 B）。

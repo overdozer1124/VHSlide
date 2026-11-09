@@ -37,6 +37,13 @@
 //   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。
 // - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す
 //   （s5-apply 画面が import する純粋モジュール）。
+// - GET /s9-negative → public/s9-negative.html を返す（S9 負例試験専用
+//   画面。同じくクライアント ID をメモリ上で差し込む）。このページは
+//   トークンを捕捉モードで保持し、署名改変・Cookie なし・元のトークン
+//   （対照）・再送の順で POST /admin/verify-only へ送る。検証モジュール
+//   tools/s9-negative.mjs と tools/subject-hash-verify.mjs を import する。
+// - GET /s9-negative.mjs → tools/s9-negative.mjs をそのまま返す
+//   （s9-negative 画面が import する純粋モジュール）。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -49,6 +56,20 @@
 //   nonce の値はログ・応答に出さない。送信器は送信の完了直後に保持
 //   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・
 //   Origin・Host・JSON content-type・本体サイズ上限）。
+// - GET /admin-negative → public/admin-negative.html を返す（S9・項目8
+//   の負例専用画面。クライアント ID と画面専用の試験単位セッションを
+//   メモリ上で差し込む）。この画面は ID トークンをメモリー内の変数
+//   だけに保持し、条件を1点ずつ変えた試行を試行 ID で結んで表示する。
+//   検証モジュール tools/admin-negative.mjs を import する。
+// - GET /admin-negative.mjs → tools/admin-negative.mjs をそのまま返す
+//   （admin-negative 画面が import する純粋モジュール）。
+// - POST /admin-negative/origin-probe → セットC（Origin）の固定プローブ。
+//   生成元チェックはトークン検証より前に行われるため、秘密を使わず、
+//   固定のダミートークンで2要求を中継へ送る（Origin が期待値と異なる
+//   値 → bad_origin を期待／Origin が期待値どおり → ダミートークンの
+//   tokeninfo_rejected を期待）。返すのは状態と理由コードだけである。
+//   呼び出し元の境界は /s5/nonces と同じ型（セッション・Origin・
+//   Host・JSON content-type・本体サイズ上限）。
 // - /nonce・/platform/apply・/admin/*（verify-only・registry の
 //   add/revoke/rotate）への要求は、環境変数 RELAY_URL（既定
 //   http://127.0.0.1:8798）へ、メソッド・ヘッダー・ボディを変更せずに
@@ -174,6 +195,23 @@ const s5Sender = createS5Sender({ relayUrl: RELAY });
 // DESIGN.md に明記する）。
 const S5_SESSION = randomUUID();
 const S5_SESSION_PLACEHOLDER = "REPLACE_WITH_S5_SESSION";
+
+// admin-negative 画面（S9 負例）専用の試験単位セッション。S5 と同じ型
+// で、起動ごとに不可推測の値を新規発行し、画面へメモリ上で差し込む。
+// /admin-negative/origin-probe の呼び出し元境界に使う。
+const AN_SESSION = randomUUID();
+const AN_SESSION_PLACEHOLDER = "REPLACE_WITH_AN_SESSION";
+// /admin-negative/origin-probe の本体サイズ上限。本体は試行 ID だけ
+// であり、16 KiB で十分に足りる。超過は 413 で拒否する。
+const AN_MAX_BODY_BYTES = 16 * 1024;
+// セットCのプローブで使う固定のダミートークン。秘密ではなく、生成元
+// チェックがトークン検証より前に行われることの判別だけに使う（正しい
+// Origin の対照では、この値が tokeninfo_rejected になることが前提）。
+const ORIGIN_PROBE_DUMMY_TOKEN = "origin-probe-dummy-token";
+const ORIGIN_PROBE_ORIGINS = {
+  mismatch: "http://localhost:9999",
+  expected: "http://localhost:8787",
+};
 // /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は
 // 10 KiB 程度であり、64 KiB で十分に足りる。超過は 413 で拒否する。
 const S5_MAX_BODY_BYTES = 64 * 1024;
@@ -233,6 +271,102 @@ async function readS5SendBody(req) {
   return { body: Buffer.concat(chunks) };
 }
 
+// admin-negative 入口（/admin-negative/origin-probe）の呼び出し元境界。
+// checkS5Entry と同じ型で、セッションヘッダーだけが異なる
+// （x-an-session）。満たさなければ状態を変更せず理由コードだけを返す。
+function checkAnEntry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "an_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "an_bad_origin" };
+    }
+  }
+  if (req.headers["x-an-session"] !== AN_SESSION) {
+    return { ok: false, status: 403, error: "an_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /admin-negative/origin-probe の本体をサイズ上限付きで読む。
+async function readAnBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > AN_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
+// セットCのプローブ送信。指定した Origin ヘッダーで、固定のダミー
+// トークンを /admin/verify-only へ中継経由で送り、状態と理由コード
+// だけを返す。node:http を使うのは、Origin ヘッダーを正確に固定する
+// ためである（fetch 実装の自動付与・除去に依存しない）。宛先は検証
+// 済みの RELAY 固定であり、リダイレクトは追従しない（3xx はそのまま
+// 状態として返す。画面側の期待評価で期待と異なる扱いになる）。
+function probeVerifyOnlyOrigin(origin) {
+  return new Promise((resolve) => {
+    const base = new URL(RELAY);
+    const body = JSON.stringify({ id_token: ORIGIN_PROBE_DUMMY_TOKEN });
+    const req = http.request(
+      {
+        method: "POST",
+        hostname: base.hostname,
+        port: base.port,
+        path: "/admin/verify-only",
+        headers: {
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(body),
+          origin,
+        },
+        timeout: 10000,
+      },
+      (up) => {
+        const chunks = [];
+        up.on("data", (c) => chunks.push(c));
+        up.on("end", () => {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          } catch {
+            parsed = null;
+          }
+          resolve({
+            status: up.statusCode || 0,
+            ok: !!(parsed && parsed.ok === true),
+            error:
+              parsed && typeof parsed.error === "string" ? parsed.error : null,
+          });
+        });
+      }
+    );
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ status: 0, ok: false, error: "probe_timeout" });
+    });
+    req.on("error", () => {
+      resolve({ status: 0, ok: false, error: "probe_failed" });
+    });
+    req.end(body);
+  });
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -279,6 +413,33 @@ const s5ApplyHtml = rawS5ApplyHtml
   .split(PLACEHOLDER).join(CLIENT_ID)
   .split(S5_SESSION_PLACEHOLDER).join(S5_SESSION);
 const s5ApplyJs = await readFile(path.join(root, "tools", "s5-apply.mjs"), "utf8");
+
+// S9 負例試験専用画面も同じく、起動時に読み込み、クライアント ID を
+// メモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
+const rawS9NegativeHtml = await readFile(path.join(root, "public", "s9-negative.html"), "utf8");
+if (!rawS9NegativeHtml.includes(PLACEHOLDER)) {
+  console.error("error: s9-negative.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s9NegativeHtml = rawS9NegativeHtml.split(PLACEHOLDER).join(CLIENT_ID);
+const s9NegativeJs = await readFile(path.join(root, "tools", "s9-negative.mjs"), "utf8");
+
+// S9 負例専用画面も同じく、起動時に読み込み、クライアント ID と画面
+// 専用セッションをメモリ上で差し込む（ファイルは書き換えない）。
+// 検証モジュールはそのまま返す。
+const rawAdminNegativeHtml = await readFile(path.join(root, "public", "admin-negative.html"), "utf8");
+if (!rawAdminNegativeHtml.includes(PLACEHOLDER)) {
+  console.error("error: admin-negative.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+if (!rawAdminNegativeHtml.includes(AN_SESSION_PLACEHOLDER)) {
+  console.error("error: admin-negative.html に AN セッションのプレースホルダが見つかりません");
+  process.exit(1);
+}
+const adminNegativeHtml = rawAdminNegativeHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(AN_SESSION_PLACEHOLDER).join(AN_SESSION);
+const adminNegativeJs = await readFile(path.join(root, "tools", "admin-negative.mjs"), "utf8");
 
 const FORWARD_PATHS = new Set([
   "/nonce",
@@ -332,6 +493,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s5-apply.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s5ApplyJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s9-negative") {
+      console.log(`GET /s9-negative -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s9NegativeHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s9-negative.mjs") {
+      console.log(`GET /s9-negative.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s9NegativeJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
@@ -422,6 +595,78 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s5_send_failed" }));
       }
+      return;
+    }
+    if (req.method === "GET" && pathname === "/admin-negative") {
+      console.log(`GET /admin-negative -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(adminNegativeHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/admin-negative.mjs") {
+      console.log(`GET /admin-negative.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(adminNegativeJs);
+      return;
+    }
+    // セットC（Origin）の固定プローブへの入口。秘密は使わない。返す
+    // のは2要求それぞれの状態と理由コードだけであり、要求・応答の
+    // 本体やダミートークンの値はログ・応答に出さない（ダミートークン
+    // は固定の非秘密値だが、扱いは同じにする）。
+    if (req.method === "POST" && pathname === "/admin-negative/origin-probe") {
+      const entry = checkAnEntry(req);
+      if (!entry.ok) {
+        console.log(`POST /admin-negative/origin-probe -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST /admin-negative/origin-probe -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readAnBody(req);
+      if (read.tooLarge) {
+        console.log(`POST /admin-negative/origin-probe -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object" || typeof parsed.trial_id !== "string" || parsed.trial_id.length === 0) {
+        console.log(`POST /admin-negative/origin-probe -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      const mismatch = await probeVerifyOnlyOrigin(ORIGIN_PROBE_ORIGINS.mismatch);
+      const expected = await probeVerifyOnlyOrigin(ORIGIN_PROBE_ORIGINS.expected);
+      console.log(
+        `POST /admin-negative/origin-probe -> 200 (C1 ${mismatch.status}, C2 ${expected.status})`
+      );
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          trial_id: parsed.trial_id,
+          results: [
+            { status: mismatch.status, ok: mismatch.ok, error: mismatch.error },
+            { status: expected.status, ok: expected.ok, error: expected.error },
+          ],
+        })
+      );
       return;
     }
     if (FORWARD_PATHS.has(pathname)) {
