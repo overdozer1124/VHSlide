@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.91.2",
+    date: "2026-11-09",
+    title: "セクション付きPPTXの読み込みを修正",
+    changes: [
+      "PowerPointでセクションを設定したファイルを、正しいページ順で読み込めるようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.91.1",
     date: "2026-11-07",
     title: "チェック数をセクションごとに表示",

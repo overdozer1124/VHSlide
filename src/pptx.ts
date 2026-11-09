@@ -72,7 +72,19 @@ export async function importPptx(file: File): Promise<Deck> {
   const scale = Math.min(W / cx, H / cy);
   const offsetX = (W - cx * scale) / 2,
     offsetY = (H - cy * scale) / 2;
-  const ids = descendants(presentation, "sldId");
+  // PowerPoint also stores p14:sldId elements in section metadata. Only the
+  // presentation's own slide list determines the slides and their order.
+  const presentationRoot = presentation.documentElement;
+  const slideList = Array.from(presentationRoot.children).find(
+    (node) =>
+      node.localName === "sldIdLst" &&
+      node.namespaceURI === presentationRoot.namespaceURI,
+  );
+  const ids = Array.from(slideList?.children ?? []).filter(
+    (node) =>
+      node.localName === "sldId" &&
+      node.namespaceURI === presentationRoot.namespaceURI,
+  );
   if (!ids.length || ids.length > 100)
     throw new Error("PPTXは1〜100ページまで読み込めます。");
   const color = (node: Node | undefined, fallback: string) => {

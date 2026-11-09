@@ -12,7 +12,7 @@ function pptx() {
   return Buffer.from(
     zipSync({
       "ppt/presentation.xml": strToU8(
-        `<p:presentation ${ns}><p:sldIdLst><p:sldId r:id="second"/><p:sldId r:id="first"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/></p:presentation>`,
+        `<p:presentation ${ns}><p:sldIdLst><p:sldId r:id="second"/><p:sldId r:id="first"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:extLst><p:ext><p14:sectionLst xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"><p14:section name="区切り"><p14:sldIdLst><p14:sldId id="256"/><p14:sldId id="257"/></p14:sldIdLst></p14:section></p14:sectionLst></p:ext></p:extLst></p:presentation>`,
       ),
       "ppt/_rels/presentation.xml.rels": strToU8(
         `<Relationships>${rel("slides/slide2.xml", "second")}${rel("slides/slide1.xml", "first")}</Relationships>`,
