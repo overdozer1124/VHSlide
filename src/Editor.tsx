@@ -117,10 +117,7 @@ interface EditorProps {
   onPaste: () => void;
   canPaste: boolean;
   onDeleteSelection: () => void;
-  onMoveElementsToSlide?: (
-    targetSlideId: string,
-    elements: Element[],
-  ) => boolean;
+  onDragExitToMap?: (elements: Element[]) => void;
   updateSlide: (patch: Partial<Slide>) => void;
   updateElement: (patch: Partial<Element>) => void;
   onFormSaved: (draft: FormDraft) => boolean;
@@ -196,7 +193,7 @@ export function Editor({
   onPaste,
   canPaste,
   onDeleteSelection,
-  onMoveElementsToSlide,
+  onDragExitToMap,
   updateSlide,
   updateElement,
   onFormSaved,
@@ -228,9 +225,6 @@ export function Editor({
 }: EditorProps) {
   const worksheets = useWorksheets();
   const surveyContext = useContext(SurveySlideContext);
-  const [dropTargetId, setDropTargetId] = useState<string | undefined>(
-    undefined,
-  );
   const [formDraft, setFormDraft] = useState<FormDraft>();
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -878,7 +872,6 @@ export function Editor({
             onNavigate={onNavigate}
             onOpenMenu={onOpenMenu}
             menuOpen={menuOpen}
-            dropTargetId={dropTargetId}
           />
         )}
         <div
@@ -962,10 +955,7 @@ export function Editor({
               selectedInkIndex={inkIndex}
               onSelectInk={selectInk}
               onOpenLink={onOpenLink}
-              onDragTargetChange={setDropTargetId}
-              onDropToSlide={(targetId, elements) =>
-                onMoveElementsToSlide?.(targetId, elements) ?? false
-              }
+              onDragExitToMap={onDragExitToMap}
               touchNavigation
               gestureEpoch={gestureEpoch}
               onTextController={setTextController}

@@ -71,8 +71,7 @@ export function Canvas({
   onOpenLink,
   formDraft,
   onFormDraftChange,
-  onDragTargetChange,
-  onDropToSlide,
+  onDragExitToMap,
 }: {
   slide: Slide;
   formDraft?: FormDraft;
@@ -98,8 +97,7 @@ export function Canvas({
   onCellSelection?: (selection: CellSelection) => void;
   cellRangeMode?: boolean;
   onOpenLink?: (slideId: string) => void;
-  onDragTargetChange?: (slideId: string | undefined) => void;
-  onDropToSlide?: (slideId: string, elements: Element[]) => boolean;
+  onDragExitToMap?: (elements: Element[]) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [drafts, setDrafts] = useState<Element[]>([]);
@@ -208,17 +206,33 @@ export function Canvas({
     direction: ResizeDirection;
     aspectLocked: boolean;
   } | null>(null);
-  const dropTarget = useRef<string | undefined>(undefined);
-  function setDropTarget(id: string | undefined) {
-    if (dropTarget.current === id) return;
-    dropTarget.current = id;
-    onDragTargetChange?.(id);
+  const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function clearDwell() {
+    if (dwellTimer.current) {
+      clearTimeout(dwellTimer.current);
+      dwellTimer.current = null;
+    }
   }
-  function trackDropTarget(event: React.PointerEvent) {
-    if (!onDropToSlide) return;
-    const hit = document.elementFromPoint(event.clientX, event.clientY);
-    const host = hit?.closest?.("[data-drop-slide]");
-    setDropTarget(host?.getAttribute("data-drop-slide") ?? undefined);
+  function trackDwell(event: React.PointerEvent) {
+    if (!onDragExitToMap || !ref.current) return;
+    const box = ref.current.getBoundingClientRect();
+    const outside =
+      event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom;
+    if (!outside) {
+      clearDwell();
+      return;
+    }
+    if (dwellTimer.current) return;
+    dwellTimer.current = setTimeout(() => {
+      dwellTimer.current = null;
+      const group = drag.current?.group;
+      if (!group?.length || !onDragExitToMap) return;
+      cancelDrag();
+      onDragExitToMap(group);
+    }, 600);
   }
   function cancelDrag() {
     cancelSelection();
@@ -226,7 +240,7 @@ export function Canvas({
     touchTap.current = null;
     setDrafts([]);
     setGuides({ x: false, y: false });
-    setDropTarget(undefined);
+    clearDwell();
   }
   useEffect(() => {
     // A second finger claims navigation, cancelling pending taps and handle drags
@@ -302,7 +316,7 @@ export function Canvas({
     if (updateSelection(event)) return;
     const d = drag.current;
     if (!d) return;
-    if (!d.resize && !d.endpoint && !d.groupResize) trackDropTarget(event);
+    if (!d.resize && !d.endpoint && !d.groupResize) trackDwell(event);
     const dx = (event.clientX - d.px) / d.scale,
       dy = (event.clientY - d.py) / d.scale;
     if (d.endpoint) {
@@ -384,14 +398,6 @@ export function Canvas({
     }
     if (drag.current && drafts.length) {
       const d = drag.current;
-      const target = dropTarget.current;
-      const dropped =
-        !!target &&
-        target !== slide.id &&
-        !d.resize &&
-        !d.endpoint &&
-        !d.groupResize &&
-        !!onDropToSlide?.(target, d.group);
       const changed = drafts.some((e) => {
         const old = d.group.find((t) => t.id === e.id)!;
         return [
@@ -409,10 +415,7 @@ export function Canvas({
             JSON.stringify(e[key as keyof Element]),
         );
       });
-      if (dropped) {
-        // The elements moved to another slide; their position on this
-        // slide must not be committed.
-      } else if (changed) {
+      if (changed) {
         const values = drafts.map((e) => ({
           ...slide.elements.find((t) => t.id === e.id)!,
           x: e.x,
@@ -444,7 +447,7 @@ export function Canvas({
     drag.current = null;
     setDrafts([]);
     setGuides({ x: false, y: false });
-    setDropTarget(undefined);
+    clearDwell();
   }
   const rendered = resolveConnections(
     slide.elements.map((e) => drafts.find((d) => d.id === e.id) ?? e),

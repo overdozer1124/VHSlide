@@ -166,6 +166,8 @@ interface MapViewProps {
   scale: number;
   onScale: (scale: number) => void;
   onOpenMenu: OpenThumbnailMenu;
+  dropTargetId?: string;
+  objectDropActive?: boolean;
 }
 function MapViewComponent({
   toolbarHost,
@@ -209,6 +211,8 @@ function MapViewComponent({
   scale,
   onScale,
   onOpenMenu,
+  dropTargetId,
+  objectDropActive = false,
   lockedFilter = false,
 }: MapViewProps) {
   const sheet = activeSheet(deck);
@@ -1353,6 +1357,11 @@ function MapViewComponent({
           aria-hidden="true"
         />
       )}
+      {objectDropActive && (
+        <p className="object-drop-banner" role="status">
+          移動先のスライドの上で放すと、そこへ移動して開きます。何もない所で放すとやめます。
+        </p>
+      )}
       <section className="map-panel" aria-label="ページの全体マップ">
         {visible &&
           toolbarHost &&
@@ -2094,12 +2103,13 @@ function MapViewComponent({
                             }
                             data-x={x}
                             data-y={y}
+                            data-drop-slide={s.id}
                             style={
                               !numbers && !detailed
                                 ? { height: cardHeight }
                                 : undefined
                             }
-                            className={`slide-card ${s.id === activeId ? "active-card" : ""}`}
+                            className={`slide-card ${s.id === activeId ? "active-card" : ""} ${dropTargetId === s.id ? "drop-target" : ""}`}
                             onContextMenu={(event) =>
                               filterOpen || selection.active
                                 ? event.preventDefault()

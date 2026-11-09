@@ -74,7 +74,6 @@ interface SlideRailProps {
   onNavigate: (dx: number, dy: number) => Slide | undefined;
   onOpenMenu: OpenThumbnailMenu;
   menuOpen: boolean;
-  dropTargetId?: string;
 }
 
 /** A resizable column, with a temporary horizontal view of each grid row. */
@@ -98,7 +97,6 @@ export function SlideRail({
   onNavigate,
   onOpenMenu,
   menuOpen,
-  dropTargetId,
 }: SlideRailProps) {
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 7 } }),
@@ -480,8 +478,7 @@ export function SlideRail({
                       if (node) triggers.current.set(y, node);
                       else triggers.current.delete(y);
                     }}
-                    className={`rail-row-number ${cell && dropTargetId === cell.id ? "drop-target" : ""}`}
-                    data-drop-slide={cell?.id}
+                    className="rail-row-number"
                     aria-label={`${y + 1}行目へ移動`}
                     aria-current={slide.y === y ? "page" : undefined}
                     title={`${y + 1}行目${cell ? `：${cell.title}` : "（空の行）"}`}
@@ -533,8 +530,7 @@ export function SlideRail({
                             if (node) triggers.current.set(y, node);
                             else triggers.current.delete(y);
                           }}
-                          className={`rail-trigger ${slide.y === y ? "rail-active" : ""} ${cell && dropTargetId === cell.id ? "drop-target" : ""}`}
-                          data-drop-slide={cell?.id}
+                          className={`rail-trigger ${slide.y === y ? "rail-active" : ""}`}
                           aria-label={`${y + 1}段目の横のページをひらく`}
                           aria-expanded={openRow === y}
                           aria-controls={
@@ -811,8 +807,7 @@ export function SlideRail({
                             {...dragProps}
                             ref={ref}
                             onKeyDown={(e) => arrow(e, true)}
-                            className={`row-page ${cell?.id === slide.id ? "row-page-active" : ""} ${!cell ? "row-page-empty" : ""} ${cell && dropTargetId === cell.id ? "drop-target" : ""}`}
-                            data-drop-slide={cell?.id}
+                            className={`row-page ${cell?.id === slide.id ? "row-page-active" : ""} ${!cell ? "row-page-empty" : ""}`}
                             aria-current={
                               cell?.id === slide.id ? "page" : undefined
                             }

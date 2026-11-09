@@ -834,12 +834,24 @@ h1 span {
   box-shadow: 0 0 0 1px #759865;
   background: #e4eedb;
 }
-.rail-trigger.drop-target,
-.row-page.drop-target,
-.rail-row-number.drop-target {
+.slide-card.drop-target {
   outline: 3px solid #365d50;
   outline-offset: -3px;
   background: #dcebe4;
+}
+.object-drop-banner {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  margin: 8px auto;
+  width: fit-content;
+  max-width: 92%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #173d38;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 4px 14px rgba(23, 61, 56, 0.35);
 }
 .rail-coordinate {
   width: 100%;

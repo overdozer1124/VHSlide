@@ -1021,6 +1021,59 @@ export default function App() {
     notify(`「${target.title}」へ移動しました。`);
     return true;
   }
+  const [dragMove, setDragMove] = useState<{
+    sourceId: string;
+    elements: Element[];
+  } | null>(null);
+  const dragMoveRef = useRef(dragMove);
+  dragMoveRef.current = dragMove;
+  const [mapDropTargetId, setMapDropTargetId] = useState<
+    string | undefined
+  >(undefined);
+  function startDragMoveToMap(elements: Element[]) {
+    if (!elements.length || view !== "editor") return;
+    setDragMove({ sourceId: slide.id, elements });
+    switchWorkspace("map", slide.id);
+  }
+  useEffect(() => {
+    if (!dragMove) return;
+    const targetAt = (event: PointerEvent) => {
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const host = hit?.closest?.("[data-drop-slide]");
+      return host?.getAttribute("data-drop-slide") ?? undefined;
+    };
+    const finish = (targetId: string | undefined) => {
+      const pending = dragMoveRef.current;
+      setDragMove(null);
+      setMapDropTargetId(undefined);
+      if (!pending) return;
+      if (targetId && targetId !== pending.sourceId) {
+        if (moveElementsToSlide(targetId, pending.elements))
+          switchWorkspace("editor", targetId);
+      } else if (targetId === pending.sourceId) {
+        switchWorkspace("editor", pending.sourceId);
+      } else {
+        notify("移動をやめました。");
+      }
+    };
+    const onPointerMove = (event: PointerEvent) =>
+      setMapDropTargetId(targetAt(event));
+    const onPointerUp = (event: PointerEvent) => finish(targetAt(event));
+    const onPointerCancel = () => finish(undefined);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") finish(undefined);
+    };
+    window.addEventListener("pointermove", onPointerMove, true);
+    window.addEventListener("pointerup", onPointerUp, true);
+    window.addEventListener("pointercancel", onPointerCancel, true);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [dragMove]);
   function copyObjectSelection() {
     if (!cloud.canEdit(slide) || !selectionIds.length) return;
     const elements = copyElements(slide.elements, selectionIds, uid);
@@ -3118,6 +3171,8 @@ export default function App() {
             onFilterEditorChange={setFilterEditor}
             deck={deck}
             activeId={activeId}
+            dropTargetId={mapDropTargetId}
+            objectDropActive={!!dragMove}
             moving={moving}
             onMove={setMoving}
             dropAt={dropAt}
@@ -3240,7 +3295,7 @@ export default function App() {
             onPaste={pasteObjectSelection}
             canPaste={clipboardMatches}
             onDeleteSelection={deleteSelection}
-            onMoveElementsToSlide={moveElementsToSlide}
+            onDragExitToMap={startDragMoveToMap}
             updateSlide={updateSlide}
             updateElement={updateElement}
             onFormSaved={syncSavedForm}
