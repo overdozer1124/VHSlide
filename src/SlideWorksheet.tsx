@@ -246,6 +246,7 @@ export function WorksheetInputs({
                             onChange={(e) => change(f.id, e.target.value)}
                           />
                         ) : (
+                          <>
                           <fieldset
                             disabled={disabled}
                             id={`${prefix}-${f.id}`}
@@ -280,6 +281,21 @@ export function WorksheetInputs({
                               </label>
                             ))}
                           </fieldset>
+                          {f.kind === "single" &&
+                            !disabled &&
+                            !preview &&
+                            !onEdit &&
+                            Array.isArray(values[f.id]) &&
+                            (values[f.id] as number[]).length > 0 && (
+                              <button
+                                type="button"
+                                className="answer-clear-choice"
+                                onClick={() => change(f.id, [], true)}
+                              >
+                                選択を取り消す
+                              </button>
+                            )}
+                          </>
                         )}
                         {f.reason && (
                           <div className="worksheet-reason">
@@ -418,7 +434,11 @@ export function WorksheetAnswer({
                   : sheet.own
                     ? "入力は保存済みです。"
                     : "入力すると自動保存します。"}
-            {sheet.status !== "open" && " 受付は終了しています。"}
+            {sheet.status === "open"
+              ? " 受付が終わるまでは直せます。"
+              : sheet.status === "draft"
+                ? " 先生が受付を始めると入力できます。"
+                : " 受付は終了しました。"}
           </p>
         </>
       )}
@@ -528,7 +548,7 @@ export function SlideWorksheet({
           />
           <p>
             {interactive
-              ? "元の共有作品で受付を開始すると入力できます。接続・公開状態を確認してください。"
+              ? "この開き方では入力できません。クラウドの共有作品から開くと、受付中に入力できます。"
               : "プレビュー · 個人の入力内容は含みません。"}
           </p>
         </>

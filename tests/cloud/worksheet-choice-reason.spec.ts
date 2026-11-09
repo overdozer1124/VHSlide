@@ -65,7 +65,7 @@ test("a choice and its reason save independently and appear together in CSV", as
     await tools.getByRole("button", { name: /^単一選択/ }).click();
     await tools.getByLabel("選択した理由を書く欄を追加").check();
     await tools
-      .getByRole("button", { name: "スライドに追加", exact: true })
+      .getByRole("button", { name: "受付を開始してスライドに追加", exact: true })
       .click();
     await expect(page.getByRole("dialog")).not.toBeVisible();
     await expect

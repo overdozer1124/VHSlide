@@ -85,7 +85,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       tools.getByRole("button", { name: "新しく作る", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
-      tools.getByRole("button", { name: "スライドに追加", exact: true }),
+      tools.getByRole("button", { name: "受付を開始してスライドに追加", exact: true }),
     ).toBeDisabled();
     await tools
       .getByRole("button", { name: "作成済みの項目を使う", exact: true })
@@ -475,7 +475,7 @@ test("creates an image and drawing response field directly on a slide", async ({
   await tools.getByRole("button", { name: /^画像・手描き/ }).click();
   await expect(tools).not.toContainText("選択肢（1行1項目");
   await tools
-    .getByRole("button", { name: "スライドに追加", exact: true })
+    .getByRole("button", { name: "受付を開始してスライドに追加", exact: true })
     .click();
   const field = page.locator(".editor-workspace .response-field");
   await expect(field.getByLabel("絵で説明しようの手描き欄")).toBeVisible();

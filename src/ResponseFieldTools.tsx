@@ -29,12 +29,16 @@ export function makeResponseElement(binding: ResponseFieldBinding): Element {
     responseField: parseResponseField(binding),
   };
 }
+export type PlacementInfo = {
+  startedReception?: boolean;
+  endReception?: () => Promise<void>;
+};
 export function ResponseFieldTools({
   onPlace,
   slide,
   onBusyChange,
 }: {
-  onPlace: (elements: Element[]) => void;
+  onPlace: (elements: Element[], info?: PlacementInfo) => void;
   slide: Slide;
   onBusyChange?: (busy: boolean) => void;
 }) {
@@ -53,6 +57,7 @@ export function ResponseFieldTools({
   const [groupTitle, setGroupTitle] = useState("ワークシート");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [startReception, setStartReception] = useState(true);
   useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   const [templateName, setTemplateName] = useState("");
@@ -78,10 +83,23 @@ export function ResponseFieldTools({
   const survey =
     surveys.surveys.find((s) => s.id === record) ?? surveys.surveys[0];
   const field = sheet?.fields.find((f) => f.id === fieldId) ?? sheet?.fields[0];
+  // UI review F1/D1: when the target is still a draft, placing a field used
+  // to start reception silently. The host now chooses explicitly.
+  const targetStatus =
+    source === "worksheet"
+      ? create && (record === "new" || !sheet)
+        ? "draft"
+        : sheet?.status
+      : create
+        ? "draft"
+        : survey?.status;
+  const needsStartChoice = targetStatus === "draft";
   async function add() {
     if (busy || !ctx.host || !ctx.enabled) return;
     setBusy(true);
     setError("");
+    let startedReception = false;
+    let endReception: (() => Promise<void>) | undefined;
     try {
       let binding: ResponseFieldBinding;
       if (source === "worksheet") {
@@ -121,12 +139,21 @@ export function ResponseFieldTools({
         }
         if (!current || !item)
           throw Error("ワークシートと項目を選択してください。");
-        if (current.status === "draft") {
+        if (current.status === "draft" && startReception) {
           const data = await api<{ worksheets: WorksheetView[] }>(
             `/api/decks/${ctx.deckId}/worksheets/${current.id}/status`,
             { method: "POST", body: JSON.stringify({ status: "open" }) },
           );
           ctx.update(data.worksheets);
+          startedReception = true;
+          const targetId = current.id;
+          endReception = async () => {
+            const closed = await api<{ worksheets: WorksheetView[] }>(
+              `/api/decks/${ctx.deckId}/worksheets/${targetId}/status`,
+              { method: "POST", body: JSON.stringify({ status: "closed" }) },
+            );
+            ctx.update(closed.worksheets);
+          };
         }
         binding = {
           source: "worksheet",
@@ -161,12 +188,21 @@ export function ResponseFieldTools({
           surveys.onUpdated(data.surveys, ctx.deckId, ctx.userId);
         }
         if (!current) throw Error("アンケートを選択してください。");
-        if (current.status === "draft") {
+        if (current.status === "draft" && startReception) {
           const data = await api<{ surveys: SurveyView[] }>(
             `/api/decks/${ctx.deckId}/surveys/${current.id}/status`,
             { method: "POST", body: JSON.stringify({ status: "open" }) },
           );
           surveys.onUpdated(data.surveys, ctx.deckId, ctx.userId);
+          startedReception = true;
+          const targetId = current.id;
+          endReception = async () => {
+            const closed = await api<{ surveys: SurveyView[] }>(
+              `/api/decks/${ctx.deckId}/surveys/${targetId}/status`,
+              { method: "POST", body: JSON.stringify({ status: "closed" }) },
+            );
+            surveys.onUpdated(closed.surveys, ctx.deckId, ctx.userId);
+          };
         }
         binding = {
           source: "survey",
@@ -178,7 +214,10 @@ export function ResponseFieldTools({
           showLabel: true,
         };
       }
-      onPlace([makeResponseElement(binding)]);
+      onPlace(
+        [makeResponseElement(binding)],
+        startedReception ? { startedReception, endReception } : undefined,
+      );
       if (create) setLabel("");
     } catch (e) {
       setError((e as Error).message);
@@ -565,6 +604,33 @@ export function ResponseFieldTools({
             {create && !label.trim() && (
               <p>項目名を入力すると、スライドに追加できます。</p>
             )}
+            {needsStartChoice && (
+              <fieldset className="response-start-choice">
+                <legend>
+                  {source === "worksheet"
+                    ? "このワークシートは下書きです。受付の開始を選んでください"
+                    : "このアンケートは下書きです。受付の開始を選んでください"}
+                </legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="response-start-choice"
+                    checked={startReception}
+                    onChange={() => setStartReception(true)}
+                  />{" "}
+                  受付を開始して置く（生徒がすぐ入力できます）
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="response-start-choice"
+                    checked={!startReception}
+                    onChange={() => setStartReception(false)}
+                  />{" "}
+                  受付を開始せずに置く（下書きのまま。受付はあとから開始できます）
+                </label>
+              </fieldset>
+            )}
             <button
               className="button primary"
               disabled={
@@ -577,7 +643,13 @@ export function ResponseFieldTools({
               }
               onClick={() => void add()}
             >
-              {busy ? "追加しています…" : "スライドに追加"}
+              {busy
+                ? "追加しています…"
+                : needsStartChoice
+                  ? startReception
+                    ? "受付を開始してスライドに追加"
+                    : "受付を開始せずスライドに追加"
+                  : "スライドに追加"}
             </button>
             <p>
               同じ項目を複数の場所に置くと、同じ回答を表示します。位置・サイズ・色・枠線は配置後に編集できます。

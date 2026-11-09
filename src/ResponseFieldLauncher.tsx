@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ClipboardList } from "lucide-react";
 import type { Element, Slide } from "./model";
 import { ResponseFieldTools } from "./ResponseFieldTools";
+import type { PlacementInfo } from "./ResponseFieldTools";
 import { useWorksheets } from "./WorksheetContext";
 import { useActivityPanel } from "./ActivitiesPanel";
 export function ResponseFieldLauncher({
@@ -35,6 +36,9 @@ export function ResponseFieldCreator({
     root = useRef<HTMLElement>(null),
     alive = useRef(true);
   const [hint, setHint] = useState(false);
+  const [placement, setPlacement] = useState<PlacementInfo>();
+  const [receptionEnded, setReceptionEnded] = useState(false);
+  const [endingReception, setEndingReception] = useState(false);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -55,11 +59,25 @@ export function ResponseFieldCreator({
     const timer = setTimeout(() => setHint(false), 12000);
     return () => clearTimeout(timer);
   }, [hint]);
-  function placed(elements: Element[]) {
+  function placed(elements: Element[], info?: PlacementInfo) {
     if (!alive.current) return;
     onPlace(elements);
     activity.close(true);
+    setPlacement(info);
+    setReceptionEnded(false);
     setHint(true);
+  }
+  async function endReception() {
+    if (!placement?.endReception || endingReception) return;
+    setEndingReception(true);
+    try {
+      await placement.endReception();
+      setReceptionEnded(true);
+    } catch {
+      /* The forms panel still offers the same control. */
+    } finally {
+      setEndingReception(false);
+    }
   }
   return (
     <>
@@ -90,6 +108,21 @@ export function ResponseFieldCreator({
         createPortal(
           <div className="response-placement-hint" role="status">
             回答欄を追加しました。入力欄以外をドラッグして位置を変え、四隅のハンドルで大きさを調整できます。
+            {placement?.startedReception &&
+              (receptionEnded ? (
+                <> 受付を終了しました。</>
+              ) : (
+                <>
+                  {" "}
+                  受付を開始しました。
+                  <button
+                    onClick={() => void endReception()}
+                    disabled={endingReception}
+                  >
+                    {endingReception ? "終了しています…" : "受付を終了する"}
+                  </button>
+                </>
+              ))}
             <button
               onClick={() => setHint(false)}
               aria-label="配置の案内を閉じる"

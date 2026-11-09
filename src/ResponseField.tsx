@@ -40,6 +40,7 @@ export function ResponseField({
       ? (sheet?.fields.find((f) => f.id === binding.field.id) ?? binding.field)
       : undefined;
   const open = !!sheet && sheet.status === "open" && !worksheets.readOnly;
+  const fieldStatus = answers.status("worksheet", sheet?.id ?? "");
   const values = {
     ...sheet?.own?.values,
     ...(!worksheets.readOnly && sheet
@@ -136,8 +137,41 @@ export function ResponseField({
           )}
         </>
       )}
+      {interactive && field && sheet && (
+        open ? (
+          <p
+            className={`answer-inline-status ${fieldStatus.error ? "is-error" : ""}`}
+            role="status"
+          >
+            {!fieldStatus.error &&
+              !fieldStatus.saving &&
+              !fieldStatus.dirty &&
+              sheet.own && <span aria-hidden="true">✓ </span>}
+            {fieldStatus.error
+              ? `未保存：${fieldStatus.error}`
+              : fieldStatus.saving
+                ? "保存中…"
+                : fieldStatus.dirty
+                  ? "入力を自動保存します…"
+                  : sheet.own
+                    ? "入力は保存済みです。"
+                    : "入力すると自動保存します。"}
+            {" 受付が終わるまでは直せます。"}
+          </p>
+        ) : (
+          <small>
+            {worksheets.readOnly
+              ? "この開き方では入力できません。"
+              : sheet.status === "draft"
+                ? "先生が受付を始めると入力できます。"
+                : "受付は終了しました。"}
+          </small>
+        )
+      )}
       {interactive && !sheet && !survey && (
-        <small>元の共有作品で受付を開始すると入力できます。</small>
+        <small>
+          この開き方では入力できません。クラウドの共有作品から開くと、受付中に入力できます。
+        </small>
       )}
     </section>
   );

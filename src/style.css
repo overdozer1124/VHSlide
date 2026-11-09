@@ -7244,6 +7244,9 @@ h1 span {
 .response-field-mode button[aria-pressed=true],.response-kind-picker button[aria-pressed=true] {background:#e7f0e9;border:2px solid #365d50;padding:9px;}
 .response-kind-picker {padding:0;margin:18px 0;border:0;}
 .response-kind-picker legend {font-weight:600;margin-bottom:8px;}
+.response-start-choice {padding:10px 12px;margin:18px 0;border:1px solid #c7d8cc;border-radius:9px;background:#f4f8f4;}
+.response-start-choice legend {font-weight:600;padding:0 4px;}
+.response-start-choice label {display:block;margin:6px 0;}
 .response-kind-picker>div {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
 .response-kind-picker strong,.response-kind-picker small {display:block;}
 .response-kind-picker small {font-size:12px;margin-top:5px;color:#51665d;}
@@ -7396,4 +7399,9 @@ html[data-host-follow="active"] .app-shell .response-field-launch {visibility:hi
 .slide-survey.is-interactive textarea { font-size:max(var(--form-font-size,20px),calc(16px / var(--canvas-zoom,1))); }
 .slide-worksheet .answer-inline-status,.slide-survey .answer-inline-status { margin:6px 0 0; color:#687d70; font-size:12px; line-height:1.4; }
 .slide-worksheet .answer-inline-status.is-error,.slide-survey .answer-inline-status.is-error { color:#ad3429; font-weight:700; }
+.response-field .answer-inline-status { margin:6px 0 0; color:#687d70; font-size:12px; line-height:1.4; }
+.response-field .answer-inline-status.is-error { color:#ad3429; font-weight:700; }
+.answer-clear-choice { background:none; border:0; color:#687d70; font-size:12px; text-decoration:underline; cursor:pointer; padding:2px 0; }
+.compact-answer .answer-inline-status { margin:4px 0 0; color:#687d70; font-size:12px; line-height:1.4; }
+.compact-answer .answer-inline-status.is-error { color:#ad3429; font-weight:700; }
 @media(max-width:700px) { .form-edit-bar { padding:6px 8px; } .form-edit-bar span { flex-basis:100%; } }

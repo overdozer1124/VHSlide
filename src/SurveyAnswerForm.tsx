@@ -79,7 +79,16 @@ export function SurveyAnswerForm({
           )}
         </div>
       </fieldset>
-      {!compact && !ctx.readOnly && (
+      {survey.kind === "single" && open && value.choices.length > 0 && (
+        <button
+          type="button"
+          className="answer-clear-choice"
+          onClick={() => change({ text: "", choices: [] }, true)}
+        >
+          選択を取り消す
+        </button>
+      )}
+      {!ctx.readOnly && (
         <p
           className={`answer-inline-status ${status.error ? "is-error" : ""}`}
           role="status"
@@ -96,7 +105,11 @@ export function SurveyAnswerForm({
                 : survey.own
                   ? "回答は保存済みです。"
                   : "入力すると自動保存します。"}
-          {survey.status !== "open" && " 受付は終了しています。"}
+          {survey.status === "open"
+            ? " 受付が終わるまでは直せます。"
+            : survey.status === "draft"
+              ? " 先生が受付を始めると入力できます。"
+              : " 受付は終了しました。"}
         </p>
       )}
     </form>
