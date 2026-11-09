@@ -58,23 +58,23 @@
     },
     {
       "path": "public/trial-apply.html",
-      "sha256": "ea49bc3fd55257d6da6dd591e38f76a650ae9f3ff770d37771d1b6ffc94583b3",
-      "bytes": 20708
+      "sha256": "1c68919fd9b3d06231910986199946de0e67f33055a26392d05eb3f0172a137a",
+      "bytes": 21247
     },
     {
       "path": "tools/trial-apply.mjs",
-      "sha256": "95d4b8cf6ab17f4f70bc109516870693cc5b1693968995a208e9e150974b3bab",
-      "bytes": 15224
+      "sha256": "848881424390ea7f13806f1f41a834b3a0493d2666da5a9fdedf128f5f569851",
+      "bytes": 15559
     },
     {
       "path": "test/trial-apply.test.mjs",
-      "sha256": "34bf8ab09ae4fa5c299058f28f6fb279e2ffb145dd6dfacf76f4773452c6ea41",
-      "bytes": 16261
+      "sha256": "9732fe2aa22897750fc61873356611ca0c486a5b5abf502515f62c1b2b0962c8",
+      "bytes": 18266
     },
     {
       "path": "test/trial-apply.screen.mjs",
-      "sha256": "c05228d478e446808dd787e7cbed18103cc77f90e42cb0c644223e391249c629",
-      "bytes": 28041
+      "sha256": "f17b90b3bc68d99c542564fa90f585188ed7d65d3cd2b139ea99e6fd8ec7130a",
+      "bytes": 31420
     },
     {
       "path": "public/s5-apply.html",
@@ -587,7 +587,7 @@
     "trial_apply_page_placeholder": {
       "found": [
         {
-          "line": 79,
+          "line": 81,
           "text": "const GOOGLE_CLIENT_ID = \"REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID\";"
         }
       ],
@@ -596,7 +596,7 @@
     "trial_apply_page_gis": {
       "found": [
         {
-          "line": 60,
+          "line": 62,
           "text": "<script src=\"https://accounts.google.com/gsi/client\" async defer></script>"
         }
       ],
@@ -605,7 +605,7 @@
     "trial_apply_page_uses_jwks": {
       "found": [
         {
-          "line": 80,
+          "line": 82,
           "text": "const JWKS_URL = \"https://www.googleapis.com/oauth2/v3/certs\";"
         }
       ],
@@ -614,15 +614,15 @@
     "trial_apply_module_freezes_request": {
       "found": [
         {
-          "line": 43,
+          "line": 44,
           "text": "// のは Object.freeze と JSON だけである。秘密の比較は呼び出し側"
         },
         {
-          "line": 56,
+          "line": 57,
           "text": "return Object.freeze(obj);"
         },
         {
-          "line": 96,
+          "line": 98,
           "text": "export const TRIAL_KINDS = Object.freeze(["
         }
       ],
@@ -631,7 +631,7 @@
     "trial_apply_module_checks_display_sent": {
       "found": [
         {
-          "line": 286,
+          "line": 296,
           "text": "export function verifyDisplayMatchesSent(display, sentBody) {"
         }
       ],
@@ -640,15 +640,15 @@
     "trial_apply_module_compares_one_time_fact_only": {
       "found": [
         {
-          "line": 21,
+          "line": 22,
           "text": "// - compareOneTime(trialValue, fixedValue) は「一致」／「不一致」の"
         },
         {
-          "line": 84,
+          "line": 85,
           "text": "export function compareOneTime(trialValue, fixedValue) {"
         },
         {
-          "line": 255,
+          "line": 265,
           "text": "// oneTimeFact は compareOneTime の戻り値（\"一致\"／\"不一致\"）だけを受け取る。"
         }
       ],
@@ -657,11 +657,11 @@
     "trial_apply_module_env_condition": {
       "found": [
         {
-          "line": 23,
+          "line": 24,
           "text": "// - verifyEnvCondition(request, { kind, expectedEnvId }) は、凍結済みの"
         },
         {
-          "line": 131,
+          "line": 140,
           "text": "export function verifyEnvCondition(request, { kind, expectedEnvId }) {"
         }
       ],
@@ -670,11 +670,11 @@
     "trial_apply_module_session_guard": {
       "found": [
         {
-          "line": 29,
+          "line": 30,
           "text": "// - createTrialSession() は試行ごとの世代管理を行う。準備の開始時に"
         },
         {
-          "line": 196,
+          "line": 206,
           "text": "export function createTrialSession() {"
         }
       ],
@@ -683,15 +683,15 @@
     "trial_apply_module_error_normalize": {
       "found": [
         {
-          "line": 32,
+          "line": 33,
           "text": "// - normalizeResponseError(error) は応答の理由コードを固定の許可一覧"
         },
         {
-          "line": 187,
+          "line": 197,
           "text": "export function normalizeResponseError(error) {"
         },
         {
-          "line": 309,
+          "line": 319,
           "text": "error: normalizeResponseError(response.error),"
         }
       ],
@@ -700,11 +700,11 @@
     "trial_apply_page_fixed_env_id": {
       "found": [
         {
-          "line": 87,
+          "line": 89,
           "text": "const FIXED_ENV_ID = \"stage1-verification-only-20261101\";"
         },
         {
-          "line": 356,
+          "line": 359,
           "text": "<p class=\"note\">正しい環境ID（検証環境の固定値）：<code>stage1-verification-only-20261101</code>。"
         }
       ],
@@ -713,11 +713,11 @@
     "trial_apply_page_session_guard": {
       "found": [
         {
-          "line": 68,
+          "line": 70,
           "text": "createTrialSession,"
         },
         {
-          "line": 95,
+          "line": 97,
           "text": "const session = createTrialSession();"
         }
       ],
@@ -726,11 +726,11 @@
     "trial_apply_page_env_condition": {
       "found": [
         {
-          "line": 67,
+          "line": 69,
           "text": "verifyEnvCondition,"
         },
         {
-          "line": 187,
+          "line": 189,
           "text": "verifyEnvCondition(request, { kind: trialKind, expectedEnvId: FIXED_ENV_ID });"
         }
       ],
@@ -739,7 +739,7 @@
     "trial_apply_page_attempt_closure": {
       "found": [
         {
-          "line": 265,
+          "line": 267,
           "text": "callback: (response) => onGoogleSignIn(response, snap),"
         }
       ],
@@ -748,23 +748,23 @@
     "trial_apply_page_guarded_finally": {
       "found": [
         {
-          "line": 129,
+          "line": 131,
           "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 151,
+          "line": 153,
           "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 166,
+          "line": 168,
           "text": "if (!session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 202,
+          "line": 204,
           "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
         },
         {
-          "line": 219,
+          "line": 221,
           "text": "if (session.isCurrent(snap.trialId, snap.generation)) {"
         }
       ],
@@ -773,7 +773,7 @@
     "trial_apply_page_send_guard": {
       "found": [
         {
-          "line": 298,
+          "line": 300,
           "text": "sending = true;"
         }
       ],
@@ -782,7 +782,7 @@
     "trial_apply_page_clear_before_invalidate": {
       "found": [
         {
-          "line": 204,
+          "line": 206,
           "text": "// 無効化の前に password 欄を消す。failAttempt で無効化してから"
         }
       ],
@@ -865,6 +865,14 @@
         {
           "line": 623,
           "text": "const nonce = window.__gis.nonces[0];"
+        },
+        {
+          "line": 653,
+          "text": "const nonce = window.__gis.nonces[0];"
+        },
+        {
+          "line": 701,
+          "text": "const nonce = window.__gis.nonces[0];"
         }
       ],
       "expect": "present"
@@ -944,6 +952,10 @@
         {
           "line": 637,
           "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
+        },
+        {
+          "line": 715,
+          "text": "el(window, \"fixedOneTime\").value === \"\" && el(window, \"trialOneTime\").value === \"\""
         }
       ],
       "expect": "present"
@@ -988,40 +1000,40 @@
     "trial_apply_module_s4_kinds": {
       "found": [
         {
-          "line": 91,
+          "line": 92,
           "text": "// S4 の2試験（operation-consumed／already-initialized）は、固定値の"
         },
         {
-          "line": 99,
+          "line": 101,
           "text": "\"operation-consumed\","
         },
         {
-          "line": 107,
+          "line": 114,
           "text": "if (kind === \"operation-consumed\" || kind === \"already-initialized\") {"
         },
         {
-          "line": 110,
-          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+          "line": 117,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません\");"
         },
         {
-          "line": 116,
+          "line": 123,
           "text": "kind === \"operation-consumed\" ||"
         },
         {
-          "line": 122,
-          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+          "line": 130,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません\");"
         },
         {
-          "line": 142,
+          "line": 151,
           "text": "kind === \"operation-consumed\" ||"
         },
         {
-          "line": 150,
-          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+          "line": 160,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません\");"
         },
         {
-          "line": 259,
-          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません\");"
+          "line": 269,
+          "text": "fail(\"bad_trial_input\", \"試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません\");"
         }
       ],
       "expect": "present"
@@ -1033,7 +1045,7 @@
           "text": "// - purposeForKind(kind) は試験種別ごとの用途（purpose）を返す。"
         },
         {
-          "line": 103,
+          "line": 106,
           "text": "export function purposeForKind(kind) {"
         }
       ],
@@ -1042,7 +1054,7 @@
     "trial_apply_page_s4_kinds": {
       "found": [
         {
-          "line": 348,
+          "line": 350,
           "text": "<option value=\"operation-consumed\">消費済み（消費済みの操作IDを再提示する。S4 手順1）</option>"
         }
       ],

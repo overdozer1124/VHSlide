@@ -285,12 +285,14 @@ test("S4 の試験種別：用途と一回値の前提は種別で決まる", ()
   assert.equal(purposeForKind("one-time-mismatch"), "full-replace");
   assert.equal(purposeForKind("operation-consumed"), "bootstrap");
   assert.equal(purposeForKind("already-initialized"), "bootstrap");
+  assert.equal(purposeForKind("full-match"), "full-replace");
   assert.equal(expectedOneTimeFact("env-mismatch"), "一致");
   assert.equal(expectedOneTimeFact("one-time-mismatch"), "不一致");
   assert.equal(expectedOneTimeFact("operation-consumed"), "一致");
   assert.equal(expectedOneTimeFact("already-initialized"), "一致");
-  assert.throws(() => purposeForKind("full-match"), (e) => e.code === "bad_trial_input");
-  assert.throws(() => expectedOneTimeFact("full-match"), (e) => e.code === "bad_trial_input");
+  assert.equal(expectedOneTimeFact("full-match"), "一致");
+  assert.throws(() => purposeForKind("not-a-kind"), (e) => e.code === "bad_trial_input");
+  assert.throws(() => expectedOneTimeFact("not-a-kind"), (e) => e.code === "bad_trial_input");
 });
 
 test("S4 の環境条件の機械検証：消費済み・初期化済み試験は正しい env_id が前提", () => {
@@ -366,12 +368,60 @@ test("S4 の表示記録は許された鍵だけで、用途は bootstrap にな
   assertNoSecrets(JSON.stringify(entryConsumed) + JSON.stringify(entryInitialized), SECRETS);
 });
 
+test("S7 の完全一致試験：用途 full-replace・正しい env_id・一回値一致が前提", () => {
+  const FIXED = "stage1-verification-only-20261101";
+  const rightEnv = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "full-replace",
+    envId: FIXED,
+  });
+  const wrongEnv = buildTrialRequest({
+    idToken: DUMMY_TOKEN,
+    oneTimeValue: DUMMY_FIXED_ONE_TIME,
+    purpose: "full-replace",
+    envId: "wrong-env-id-dummy",
+  });
+  // 完全一致試験は正しい env_id なら通り、誤った env_id なら送信不能。
+  // （誤った env_id では環境不一致試験の前提になってしまうため、
+  // full-match としては拒否されなければならない。）
+  assert.equal(
+    verifyEnvCondition(rightEnv, { kind: "full-match", expectedEnvId: FIXED }),
+    true
+  );
+  assert.throws(
+    () => verifyEnvCondition(wrongEnv, { kind: "full-match", expectedEnvId: FIXED }),
+    (e) => e.code === "env_condition_failed"
+  );
+  // 表示記録は用途 full-replace・種別 full-match・一回値「一致」になる。
+  const display = preSendView(rightEnv, {
+    trialId: "trial-s7-001",
+    kind: "full-match",
+    subjectConfirmed: true,
+    oneTimeFact: "一致",
+  });
+  assertDisplayKeys(display);
+  assert.equal(display.kind, "full-match");
+  assert.equal(display.purpose, "full-replace");
+  assert.equal(display.env_id, FIXED);
+  assert.equal(display.one_time, "一致");
+  assertNoSecrets(JSON.stringify(display), SECRETS);
+  // S7 の期限後試行の応答（403 approval_expired）は許可一覧の理由コード
+  // として記録される。
+  const entry = makeTrialLogEntry({
+    display,
+    response: { status: 403, error: "approval_expired" },
+  });
+  assert.equal(entry.response.error, "approval_expired");
+  assertNoSecrets(JSON.stringify(entry), SECRETS);
+});
+
 test("不正な入力は拒否される", () => {
   assert.throws(() => buildTrialRequest({
     idToken: "", oneTimeValue: "x", purpose: "full-replace", envId: "e",
   }), (e) => e.code === "bad_trial_input");
   assert.throws(() => preSendView(dummyRequest(), {
-    trialId: "t", kind: "full-match", subjectConfirmed: true, oneTimeFact: "一致",
+    trialId: "t", kind: "not-a-kind", subjectConfirmed: true, oneTimeFact: "一致",
   }), (e) => e.code === "bad_trial_input");
   assert.throws(() => preSendView(dummyRequest(), {
     trialId: "t", kind: "env-mismatch", subjectConfirmed: true, oneTimeFact: "たぶん一致",

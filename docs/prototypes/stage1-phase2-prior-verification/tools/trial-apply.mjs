@@ -10,11 +10,12 @@
 //   表示の元と送信する本体が同一のオブジェクトであることが、表示値と
 //   実送信の同一性の根拠である。
 // - purposeForKind(kind) は試験種別ごとの用途（purpose）を返す。
-//   不一致試験は full-replace、S4 の消費済み・初期化済み試験は
-//   bootstrap である。用途は画面が入力で変えられない固定値である。
+//   不一致試験と S7 の完全一致試験は full-replace、S4 の消費済み・
+//   初期化済み試験は bootstrap である。用途は画面が入力で変えられない
+//   固定値である。
 // - expectedOneTimeFact(kind) は試験種別ごとの一回値の比較前提を返す。
-//   環境不一致試験・S4 の2試験は「一致」、一回値不一致試験は
-//   「不一致」でなければ要求を作らず進まない。
+//   環境不一致試験・S4 の2試験・S7 の完全一致試験は「一致」、一回値
+//   不一致試験は「不一致」でなければ要求を作らず進まない。
 // - preSendView(...) は表示記録だけを返す。含むのは試験 ID・試験種別・
 //   env_id・purpose・主体の確認事実・一回値の比較事実のみ。ID トークン・
 //   一回値・nonce・主体ハッシュは含まない。
@@ -23,9 +24,9 @@
 // - verifyEnvCondition(request, { kind, expectedEnvId }) は、凍結済みの
 //   要求そのものの env_id に対して環境条件を機械検証する。環境不一致
 //   試験は固定の正しい環境IDと「異なる」こと、一回値不一致試験・
-//   S4 の2試験は「一致」することを要求し、満たさなければ送信不能
-//   （例外）とする。入力欄の表示値ではなく、実送信に使う凍結済みの
-//   値を検証する。
+//   S4 の2試験・S7 の完全一致試験は「一致」することを要求し、満たさ
+//   なければ送信不能（例外）とする。入力欄の表示値ではなく、実送信に
+//   使う凍結済みの値を検証する。
 // - createTrialSession() は試行ごとの世代管理を行う。準備の開始時に
 //   新しい試験 ID を発行し、前回の保留要求を無効化する。非同期の古い
 //   コールバックは世代照合で拒否する。
@@ -91,41 +92,49 @@ export function compareOneTime(trialValue, fixedValue) {
 // S4 の2試験（operation-consumed／already-initialized）は、固定値の
 // 照合をすべて通過した上でサーバー側の状態検査に到達する試験であり、
 // 用途は bootstrap、環境IDは固定の正しい値と一致、一回値は固定値と
-// 一致が前提である。不一致試験（env-mismatch／one-time-mismatch）は
-// full-replace のままである。用途・前提は画面が入力で変えられない。
+// 一致が前提である。不一致試験（env-mismatch／one-time-mismatch）と
+// S7 の完全一致試験（full-match）は full-replace のままである。用途・
+// 前提は画面が入力で変えられない。
 export const TRIAL_KINDS = Object.freeze([
   "env-mismatch",
   "one-time-mismatch",
   "operation-consumed",
   "already-initialized",
+  "full-match",
 ]);
 
 export function purposeForKind(kind) {
-  if (kind === "env-mismatch" || kind === "one-time-mismatch") {
+  if (
+    kind === "env-mismatch" ||
+    kind === "one-time-mismatch" ||
+    kind === "full-match"
+  ) {
     return "full-replace";
   }
   if (kind === "operation-consumed" || kind === "already-initialized") {
     return "bootstrap";
   }
-  fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません");
+  fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません");
 }
 
 export function expectedOneTimeFact(kind) {
   if (
     kind === "env-mismatch" ||
     kind === "operation-consumed" ||
-    kind === "already-initialized"
+    kind === "already-initialized" ||
+    kind === "full-match"
   ) {
     return "一致";
   }
   if (kind === "one-time-mismatch") return "不一致";
-  fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません");
+  fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません");
 }
 
 // 環境条件の機械検証。凍結済みの要求そのものの env_id を、固定の正しい
 // 環境IDと比べる。環境不一致試験は「異なる」こと、一回値不一致試験・
-// S4 の2試験は「一致」することを要求する。条件を満たさなければ例外
-// （送信不能）。入力欄の表示値ではなく、実送信に使う凍結済みの値を検証する。
+// S4 の2試験・S7 の完全一致試験は「一致」することを要求する。条件を
+// 満たさなければ例外（送信不能）。入力欄の表示値ではなく、実送信に使う
+// 凍結済みの値を検証する。
 // expectedEnvId は検証環境に限定して固定された正しい環境IDであり、
 // 呼び出し側（検証専用画面）が定数として持つ。
 export function verifyEnvCondition(request, { kind, expectedEnvId }) {
@@ -140,14 +149,15 @@ export function verifyEnvCondition(request, { kind, expectedEnvId }) {
   if (
     kind === "one-time-mismatch" ||
     kind === "operation-consumed" ||
-    kind === "already-initialized"
+    kind === "already-initialized" ||
+    kind === "full-match"
   ) {
     if (request.env_id !== expectedEnvId) {
       fail("env_condition_failed", "試験の env_id が固定の正しい環境IDと一致しません");
     }
     return true;
   }
-  fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません");
+  fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません");
 }
 
 // 応答の理由コードを固定の許可一覧へ正規化する。一覧にない値（値の混入を
@@ -256,7 +266,7 @@ export function createTrialSession() {
 export function preSendView(request, { trialId, kind, subjectConfirmed, oneTimeFact }) {
   requireNonEmptyString(trialId, "試験 ID");
   if (!TRIAL_KINDS.includes(kind)) {
-    fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized ではありません");
+    fail("bad_trial_input", "試験種別が env-mismatch / one-time-mismatch / operation-consumed / already-initialized / full-match ではありません");
   }
   if (typeof subjectConfirmed !== "boolean") {
     fail("bad_trial_input", "主体の確認結果が真偽ではありません");

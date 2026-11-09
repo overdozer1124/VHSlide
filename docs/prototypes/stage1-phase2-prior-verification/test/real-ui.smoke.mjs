@@ -191,6 +191,12 @@ try {
         taJs.includes("already-initialized") &&
         taJs.includes("purposeForKind")
     );
+    check(
+      "スモーク: /trial-apply と /trial-apply.mjs が S7 の完全一致試験種別（full-match）を含む",
+      taHtml.includes("full-match") &&
+        taJs.includes("full-match") &&
+        taJs.includes("full-replace")
+    );
 
     // S5 並行試験専用画面の配信確認（Codex レビュー 6720499137 への
     // 対応で追加）。実 GIS の確認ではなく、配管（配信・クライアント

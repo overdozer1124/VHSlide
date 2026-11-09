@@ -254,3 +254,15 @@ S5 の実環境試験（2026-11-09、試験 ID b7abb51a）では、期待どお�
 回帰試験（`test/s5-apply.test.mjs`）：既存の試験ログ試験が 201 スロット（`error: null`）を作りながら error 欄を検証していなかったため、すり抜けていた。`entry.slots[0].response.error === null` の検証を追加し、`normalizeS5ResponseError(null)` / `(undefined)` が `null` を返す直接の検証も追加した。旧経路では `normalizeResponseError(null)` が `unexpected_error` を返すこと（判別力を確認済み）。
 
 ローカル試験結果（この修正の時点）：`npm test` 85/85（run.mjs 85、subject-hash 検証 13/13、trial-apply 17/17、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12）、`npm run test:screen` 44/44、`npm run test:screen:s5` 39/39、スモーク 21/21、マニフェスト 21 成果物 / 79 検査。件数は変更なし。
+
+## 付録（続々々々々々々）：S7 完全一致試験種別の追加（Codex seq 593 への対応）
+
+S7 の実環境試行は、試行前に停止した。原因は trial-apply 画面の試験種別の不足である。full-replace には環境不一致（`env-mismatch`）と一回値不一致（`one-time-mismatch`）の種別しかなく、正しい環境＋一回値一致の full-replace を凍結できなかった。bootstrap の初期化済み種別（`already-initialized`）は用途が異なるため代用できない。Codex seq 593 の指摘どおり、事前ガードを回避せず試行前に停止し、通常版へ復帰した。S7 は未実行のままである。
+
+修正：新しい試験種別 `full-match` を追加した。用途は `full-replace`、一回値の比較前提は「一致」、環境条件は固定の正しい環境IDと「一致」することである。すなわち、固定値の照合をすべて通過した上でサーバー側の状態検査（ここでは期限検査）に到達する試験であり、S4 の2試験と同じ前提の型だが用途が full-replace である点が異なる。変更箇所は `tools/trial-apply.mjs`（`TRIAL_KINDS`・`purposeForKind`・`expectedOneTimeFact`・`verifyEnvCondition`・`preSendView` の種別一覧）と `public/trial-apply.html`（選択肢・説明文・注記の追加）のみで、送信・表示・世代管理の経路は変更していない。既存の4種別の前提は変更なし。
+
+回帰試験：純粋モジュール試験（`test/trial-apply.test.mjs`）に S7 の試験を追加し、用途・環境条件・表示記録・期限後応答（403 `approval_expired`）の記録を検証した。既存の試験で `full-match` を不正な種別の例に使っていた箇所は `not-a-kind` に置き換えた。実画面試験（`test/trial-apply.screen.mjs`）に場面8（完全一致の表示・送信）と場面9（環境ID誤りでは送信不能）を追加した。場面9は新種別にも環境条件の機械検証が適用されることの識別である。スモークにも full-match の存在確認を1件追加した。
+
+判別力の確認：新試験を旧モジュール（コミット `4ca898b6` 時点）で実行すると、S7 の試験と S4 の種別試験の2件が `bad_trial_input` で失敗し（16/18）、新モジュールでは 18/18 が通る。すなわち新試験は旧モジュールの不足を検出できる。実画面試験の場面追加の際、一度場面7（S4 初期化済みの環境条件失敗）を誤って置き換えてしまったが、旧版との照合で検出し、復旧して 54/54 とした。置き換えの検出は、新旧の検査名の一覧照合による。
+
+ローカル試験結果（この修正の時点）：`npm test` 85/85（run.mjs 85、subject-hash 検証 13/13、trial-apply 18/18、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12）、`npm run test:screen` 54/54、`npm run test:screen:s5` 39/39、スモーク 22/22、マニフェスト 21 成果物 / 79 検査（件数は変更なし）。新ハッシュ：tools/trial-apply.mjs `84888142…`（15559 B）、public/trial-apply.html `1c68919f…`（21247 B）、test/trial-apply.test.mjs `9732fe2a…`（18266 B）、test/trial-apply.screen.mjs `f17b90b3…`（31420 B）。
