@@ -24,6 +24,37 @@ test("fails closed for missing, ambiguous or split production deployments", () =
     version: "0.84.2",
     id: "id",
   });
+  const muse = {
+    id: "muse",
+    annotations: {
+      "workers/message":
+        "0.92.0: adopt embedded images on cloud save (image adoption)",
+    },
+    versions: [
+      { version_id: "c0a6dedd-cbbf-4715-bb13-0c7a5b18b6fa", percentage: 100 },
+    ],
+  };
+  assert.deepEqual(deployedVersion(payload(muse)), {
+    version: "0.92.0",
+    id: "muse",
+    commit: "5e1aeaedbfc9d72925cc1010082ac3debf7055fb",
+  });
+  assert.throws(() =>
+    deployedVersion(
+      payload({
+        ...muse,
+        versions: [{ version_id: "other", percentage: 100 }],
+      }),
+    ),
+  );
+  assert.throws(() =>
+    deployedVersion(
+      payload({
+        ...muse,
+        annotations: { "workers/message": "0.92.0: another change" },
+      }),
+    ),
+  );
   assert.throws(() => deployedVersion({ success: false }));
   assert.throws(() =>
     deployedVersion(payload({ ...deployment, annotations: {} })),

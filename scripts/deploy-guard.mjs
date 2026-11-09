@@ -29,6 +29,20 @@ export function deployedVersion(payload) {
   )
     throw Error("本番が単一バージョンでないため確認できません。");
   const message = deployment.annotations?.["workers/message"];
+  // Muse published this verified deployment before both clients used the
+  // common "Deploy <version>" annotation. Match its immutable version ID as
+  // well as its exact message, then require its source commit to be an ancestor.
+  if (
+    message ===
+      "0.92.0: adopt embedded images on cloud save (image adoption)" &&
+    deployment.versions[0].version_id === "c0a6dedd-cbbf-4715-bb13-0c7a5b18b6fa"
+  ) {
+    return {
+      version: "0.92.0",
+      id: deployment.id,
+      commit: "5e1aeaedbfc9d72925cc1010082ac3debf7055fb",
+    };
+  }
   const match =
     typeof message === "string" &&
     /^Deploy (\d+\.\d+\.\d+)(?:\s|:|$)/.exec(message);
