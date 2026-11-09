@@ -27,6 +27,7 @@ export function MapHeading({
       readOnly={!editable}
       maxLength={80}
       rows={1}
+      wrap={vertical ? "off" : "soft"}
       spellCheck={false}
       onFocus={(e) => {
         if (editable) e.currentTarget.select();

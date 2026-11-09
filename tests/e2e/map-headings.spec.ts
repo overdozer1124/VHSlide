@@ -21,9 +21,15 @@ test("editable map headings stay readable and meet the scrollport without gaps a
   await column.fill("取り消す名前");
   await column.press("Escape");
   await expect(column).toHaveValue("自然と公園");
-  await row.fill("8班の調査");
+  const longHeading =
+    "8班の調査：とても長い行見出しを折り返さずに表示して全文を確認します";
+  await row.fill(longHeading);
   await row.press("Enter");
   await expect(row).toHaveCSS("writing-mode", "vertical-rl");
+  await expect(row).toHaveCSS("white-space", "pre");
+  await expect(row).toHaveAttribute("wrap", "off");
+  await expect(row).toHaveAttribute("title", longHeading);
+  await row.hover();
   const rowGeometry = await row.evaluate((node) => {
     const field = node.getBoundingClientRect();
     const axis = node.closest(".row-axis")!.getBoundingClientRect();
@@ -38,11 +44,11 @@ test("editable map headings stay readable and meet the scrollport without gaps a
     page.evaluate(() => JSON.parse(localStorage.getItem("vhslide-deck-v1")!));
   expect((await saved()).sheets[0]).toMatchObject({
     columnLabels: { 1: "自然と公園" },
-    rowLabels: { 7: "8班の調査" },
+    rowLabels: { 7: longHeading },
   });
   await page.reload();
   await expect(column).toHaveValue("自然と公園");
-  await expect(row).toHaveValue("8班の調査");
+  await expect(row).toHaveValue(longHeading);
   await page
     .getByRole("button", { name: "マップの表示設定", exact: true })
     .click();

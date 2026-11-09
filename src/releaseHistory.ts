@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.91.3",
+    date: "2026-11-09",
+    title: "長い行見出しの表示を改善",
+    changes: [
+      "行見出しを折り返さずに表示し、マウスを重ねると全文を確認できるようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.91.2",
     date: "2026-11-09",
     title: "セクション付きPPTXの読み込みを修正",
