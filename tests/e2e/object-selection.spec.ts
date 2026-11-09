@@ -124,3 +124,68 @@ test("blank-space drag selects, adds ranges, cancels safely and clears with a cl
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   await expect(canvas.locator(".element")).toHaveCount(4);
 });
+
+test("mixed selection changes text formatting and shapes without moving or changing unselected objects", async ({
+  page,
+}) => {
+  const canvas = page.locator(".editor-workspace .slide-canvas");
+  const object = (id: string) =>
+    canvas.locator(`.element[data-element-id="${id}"]`);
+  await object("a").click();
+  await object("b").click({ modifiers: ["Shift"] });
+  await object("c").click({ modifiers: ["Shift"] });
+  const texts = page.getByRole("region", { name: "選択した文字の一括設定" });
+  const shapes = page.getByRole("region", { name: "選択した図形の一括設定" });
+  await texts
+    .getByRole("group", { name: "選択した文字の左右の位置" })
+    .getByRole("button", { name: "中央揃え" })
+    .click();
+  await texts
+    .getByRole("group", { name: "選択した文字の上下の位置" })
+    .getByRole("button", { name: "下揃え" })
+    .click();
+  await texts
+    .getByRole("spinbutton", { name: "選択した文字の大きさ" })
+    .fill("36");
+  await texts
+    .getByRole("spinbutton", { name: "選択した文字の大きさ" })
+    .press("Enter");
+  await texts.getByLabel("選択した文字の色").fill("#123456");
+  await texts
+    .getByRole("combobox", { name: "選択した文字の書体" })
+    .selectOption("serif");
+  await shapes
+    .getByRole("combobox", { name: "選択した図形の形" })
+    .selectOption("circle");
+  await shapes.getByLabel("選択した図形の色").fill("#abcdef");
+  const data = await page.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("vhslide-deck-v1")!).slides[0].elements,
+  );
+  expect(data.find((e: any) => e.id === "b")).toMatchObject({
+    text: "文字の編集",
+    textAlign: "center",
+    verticalAlign: "bottom",
+    fontSize: 36,
+    color: "#123456",
+  });
+  expect(data.find((e: any) => e.id === "b").richText[0].attributes.font).toBe(
+    "serif",
+  );
+  for (const id of ["a", "c"])
+    expect(data.find((e: any) => e.id === id)).toMatchObject({
+      shape: "circle",
+      fill: "#abcdef",
+    });
+  expect(data.find((e: any) => e.id === "d")).toMatchObject({
+    shape: "rect",
+    fill: "#aabbcc",
+  });
+  await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
+  const undone = await page.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("vhslide-deck-v1")!).slides[0].elements,
+  );
+  for (const id of ["a", "c"])
+    expect(undone.find((e: any) => e.id === id).fill).toBe("#aabbcc");
+});

@@ -30,6 +30,8 @@ import type { CellSelection } from "./TableCellControls";
 import { ImageControls } from "./ImageTools";
 import { ObjectPalette, Palette } from "./ObjectPalette";
 import { ObjectLayout, StrokeControls } from "./ObjectLayout";
+import { MultiFormatting } from "./MultiFormatting";
+import type { MultiTextPatch } from "./multiFormatting";
 import type { Arrange } from "./objectEditing";
 import type { MatchSize } from "./structuredEditing";
 import { TableInsert, TableControls } from "./TableTools";
@@ -104,6 +106,12 @@ interface EditorProps {
   setSelectedMany: (ids: string[]) => void;
   onArrange: (action: Arrange) => void;
   onMatchSize: (referenceId: string, mode: MatchSize) => void;
+  onFormatTexts: (patch: MultiTextPatch) => void;
+  onFormatShapes: (patch: {
+    shape?: Shape;
+    fill?: string;
+    stroke?: string;
+  }) => void;
   onDuplicate: () => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -176,6 +184,8 @@ export function Editor({
   setSelectedMany,
   onArrange,
   onMatchSize,
+  onFormatTexts,
+  onFormatShapes,
   onDuplicate,
   onCopy,
   onPaste,
@@ -1413,17 +1423,26 @@ export function Editor({
               }
               layout={
                 chosen.length > 0 ? (
-                  <ObjectLayout
-                    elements={chosen}
-                    allElements={slide.elements}
-                    primaryId={selected}
-                    onMatchSize={onMatchSize}
-                    showActions={false}
-                    onArrange={onArrange}
-                    onChange={updateElement}
-                    onDuplicate={onDuplicate}
-                    onDelete={onDeleteSelection}
-                  />
+                  <>
+                    {chosen.length > 1 && (
+                      <MultiFormatting
+                        elements={chosen}
+                        onText={onFormatTexts}
+                        onShape={onFormatShapes}
+                      />
+                    )}
+                    <ObjectLayout
+                      elements={chosen}
+                      allElements={slide.elements}
+                      primaryId={selected}
+                      onMatchSize={onMatchSize}
+                      showActions={false}
+                      onArrange={onArrange}
+                      onChange={updateElement}
+                      onDuplicate={onDuplicate}
+                      onDelete={onDeleteSelection}
+                    />
+                  </>
                 ) : null
               }
               links={

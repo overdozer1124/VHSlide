@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.92.0",
+    date: "2026-11-09",
+    title: "複数の文字・図形をまとめて書式変更",
+    changes: [
+      "複数選択した文字の位置・大きさ・色・書体などや、図形の形と色を一括で変更できるようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.91.3",
     date: "2026-11-09",
     title: "長い行見出しの表示を改善",

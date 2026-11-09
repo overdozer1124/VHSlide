@@ -16,6 +16,7 @@ import {
   LOCAL_CHANGE,
 } from "./sharedDeck";
 import { enableRichText } from "./sharedRichText";
+import { formatSelectedShapes, formatSelectedText } from "./multiFormatting";
 it("whole-box alignment preserves inline and list styles and produces valid paragraph deltas", () => {
   const ops = [
     { insert: "hello\nworld", attributes: { italic: true } },
@@ -66,6 +67,58 @@ const book = (elements: Element[]): Deck => ({
   version: 1,
   title: "第2段階",
   slides: [{ ...blank(0, 0), elements }],
+});
+it("formats selected mixed objects without losing rich paragraph styles or touching other objects", () => {
+  const rich: Element = {
+    ...text,
+    richText: [
+      { insert: "Hello", attributes: { italic: true, size: "20px" } },
+      { insert: "\n", attributes: { list: "ordered" } },
+      { insert: "World\n" },
+    ],
+  };
+  const shape: Element = {
+    id: "shape",
+    type: "shape",
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    shape: "rect",
+    fill: "#ffffff",
+    stroke: "#000000",
+  };
+  const other: Element = { ...text, id: "other" };
+  const result = formatSelectedText([rich, shape, other], ["text", "shape"], {
+    textAlign: "right",
+    verticalAlign: "middle",
+    color: "#ff0000",
+    fontSize: 32,
+    font: "serif",
+    bold: true,
+  });
+  expect(result[1]).toBe(shape);
+  expect(result[2]).toBe(other);
+  expect(result[0].richText![0].attributes).toMatchObject({
+    italic: true,
+    font: "serif",
+    bold: true,
+    color: "#ff0000",
+    size: "32px",
+  });
+  expect(
+    result[0].richText!.find((op) => op.attributes?.list)?.attributes,
+  ).toMatchObject({ list: "ordered", align: "right" });
+  expect(
+    parseDeck(JSON.stringify(book(result))).slides[0].elements[0].text,
+  ).toBe(text.text);
+  const changed = formatSelectedShapes(result, ["text", "shape"], {
+    shape: "circle",
+    fill: "#abcdef",
+  });
+  expect(changed[0]).toBe(result[0]);
+  expect(changed[1]).toMatchObject({ shape: "circle", fill: "#abcdef" });
+  expect(changed[2]).toBe(other);
 });
 it("validates rich insert deltas, safe crop and cell styles; rejects HTML-like attributes, embeds and inconsistent text", () => {
   const delta = [

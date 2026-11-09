@@ -48,6 +48,7 @@ import {
 import { assignmentReadiness } from "./assignmentReadiness";
 import { CacheRecoveryNotice } from "./CacheRecoveryNotice";
 import { alignRichParagraphs } from "./richText";
+import { formatSelectedShapes, formatSelectedText } from "./multiFormatting";
 import {
   expandGroups,
   groupElements,
@@ -3029,6 +3030,24 @@ export default function App() {
             }}
             onArrange={arrangeObjects}
             onMatchSize={matchObjectSizes}
+            onFormatTexts={(patch) =>
+              updateSlide({
+                elements: formatSelectedText(
+                  slide.elements,
+                  selectionIds,
+                  patch,
+                ),
+              })
+            }
+            onFormatShapes={(patch) =>
+              updateSlide({
+                elements: formatSelectedShapes(
+                  slide.elements,
+                  selectionIds,
+                  patch,
+                ),
+              })
+            }
             linkDeck={
               forceAssigned
                 ? {

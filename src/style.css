@@ -1319,6 +1319,12 @@ h1 span {
   margin: 18px 0;
   font-size: 13px;
 }
+.multi-format-controls { border-bottom:1px solid #dce6df; padding-bottom:14px; margin-bottom:14px; display:grid; gap:10px; }
+.multi-format-controls h3, .multi-format-controls p { margin:0; }
+.multi-format-controls label { display:grid; gap:4px; }
+.multi-format-controls select { max-width:100%; }
+.multi-format-controls .format-buttons { flex-wrap:wrap; }
+.multi-format-controls .format-buttons button { flex:1 1 40%; }
 .text-alignment-buttons {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
