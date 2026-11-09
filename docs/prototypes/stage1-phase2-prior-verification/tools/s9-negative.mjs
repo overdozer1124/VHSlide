@@ -32,10 +32,19 @@
 //   200 ok）は理由コードを持たないため error は null のまま通す
 //   （s5-apply.mjs の normalizeS5ResponseError と同じ扱い）。
 // - nonceDeadline(issuedAtMs) は発行時刻＋5分を返す。nonce の期限の
-//   開始時点は /nonce 応答の受信時刻とする（サーバー側の発行時刻は
-//   応答に含まれないため。画面の期限表示は目安であり、最終的な期限
-//   判定はサーバー側が行う）。isNonceExpired(nowMs, issuedAtMs) は
-//   現在時刻が期限以上かどうかを真偽で返す。
+//   開始時点は /nonce 要求の開始時刻（fetch 呼び出し直前に同期的に
+//   記録した時刻）であり、試行に閉じ込める（createChainSession の
+//   beginNonceFetch／finishNonceFetch）。応答の受信時刻は使わない。
+//   要求開始時刻は、サーバーが有効期限を開始する要求の到着時より早く、
+//   応答がどれだけ遅れても実際の期限より新しく見積もることはない
+//   （S5 の issueStartedAt と同じ型。Codex レビュー 6734640413 の
+//   指摘2）。isNonceExpired(nowMs, issuedAtMs) は現在時刻が期限以上
+//   かどうかを真偽で返す。取得中の再準備・破棄は beginNonceFetch の
+//   nonce_fetch_busy と画面側の無効化で拒否し、遅れて戻った旧応答は
+//   finishNonceFetch が null で破棄する（期限・nonce を上書きしない）。
+//   Cookie の上書きは、並行する /nonce 要求を出さないことで防ぐ。
+//   ブラウザーは応答受信時に Set-Cookie を自動適用するため、事後の
+//   照合だけでは防げない。
 // - assertLogHasNoSecrets(logText, secrets) は trial-apply.mjs の
 //   assertNoSecrets を使って、ログ文字列に秘密らしい値が含まれてい
 //   ないことを確認する（画面の log() が書き込む前に呼ぶ）。
@@ -58,7 +67,9 @@
 import { normalizeResponseError, assertNoSecrets } from "./trial-apply.mjs";
 
 // nonce の有効期間。/nonce 応答の nonce context Cookie の Max-Age
-// （300秒）と同一の 5分である。期限の開始時点は /nonce 応答の受信時刻。
+// （300秒）と同一の 5分である。期限の開始時点は /nonce 要求の開始
+// 時刻（fetch 呼び出し直前に同期的に記録した時刻）であり、応答の
+// 受信時刻ではない。
 export const NONCE_TTL_MS = 5 * 60 * 1000;
 
 // チェーンの種別と許可するステップの順序。チェーンA は改変＋再送、
@@ -248,8 +259,16 @@ export function expectedSteps(chainKind) {
 // true）の2種類があり、どちらもそれ以上の送信を不可にし、再送も許可
 // しない。送信中の排他（sending フラグ）は呼び出し側（画面）が行い、
 // このモジュールは送信可否の判定（canSend）を提供する。
+// nonce の取得も試行に閉じ込める。beginNonceFetch は /nonce 要求の
+// 開始直前に同期的に呼び、開始時刻（startedAtMs）を試行に記録する。
+// 取得中の再取得は nonce_fetch_busy で拒否し（S5 の s5_busy と同じ
+// 型）、取得済みの試行での再取得は nonce_already_issued で拒否する。
+// finishNonceFetch は応答が現行の試行・取得中のものに限って適用し、
+// 期限の起点は開始時刻のまま返す。遅れて戻った旧試行の応答・破棄後の
+// 応答・取得中でない試行の応答は null を返して適用しない（呼び出し側
+// は null を受けたら破棄し、期限・nonce を上書きしない）。
 export function createChainSession() {
-  let current = null; // { trialId, generation, chain, state, stepIndex, undetermined }
+  let current = null; // { trialId, generation, chain, state, stepIndex, undetermined, nonceRequest }
   let generation = 0;
 
   function makeTrialId() {
@@ -283,6 +302,7 @@ export function createChainSession() {
         state: "preparing",
         stepIndex: 0,
         undetermined: false,
+        nonceRequest: null, // { startedAtMs, state: "pending" | "issued", nonce }
       };
       return deepFreeze({ trialId, generation, chain: chainKind });
     },
@@ -290,6 +310,49 @@ export function createChainSession() {
       return (
         current !== null && current.trialId === trialId && current.generation === gen
       );
+    },
+    // /nonce 要求の開始を試行に記録する。startedAtMs は fetch 呼び出し
+    // 直前に同期的に記録した要求開始時刻であり、期限の起点になる。
+    // 取得中の再取得は nonce_fetch_busy、取得済みの再取得は
+    // nonce_already_issued で拒否する。古い試行は stale_attempt。
+    beginNonceFetch(trialId, gen, startedAtMs) {
+      const cur = requireCurrent(trialId, gen);
+      if (!Number.isFinite(startedAtMs)) {
+        fail("bad_trial_input", "nonce 要求の開始時刻が数値ではありません");
+      }
+      if (cur.nonceRequest && cur.nonceRequest.state === "pending") {
+        fail("nonce_fetch_busy", "nonce の取得中です");
+      }
+      if (cur.nonceRequest && cur.nonceRequest.state === "issued") {
+        fail("nonce_already_issued", "nonce は既に取得済みです");
+      }
+      cur.nonceRequest = { startedAtMs, state: "pending", nonce: null };
+      return deepFreeze({ trialId, generation: gen, startedAtMs });
+    },
+    // /nonce 応答を試行に適用する。現行の試行・取得中のものに限る。
+    // 遅れて戻った旧試行の応答・破棄後の応答・取得中でない試行の応答は
+    // null を返して適用しない。適用時は期限の起点として要求開始時刻
+    // （startedAtMs）をそのまま返す（応答の受信時刻は使わない）。
+    finishNonceFetch(trialId, gen, nonce) {
+      if (!this.isCurrent(trialId, gen)) return null;
+      const req = current.nonceRequest;
+      if (!req || req.state !== "pending") return null;
+      if (typeof nonce !== "string" || nonce.length === 0) return null;
+      req.state = "issued";
+      req.nonce = nonce;
+      return deepFreeze({ nonce, issuedAtMs: req.startedAtMs });
+    },
+    // 試行に記録された nonce 期限の起点（要求開始時刻）。未取得なら
+    // null。古い試行は stale_attempt。
+    nonceIssuedAt(trialId, gen) {
+      const cur = requireCurrent(trialId, gen);
+      if (!cur.nonceRequest || cur.nonceRequest.state !== "issued") return null;
+      return cur.nonceRequest.startedAtMs;
+    },
+    // 試行の nonce 取得が飛行中かどうか。古い試行は偽。
+    isNonceFetchPending(trialId, gen) {
+      if (!this.isCurrent(trialId, gen)) return false;
+      return !!current.nonceRequest && current.nonceRequest.state === "pending";
     },
     // 捕捉モードでトークンを受け取り、PC 内署名検証が通ったことを
     // 記録する。preparing のときにだけ ready へ進む。
@@ -426,7 +489,9 @@ export function createChainSession() {
   };
 }
 
-// nonce の期限。発行時刻（/nonce 応答の受信時刻）＋5分。
+// nonce の期限。発行時刻（/nonce 要求の開始時刻）＋5分。開始時刻は
+// createChainSession の beginNonceFetch が fetch 呼び出し直前に同期
+// 的に記録したものであり、応答の受信時刻ではない。
 export function nonceDeadline(issuedAtMs) {
   if (!Number.isFinite(issuedAtMs)) {
     fail("bad_trial_input", "nonce の発行時刻が数値ではありません");

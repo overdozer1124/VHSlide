@@ -377,6 +377,86 @@ test("不正なチェーン種別・不正な応答は拒否される", () => {
   );
 });
 
+test("nonce 取得の試行閉じ込め：起点は要求開始時刻で、遅延した応答でも受信時刻にずれない", () => {
+  const session = createChainSession();
+  const a = session.beginChain("A");
+  const startedAt = 1794000000000;
+  const req = session.beginNonceFetch(a.trialId, a.generation, startedAt);
+  assert.equal(req.startedAtMs, startedAt);
+  assert.equal(req.trialId, a.trialId);
+  assert.equal(req.generation, a.generation);
+  assert.equal(session.isNonceFetchPending(a.trialId, a.generation), true);
+  assert.equal(session.nonceIssuedAt(a.trialId, a.generation), null);
+  // 取得中の再取得は拒否される（S5 の s5_busy と同じ型）。
+  assert.throws(
+    () => session.beginNonceFetch(a.trialId, a.generation, startedAt + 1),
+    (e) => e.code === "nonce_fetch_busy"
+  );
+  // 61秒遅れて応答が戻っても、期限の起点は要求開始時刻のまま。
+  const applied = session.finishNonceFetch(a.trialId, a.generation, DUMMY_NONCE);
+  assert.deepEqual(applied, { nonce: DUMMY_NONCE, issuedAtMs: startedAt });
+  assert.equal(session.nonceIssuedAt(a.trialId, a.generation), startedAt);
+  assert.equal(session.isNonceFetchPending(a.trialId, a.generation), false);
+  // 受信時刻起点なら期限は61秒後ろにずれるが、要求開始時刻起点では
+  // 開始から5分ちょうどで期限切れになる。
+  assert.equal(isNonceExpired(startedAt + 299999, startedAt), false);
+  assert.equal(isNonceExpired(startedAt + 300000, startedAt), true);
+  assert.equal(
+    nonceDeadline(session.nonceIssuedAt(a.trialId, a.generation)),
+    startedAt + 300000
+  );
+  // 取得済みの試行での再取得は拒否される。
+  assert.throws(
+    () => session.beginNonceFetch(a.trialId, a.generation, startedAt + 2),
+    (e) => e.code === "nonce_already_issued"
+  );
+  // 取得済みの試行への二重の適用は null になる。
+  assert.equal(session.finishNonceFetch(a.trialId, a.generation, DUMMY_NONCE), null);
+  // 不正な開始時刻は拒否される。
+  const session2 = createChainSession();
+  const b = session2.beginChain("B");
+  assert.throws(
+    () => session2.beginNonceFetch(b.trialId, b.generation, "not-a-number"),
+    (e) => e.code === "bad_trial_input"
+  );
+  // 古い試行の取得開始は拒否される。
+  const session3 = createChainSession();
+  const first = session3.beginChain("A");
+  session3.beginChain("B");
+  assert.throws(
+    () => session3.beginNonceFetch(first.trialId, first.generation, 1000),
+    (e) => e.code === "stale_attempt"
+  );
+});
+
+test("nonce 取得の順序逆転：遅れて戻った旧試行の応答は適用されない", () => {
+  const session = createChainSession();
+  const first = session.beginChain("A");
+  session.beginNonceFetch(first.trialId, first.generation, 1000);
+  // 新しい試行が始まると旧試行は無効になる。
+  const second = session.beginChain("B");
+  // 遅れて戻った旧応答は null になり、現行試行の状態は変わらない。
+  assert.equal(session.finishNonceFetch(first.trialId, first.generation, "old-nonce"), null);
+  assert.equal(session.nonceIssuedAt(second.trialId, second.generation), null);
+  assert.equal(session.isNonceFetchPending(second.trialId, second.generation), false);
+  assert.equal(session.isNonceFetchPending(first.trialId, first.generation), false);
+  // 現行試行の取得は要求開始時刻で適用される。
+  const req = session.beginNonceFetch(second.trialId, second.generation, 2000);
+  assert.equal(req.startedAtMs, 2000);
+  const applied = session.finishNonceFetch(second.trialId, second.generation, DUMMY_NONCE);
+  assert.equal(applied.issuedAtMs, 2000);
+  assert.equal(session.nonceIssuedAt(second.trialId, second.generation), 2000);
+  // 破棄した試行の取得は適用されない。
+  session.discard(second.trialId, second.generation);
+  assert.equal(session.finishNonceFetch(second.trialId, second.generation, DUMMY_NONCE), null);
+  assert.equal(session.isNonceFetchPending(second.trialId, second.generation), false);
+  // 古い試行への問い合わせは stale_attempt になる（nonceIssuedAt）。
+  assert.throws(
+    () => session.nonceIssuedAt(first.trialId, first.generation),
+    (e) => e.code === "stale_attempt"
+  );
+});
+
 test("nonce 期限：発行時刻＋5分が期限で、期限ちょうどは期限切れ", () => {
   assert.equal(NONCE_TTL_MS, 5 * 60 * 1000);
   const issued = 1794000000000;

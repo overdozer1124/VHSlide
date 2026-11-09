@@ -78,6 +78,7 @@ const ARTIFACTS = [
   "test/s9-negative.test.mjs",
   "test/s9-negative.screen.mjs",
   "test/serve-real-s9.test.mjs",
+  "test/clean-boot.test.mjs",
 ];
 
 function readRel(rel) {
@@ -121,6 +122,9 @@ const s5ApplyLines = readRel("public/s5-apply.html").split("\n");
 const s5ApplyModuleLines = readRel("tools/s5-apply.mjs").split("\n");
 const s5SenderLines = readRel("tools/s5-sender.mjs").split("\n");
 const s5ScreenLines = readRel("test/s5-apply.screen.mjs").split("\n");
+const s9NegativeLines = readRel("public/s9-negative.html").split("\n");
+const s9NegativeModuleLines = readRel("tools/s9-negative.mjs").split("\n");
+const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 
 const checks = {
   clean_platform_has_no_fault_marker: {
@@ -464,6 +468,50 @@ const checks = {
   },
   s5_screen_send_posts: {
     found: findLines(s5ScreenLines, /__s5SendPosts/),
+    expect: "present",
+  },
+  // admin-negative は合意された設計に存在しない未報告の追加であり、
+  // 除去した（Codex レビュー 6734640413 の指摘1）。提供サーバー・
+  // 画面・試験のいずれにも参照が残っていないこと。
+  serve_real_no_admin_negative: {
+    found: findLines(serveRealLines, /admin-negative/),
+    expect: "absent",
+  },
+  s9_page_no_admin_negative: {
+    found: findLines(s9NegativeLines, /admin-negative/),
+    expect: "absent",
+  },
+  // S9 の nonce 期限の起点は /nonce 要求の開始時刻であり、応答の
+  // 受信時刻ではない（Codex レビュー 6734640413 の指摘2）。画面は
+  // 要求開始を試行に閉じ込め、取得中の再取得を拒否する。
+  s9_page_nonce_request_start: {
+    found: findLines(s9NegativeLines, /beginNonceFetch/),
+    expect: "present",
+  },
+  s9_page_nonce_fetch_guard: {
+    found: findLines(s9NegativeLines, /isNonceFetchPending/),
+    expect: "present",
+  },
+  s9_page_no_receive_time_origin: {
+    found: findLines(s9NegativeLines, /nonceIssuedAtMs = Date\.now/),
+    expect: "absent",
+  },
+  s9_module_nonce_fetch_busy: {
+    found: findLines(s9NegativeModuleLines, /nonce_fetch_busy/),
+    expect: "present",
+  },
+  s9_module_nonce_stale_returns_null: {
+    found: findLines(s9NegativeModuleLines, /finishNonceFetch/),
+    expect: "present",
+  },
+  // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
+  // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
+  clean_boot_mirror_list: {
+    found: findLines(cleanBootLines, /MIRROR_FILES/),
+    expect: "present",
+  },
+  clean_boot_no_persist: {
+    found: findLines(cleanBootLines, /\.persist-/),
     expect: "present",
   },
 };

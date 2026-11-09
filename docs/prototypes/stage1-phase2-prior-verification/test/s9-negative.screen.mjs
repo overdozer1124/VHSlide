@@ -207,7 +207,13 @@ try {
         window.__verifyQueue = [];
         window.__verifyCalls = [];
         window.__verifyShouldThrow = false;
+        // 遅延・順序逆転の場面で使う試験用の計測器。/nonce の呼び出し
+        // 回数と応答の遅延（ms）、およびブラウザーCookie の保存庫を
+        // 試験から読めるようにする（画面本体の変更ではない）。
+        window.__nonceCalls = 0;
+        window.__nonceDelayMs = 0;
         const cookieStore = new Map();
+        window.__cookieStore = cookieStore;
         const nodeFetch = fetch;
         window.fetch = async (input, init = {}) => {
           const rawUrl = typeof input === "string" ? input : input.url;
@@ -232,6 +238,8 @@ try {
               contentType: (init.headers || {})["content-type"],
               hasIdToken: typeof idToken === "string" && idToken.length > 0,
               idToken,
+              // 送信時点のブラウザーCookie（現行試行の文脈で送られるか）。
+              cookie: [...cookieStore.values()].join("; "),
             });
             if (window.__verifyShouldThrow) {
               throw new Error("network down (test)");
@@ -242,6 +250,14 @@ try {
               status: next.status,
               headers: { "Content-Type": "application/json" },
             });
+          }
+          // /nonce の呼び出しを数え、試験で指定した遅延を入れる。
+          // 遅延は fetch の呼び出し後・応答の受信前に起きるため、要求
+          // 開始時刻起点の実装では期限の起点は遅延の影響を受けない
+          // （受信時刻起点の旧実装では遅延分だけ後ろにずれる）。
+          if (url.includes("/nonce")) {
+            window.__nonceCalls += 1;
+            if (window.__nonceDelayMs) await sleep(window.__nonceDelayMs);
           }
           const headers = new Headers(init.headers || {});
           const cookies = [...cookieStore.values()].join("; ");
@@ -679,6 +695,128 @@ try {
     check(
       "実画面: 失敗のあと新しい試行を開始できる（準備ボタンが有効）",
       !el(window, "prepS9").disabled
+    );
+    window.close();
+  }
+  // ---- 場面8：遅延した /nonce 応答。期限の起点は要求開始時刻で、
+  // 取得中の再準備・破棄は拒否され、Cookie は現行試行の1件だけになる
+  // （Codex レビュー 6734640413 の指摘2）。----
+  {
+    const { window } = await makeDom();
+    window.__nonceDelayMs = 1500;
+    const t0 = Date.now();
+    el(window, "chainKind").value = "A";
+    el(window, "accountConfirmed").checked = true;
+    const callbacksBefore = window.__gis.callbacks.length;
+    el(window, "prepS9").click();
+    const trialIdEarly = el(window, "trialId").textContent;
+    check(
+      "実画面: nonce 取得中は準備ボタンが無効になる",
+      el(window, "prepS9").disabled,
+      "取得中に準備ボタンが有効のまま"
+    );
+    check(
+      "実画面: nonce 取得中は破棄・新規試行ボタンが無効になる",
+      el(window, "discardTrial").disabled && el(window, "newTrial").disabled,
+      "取得中に破棄または新規試行ボタンが有効のまま"
+    );
+    // 無効化されたボタンでも合成イベントでハンドラーを呼ぶ。取得中の
+    // 再準備・破棄は拒否され、新しい試行は始まらない。
+    dispatchClick(window, "prepS9");
+    dispatchClick(window, "discardTrial");
+    dispatchClick(window, "newTrial");
+    await sleep(300);
+    check(
+      "実画面: 取得中の再準備は拒否され /nonce は1回だけ呼ばれる",
+      window.__nonceCalls === 1,
+      `calls=${window.__nonceCalls}`
+    );
+    check(
+      "実画面: 取得中の再準備・破棄の拒否がログに残る",
+      logText(window).includes("nonce 取得中のため準備できません") &&
+        logText(window).includes("nonce 取得中のため破棄できません"),
+      logText(window).slice(-300)
+    );
+    const ok = await waitFor(() => window.__gis.callbacks.length > callbacksBefore);
+    check("実画面: 遅延した /nonce 応答で GIS コールバックが登録される", ok);
+    check(
+      "実画面: 遅延した応答で試行 ID が変わらない（旧応答が新試行を作らない）",
+      el(window, "trialId").textContent === trialIdEarly,
+      `${trialIdEarly} -> ${el(window, "trialId").textContent}`
+    );
+    const nums = [...el(window, "nonceInfo").textContent.matchAll(/（(\d+)）/g)].map((m) => Number(m[1]));
+    check(
+      "実画面: 遅延した応答でも nonce 期限の表示が発行時刻＋5分になる",
+      nums.length === 2 && nums[1] - nums[0] === 300000,
+      el(window, "nonceInfo").textContent
+    );
+    check(
+      "実画面: nonce 期限の起点は要求開始時刻で、応答受信時刻ではない（遅延1500msに対し開始からのずれが1000ms未満）",
+      nums.length === 2 && nums[0] >= t0 - 1000 && nums[0] - t0 < 1000,
+      `issued-t0=${nums.length === 2 ? nums[0] - t0 : "?"}, info=${el(window, "nonceInfo").textContent}`
+    );
+    check(
+      "実画面: Cookie 保存庫の nonce context は1件だけ（遅延応答の上書きがない）",
+      window.__cookieStore.size === 1 && window.__cookieStore.has("op2_nonce_ctx"),
+      [...window.__cookieStore.keys()].join(",")
+    );
+    // 遅延した応答で捕捉し、対照まで送る。現行試行の Cookie 文脈で
+    // 送られることを確認する。
+    const idx = window.__gis.callbacks.length - 1;
+    const nonce = window.__gis.nonces[idx];
+    const token = await invokeCallback(window, idx, nonce);
+    check(
+      "実画面: 遅延した応答の捕捉後も tampered が有効になる",
+      !el(window, "sendTampered").disabled,
+      "遅延した応答の捕捉で送信ボタンが有効にならない"
+    );
+    window.__verifyQueue = [
+      { status: 401, error: "tokeninfo_rejected" },
+      { status: 200, error: null },
+    ];
+    el(window, "sendTampered").click();
+    await sleep(800);
+    el(window, "sendControl").click();
+    await sleep(800);
+    check("実画面: 遅延した応答の試行でも control の送信が行われる", window.__verifyCalls.length === 2, `calls=${window.__verifyCalls.length}`);
+    const controlCall = window.__verifyCalls[1] || {};
+    check(
+      "実画面: 対照の送信に現行試行の nonce context Cookie が付く",
+      typeof controlCall.cookie === "string" && controlCall.cookie.includes("op2_nonce_ctx="),
+      `cookie=${controlCall.cookie}`
+    );
+    check(
+      "実画面: 遅延した応答の試行のログにトークン・nonce が含まれない",
+      !logText(window).includes(token) && !logText(window).includes(nonce)
+    );
+    window.__nonceDelayMs = 0;
+    window.close();
+  }
+
+  // ---- 場面9：Cookie の証拠の区別。返送は実証済み、属性は未確認と
+  // 画面に明記される（Codex レビュー 6734640413 の指摘3）。----
+  {
+    const { window } = await makeDom();
+    const bodyText = window.document.body.textContent;
+    check(
+      "実画面: Cookie返送が S9 正常系 seq 632/634 で実証済みと明記される",
+      bodyText.includes("Cookie返送") &&
+        bodyText.includes("seq 632/634") &&
+        bodyText.includes("200 ok") &&
+        bodyText.includes("nonce_context_mismatch"),
+      "Cookie返送の実証の注記が見つからない"
+    );
+    check(
+      "実画面: Cookie属性の実環境での実測元がないことが未確認と明記される",
+      bodyText.includes("Cookie属性") &&
+        bodyText.includes("実環境では未確認") &&
+        bodyText.includes("Set-Cookie"),
+      "Cookie属性の未確認の注記が見つからない"
+    );
+    check(
+      "実画面: Cookie属性を実測したものとして扱わないことが明記される",
+      bodyText.includes("属性値を実測したものとして扱いません"),
+      "属性値の扱いの注記が見つからない"
     );
     window.close();
   }

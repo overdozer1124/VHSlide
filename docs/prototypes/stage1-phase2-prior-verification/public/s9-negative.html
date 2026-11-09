@@ -38,13 +38,26 @@
   - 送信中の排他：sending フラグを持ち、送信中は準備・送信ボタンを
     無効化します。試行の ID・世代・nonce を閉じ込めた GIS コールバック
     を使い、古い試行のコールバックは世代照合で拒否します。
+  - nonce 取得中の排他：/nonce 要求の飛行中は準備・破棄・新規試行
+    ボタンを無効化し、合成イベントで呼んでも取得中の再準備・破棄を
+    拒否します（セッション側の beginNonceFetch も nonce_fetch_busy
+    で拒否する）。並行する /nonce 要求を出さないことで、遅れて戻った
+    旧応答の Set-Cookie が現行試行のブラウザーCookie を上書きするのを
+    防ぎます。ブラウザーは応答受信時に Set-Cookie を自動適用するため、
+    事後の世代照合だけでは Cookie の上書きは防げません。
   - トークン消去の契機（tools/s9-negative.mjs の TOKEN_ERASE_TRIGGERS）：
     チェーン完了・チェーン停止（期待外れ応答・応答なし・構造確認失敗）・
     試行の破棄・新規試行の開始。消去はメモリー内の変数を空にすることで
     行い、消去の事実だけをログに出します。
-  - nonce の期限は発行時刻（/nonce 応答の受信時刻）＋5分です。画面の
-    期限表示は受信時刻起点の目安であり、最終的な期限判定はサーバー側
-    が行います。期限を過ぎた送信は不可にして、新しい試行を要求します。
+  - nonce の期限は要求開始時刻（/nonce 要求の fetch 呼び出し直前に
+    同期的に記録した時刻。試行に閉じ込める。S5 の issueStartedAt と
+    同じ型）＋5分です。応答の受信時刻は起点に使いません。要求開始時刻
+    はサーバーが期限を開始する要求の到着時より早く、応答がどれだけ遅
+    れても実際の期限より新しく見積もることはありません。遅れて戻った
+    旧試行の応答は世代照合で破棄し、現行試行の期限・nonce を上書きし
+    ません。画面の期限表示は要求開始時刻起点の目安であり、最終的な
+    期限判定はサーバー側が行います。期限を過ぎた送信は不可にして、
+    新しい試行を要求します。
   - 表示・ログ・Issue・チャットに ID トークン・Cookie・nonce・主体
     ハッシュを出しません。画面のログには試験 ID・チェーン・ステップ・
     応答の状態と理由コードだけを出します。ログを書き込む前に
@@ -59,16 +72,16 @@
     確認します。この画面の実装対象ではありません。
 
   先行実測の参照範囲（個別。画面内の注記も参照）：
-  - Cookie属性：/nonce 応答が返す nonce context Cookie（op2_nonce_ctx）
-    の属性は、本画面の送信が credentials: "include" でブラウザーに返送
-    を委ねる前提です。属性値そのものの実測確認は、S9 正常系の実施記録
-    （Codex seq 632/634：GET /nonce 200、POST /admin/verify-only 200 ok）
-    の範囲に依拠し、本画面では属性値を読み取らず表示もしません。
-  - Cookie返送：Cookie ありの送信が実際に Cookie を伴うことは、
-    ブラウザーの credentials: "include" の動作に委ねます。本画面は
-    Cookie の有無を読み取らず、no-cookie ステップは credentials: "omit"
-    で送らない対照とし、応答の理由コード（nonce_context_mismatch）で
-    のみ判定します。
+  - Cookie返送：S9 正常系の実施記録（Codex seq 632/634：GET /nonce 200、
+    POST /admin/verify-only 200 ok）で実証済みです。ctx が一致しなければ
+    403 nonce_context_mismatch になるため、200 ok は Cookie が返送され
+    ctx が一致したことの実証です。
+  - Cookie属性：属性値そのもの（Secure / HttpOnly / SameSite=Strict）の
+    実環境での実測元は存在しません。実環境の Set-Cookie ヘッダー値は
+    記録されていないため、実環境では未確認です。根拠はソース（両ビルド
+    の /nonce が verify 構成で Secure を付ける箇所）とローカル試験だけ
+    であり、本画面では属性値を読み取らず表示もしません。属性値を実測
+    したものとして扱いません。
   - 実 Google nonce 一致：捕捉したトークンの nonce と /nonce で発行した
     nonce の一致は、PC 内署名検証（verifyIdTokenLocal）の expectedNonce
     照合で真偽だけ確認します。nonce の値そのものは表示・ログに出しません。
@@ -114,7 +127,9 @@ let attempt = null; // 最新の試行 { trialId, generation, chain }（表示�
 let sending = false; // 送信中のフラグ
 let capturedToken = null; // 捕捉モードで保持するトークン（JS 変数のみ。表示・ログに出さない）
 let nonceValue = null; // /nonce で発行した nonce（メモリー内のみ。表示・ログに出さない）
-let nonceIssuedAtMs = null; // nonce の発行時刻（/nonce 応答の受信時刻）。期限の開始時点。
+// nonce 期限の起点（/nonce 要求の開始時刻）は共有の変数に置かない。
+// セッションが試行ごとに保持し、currentNonceIssuedAt() で読む。受信
+// 時刻は起点に使わない。
 
 const logEl = document.getElementById("log");
 const stateEl = document.getElementById("state");
@@ -152,6 +167,14 @@ function eraseToken(trigger) {
   log(`トークンを消去しました（${trigger}）`);
 }
 
+// 現行試行の nonce 期限の起点（/nonce 要求の開始時刻）。試行がない・
+// 古い試行・未取得なら null。共有の変数ではなくセッションが試行ごと
+// に保持するため、遅れて戻った旧応答が現行試行の期限を上書きしない。
+function currentNonceIssuedAt() {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  return session.nonceIssuedAt(attempt.trialId, attempt.generation);
+}
+
 function updateState() {
   const snap = session.snapshot();
   if (!snap) {
@@ -165,12 +188,13 @@ function updateState() {
       undetermined: snap.undetermined,
     }, null, 2);
   }
-  if (nonceIssuedAtMs === null) {
+  const issuedAtMs = currentNonceIssuedAt();
+  if (issuedAtMs === null) {
     nonceInfoEl.textContent = "（まだ nonce を取得していません）";
   } else {
-    const deadline = nonceDeadline(nonceIssuedAtMs);
+    const deadline = nonceDeadline(issuedAtMs);
     nonceInfoEl.textContent =
-      `nonce 発行時刻：${new Date(nonceIssuedAtMs).toISOString()}（${nonceIssuedAtMs}）／` +
+      `nonce 発行時刻：${new Date(issuedAtMs).toISOString()}（${issuedAtMs}）／` +
       `期限：${new Date(deadline).toISOString()}（${deadline}）` +
       `（発行時刻＋5分。期限ちょうどは期限切れ）`;
   }
@@ -179,15 +203,20 @@ function updateState() {
 }
 
 // 各ボタンの有効・無効。チェーンの状態が許可する時のみ有効にする。
-// 送信中は準備・送信ボタンを無効化する（送信中の排他）。
+// 送信中は準備・送信ボタンを無効化する（送信中の排他）。nonce 取得中
+// は準備・破棄・新規試行ボタンも無効化する（取得中の排他）。
 function updateButtons() {
+  const issuedAtMs = currentNonceIssuedAt();
   const expired =
-    nonceIssuedAtMs !== null && isNonceExpired(Date.now(), nonceIssuedAtMs);
+    issuedAtMs !== null && isNonceExpired(Date.now(), issuedAtMs);
+  const fetching =
+    attempt !== null &&
+    session.isNonceFetchPending(attempt.trialId, attempt.generation);
   const canAct =
-    !sending && attempt !== null && session.isCurrent(attempt.trialId, attempt.generation);
+    !sending && !fetching && attempt !== null && session.isCurrent(attempt.trialId, attempt.generation);
   const hasToken = capturedToken !== null;
-  prepBtn.disabled = sending;
-  chainSelect.disabled = sending || attempt !== null;
+  prepBtn.disabled = sending || fetching;
+  chainSelect.disabled = sending || fetching || attempt !== null;
   sendTamperedBtn.disabled =
     !canAct || !hasToken || expired ||
     !session.canSend(attempt.trialId, attempt.generation, "tampered");
@@ -200,17 +229,33 @@ function updateButtons() {
   sendResendBtn.disabled =
     !canAct || !hasToken || expired ||
     !session.canSend(attempt.trialId, attempt.generation, "resend");
-  discardBtn.disabled = sending || attempt === null;
-  newTrialBtn.disabled = sending;
+  discardBtn.disabled = sending || fetching || attempt === null;
+  newTrialBtn.disabled = sending || fetching;
 }
 
 async function fetchNonce() {
+  // 期限の起点は、要求開始前の保守的な時刻（S5 の issueStartedAt と
+  // 同じ型）。fetch 呼び出し直前に同期的に記録し、試行に閉じ込める。
+  // 応答の受信時刻は使わない（受信時刻起点では、応答の遅延分だけ実際
+  // の期限より新しく見積もってしまう）。取得中の再取得はセッション側
+  // が nonce_fetch_busy で拒否する。
+  if (!attempt) throw new Error("試行がありません");
+  const req = session.beginNonceFetch(attempt.trialId, attempt.generation, Date.now());
+  // 取得中であることをボタンに反映する（準備・破棄・新規試行を無効化）。
+  updateButtons();
   const res = await fetch(PATHS.nonce, { credentials: "include", redirect: "manual" });
   const data = await res.json().catch(() => null);
   log("GET /nonce ->", res.status, data && data.nonce ? "ok" : "ng");
   if (!res.ok || !data || !data.nonce) throw new Error("nonce が取得できませんでした");
-  // 期限の開始時点は /nonce 応答の受信時刻とする。
-  nonceIssuedAtMs = Date.now();
+  // 遅れて戻った旧試行の応答は、世代照合で破棄する（期限・nonce を
+  // 上書きしない）。Cookie の上書きは、並行する /nonce 要求を出さない
+  // こと（取得中の再準備・破棄の拒否）で防ぐ。ブラウザーは応答受信時
+  // に Set-Cookie を自動適用するため、事後の照合だけでは防げない。
+  const applied = session.finishNonceFetch(req.trialId, req.generation, data.nonce);
+  if (!applied) {
+    log("古い試行の nonce 応答を破棄しました");
+    return null;
+  }
   return data.nonce;
 }
 
@@ -283,17 +328,30 @@ prepBtn.addEventListener("click", async () => {
     log("送信中のため準備できません。送信完了後に準備し直してください");
     return;
   }
+  // nonce 取得中の再準備はできない。並行する /nonce 要求を出さない
+  // ことで、遅れて戻った旧応答が現行試行の期限やブラウザーCookie を
+  // 上書きするのを防ぐ。取得完了後に準備し直す。
+  if (
+    attempt !== null &&
+    session.isNonceFetchPending(attempt.trialId, attempt.generation)
+  ) {
+    log("nonce 取得中のため準備できません。取得完了後に準備し直してください");
+    return;
+  }
   // 新しい試行を開始する。旧試行のトークンが残っていれば消去する。
   if (capturedToken !== null) eraseToken("new-trial-begun");
   const next = session.beginChain(chainSelect.value);
   attempt = next;
   capturedToken = null;
   nonceValue = null;
-  nonceIssuedAtMs = null;
   updateButtons();
   updateState();
   try {
     const nonce = await fetchNonce();
+    if (nonce === null) {
+      log("古い試行の準備を破棄しました");
+      return;
+    }
     if (!session.isCurrent(next.trialId, next.generation)) {
       log("古い試行の準備を破棄しました");
       return;
@@ -315,8 +373,13 @@ prepBtn.addEventListener("click", async () => {
     });
     log("Google ログインボタンを表示しました。テスト用アカウントAでログインしてください");
   } catch (e) {
-    // 共有の状態を変えるのは、この試行が現行のときに限る。
-    if (session.isCurrent(next.trialId, next.generation)) {
+    // 取得中の再取得の拒否（nonce_fetch_busy／nonce_already_issued）は
+    // 冒頭のガードで防いでいるため、ここに来るのは想定外である。現行
+    // の試行は壊さず、ログだけ残す。
+    if (e.code === "nonce_fetch_busy" || e.code === "nonce_already_issued") {
+      log("エラー:", e.message);
+    } else if (session.isCurrent(next.trialId, next.generation)) {
+      // 共有の状態を変えるのは、この試行が現行のときに限る。
       session.discard(next.trialId, next.generation);
       attempt = null;
       log("エラー:", e.message);
@@ -345,7 +408,8 @@ async function sendStep(step) {
     log("エラー: 送信できる状態ではありません");
     return;
   }
-  if (nonceIssuedAtMs !== null && isNonceExpired(Date.now(), nonceIssuedAtMs)) {
+  const issuedAtMs = currentNonceIssuedAt();
+  if (issuedAtMs !== null && isNonceExpired(Date.now(), issuedAtMs)) {
     log("nonce の期限が切れています。新しい試行を開始してください");
     return;
   }
@@ -442,6 +506,15 @@ discardBtn.addEventListener("click", () => {
     log("送信中のため破棄できません。送信完了後に破棄してください");
     return;
   }
+  // nonce 取得中の破棄はできない。取得中の試行を壊すと、遅れて戻った
+  // 旧応答の扱いが不定になるため。取得完了後に破棄する。
+  if (
+    attempt !== null &&
+    session.isNonceFetchPending(attempt.trialId, attempt.generation)
+  ) {
+    log("nonce 取得中のため破棄できません。取得完了後に破棄してください");
+    return;
+  }
   if (!attempt) {
     log("破棄する試行がありません");
     return;
@@ -449,7 +522,6 @@ discardBtn.addEventListener("click", () => {
   eraseToken("trial-discarded");
   session.discard(attempt.trialId, attempt.generation);
   attempt = null;
-  nonceIssuedAtMs = null;
   log("試行を破棄しました");
   updateButtons();
   updateState();
@@ -460,6 +532,14 @@ newTrialBtn.addEventListener("click", () => {
     log("送信中のため新しい試行を開始できません。送信完了後に開始してください");
     return;
   }
+  // nonce 取得中の新規試行の開始はできない（破棄と同じ理由）。
+  if (
+    attempt !== null &&
+    session.isNonceFetchPending(attempt.trialId, attempt.generation)
+  ) {
+    log("nonce 取得中のため新しい試行を開始できません。取得完了後に開始してください");
+    return;
+  }
   // 前の試行があれば破棄し、トークンを消去する。
   if (attempt) {
     eraseToken("new-trial-begun");
@@ -468,7 +548,6 @@ newTrialBtn.addEventListener("click", () => {
   }
   capturedToken = null;
   nonceValue = null;
-  nonceIssuedAtMs = null;
   log("新しい試行を開始します。チェーンを選んで「準備」を押してください");
   updateButtons();
   updateState();
@@ -524,14 +603,17 @@ updateState();
 
 <h2>先行実測の参照範囲と未実証のもの</h2>
 <ul>
-  <li><b>Cookie属性</b>：/nonce 応答が返す nonce context Cookie（op2_nonce_ctx）の属性は、
-  本画面の送信が credentials: "include" でブラウザーに返送を委ねる前提です。属性値そのもの
-  の実測確認は、S9 正常系の実施記録（Codex seq 632/634：GET /nonce 200、POST
-  /admin/verify-only 200 ok）の範囲に依拠し、本画面では属性値を読み取らず表示もしません。</li>
-  <li><b>Cookie返送</b>：Cookie ありの送信が実際に Cookie を伴うことは、ブラウザーの
-  credentials: "include" の動作に委ねます。本画面は Cookie の有無を読み取らず、no-cookie
-  ステップは credentials: "omit" で送らない対照とし、応答の理由コード
-  （nonce_context_mismatch）でのみ判定します。</li>
+  <li><b>Cookie返送</b>：S9 正常系の実施記録（Codex seq 632/634：GET /nonce 200、
+  POST /admin/verify-only 200 ok）で実証済みです。ctx が一致しなければ 403
+  nonce_context_mismatch になるため、200 ok は Cookie が返送され ctx が一致した
+  ことの実証です。本画面は Cookie の有無を読み取らず、no-cookie ステップは
+  credentials: "omit" で送らない対照とし、応答の理由コード（nonce_context_mismatch）
+  でのみ判定します。</li>
+  <li><b>Cookie属性</b>：属性値そのもの（Secure / HttpOnly / SameSite=Strict）の
+  実環境での実測元はありません。実環境の Set-Cookie ヘッダー値は記録されていないため、
+  実環境では未確認です。根拠はソース（両ビルドの /nonce が verify 構成で Secure を
+  付ける箇所）とローカル試験だけであり、本画面では属性値を読み取らず表示もしません。
+  属性値を実測したものとして扱いません。</li>
   <li><b>実 Google nonce 一致</b>：捕捉したトークンの nonce と /nonce で発行した nonce の一致は、
   PC 内署名検証（verifyIdTokenLocal）の expectedNonce 照合で真偽だけ確認します。nonce の値
   そのものは表示・ログに出しません。</li>
