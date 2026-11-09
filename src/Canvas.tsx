@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import type { FormDraft } from "./formEditing";
 import { ResponseField } from "./ResponseField";
 import { SurveyResultCaption } from "./SurveyResultCaption";
@@ -45,6 +46,51 @@ export function ElementView({ element: e }: { element: Element }) {
     return e.drawing ? <InkObject element={e} /> : <ImageGraphic element={e} />;
   if (e.type === "line") return <LineGraphic element={e} />;
   return <ShapeGraphic element={e} />;
+}
+/** A shrunken, translucent copy of the dragged elements that follows the
+ * pointer while it is outside the slide, so the drag stays visible. */
+export function DragGhost({
+  elements,
+  x,
+  y,
+}: {
+  elements: Element[];
+  x: number;
+  y: number;
+}) {
+  if (!elements.length) return null;
+  const b = elementBounds(elements);
+  const zoom = Math.min(
+    0.5,
+    230 / Math.max(1, b.w),
+    180 / Math.max(1, b.h),
+  );
+  const ghostSlide: Slide = {
+    id: "drag-ghost",
+    x: 0,
+    y: 0,
+    title: "",
+    background: "transparent",
+    elements,
+  };
+  return createPortal(
+    <div
+      className="drag-ghost"
+      style={{ left: x, top: y, width: b.w * zoom, height: b.h * zoom }}
+      aria-hidden="true"
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: -b.x * zoom,
+          top: -b.y * zoom,
+        }}
+      >
+        <Canvas slide={ghostSlide} zoom={zoom} />
+      </div>
+    </div>,
+    document.body,
+  );
 }
 export function Canvas({
   slide,
@@ -97,7 +143,10 @@ export function Canvas({
   onCellSelection?: (selection: CellSelection) => void;
   cellRangeMode?: boolean;
   onOpenLink?: (slideId: string) => void;
-  onDragExitToMap?: (elements: Element[]) => void;
+  onDragExitToMap?: (
+    elements: Element[],
+    point: { x: number; y: number },
+  ) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [drafts, setDrafts] = useState<Element[]>([]);
@@ -207,6 +256,11 @@ export function Canvas({
     aspectLocked: boolean;
   } | null>(null);
   const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastOutsidePoint = useRef({ x: 0, y: 0 });
+  const [ghostPoint, setGhostPoint] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   function clearDwell() {
     if (dwellTimer.current) {
       clearTimeout(dwellTimer.current);
@@ -214,7 +268,7 @@ export function Canvas({
     }
   }
   function trackDwell(event: React.PointerEvent) {
-    if (!onDragExitToMap || !ref.current) return;
+    if (!ref.current) return;
     const box = ref.current.getBoundingClientRect();
     const outside =
       event.clientX < box.left ||
@@ -223,15 +277,19 @@ export function Canvas({
       event.clientY > box.bottom;
     if (!outside) {
       clearDwell();
+      setGhostPoint(null);
       return;
     }
-    if (dwellTimer.current) return;
+    lastOutsidePoint.current = { x: event.clientX, y: event.clientY };
+    setGhostPoint(lastOutsidePoint.current);
+    if (!onDragExitToMap || dwellTimer.current) return;
     dwellTimer.current = setTimeout(() => {
       dwellTimer.current = null;
       const group = drag.current?.group;
       if (!group?.length || !onDragExitToMap) return;
+      const point = lastOutsidePoint.current;
       cancelDrag();
-      onDragExitToMap(group);
+      onDragExitToMap(group, point);
     }, 600);
   }
   function cancelDrag() {
@@ -241,6 +299,7 @@ export function Canvas({
     setDrafts([]);
     setGuides({ x: false, y: false });
     clearDwell();
+    setGhostPoint(null);
   }
   useEffect(() => {
     // A second finger claims navigation, cancelling pending taps and handle drags
@@ -448,6 +507,7 @@ export function Canvas({
     setDrafts([]);
     setGuides({ x: false, y: false });
     clearDwell();
+    setGhostPoint(null);
   }
   const rendered = resolveConnections(
     slide.elements.map((e) => drafts.find((d) => d.id === e.id) ?? e),
@@ -457,6 +517,13 @@ export function Canvas({
     editable && grouped.length > 1 ? elementBounds(grouped) : undefined;
   return (
     <div className="canvas-scale" style={{ width: W * zoom, height: H * zoom }}>
+      {ghostPoint && drafts.length > 0 && (
+        <DragGhost
+          elements={drafts}
+          x={ghostPoint.x}
+          y={ghostPoint.y}
+        />
+      )}
       <div
         ref={ref}
         data-selection-mode={selectMultiple}

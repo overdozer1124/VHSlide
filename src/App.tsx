@@ -1,3 +1,4 @@
+import { DragGhost } from "./Canvas";
 import { syncFormDefinitions } from "./syncFormDefinitions";
 import { separateWorksheet } from "./worksheetLayout";
 import type { WorksheetDefinition } from "./worksheets";
@@ -1030,8 +1031,13 @@ export default function App() {
   const [mapDropTargetId, setMapDropTargetId] = useState<
     string | undefined
   >(undefined);
-  function startDragMoveToMap(elements: Element[]) {
+  const [ghostPoint, setGhostPoint] = useState({ x: 0, y: 0 });
+  function startDragMoveToMap(
+    elements: Element[],
+    point: { x: number; y: number },
+  ) {
     if (!elements.length || view !== "editor") return;
+    setGhostPoint(point);
     setDragMove({ sourceId: slide.id, elements });
     switchWorkspace("map", slide.id);
   }
@@ -1056,8 +1062,10 @@ export default function App() {
         notify("移動をやめました。");
       }
     };
-    const onPointerMove = (event: PointerEvent) =>
+    const onPointerMove = (event: PointerEvent) => {
+      setGhostPoint({ x: event.clientX, y: event.clientY });
       setMapDropTargetId(targetAt(event));
+    };
     const onPointerUp = (event: PointerEvent) => finish(targetAt(event));
     const onPointerCancel = () => finish(undefined);
     const onKey = (event: KeyboardEvent) => {
@@ -3205,6 +3213,13 @@ export default function App() {
             scale={mapScale}
             onScale={setMapScale}
             onOpenMenu={openThumbnailMenu}
+          />
+        )}
+        {dragMove && (
+          <DragGhost
+            elements={dragMove.elements}
+            x={ghostPoint.x}
+            y={ghostPoint.y}
           />
         )}
         {view === "editor" && !navigationDeck.slides.length && (

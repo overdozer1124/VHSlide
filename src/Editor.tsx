@@ -117,7 +117,10 @@ interface EditorProps {
   onPaste: () => void;
   canPaste: boolean;
   onDeleteSelection: () => void;
-  onDragExitToMap?: (elements: Element[]) => void;
+  onDragExitToMap?: (
+    elements: Element[],
+    point: { x: number; y: number },
+  ) => void;
   updateSlide: (patch: Partial<Slide>) => void;
   updateElement: (patch: Partial<Element>) => void;
   onFormSaved: (draft: FormDraft) => boolean;

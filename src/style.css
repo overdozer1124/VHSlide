@@ -839,6 +839,17 @@ h1 span {
   outline-offset: -3px;
   background: #dcebe4;
 }
+.drag-ghost {
+  position: fixed;
+  z-index: 300;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 28px rgba(23, 61, 56, 0.35);
+  opacity: 0.78;
+  pointer-events: none;
+}
 .object-drop-banner {
   position: sticky;
   top: 8px;
