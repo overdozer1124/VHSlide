@@ -23,6 +23,16 @@ type Gesture = {
   startTime: number;
   text: boolean;
 };
+/** Surfaces that consume the wheel themselves: text entry (scrolls its own
+ * content) and ink editing. Form objects, tables and sticky notes do NOT
+ * consume the wheel, so a two-finger swipe over them still pages slides. */
+function isWheelSink(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest(
+    "textarea, input, select, [contenteditable], .ql-editor, .ink-editing",
+  );
+}
+
 function isEditSurface(
   target: EventTarget | null,
   point?: { x: number; y: number },
@@ -197,7 +207,7 @@ export function useSlidePan(options: {
       if (
         event.ctrlKey ||
         latest.current.pinching?.() ||
-        isEditSurface(event.target)
+        isWheelSink(event.target)
       )
         return;
       event.preventDefault();

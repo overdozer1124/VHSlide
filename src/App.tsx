@@ -1454,6 +1454,25 @@ export default function App() {
         navigateEditor(...editorSteps[event.key]);
         return;
       }
+      // With nothing selected, the arrow keys page through slides from
+      // anywhere in the editor — no need to click a thumbnail first.
+      // (Text entry, menus, dialogs and controls that consume arrows are
+      // already excluded above or report defaultPrevented.)
+      if (
+        view === "editor" &&
+        !selected &&
+        selectionIds.length === 0 &&
+        !event.defaultPrevented &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        editorSteps[event.key]
+      ) {
+        event.preventDefault();
+        navigateEditor(...editorSteps[event.key]);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
         if (event.shiftKey) redo();
