@@ -189,6 +189,9 @@ p {
 .button.outline {
   border: 2px solid #b3c2b8;
   background: white;
+  /* An inner ring keeps the frame readable at fractional display scales,
+     where a plain 2px border can rasterize thinner on some edges. */
+  box-shadow: inset 0 0 0 1px #b3c2b8;
 }
 .button.primary {
   background: #315d4e;
@@ -5121,7 +5124,7 @@ h1 span {
   position: relative;
   display: flex;
 }
-.header-actions .action-menu-trigger {
+.header-actions .action-menu-trigger:not(.action-menu-labeled) {
   width: 34px;
   padding-inline: 6px;
   border-start-start-radius: 0;
@@ -5279,7 +5282,7 @@ h1 span {
   margin: auto;
 }
 @media (pointer: coarse) {
-  .header-actions .action-menu-trigger {
+  .header-actions .action-menu-trigger:not(.action-menu-labeled) {
     width: 44px;
   }
 }
