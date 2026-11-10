@@ -85,7 +85,14 @@ const images = {};
 async function mascot(pose) {
   if (!useMascot) return undefined;
   if (!images[pose]) {
-    const png = await svgToPng(mascotSvg(mascotArg, pose, T.mascot), { scale: 1.2, transparent: true });
+    let png;
+    try { png = await svgToPng(mascotSvg(mascotArg, pose, T.mascot), { scale: 1.2, transparent: true }); }
+    catch (e) { // no SVG renderer: use the pre-rendered character of the base theme
+      const file = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "assets", "mascots", `${T.name}-${mascotArg}-${pose}.png`);
+      if (!fs.existsSync(file)) throw e;
+      if (T.custom) console.warn(`※ SVGを描画できないため、キャラクターは「${T.name}」の色で入れます。`);
+      png = fs.readFileSync(file);
+    }
     images[pose] = `data:image/png;base64,${png.toString("base64")}`;
   }
   return images[pose];

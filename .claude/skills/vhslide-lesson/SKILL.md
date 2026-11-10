@@ -8,6 +8,19 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 入力（指導書・教科書の画像やPDF）から授業の流れを読み取り、生徒への問いとワークシートの入力欄を含む VHSlide の作品JSONを作る。
 組み立ては `scripts/build-deck.mjs` が行う。Claude は **授業の設計（レッスン仕様JSON）と図・イラスト** に集中する。
 
+## 動作環境とスキルの場所
+
+このスキルはどこに置いても動く。以下の `$SKILL` は **このSKILL.mdがあるフォルダ** を指す（例：リポジトリ内なら `.claude/skills/vhslide-lesson`、個人用なら `~/.claude/skills/vhslide-lesson`、claude.ai ならアップロードされたスキルのフォルダ）。最初に実際のパスを確かめて置き換える。
+
+| 環境 | ビルド | 検証 |
+| --- | --- | --- |
+| VHSlide リポジトリのセッション | ○ | 最新版のアプリで読み込み検査＋全ページ撮影 |
+| 個人用スキル（Claude Code） | ○ | VHSlide を GitHub から取得できれば同上。できなければ同梱の検査処理 |
+| claude.ai のチャット | ○（Node.js が必要） | 同梱の検査処理（VHSlide の読み込み処理を同梱したもの）。撮影は省略 |
+
+- 図の PNG 化は Chromium（Playwright）→ `rsvg-convert` → Python `cairosvg` の順に使えるものを使う。どれもなければキャラクターは同梱の画像（プリセットテーマの色）を使い、SVG の図は使えないので VHSlide のグラフ・表で表す。
+- 撮影できない環境では、ビルドの見切れ推定（文字量から文字サイズを自動調整）に頼ることになるので、文章は短めにし、利用者に「VHSlide で開いて表示チェックを確認してください」と伝える。
+
 ## 0. 最初に確認すること（AskUserQuestion で1回にまとめる）
 
 利用者の指定があれば聞かずに従う。聞くときも次の3点だけ。
@@ -24,12 +37,8 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 
 VHSlide は頻繁に機能が増える。作る前に、その時点の最新版の仕様を確認する。
 
-```bash
-git fetch --quiet origin
-```
-
-- `check.mjs` は、リモートの全ブランチのうち `package.json` の version が最も新しい版を自動で選び、その版で検証する。
-- 新しい版の `docs/deck.schema.json`、`src/model.ts`（`Element` 型と `parseDeck`）、`src/releaseHistory.ts` の先頭数件を読み、`build-deck.mjs` が使っていない便利な要素（新しい図形・フォーム・集計表示など）があれば、`custom` スライドで使うか `build-deck.mjs` に種類を追加する。追加した場合は例で動作確認する。
+- `check.mjs` は VHSlide のソース（いまのリポジトリ、`$VHSLIDE_REPO`、または GitHub から取得してキャッシュ）を探し、全ブランチのうち `package.json` の version が最も新しい版を自動で選んで検証する。同時に同梱の検査処理（`scripts/vendor`）もその版に更新する。
+- ソースに届く場合は、新しい版の `docs/deck.schema.json`、`src/model.ts`（`Element` 型と `parseDeck`）、`src/releaseHistory.ts` の先頭数件を読み、`build-deck.mjs` が使っていない便利な要素（新しい図形・フォーム・集計表示など）があれば、`custom` スライドで使うか `build-deck.mjs` に種類を追加する。追加した場合は例で動作確認する。
 - ワークシートの入力欄は `responseField`（source: worksheet）で置く。クラウド保存時に作品へ自動登録される（フォームの引き継ぎ、0.85.0以降）。古い版しかない場合は利用者にその旨を伝える。
 
 ## 2. 教材を読み、授業を設計する
@@ -56,7 +65,7 @@ git fetch --quiet origin
 仕様の書き方は [spec-format.md](reference/spec-format.md)、完成例は [examples/nutrition.spec.json](examples/nutrition.spec.json)。作業ファイルはスクラッチパッドに置く。
 
 ```bash
-node .claude/skills/vhslide-lesson/scripts/build-deck.mjs lesson.spec.json out/lesson.vhslide.json --layout lesson-rows --theme natural
+node "$SKILL/scripts/build-deck.mjs" lesson.spec.json out/lesson.vhslide.json --layout lesson-rows --theme natural
 ```
 
 `--layout` `--theme` `--mascot` は仕様内の指定より優先される。テーマは JSON ファイルも渡せる。
@@ -64,16 +73,17 @@ node .claude/skills/vhslide-lesson/scripts/build-deck.mjs lesson.spec.json out/l
 ## 5. 最新版のアプリで検証する（必須）
 
 ```bash
-node .claude/skills/vhslide-lesson/scripts/check.mjs out/lesson.vhslide.json --out out/check
+node "$SKILL/scripts/check.mjs" out/lesson.vhslide.json --out out/check
 ```
 
 - 読み込み検査（その版の `parseDeck`）と、ワークシートが1時間ごとに正しく引き継げるかを確認する。
 - アプリで実際にJSONを開き、「表示チェック」（見切れ）の結果を読み、全ページを撮影して `contact-*.png` に一覧化する。
 - **一覧画像を必ず目で見て**、文字の見切れ・重なり・余白の偏り・図の読みにくさを直し、再ビルド・再検証する。表示チェックが「見切れなし」になるまで繰り返す。
 - 初回は依存パッケージの準備に数分かかる。
+- ソースに届かない環境では自動で `validate.mjs`（同梱の検査処理）だけを行う。直接 `node "$SKILL/scripts/validate.mjs" out/lesson.vhslide.json` でもよい。
 
 ## 6. 渡し方
 
-- 完成JSONと一覧画像を `SendUserFile` で渡す。ファイル名は `<単元名>.vhslide.json`。
+- 完成JSONと一覧画像を利用者に渡す（Claude Code では `SendUserFile`、claude.ai ではダウンロードできるファイルとして出力）。ファイル名は `<単元名>.vhslide.json`。
 - 伝えること：構成（行・列と各ページ）、入力欄の一覧、使い方（「ファイル → 開く」→ **クラウドに保存** で入力欄が有効になる）、照合してほしい数値・出典、検証の結果。
-- リポジトリに残す場合は `lessons/<単元>/` に JSON・仕様・図を置く。アプリのコードを変えていなければ、更新履歴・バージョンは変更しない。
+- VHSlide のリポジトリで作業している場合に限り、残すときは `lessons/<単元>/` に JSON・仕様・図を置く。アプリのコードを変えていなければ、更新履歴・バージョンは変更しない。

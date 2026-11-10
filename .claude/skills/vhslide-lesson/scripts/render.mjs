@@ -2,6 +2,8 @@
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 let browser;
 async function getBrowser() {
@@ -9,10 +11,24 @@ async function getBrowser() {
   const require = createRequire(import.meta.url);
   let pw;
   try { pw = require("playwright"); } catch {
-    pw = require(execSync("npm root -g").toString().trim() + "/playwright");
+    try { pw = require(execSync("npm root -g", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim() + "/playwright"); } catch { return undefined; }
   }
-  browser = await pw.chromium.launch();
+  try { browser = await pw.chromium.launch(); } catch { return undefined; }
   return browser;
+}
+const has = cmd => { try { execSync(`command -v ${cmd}`, { stdio: "ignore" }); return true; } catch { return false; } };
+/** Fallbacks when Chromium is unavailable (e.g. claude.ai): rsvg-convert, then Python cairosvg. */
+function svgToPngWithoutBrowser(svg, scale) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "svg-"));
+  const src = path.join(tmp, "in.svg"), out = path.join(tmp, "out.png");
+  fs.writeFileSync(src, svg);
+  try {
+    if (has("rsvg-convert")) execSync(`rsvg-convert -z ${scale} -o "${out}" "${src}"`, { stdio: "ignore" });
+    else execSync(`python3 -c "import cairosvg,sys; cairosvg.svg2png(url=sys.argv[1], write_to=sys.argv[2], scale=${scale})" "${src}" "${out}"`, { stdio: "ignore" });
+    return fs.readFileSync(out);
+  } catch {
+    throw Error("SVGをPNGにできません。Chromium（Playwright）、rsvg-convert、Python の cairosvg（pip install cairosvg）のいずれかが必要です。");
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
 export async function closeRenderer() { if (browser) await browser.close(); browser = undefined; }
 
@@ -21,7 +37,9 @@ export async function svgToPng(svg, { scale = 2, transparent = false } = {}) {
   const w = Number(/width="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
   const h = Number(/height="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
   if (!w || !h) throw Error("SVGに width / height 属性が必要です。");
-  const page = await (await getBrowser()).newPage({ viewport: { width: Math.ceil(w), height: Math.ceil(h) }, deviceScaleFactor: scale });
+  const b = await getBrowser();
+  if (!b) return svgToPngWithoutBrowser(svg, scale);
+  const page = await b.newPage({ viewport: { width: Math.ceil(w), height: Math.ceil(h) }, deviceScaleFactor: scale });
   await page.setContent(`<html><body style="margin:0;background:transparent">${svg}</body></html>`);
   await page.evaluate(() => document.fonts.ready);
   const png = await page.screenshot({ type: "png", omitBackground: transparent, clip: { x: 0, y: 0, width: w, height: h } });

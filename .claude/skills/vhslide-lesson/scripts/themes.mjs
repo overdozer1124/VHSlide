@@ -54,10 +54,10 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export function resolveTheme(spec = "natural") {
   if (typeof spec === "string") {
     if (!themes[spec]) throw Error(`未知のテーマです: ${spec}（${Object.keys(themes).join(", ")}）`);
-    return structuredClone(themes[spec]);
+    return { ...structuredClone(themes[spec]), name: spec };
   }
   const base = structuredClone(themes[spec.base ?? "natural"]);
-  const t = { ...base, ...spec, mascot: { ...base.mascot, ...(spec.mascot ?? {}) } };
+  const t = { ...base, name: spec.base ?? "natural", custom: true, ...spec, mascot: { ...base.mascot, ...(spec.mascot ?? {}) } };
   for (const [k, v] of Object.entries(t))
     if (typeof v === "string" && v.startsWith("#") && !HEX.test(v)) throw Error(`テーマの色 ${k} は #rrggbb で指定してください: ${v}`);
   return t;

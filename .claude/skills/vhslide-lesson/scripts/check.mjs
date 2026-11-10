@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Validate a deck JSON against the newest VHSlide source and capture every page as the app renders it.
 // usage: node check.mjs <deck.json> [--out <dir>] [--app <vhslide checkout>] [--no-shots]
-//   1. finds the newest VHSlide version among the remote branches (by package.json version) unless --app is given
+//   1. finds the newest VHSlide version among the remote branches (by package.json version) unless --app is given;
+//      without any VHSlide source it falls back to validate.mjs (bundled parser, no screenshots)
 //   2. parses the JSON with that version's parseDeck and runs the worksheet adoption that cloud saving uses
 //   3. opens the JSON in the app, reads the 表示チェック (fit check) dialog, and screenshots each page
 import fs from "node:fs";
@@ -21,33 +22,64 @@ const semver = v => v.split(".").map(Number);
 const newer = (a, b) => { const x = semver(a), y = semver(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false; };
 
 // ---------- 1. locate the newest app source ----------
+// Where to look, in order: --app, the git repository of the current folder or of this skill (if it is VHSlide),
+// $VHSLIDE_REPO, then a cached clone of $VHSLIDE_GIT_URL (default: the VHSlide GitHub repository).
+const cacheRoot = process.env.VHSLIDE_LESSON_CACHE ?? path.join(os.homedir(), ".cache", "vhslide-lesson");
+const isVhslide = dir => { try { return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).name?.toLowerCase().includes("vhslide") || fs.existsSync(path.join(dir, "src", "model.ts")); } catch { return false; } };
+function findRepo() {
+  const skillDir = path.dirname(new URL(import.meta.url).pathname);
+  for (const dir of [process.cwd(), skillDir]) {
+    try { const top = sh("git rev-parse --show-toplevel", dir); if (isVhslide(top)) return top; } catch {}
+  }
+  if (process.env.VHSLIDE_REPO && fs.existsSync(process.env.VHSLIDE_REPO)) return path.resolve(process.env.VHSLIDE_REPO);
+  const clone = path.join(cacheRoot, "repo");
+  if (fs.existsSync(path.join(clone, ".git"))) return clone;
+  const url = process.env.VHSLIDE_GIT_URL ?? "https://github.com/overdozer1124/VHSlide.git";
+  try {
+    fs.mkdirSync(cacheRoot, { recursive: true });
+    console.log(`VHSlide のソースを取得しています（初回のみ）: ${url}`);
+    execSync(`git clone --quiet --no-checkout --filter=blob:none "${url}" "${clone}"`, { stdio: "ignore" });
+    return clone;
+  } catch { return undefined; }
+}
 function findApp() {
   if (opt("app")) return path.resolve(opt("app"));
-  const skillDir = path.dirname(new URL(import.meta.url).pathname);
-  const repo = sh("git rev-parse --show-toplevel", skillDir);
+  const repo = findRepo();
+  if (!repo) return undefined;
   try { sh("git fetch --quiet origin", repo); } catch { console.warn("※ git fetch に失敗。手元の情報で最新版を判断します。"); }
   let best;
   for (const ref of sh("git for-each-ref '--format=%(refname)' refs/remotes/origin refs/heads", repo).split("\n")) {
-    if (ref.endsWith("/HEAD")) continue;
+    if (!ref || ref.endsWith("/HEAD")) continue;
     let pkg;
     try { pkg = JSON.parse(sh(`git show ${ref}:package.json`, repo)); } catch { continue; }
     try { sh(`git cat-file -e ${ref}:src/model.ts`, repo); } catch { continue; }
     if (!best || newer(pkg.version, best.version)) best = { ref, version: pkg.version, sha: sh(`git rev-parse ${ref}`, repo) };
   }
-  if (!best) throw Error("VHSlide のソースが見つかりません。--app で指定してください。");
-  const dir = path.join(process.env.VHSLIDE_LESSON_CACHE ?? path.join(os.tmpdir(), "vhslide-lesson-app"), best.sha.slice(0, 12));
+  if (!best) return undefined;
+  const dir = path.join(cacheRoot, "app", best.sha.slice(0, 12));
   if (!fs.existsSync(path.join(dir, "package.json"))) {
     fs.mkdirSync(path.dirname(dir), { recursive: true });
     sh(`git worktree add --force --detach "${dir}" ${best.sha}`, repo);
   }
-  console.log(`VHSlide ${best.version}（${best.ref.replace("refs/remotes/", "")}）で確認します。`);
+  console.log(`VHSlide ${best.version}（${best.ref.replace("refs/remotes/", "").replace("refs/heads/", "")}）で確認します。`);
   return dir;
 }
 const app = findApp();
-if (!fs.existsSync(path.join(app, "node_modules", "vitest"))) {
-  console.log("依存パッケージを準備しています（初回のみ）…");
-  execSync("npm ci --ignore-scripts --no-audit --no-fund", { cwd: app, stdio: "inherit" });
+if (!app) {
+  // No source reachable (e.g. claude.ai): fall back to the parser bundled with this skill.
+  console.log("VHSlide のソースに接続できないため、同梱の検査処理で確認します（画面の撮影は省略）。");
+  try { execSync(`node "${path.join(path.dirname(new URL(import.meta.url).pathname), "validate.mjs")}" "${deckPath}"`, { stdio: "inherit" }); }
+  catch { process.exit(1); }
+  process.exit(0);
 }
+try {
+  if (!fs.existsSync(path.join(app, "node_modules", "vitest"))) {
+    console.log("依存パッケージを準備しています（初回のみ）…");
+    execSync("npm ci --ignore-scripts --no-audit --no-fund", { cwd: app, stdio: "inherit" });
+  }
+  // Keep the bundled offline parser in step with the newest app.
+  execSync(`node "${path.join(path.dirname(new URL(import.meta.url).pathname), "update-vendor.mjs")}" "${app}"`, { stdio: "ignore" });
+} catch (e) { console.warn("※ 依存パッケージの準備に失敗しました:", e.message); }
 
 // ---------- 2. parse + worksheet adoption ----------
 const testFile = path.join(app, "src", "__lesson_check.test.ts");
