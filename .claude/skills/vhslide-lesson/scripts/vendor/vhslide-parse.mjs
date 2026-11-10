@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.101.0 (6ca8d26): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.105.2 (aab1c99): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/surveys.ts
 var SurveyError = class extends Error {

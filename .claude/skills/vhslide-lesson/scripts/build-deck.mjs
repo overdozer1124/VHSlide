@@ -189,7 +189,7 @@ function tableEl(t, x, y, w, h) {
     id: nid("tb"), type: "table", x: r(x), y: r(y), w: r(w), h: r(h), fontSize: fs, color: "#1d1f23", fill: "#ffffff", stroke: T.muted, textAlign: t.align ?? "center",
     table: { rows: rid, columns: cid, header: t.header !== false, cells, ...(Object.keys(styles).length ? { styles } : {}),
       ...(t.widths ? { widths: Object.fromEntries(t.widths.map((v, j) => [cid[j], v])) } : {}),
-      ...(headerLines > 1 ? { heights: { r0: Math.min(3, 0.8 + 0.6 * headerLines) } } : {}) },
+      ...(t.heights ? { heights: Object.fromEntries(t.heights.map((v, i) => [rid[i], v])) } : headerLines > 1 ? { heights: { r0: Math.min(3, 0.8 + 0.6 * headerLines) } } : {}) },
   }];
 }
 function chartEl(c, x, y, w, h) {
@@ -213,7 +213,7 @@ const kinds = {
     els.push(text(s.subtitle ?? spec.course ?? "", 64, 60, 720, 34, 20, { color: dark ? T.line : T.sub }));
     els.push(text(s.title ?? L.title, 64, 104, 640, 120, 50, { color: fg, bold: true, valign: "middle", min: 30 }));
     if (s.goal ?? L.goal) els.push(...cardText(64, 244, 600, 120, s.goal ?? L.goal, { tone: "accent", fs: 22, title: "学習の目標", valign: "top" }));
-    if (s.note ?? L.hour) els.push(text(s.note ?? L.hour, 64, 384, 640, 34, 18, { color: dark ? T.accent : T.sub }));
+    if (s.note ?? L.hour) els.push(text(s.note ?? L.hour, 64, 384, 640, 34, 18, { color: dark ? T.line : T.sub })); // accent can vanish on a dark primary
     els.push(...(await mascotEl("happy", 712, 230, 200)));
     return els;
   },
@@ -289,8 +289,8 @@ const kinds = {
       const k = card(x, yy, cw, ch, c.tone ?? "primary"); const inr = k.inner;
       els.push(...k.els, text(c.title, inr.x, inr.y, inr.w, 38, 24, { bold: true, color: T.accent, min: 16 }));
       const subH = c.sub ? 30 : 0;
-      els.push(text(c.body ?? "", inr.x, inr.y + 42, inr.w, inr.h - 42 - subH, 19));
-      if (c.sub) els.push(text(c.sub, inr.x, inr.y + inr.h - subH, inr.w, subH, 15, { color: T.sub, min: 12 }));
+      els.push(text(c.body ?? "", inr.x, inr.y + 42, inr.w, inr.h - 42 - subH, s.bodySize ?? 19));
+      if (c.sub) els.push(text(c.sub, inr.x, inr.y + inr.h - subH, inr.w, subH, s.subSize ?? 15, { color: T.sub, min: 12 }));
     });
     if (s.footer) els.push(...cardText(X0, BOTTOM - footH, X1 - X0, footH, s.footer, { tone: "accent", fs: 19 }));
     return els;

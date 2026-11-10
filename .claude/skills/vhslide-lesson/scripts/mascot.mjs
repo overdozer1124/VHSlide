@@ -18,6 +18,14 @@ const bodies = {
   sprout: c => `<path d="M130 92 C130 60 130 50 130 40" stroke="${c.wrap}" stroke-width="8" fill="none" stroke-linecap="round"/>
 <path d="M130 52 C100 20 64 28 60 46 C80 66 112 66 130 52 Z" fill="${c.wrap}"/><path d="M130 52 C160 20 196 28 200 46 C180 66 148 66 130 52 Z" fill="${c.wrap}"/>
 <ellipse cx="130" cy="168" rx="104" ry="80" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>${face(130, 160, c)}`,
+  // こけし: kimono collar drawn 右前 (the wearer's left panel on top: a "y" seen from the front).
+  kokeshi: c => `<rect x="70" y="138" width="120" height="112" rx="38" fill="${c.wrap}" stroke="${c.outline}" stroke-width="5"/>
+<circle cx="96" cy="226" r="7" fill="#ffffff" opacity=".35"/><circle cx="168" cy="172" r="7" fill="#ffffff" opacity=".35"/><circle cx="160" cy="236" r="6" fill="#ffffff" opacity=".35"/>
+<path d="M104 140 L132 178" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/><path d="M156 140 L116 196" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+<rect x="72" y="196" width="116" height="22" fill="${c.think}"/>
+<circle cx="130" cy="92" r="64" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>
+<path d="M66 104 C62 10 198 10 194 104 L194 124 C188 112 184 98 178 86 C150 98 110 98 82 86 C76 98 72 112 66 124 Z" fill="#2b2b2b" stroke="${c.outline}" stroke-width="5" stroke-linejoin="round"/>
+<circle cx="184" cy="54" r="11" fill="${c.think}"/><circle cx="184" cy="54" r="4" fill="#ffd56b"/>${face(130, 112, c, 0.8)}`,
   blob: c => `<path d="M64 76 C92 30 176 26 206 70 C246 96 248 196 206 226 C168 252 92 252 56 224 C14 192 22 104 64 76 Z" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>${face(130, 140, c)}`,
 };
 const badge = (fill, mark, size = 40) =>

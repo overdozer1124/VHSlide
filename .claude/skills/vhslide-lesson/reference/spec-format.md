@@ -8,7 +8,7 @@
   "course": "教科・単元（表紙の小見出し）",
   "layout": "lesson-rows",          // または "phase-grid"
   "theme": "natural",               // プリセット名、または { "base": "chic", "accent": "#c0392b", ... }
-  "mascot": "onigiri",              // onigiri | drop | book | sprout | blob | none
+  "mascot": "onigiri",              // onigiri | drop | book | sprout | kokeshi | blob | none
   "lessons": [                      // 1要素＝1単位時間
     {
       "title": "4　中学生に必要な栄養",   // 表紙の題
@@ -71,9 +71,9 @@
 | `question` | `prompt` `field` または `fields[]`（2〜3）、左側に `hints[]`(+`hintsTitle`)／`table`／`chart`／`image`／`body` のいずれか、`split`（左の幅の比率） | 問いと入力欄 |
 | `fields` | `prompt` `keywords[]` `fields[]` | まとめ・ふり返り（入力欄を横に並べる） |
 | `figure` | `image`（png/jpg/webp/gif/svg のパス）`alt` `lead` `source` `field` `imageShare` | 図の読み取り |
-| `table` | `rows[][]`（1行目が見出し、`\n`で改行）`highlight[]`（強調する行番号）`widths[]` `lead` `source` `field` | 表 |
+| `table` | `rows[][]`（1行目が見出し、`\n`で改行）`highlight[]`（強調する行番号）`widths[]`（列の幅の比）`heights[]`（行の高さの比、0.25〜8）`fontSize` `lead` `source` `field` | 表 |
 | `chart` | `chart: { type: bar/line/pie, title, data: [[ラベル, 値]], highlight: [ラベルか番号] }` `callout` `calloutTitle` `source` `field` | ネイティブグラフ |
-| `cards` | `lead` `cards[{title, body, sub, tone}]` `columns` `footer` | 解説・まとめのカード |
+| `cards` | `lead` `cards[{title, body, sub, tone}]` `columns` `footer` `bodySize` `subSize`（カードの文字が少なく余白が大きいときは大きくする） | 解説・まとめのカード |
 | `flow` | `lead` `items[{top, bottom, note}]` `footer` | 「A → B」の対応図 |
 | `points` | `items[[項目, 説明]]` `note{title, body}` | ポイントの一覧 |
 | `board` | `task` `items[[見出し, 内容]]` | 板書例 |

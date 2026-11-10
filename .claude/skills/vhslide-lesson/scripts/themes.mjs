@@ -38,6 +38,15 @@ export const themes = {
     chart: ["#ffd84d", "#ff9e9e", "#9ed0ff", "#b6f09c", "#f5f3e8", "#ffb86b"],
     muted: "#9cc5b5", mascot: { body: "#fffdf4", outline: "#1f2a26", wrap: "#2a3a33", cheek: "#ffb7a8", think: "#ffd84d", idea: "#7fd1ae" },
   },
+  wa: {
+    label: "和（生成り・藍・朱）",
+    bg: "#fbf7ee", surface: "#ffffff", ink: "#1f2a3a", sub: "#6a6458",
+    primary: "#243b63", onPrimary: "#ffffff", primarySoft: "#e8edf5",
+    accent: "#c4473a", onAccent: "#ffffff", accentSoft: "#f9e8e3",
+    line: "#d8ccb4", header: "band", card: "strip",
+    chart: ["#243b63", "#c4473a", "#c9a227", "#3a7d5c", "#7a5c99", "#5b8fb0"],
+    muted: "#bdb5a6", mascot: { body: "#fff8ef", outline: "#2b2b2b", wrap: "#243b63", cheek: "#f2a7a0", think: "#c4473a", idea: "#3a7d5c" },
+  },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",
     bg: "#ffffff", surface: "#f4f5f7", ink: "#1d1f23", sub: "#6b7079",

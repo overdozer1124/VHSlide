@@ -28,8 +28,8 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 | 項目 | 選択肢 | 既定 |
 | --- | --- | --- |
 | 配置（layout） | `lesson-rows`：1行＝1単位時間。左から右へ授業が進み、次の時間は下の行<br>`phase-grid`：導入・展開・まとめを縦に並べる2次元配置（複数時間ならシートを時間ごとに分ける） | `lesson-rows` |
-| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`minimal` ミニマル／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
-| キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
+| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`minimal` ミニマル／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
+| キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
 
 単元が複数時間にわたる場合は「何時間目まで作るか」も確認する。
 
