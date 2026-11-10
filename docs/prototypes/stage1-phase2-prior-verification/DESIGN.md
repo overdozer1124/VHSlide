@@ -306,3 +306,16 @@ Codex の PC 再レビューで、クリーン起動試験の5つの検査自体
 ローカル試験結果（この修正の時点）：`npm test`（run.mjs 85、subject-hash 検証 13/13、trial-apply 18/18、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12、s9-negative 18/18、serve-real-s9 3/3、clean-boot 5/5、clean-boot-teardown 5/5）、`npm run test:screen` 54/54、`npm run test:screen:s5` 39/39、`npm run test:screen:s9` 75/75、スモーク 22/22、マニフェスト 29 成果物 / 95 検査（成果物＋2、検査＋7）。全て合格。新ハッシュ：test/clean-boot.test.mjs `f4e4dd0d…`（7514 B）、test/teardown-helper.mjs `fff344ba…`（4263 B）、test/clean-boot-teardown.test.mjs `7724dbc0…`（7938 B）、tools/build-realenv-manifest.mjs `d0e0a063…`（31808 B）、package.json `58708988…`（986 B）。
 
 未確認：Linux では EBUSY が再現しないため、Windows での再実行による確認は Codex 側に依頼する。実環境試験はクリーンテスト全体の合格後に進める（Codex の指示どおり）。
+
+
+## 付録（続々々々々々々々々々々）：終了処理テストの Windows 対応と削除条件の厳格化（Codex コメント 6754717703 への対応）
+
+Codex の Windows 再検証（44c3d012）で、クリーン起動5件は合格し EBUSY は再現しなかったが、終了順序5件のうち2件が失敗した。SIGTERM を無視する子プロセスで `stopChild()` が想定の `killed` ではなく `exited` を返したもので、Windows では POSIX の SIGTERM ハンドラ前提が成立しない（`kill("SIGTERM")` でプロセス自体が終了し、無視できない）ことが原因である。あわせて、clean-boot の `after()` が `stopChild` の kill-timeout・kill-failed・error や `closeServer` の close-timeout を無視して削除へ進む点について、終了を確認できない場合は対象を削除せず失敗として報告する条件と、そのテストが求められた。なお、この削除条件は前回の修正（6737085464 への対応）で「kill-timeout でも rm を試みて失敗を表面化させる」とした判断を、今回の指示で改めるものである。
+
+修正：(1) 終了処理の本体を `test/teardown-helper.mjs` の `teardownAndRemove` に集約した。子プロセスの終了待ち → 中継サーバーの閉鎖待ち → 両方の確認が取れた場合のみ対象ディレクトリを削除する。確認できたとみなす戻り値は `CHILD_STOP_CONFIRMED`（exited・killed・already-exited・no-child）と `SERVER_CLOSE_CONFIRMED`（closed・already-closed・no-server）で、それ以外（kill-timeout・kill-failed・error・close-timeout）は削除せず、`removed: false` と `failure`（理由）を返す。(2) `test/clean-boot.test.mjs` の `after()` は `teardownAndRemove` を使い、`removed` が false の場合は Error を投げてテスト全体を失敗として報告する（ミラーは削除されない）。
+
+回帰試験：`test/clean-boot-teardown.test.mjs` を5件から14件へ拡張した。(a) 実プロセスの挙動はプラットフォームで分けた。SIGTERM 無視の子（短い待ち時間の件と既定5秒の件）は、POSIX では従来どおり `killed` ＋ signalCode `SIGKILL` を、Windows では `exited`（SIGTERM で終了）を期待する。既定値（5秒／5秒）そのものは定数の照合で確認する。(b) 分岐の検証はモックの子プロセス（EventEmitter）でプラットフォーム非依存に行う5件：SIGTERM 無視 → SIGKILL で `killed`（送信順序 SIGTERM → SIGKILL の照合を含む）、SIGTERM で終了 → `exited`（SIGKILL を送らない）、SIGKILL 後も終了しない → `kill-timeout`、kill が false を返す → `kill-failed`、error で終了 → `error`。(c) 削除の条件は `teardownAndRemove` で検証する4件：kill-timeout の場合は削除せず failure に `child:kill-timeout` が入ること、close-timeout の場合も削除せず `server:close-timeout` が入ること、両方確認できた場合は削除すること、確認済みとみなす戻り値の一覧に未確認の値が含まれないこと。マニフェスト生成スクリプト（`tools/build-realenv-manifest.mjs`）のソース検査は、旧来の clean-boot.test.mjs 内の行順検査など3件を置き換え、`teardownAndRemove` の使用・失敗報告・ヘルパー内の行順（stopChild < closeServer < rm）・fail-closed の削除条件・確認済み値の一覧・終了順序試験のモック使用・プラットフォーム分岐の7件とした（検査 95 → 99、成果物は29のまま）。
+
+ローカル試験結果（この修正の時点）：`npm test`（run.mjs 85/85、subject-hash 検証 13/13、trial-apply 18/18、s5-apply 7/7、s5-sender 17/17、serve-real-s5 12/12、s9-negative 18/18、serve-real-s9 3/3、clean-boot 5/5、clean-boot-teardown 14/14）、`npm run test:screen` 54/54、`npm run test:screen:s5` 39/39、`npm run test:screen:s9` 75/75、スモーク 22/22、マニフェスト 29 成果物 / 99 検査。全て合格。新ハッシュ：test/teardown-helper.mjs `dd1fa544…`（6495 B）、test/clean-boot.test.mjs `732819fe…`（7956 B）、test/clean-boot-teardown.test.mjs `283ba207…`（15560 B）、tools/build-realenv-manifest.mjs `e1532ebc…`（32741 B）。
+
+未確認：この VM は Linux のため、Windows での実プロセス挙動（`exited` への分岐）は実機で確認できていない。Windows でのクリーンテスト全体の再実行による確認は Codex 側に依頼する。実環境試験はその確認後に進める。

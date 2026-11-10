@@ -17,11 +17,11 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { stopChild, closeServer } from "./teardown-helper.mjs";
+import { teardownAndRemove } from "./teardown-helper.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SERVE_PORT = 8896;
@@ -157,11 +157,18 @@ test("クリーン起動：未知のパスは 404 になる", async () => {
 
 after(async () => {
   // 終了順序：子プロセスの終了待ち → 中継サーバーの閉鎖待ち →
-  // ミラー（mirrorDir）のみ削除。Windows では子プロセスがミラー内
-  // のファイルを開いたまま削除すると EBUSY になるため、削除は
-  // 終了確認の後で行う（Codex レビュー 6737085464 への対応）。
-  // 対象以外は削除しない。待ち時間は上限付きで無限待ちにならない。
-  await stopChild(child);
-  await closeServer(relay);
-  await rm(mirrorDir, { recursive: true, force: true });
+  // 両方の確認が取れた場合のみミラー（mirrorDir）を削除する。
+  // Windows では子プロセスがミラー内のファイルを開いたまま削除
+  // すると EBUSY になるため、削除は必ず終了確認の後で行う
+  // （Codex レビュー 6737085464 への対応）。さらに、終了を確認
+  // できなかった場合（kill-timeout・kill-failed・error・
+  // close-timeout）は削除せず、失敗として報告する（Codex
+  // レビュー 6754717703 への対応）。対象以外は削除しない。
+  // 待ち時間は上限付きで無限待ちにならない。
+  const result = await teardownAndRemove({ child, server: relay, dir: mirrorDir });
+  if (!result.removed) {
+    throw new Error(
+      `終了を確認できなかったためミラーを削除しませんでした（stop=${result.stopResult}, close=${result.closeResult}）`
+    );
+  }
 });

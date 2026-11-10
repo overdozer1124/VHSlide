@@ -540,29 +540,52 @@ const checks = {
     found: findLines(teardownHelperLines, /kill-timeout/),
     expect: "present",
   },
-  // クリーン起動試験の終了処理は、子プロセスの終了待ちと中継の
-  // 閉鎖待ちを await し、その後でミラーを削除すること。
-  clean_boot_waits_child_exit: {
-    found: findLines(cleanBootLines, /await stopChild\(child\)/),
+  // クリーン起動試験の終了処理は、共通手順 teardownAndRemove に
+  // 委ね、終了を確認できなかった場合は失敗として報告すること
+  // （Codex レビュー 6754717703）。
+  clean_boot_uses_teardown_and_remove: {
+    found: findLines(cleanBootLines, /await teardownAndRemove\(/),
     expect: "present",
   },
-  clean_boot_waits_relay_close: {
-    found: findLines(cleanBootLines, /await closeServer\(relay\)/),
+  clean_boot_reports_teardown_failure: {
+    found: findLines(cleanBootLines, /!result\.removed/),
     expect: "present",
   },
-  // 終了順序の構造検査：after() 内で stopChild → closeServer → rm
-  // の順に行番号が並ぶこと。Windows では子プロセスがミラー内の
-  // ファイルを開いたまま削除すると EBUSY になるため、削除は必ず
-  // 子プロセスの終了確認の後でなければならない。
-  clean_boot_teardown_order: {
+  // 終了順序の構造検査：teardownAndRemove 内で stopChild →
+  // closeServer → rm の順に行番号が並ぶこと。Windows では子
+  // プロセスがミラー内のファイルを開いたまま削除すると EBUSY に
+  // なるため、削除は必ず子プロセスの終了確認の後でなければ
+  // ならない。
+  teardown_helper_order: {
     found: (() => {
-      const iStop = firstLineIndex(cleanBootLines, /await stopChild\(child\)/);
-      const iClose = firstLineIndex(cleanBootLines, /await closeServer\(relay\)/);
-      const iRm = firstLineIndex(cleanBootLines, /await rm\(mirrorDir/);
+      const iStop = firstLineIndex(teardownHelperLines, /await stopChild\(/);
+      const iClose = firstLineIndex(teardownHelperLines, /await closeServer\(/);
+      const iRm = firstLineIndex(teardownHelperLines, /await rm\(/);
       return iStop !== -1 && iClose !== -1 && iRm !== -1 && iStop < iClose && iClose < iRm
         ? [{ line: 0, text: "stopChild < closeServer < rm" }]
         : [];
     })(),
+    expect: "present",
+  },
+  // 削除は、終了・閉鎖の確認が取れた場合に限ること。未確認の
+  // 場合は削除せず、removed: false と failure を返すこと。
+  teardown_helper_fail_closed_removal: {
+    found: findLines(teardownHelperLines, /removed: false/),
+    expect: "present",
+  },
+  teardown_helper_confirmed_values: {
+    found: findLines(teardownHelperLines, /CHILD_STOP_CONFIRMED|SERVER_CLOSE_CONFIRMED/),
+    expect: "present",
+  },
+  // 終了順序試験は、実プロセスの挙動（プラットフォーム別）と
+  // モックによる分岐検証を分けて持つこと（Codex レビュー
+  // 6754717703）。
+  teardown_test_uses_mock_child: {
+    found: findLines(teardownTestLines, /EventEmitter/),
+    expect: "present",
+  },
+  teardown_test_platform_split: {
+    found: findLines(teardownTestLines, /win32/),
     expect: "present",
   },
   // 終了順序試験は、kill → 子プロセス exit → 中継の閉鎖完了 → rm

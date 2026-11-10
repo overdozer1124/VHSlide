@@ -8,6 +8,12 @@
 // 実 Google・実 Worker とは通信しない。秘密は扱わない。
 //
 // 待ち時間はすべて上限付きで、無限待ちにはならない。
+//
+// teardownAndRemove は、終了・閉鎖の確認が取れた場合にだけ対象
+// ディレクトリを削除する（fail-closed）。終了を確認できないまま
+// 削除へ進まない条件は Codex レビュー 6754717703 への対応。
+
+import { rm } from "node:fs/promises";
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,4 +86,35 @@ export async function closeServer(server, { timeoutMs = SERVER_CLOSE_TIMEOUT_MS 
   if (typeof server.closeAllConnections === "function") server.closeAllConnections();
   const closed = new Promise((resolve) => server.close(() => resolve("closed")));
   return await Promise.race([closed, delay(timeoutMs).then(() => "close-timeout")]);
+}
+
+// 子プロセスの終了が確認できたとみなす stopChild の戻り値。これら
+// 以外（"kill-timeout"・"kill-failed"・"error"）は、子プロセスが
+// まだ生きている可能性を否定できないため、確認できたとは扱わない。
+export const CHILD_STOP_CONFIRMED = ["exited", "killed", "already-exited", "no-child"];
+
+// 中継サーバーの閉鎖が確認できたとみなす closeServer の戻り値。
+// "close-timeout" は閉鎖が完了していない可能性があるため含めない。
+export const SERVER_CLOSE_CONFIRMED = ["closed", "already-closed", "no-server"];
+
+// 終了処理の本体（clean-boot.test.mjs の after() が使う）：
+// 子プロセスの終了待ち → 中継サーバーの閉鎖待ち → 両方の確認が
+// 取れた場合のみ対象ディレクトリを削除する。確認が取れなければ
+// 削除せず、failure に理由を入れて返す（fail-closed。Codex
+// レビュー 6754717703 への対応）。戻り値：
+//   { stopResult, closeResult, removed, failure }
+//   removed: 削除した場合は true、しなかった場合は false
+//   failure: 削除しなかった理由（"child:kill-timeout" など）。
+//            削除した場合は null。
+export async function teardownAndRemove({ child, server, dir, stopOptions, closeOptions } = {}) {
+  const stopResult = await stopChild(child, stopOptions);
+  const closeResult = await closeServer(server, closeOptions);
+  const failures = [];
+  if (!CHILD_STOP_CONFIRMED.includes(stopResult)) failures.push(`child:${stopResult}`);
+  if (!SERVER_CLOSE_CONFIRMED.includes(closeResult)) failures.push(`server:${closeResult}`);
+  if (failures.length > 0) {
+    return { stopResult, closeResult, removed: false, failure: failures.join(", ") };
+  }
+  await rm(dir, { recursive: true, force: true });
+  return { stopResult, closeResult, removed: true, failure: null };
 }
