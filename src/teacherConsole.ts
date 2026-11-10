@@ -20,11 +20,10 @@ export function consoleDefaultSheet(deck: Deck, follow: PublicFollowState): stri
 }
 
 /**
- * The slide the preview opens on: the one after the projected page, so the
- * teacher sees what comes next. Falls back to the projected page itself at
- * the end of a sheet, and to the first page when nothing is projected.
+ * The slide the console focuses first: the projected page when follow is
+ * live, otherwise the first page of the opening sheet.
  */
-export function consoleDefaultPreview(
+export function consoleInitialSlide(
   deck: Deck,
   follow: PublicFollowState,
 ): string | undefined {
@@ -32,8 +31,8 @@ export function consoleDefaultPreview(
   const slides = consoleSlides(deck, sheetId);
   if (!slides.length) return undefined;
   if (follow.active && follow.target.mode === "page" && follow.target.pageId) {
-    const index = slides.findIndex((s) => s.id === follow.target.pageId);
-    if (index >= 0) return slides[Math.min(index + 1, slides.length - 1)].id;
+    const projected = slides.find((s) => s.id === follow.target.pageId);
+    if (projected) return projected.id;
   }
   return slides[0].id;
 }

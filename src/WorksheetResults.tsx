@@ -35,10 +35,12 @@ export function WorksheetResults({
   sheet,
   busy,
   onDownload,
+  initialView = "person",
 }: {
   sheet: WorksheetView;
   busy: boolean;
   onDownload: (order: string[]) => void;
+  initialView?: "person" | "table";
 }) {
   const ctx = useWorksheets();
   const orderKey = `vhslide-worksheet-order:${ctx.deckId}:${ctx.userId}:${sheet.id}`;
@@ -53,7 +55,7 @@ export function WorksheetResults({
     }
   });
   const [dragged, setDragged] = useState<string>();
-  const [view, setView] = useState<"person" | "table">("person");
+  const [view, setView] = useState<"person" | "table">(initialView);
   const [search, setSearch] = useState("");
   const [personId, setPersonId] = useState("");
   const unordered = sheet.results?.responses ?? [];

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Deck, Slide } from "./model";
 import { idleFollow, type FollowState } from "./hostFollow";
 import {
-  consoleDefaultPreview,
   consoleDefaultSheet,
+  consoleInitialSlide,
   consoleSlides,
   fieldAnswered,
 } from "./teacherConsole";
@@ -54,15 +54,13 @@ describe("teacher console helpers", () => {
     expect(consoleSlides(deck, "sub").map((s) => s.id)).toEqual(["z"]);
   });
 
-  it("opens on the followed sheet and the slide after the projected one", () => {
+  it("opens on the followed sheet and focuses the projected slide", () => {
     expect(consoleDefaultSheet(deck, followTo("a"))).toBe("main");
-    expect(consoleDefaultPreview(deck, followTo("a"))).toBe("b");
-    // At the end of the sheet the preview stays on the projected page.
-    expect(consoleDefaultPreview(deck, followTo("c"))).toBe("c");
+    expect(consoleInitialSlide(deck, followTo("b"))).toBe("b");
   });
 
   it("falls back to the first slide when nothing is projected", () => {
-    expect(consoleDefaultPreview(deck, idleFollow())).toBe("a");
+    expect(consoleInitialSlide(deck, idleFollow())).toBe("a");
   });
 
   it("counts real answers per field kind", () => {
