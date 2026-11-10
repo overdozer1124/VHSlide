@@ -36,11 +36,14 @@ export function WorksheetResults({
   busy,
   onDownload,
   initialView = "person",
+  compact = false,
 }: {
   sheet: WorksheetView;
   busy: boolean;
   onDownload: (order: string[]) => void;
   initialView?: "person" | "table";
+  /** Slim heading for embedding in the teacher console. */
+  compact?: boolean;
 }) {
   const ctx = useWorksheets();
   const orderKey = `vhslide-worksheet-order:${ctx.deckId}:${ctx.userId}:${sheet.id}`;
@@ -90,15 +93,20 @@ export function WorksheetResults({
   const person =
     filtered.find((r) => r.respondentId === personId) ?? filtered[0];
   return (
-    <section className="worksheet-results" aria-label="ワークシート入力結果">
+    <section
+      className={`worksheet-results ${compact ? "compact" : ""}`}
+      aria-label="ワークシート入力結果"
+    >
       <div className="worksheet-results-heading">
         <div>
           <h3>
             回答結果 <span>{responses.length}人</span>
           </h3>
-          <p>
-            保存された最新の回答を表示します。途中保存・未入力の項目も含みます。
-          </p>
+          {!compact && (
+            <p>
+              保存された最新の回答を表示します。途中保存・未入力の項目も含みます。
+            </p>
+          )}
         </div>
         <button
           className="button outline"
@@ -146,12 +154,14 @@ export function WorksheetResults({
               />
             </label>
           </div>
-          <p className="worksheet-result-count">
-            {filtered.length}人を表示 / 保存した参加者 {responses.length}人 ·
-            CSVには検索に関係なく全員・全項目を保存します。
-            {sheet.fields.some((f) => f.kind === "drawing") &&
-              " 画像は一覧から個別に保存できます。CSVには画像の有無を記録します。"}
-          </p>
+          {!compact && (
+            <p className="worksheet-result-count">
+              {filtered.length}人を表示 / 保存した参加者 {responses.length}人 ·
+              CSVには検索に関係なく全員・全項目を保存します。
+              {sheet.fields.some((f) => f.kind === "drawing") &&
+                " 画像は一覧から個別に保存できます。CSVには画像の有無を記録します。"}
+            </p>
+          )}
           {customOrder.length > 0 && (
             <button
               type="button"
@@ -223,7 +233,10 @@ export function WorksheetResults({
             </div>
           ) : (
             <div className="worksheet-all-results">
-              <p className="worksheet-scroll-hint" id="worksheet-table-hint">
+              <p
+                className={compact ? "sr-only" : "worksheet-scroll-hint"}
+                id="worksheet-table-hint"
+              >
                 左の氏名・メールアドレスと右の最終保存日時は固定です。中央の回答欄を横にスクロールして、全項目を確認できます。
                 氏名の移動ボタンはドラッグまたは上下ボタンで並べ替えられます。
               </p>

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { ChevronDown, ChevronRight, Minus, Plus, X } from "lucide-react";
 import { Canvas } from "./Canvas";
+import { usePinch } from "./usePinch";
 import { W, type Deck, type Slide } from "./model";
 import { api, type CloudWorkspace } from "./cloud";
 import { useWorksheets } from "./WorksheetContext";
@@ -44,16 +45,26 @@ export function TeacherConsole({
   const [focusId, setFocusId] = useState(() =>
     consoleInitialSlide(workbook, follow),
   );
+  const [expandedId, setExpandedId] = useState<string>();
   const focus = slides.find((s) => s.id === focusId) ?? slides[0];
   const projected =
     follow.active && follow.target.mode === "page"
       ? workbook.slides.find((s) => s.id === follow.target.pageId)
       : undefined;
+  const { deckId } = useWorksheets();
+  const hasForm = (s: Slide) =>
+    !!deckId &&
+    s.elements.some((e) =>
+      [e.responseField, e.worksheet, e.survey].some(
+        (b) => !!b && b.deckId === deckId,
+      ),
+    );
 
   function jumpToProjected() {
     if (!projected) return;
     setSheetId(projected.sheetId ?? "main");
     setFocusId(projected.id);
+    setExpandedId(projected.id);
   }
 
   return (
@@ -93,6 +104,7 @@ export function TeacherConsole({
               onChange={(e) => {
                 setSheetId(e.target.value);
                 setFocusId(consoleSlides(workbook, e.target.value)[0]?.id);
+                setExpandedId(undefined);
               }}
             >
               {sheets.map((s) => (
@@ -105,26 +117,41 @@ export function TeacherConsole({
           {slides.map((s) => {
             const isProjected = projected?.id === s.id;
             const isFocus = focus?.id === s.id;
+            const expanded = expandedId === s.id;
+            const form = hasForm(s);
             return (
-              <button
+              <div
                 key={s.id}
-                type="button"
-                className={`console-thumb ${isFocus ? "is-preview" : ""}`}
-                onClick={() => setFocusId(s.id)}
-                aria-pressed={isFocus}
+                className={`console-rail-item ${expanded ? "expanded" : ""} ${form ? "has-form" : ""}`}
               >
-                <span className="console-thumb-canvas">
-                  <Canvas slide={s} zoom={148 / W} />
-                </span>
-                <span className="console-thumb-label">
-                  <span>
+                <button
+                  type="button"
+                  className={`console-rail-head ${isFocus ? "is-focus" : ""}`}
+                  aria-expanded={expanded}
+                  onClick={() => {
+                    setFocusId(s.id);
+                    setExpandedId(expanded ? undefined : s.id);
+                  }}
+                >
+                  <span className="console-rail-title">
                     {s.x + 1}.{s.y + 1} {s.title}
                   </span>
+                  {form && <span className="console-form-chip">回答欄</span>}
                   {isProjected && (
                     <span className="console-badge">投影中</span>
                   )}
-                </span>
-              </button>
+                  {expanded ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} />
+                  )}
+                </button>
+                {expanded && (
+                  <div className="console-thumb-canvas">
+                    <Canvas slide={s} zoom={148 / W} />
+                  </div>
+                )}
+              </div>
             );
           })}
           {!slides.length && <p>このシートにはスライドがありません。</p>}
@@ -204,34 +231,25 @@ function ConsoleMain({
     { key: "fields", label: "設問ごとの集計" },
     { key: "slides", label: "生徒のスライド" },
   ];
+  const showHead = mode !== "slides" && ctx.enabled && !!sheet;
   return (
     <main className="console-main">
-      <div className="console-modes" role="tablist" aria-label="表示切替">
-        {modes.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            role="tab"
-            aria-selected={mode === m.key}
-            className={mode === m.key ? "active" : ""}
-            onClick={() => setMode(m.key)}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-      {mode === "slides" ? (
-        <ConsoleStudentSlides focus={focus} />
-      ) : !ctx.enabled ? (
-        <p className="console-note">
-          クラウドの作品を開くと、ワークシートの回答がここに表示されます。
-        </p>
-      ) : !sheet ? (
-        <p className="console-note">
-          この作品にはワークシートがありません。
-        </p>
-      ) : (
-        <>
+      <div className="console-toprow">
+        <div className="console-modes" role="tablist" aria-label="表示切替">
+          {modes.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              role="tab"
+              aria-selected={mode === m.key}
+              className={mode === m.key ? "active" : ""}
+              onClick={() => setMode(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {showHead && (
           <div className="console-answer-head">
             {ctx.sheets.length > 1 && (
               <select
@@ -256,17 +274,28 @@ function ConsoleMain({
               ／ 回答した生徒 {sheet.results?.responses.length ?? 0}人
             </p>
           </div>
-          {mode === "list" ? (
-            <WorksheetResults
-              sheet={sheet}
-              busy={downloading}
-              onDownload={(order) => void download(order)}
-              initialView="table"
-            />
-          ) : (
-            <ConsoleFields cloud={cloud} sheet={sheet} />
-          )}
-        </>
+        )}
+      </div>
+      {mode === "slides" ? (
+        <ConsoleStudentSlides focus={focus} />
+      ) : !ctx.enabled ? (
+        <p className="console-note">
+          クラウドの作品を開くと、ワークシートの回答がここに表示されます。
+        </p>
+      ) : !sheet ? (
+        <p className="console-note">
+          この作品にはワークシートがありません。
+        </p>
+      ) : mode === "list" ? (
+        <WorksheetResults
+          sheet={sheet}
+          busy={downloading}
+          onDownload={(order) => void download(order)}
+          initialView="table"
+          compact
+        />
+      ) : (
+        <ConsoleFields cloud={cloud} sheet={sheet} />
       )}
     </main>
   );
@@ -330,6 +359,39 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
   const [gallery, setGallery] = useState<ResponseGallery | null>(null);
   const [error, setError] = useState("");
   const [enlargedId, setEnlargedId] = useState<string>();
+  const ZOOM_KEY = "vhslide-console-card-zoom";
+  const [zoomPct, setZoomPct] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(ZOOM_KEY));
+      return v >= 40 && v <= 250 ? v : 100;
+    } catch {
+      return 100;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(ZOOM_KEY, String(zoomPct));
+    } catch {
+      /* Keep the zoom for this session only. */
+    }
+  }, [zoomPct]);
+  const areaRef = useRef<HTMLDivElement>(null);
+  const pinchBase = useRef(100);
+  usePinch(areaRef, {
+    start: () => {
+      pinchBase.current = zoomPct;
+    },
+    change: ({ ratio }) =>
+      setZoomPct(
+        Math.max(40, Math.min(250, Math.round(pinchBase.current * ratio))),
+      ),
+    end: () => {},
+  });
+  const commitZoom = (raw: string) => {
+    const v = Number(raw);
+    if (Number.isFinite(v) && v > 0)
+      setZoomPct(Math.max(40, Math.min(250, Math.round(v))));
+  };
   const slideRef = useRef(focus);
   slideRef.current = focus;
   const deckId = ctx.deckId;
@@ -378,26 +440,67 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
     };
   }, [focus?.id, deckId, hasForm, visible]);
 
-  if (!focus)
-    return <p className="console-note">スライドがありません。</p>;
-  if (!hasForm)
-    return (
-      <p className="console-note">
-        「{focus.title}」には回答欄がありません。左の一覧で、回答欄のあるスライドを選んでください。
-      </p>
-    );
   const cards = gallery?.cards ?? [];
   const enlarged = cards.find((c) => c.id === enlargedId);
   return (
-    <div className="console-students">
-      <p className="console-answer-status">
-        「{focus.title}」への生徒の回答（{cards.length}人）
-      </p>
-      {error && <p className="console-waiting">{error}</p>}
-      {!error && !cards.length && (
-        <p className="console-note">まだ回答がありません。</p>
-      )}
-      <div className="console-cards">
+    <div className="console-students" ref={areaRef}>
+      {!focus ? (
+        <p className="console-note">スライドがありません。</p>
+      ) : !hasForm ? (
+        <p className="console-note">
+          「{focus.title}
+          」には回答欄がありません。左の一覧で、回答欄のあるスライド（「回答欄」の印つき）を選んでください。
+        </p>
+      ) : (
+        <>
+          <div className="console-students-head">
+            <p className="console-answer-status">
+              「{focus.title}」への生徒の回答（{cards.length}人）
+            </p>
+            <div className="console-zoom" aria-label="サムネイルの表示倍率">
+              <button
+                type="button"
+                onClick={() => setZoomPct((z) => Math.max(40, z - 10))}
+                aria-label="サムネイルを小さく"
+              >
+                <Minus size={14} />
+              </button>
+              <input
+                key={zoomPct}
+                type="number"
+                min={40}
+                max={250}
+                step={10}
+                defaultValue={zoomPct}
+                aria-label="表示倍率（パーセント）"
+                onBlur={(e) => commitZoom(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    (e.target as HTMLInputElement).blur();
+                }}
+              />
+              <span>％</span>
+              <button
+                type="button"
+                onClick={() => setZoomPct((z) => Math.min(250, z + 10))}
+                aria-label="サムネイルを大きく"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+          {error && <p className="console-waiting">{error}</p>}
+          {!error && !cards.length && (
+            <p className="console-note">まだ回答がありません。</p>
+          )}
+          <div
+            className="console-cards"
+            style={
+              {
+                "--console-card-w": `${Math.round(3.2 * zoomPct)}px`,
+              } as CSSProperties
+            }
+          >
         {cards.map((card) => (
           <article
             className="console-card"
@@ -436,6 +539,8 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
             <ResponseGalleryCard card={enlarged} slide={focus} />
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
