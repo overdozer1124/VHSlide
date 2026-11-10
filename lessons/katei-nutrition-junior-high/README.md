@@ -2,7 +2,8 @@
 
 指導書（p.36〜37）の学習の流れに沿った VHSlide 用の作品JSONです。
 
-- `中学生に必要な栄養.vhslide.json`：VHSlide の「ファイル → 開く」で読み込みます。
+- `中学生に必要な栄養.vhslide.json`：VHSlide の「ファイル → 開く」で読み込みます（最初に作成した版：ナチュラル・縦方向の2次元配置）。
+- `中学生に必要な栄養-pop.vhslide.json`：ポップのトーン・1行（左から右へ授業が進む）・ルーブリックつきの版。スキル `vhslide-lesson` の例（`.claude/skills/vhslide-lesson/examples/nutrition.spec.json`）から生成。
 - `src/`：JSONを作り直すスクリプト（`node deck.mjs out.json`）と、図1・キャラクターの画像（`node figs.mjs`）。
 - `preview-*.png`：発表画面の見本。
 

@@ -346,6 +346,40 @@ const kinds = {
     fields.forEach((f, i) => els.push(field(f, X0 + i * (each + gap), y, each, BOTTOM - y, s.fieldFont ?? 19)));
     return els;
   },
+  /** Rubric table (観点 × A/B/C). With selfCheck, one A/B/C self-assessment field per criterion on the right. */
+  async rubric(s, L, top) {
+    const R = { ...(L.rubric ?? {}), ...(s.rubric ?? {}) };
+    if (!R.criteria?.length) throw Error(`ルーブリックの観点（rubric.criteria）がありません: ${L.title}`);
+    const levels = R.levels ?? ["A　十分満足できる", "B　おおむね満足できる", "C　努力を要する"];
+    const marks = levels.map(l => l.trim().split(/[\s　]/)[0]);
+    const els = [];
+    let y = top;
+    if (s.lead ?? R.lead) {
+      els.push(...cardText(X0, y, X1 - X0, 52, s.lead ?? R.lead, { tone: "primary", fs: 18 }));
+      y += 60;
+    }
+    const self = s.selfCheck;
+    const tw = self ? (X1 - X0) * (s.split ?? 0.66) : X1 - X0;
+    const rows = [["観点", ...levels], ...R.criteria.map(c => [c.name, ...c.levels])];
+    els.push(...tableEl({ rows, align: "left", widths: [1.15, ...levels.map(() => 2)], fontSize: s.fontSize ?? R.fontSize ?? (self ? 12 : 16) }, X0, y, tw, BOTTOM - y));
+    // Level headers in the accent tone; criterion names bold.
+    const tb = els[els.length - 1];
+    tb.table.styles = tb.table.styles ?? {};
+    // Header row short; criterion rows grow with their longest description.
+    const longest = R.criteria.map(c => Math.max(...c.levels.map(v => String(v).length)));
+    const avg = longest.reduce((a, b) => a + b, 0) / longest.length;
+    tb.table.heights = { r0: 0.45, ...Object.fromEntries(R.criteria.map((_, i) => [`r${i + 1}`, Math.min(2.5, Math.max(0.6, longest[i] / avg))])) };
+    tb.table.columns.slice(1).forEach(c => (tb.table.styles[`r0:${c}`] = { fill: T.accentSoft, bold: true, color: "#1d1f23", textAlign: "center" }));
+    tb.table.rows.slice(1).forEach(r => (tb.table.styles[`${r}:c0`] = { fill: T.primarySoft, bold: true, color: "#1d1f23" }));
+    if (self) {
+      const fx = X0 + tw + 14, fw = X1 - fx, n = R.criteria.length, gap = 10, fh = (BOTTOM - y - gap * (n - 1)) / n;
+      R.criteria.forEach((c, i) => els.push(field({
+        id: c.id ?? `self${i + 1}`, type: "single", label: `自己評価：${c.name}`, options: marks,
+        ...(self === "public" ? { public: true } : {}),
+      }, fx, y + i * (fh + gap), fw, fh, 16)));
+    }
+    return els;
+  },
   async custom(s) { return s.elements.map(e => ({ ...e, id: e.id ?? nid("x") })); },
 };
 

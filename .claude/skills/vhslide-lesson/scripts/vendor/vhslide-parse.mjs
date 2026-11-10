@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.100.2 (de22e41): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.101.0 (6ca8d26): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/surveys.ts
 var SurveyError = class extends Error {
@@ -248,6 +248,17 @@ function parseAnchor(value) {
 }
 
 // src/richText.ts
+var TEXT_FONTS = [
+  "sans",
+  "serif",
+  "mono",
+  "rounded",
+  "klee",
+  "yomogi",
+  "ud",
+  "brush",
+  "shippori"
+];
 var RICH_FORMATS = [
   "bold",
   "italic",
@@ -290,7 +301,7 @@ function parseRichText(input, plain) {
           if (typeof value !== "string" || !/^\d+px$/.test(value) || Number.parseInt(value) < 12 || Number.parseInt(value) > 120)
             return fail();
         } else if (key === "font") {
-          if (!["sans", "serif", "mono"].includes(value))
+          if (!TEXT_FONTS.includes(value))
             return fail();
         } else if (key === "align") {
           if (!["center", "right", "justify"].includes(value))

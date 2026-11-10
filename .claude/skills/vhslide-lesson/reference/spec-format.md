@@ -16,6 +16,13 @@
       "hour": "第4時（全4時間）",
       "goal": "学習の目標",
       "worksheet": { "title": "ワークシート名", "summarySlide": true },
+      "rubric": {                     // その時間のルーブリック（rubric スライドが参照）
+        "lead": "今日の学習を、この観点でふり返ります。",
+        "levels": ["A　十分満足できる", "B　おおむね満足できる", "C　努力を要する"],  // 省略時はこの3段階
+        "criteria": [
+          { "id": "self1", "name": "観点名（知識・技能）", "levels": ["Aの姿", "Bの姿", "Cの姿"] }
+        ]
+      },
       "phases": [
         { "name": "導入", "minutes": 10, "slides": [ /* スライド */ ] },
         { "name": "展開", "minutes": 30, "slides": [] },
@@ -70,6 +77,7 @@
 | `flow` | `lead` `items[{top, bottom, note}]` `footer` | 「A → B」の対応図 |
 | `points` | `items[[項目, 説明]]` `note{title, body}` | ポイントの一覧 |
 | `board` | `task` `items[[見出し, 内容]]` | 板書例 |
+| `rubric` | `lead` `selfCheck`（`true`＝観点ごとの A/B/C 自己評価欄、`"public"`＝集計も公開）`split` `fontSize`。内容は lesson.rubric（`rubric` キーで上書き可） | ルーブリック（見通し・自己評価） |
 | `custom` | `elements[]`（VHSlide の要素をそのまま） | 上で表せないもの・新機能の利用 |
 
 `tone` は `plain`／`primary`／`accent`。グラフのラベルは短く（6字以内が目安）。長いと折り返す。

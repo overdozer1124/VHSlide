@@ -129,8 +129,17 @@ try {
     try { await page.goto(`http://localhost:${port}/`); break; } catch { if (i > 60) throw Error("アプリを起動できません"); await new Promise(r => setTimeout(r, 500)); }
   }
   await page.waitForTimeout(1500);
-  await page.locator('input[type="file"]').first().setInputFiles(deckPath);
+  // The "open file" input accepts JSON and PowerPoint; other inputs (append rows, images…) come and go between versions.
+  const opener = page.locator('input[type="file"][accept*=".json"][accept*=".pptx"]').or(page.locator('input[type="file"][accept*=".json"]')).first();
+  // Non-ASCII file names do not reach the page reliably through Playwright, so open an ASCII-named copy.
+  const asciiCopy = path.join(outDir, "deck-under-check.json");
+  fs.copyFileSync(deckPath, asciiCopy);
+  await opener.setInputFiles(asciiCopy);
   await page.waitForTimeout(2000);
+  const loadedTitle = await page.title().catch(() => "");
+  const headerText = await page.locator("body").innerText();
+  if (!headerText.includes(deck.title.slice(0, 12)) && !loadedTitle.includes(deck.title.slice(0, 12)))
+    throw Error("アプリでJSONを開けませんでした（ファイルの読み込み口が変わった可能性があります）。check.mjs の opener を確認してください。");
   await page.addStyleTag({ content: ".toast{display:none!important}" });
   const sheets = deck.sheets ?? [{ id: "main", name: "" }];
   const shots = [];
@@ -172,6 +181,7 @@ try {
     sheetsOut.push(f);
   }
   const fitIssues = fitText ? fitText.split("\n").filter(l => /：全文|見切れ|省略/.test(l)) : [];
+  fs.rmSync(asciiCopy, { force: true });
   fs.writeFileSync(path.join(outDir, "report.json"), JSON.stringify({ fitIssues, errors, shots: shots.length, contact: sheetsOut }, null, 1));
   console.log(fitIssues.length ? `表示チェック: 要修正\n${fitIssues.join("\n")}` : "表示チェック: 見切れなし");
   if (errors.length) console.log("画面のエラー:", errors.slice(0, 5).join(" / "));
