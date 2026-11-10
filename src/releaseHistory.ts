@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.105.2",
+    date: "2026-11-10",
+    title: "ボタンの枠線が薄く見える問題を修正",
+    changes: [
+      "白に近い色だったボタンの枠線を、はっきり見える色に濃くしました。画面の表示倍率などによって枠線が薄く・切れたように見えることがあったためです。マップ画面の検索欄の枠も同じく濃くしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.105.1",
     date: "2026-11-10",
     title: "ヘッダーのボタンの枠が切れる問題を修正",
