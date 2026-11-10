@@ -311,8 +311,8 @@
      "text": "日本の伝統的な文様を見かけた場面",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q1",
        "label": "日本の伝統的な文様を見かけた場面",
@@ -477,8 +477,8 @@
      "text": "麻の葉文様に込められた願い",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q2",
        "label": "麻の葉文様に込められた願い",
@@ -1109,8 +1109,8 @@
      "text": "和服を着た経験・和服を見た場面",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q3",
        "label": "和服を着た経験・和服を見た場面",
@@ -1677,9 +1677,9 @@
        "r9:c2": "染め"
       },
       "widths": {
-       "c0": 1.6,
+       "c0": 1.5,
        "c1": 1.4,
-       "c2": 0.7
+       "c2": 0.9
       }
      }
     },
@@ -1699,8 +1699,8 @@
      "text": "染織の画像（貼り付け・書き込み）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q4img",
        "label": "染織の画像（貼り付け・書き込み）",
@@ -1731,8 +1731,8 @@
      "text": "名前・地域・特徴・込められた思い",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q4",
        "label": "名前・地域・特徴・込められた思い",
@@ -1935,8 +1935,8 @@
      "text": "場面と、その場面で着る和服",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q5",
        "label": "場面と、その場面で着る和服",
@@ -2423,8 +2423,8 @@
      "text": "和服と洋服の構成の違い",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q6",
        "label": "和服と洋服の構成の違い",
@@ -2710,8 +2710,8 @@
      "text": "浴衣を着るとき、先に体に合わせるのは？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q7",
        "label": "浴衣を着るとき、先に体に合わせるのは？",
@@ -3246,8 +3246,8 @@
      "text": "生活の中で和服を着る機会をふり返り、和服の文化の良さと、受け継ぐ大切さをまとめよう",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q8",
        "label": "生活の中で和服を着る機会をふり返り、和服の文化の良さと、受け継ぐ大切さをまとめよう",
@@ -3482,8 +3482,8 @@
      "text": "自己評価：和服の文化（知識・技能）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "self1",
        "label": "自己評価：和服の文化（知識・技能）",
@@ -3519,8 +3519,8 @@
      "text": "自己評価：和服と洋服の構成（知識・技能）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "self2",
        "label": "自己評価：和服と洋服の構成（知識・技能）",
@@ -3556,8 +3556,8 @@
      "text": "自己評価：受け継ぐ大切さ（主体的に学習に取り組む態度）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "self3",
        "label": "自己評価：受け継ぐ大切さ（主体的に学習に取り組む態度）",
@@ -3667,8 +3667,8 @@
      "text": "これから和服を着てみたい場面は？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q9",
        "label": "これから和服を着てみたい場面は？",
@@ -3707,8 +3707,8 @@
      "text": "和服の文化を受け継ぐために、自分にできること",
      "responseField": {
       "source": "worksheet",
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "field": {
        "id": "q10",
        "label": "和服の文化を受け継ぐために、自分にできること",
@@ -4000,8 +4000,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
-      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "deckId": "9c46adf2-ab9d-439b-be01-c24edc7d644b",
+      "worksheetId": "ff210925-aa43-4144-b3f9-df3b26aac6f5",
       "title": "日本の衣服の文化 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
