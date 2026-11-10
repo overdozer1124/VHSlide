@@ -36,6 +36,7 @@ const MIRROR_FILES = [
   "tools/s5-sender.mjs",
   "tools/s5-apply.mjs",
   "tools/s9-negative.mjs",
+  "tools/s10-add.mjs",
   "tools/trial-apply.mjs",
   "tools/subject-hash-verify.mjs",
   "public/login-real.html",
@@ -43,6 +44,7 @@ const MIRROR_FILES = [
   "public/trial-apply.html",
   "public/s5-apply.html",
   "public/s9-negative.html",
+  "public/s10-add-operator.html",
 ];
 
 // 一時ディレクトリへミラー対象だけを複写する。親ディレクトリも作る。

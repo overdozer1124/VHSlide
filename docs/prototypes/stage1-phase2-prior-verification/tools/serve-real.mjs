@@ -44,6 +44,13 @@
 //   tools/s9-negative.mjs と tools/subject-hash-verify.mjs を import する。
 // - GET /s9-negative.mjs → tools/s9-negative.mjs をそのまま返す
 //   （s9-negative 画面が import する純粋モジュール）。
+// - GET /s10-add-operator → public/s10-add-operator.html を返す（S10
+//   運営者追加専用画面。同じくクライアント ID をメモリ上で差し込む）。
+//   このページは B の主体取得 → A の認可 → 凍結要求の表示・確認 →
+//   送信の順で POST /admin/registry/add へ送る。検証モジュール
+//   tools/s10-add.mjs と tools/subject-hash-verify.mjs を import する。
+// - GET /s10-add.mjs → tools/s10-add.mjs をそのまま返す
+//   （s10-add-operator 画面が import する純粋モジュール）。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -297,6 +304,16 @@ if (!rawS9NegativeHtml.includes(PLACEHOLDER)) {
 const s9NegativeHtml = rawS9NegativeHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const s9NegativeJs = await readFile(path.join(root, "tools", "s9-negative.mjs"), "utf8");
 
+// S10 運営者追加専用画面も同じく、起動時に読み込み、クライアント ID を
+// メモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
+const rawS10AddHtml = await readFile(path.join(root, "public", "s10-add-operator.html"), "utf8");
+if (!rawS10AddHtml.includes(PLACEHOLDER)) {
+  console.error("error: s10-add-operator.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s10AddHtml = rawS10AddHtml.split(PLACEHOLDER).join(CLIENT_ID);
+const s10AddJs = await readFile(path.join(root, "tools", "s10-add.mjs"), "utf8");
+
 const FORWARD_PATHS = new Set([
   "/nonce",
   "/platform/apply",
@@ -361,6 +378,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s9-negative.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s9NegativeJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s10-add-operator") {
+      console.log(`GET /s10-add-operator -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s10AddHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s10-add.mjs") {
+      console.log(`GET /s10-add.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s10AddJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での

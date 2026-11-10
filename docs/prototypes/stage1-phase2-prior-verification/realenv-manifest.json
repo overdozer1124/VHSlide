@@ -48,8 +48,8 @@
     },
     {
       "path": "tools/serve-real.mjs",
-      "sha256": "5ab66f0af3666d7f3cb22f42d8fb355c86620bed82761ebcc19120fa9f7769dd",
-      "bytes": 26320
+      "sha256": "441e2f470b5b9325b16b8f0ee561471e23d5bfeaf221127e530df9943ea62831",
+      "bytes": 28028
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
@@ -137,9 +137,39 @@
       "bytes": 4026
     },
     {
+      "path": "public/s10-add-operator.html",
+      "sha256": "09f1908d37302bf31d82339192b904f34b627f44ac9722dfc862e67efb94397f",
+      "bytes": 32596
+    },
+    {
+      "path": "tools/s10-add.mjs",
+      "sha256": "dc3121a4d5ccd620439c862852b7c0056c622e8fd5c3b89c25a47cb4ab750821",
+      "bytes": 22062
+    },
+    {
+      "path": "test/s10-add.test.mjs",
+      "sha256": "e15e559e3d29675ef10048f485dd9f3f1efb872ad8c6580fd07ab7c067b53332",
+      "bytes": 12782
+    },
+    {
+      "path": "test/s10-add-guard.test.mjs",
+      "sha256": "05f6da1a536d316bbd694ba6ae9e02e702505ccd9a4e589f96f06517daa33b34",
+      "bytes": 10281
+    },
+    {
+      "path": "test/s10-add.screen.mjs",
+      "sha256": "26ac224817cedc3fc2f0792eb5adc90d21bce00bfbf84ff4e1b79525a3c0ab13",
+      "bytes": 28208
+    },
+    {
+      "path": "test/serve-real-s10.test.mjs",
+      "sha256": "f1fdfd45fd9574435701b78aa2a2bbbeeb35982dd7d8598efc34e331ac6ed7a7",
+      "bytes": 4356
+    },
+    {
       "path": "test/clean-boot.test.mjs",
-      "sha256": "732819fea573b74974e8bd245a9178b71745d3f5954640d624618170fb834191",
-      "bytes": 7956
+      "sha256": "a96d9999fd198e40dbb0f1eec7c3ce7637a1e5625ff8fac7b674c68c7efc319e",
+      "bytes": 8013
     },
     {
       "path": "test/teardown-helper.mjs",
@@ -602,19 +632,23 @@
           "text": "//   tools/s9-negative.mjs と tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 318,
+          "line": 51,
+          "text": "//   tools/s10-add.mjs と tools/subject-hash-verify.mjs を import する。"
+        },
+        {
+          "line": 335,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
         },
         {
-          "line": 319,
+          "line": 336,
           "text": "console.log(`GET /subject-hash -> 200`);"
         },
         {
-          "line": 324,
+          "line": 341,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
         },
         {
-          "line": 325,
+          "line": 342,
           "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
@@ -1023,19 +1057,19 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 330,
+          "line": 347,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply\") {"
         },
         {
-          "line": 331,
+          "line": 348,
           "text": "console.log(`GET /trial-apply -> 200`);"
         },
         {
-          "line": 336,
+          "line": 353,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply.mjs\") {"
         },
         {
-          "line": 337,
+          "line": 354,
           "text": "console.log(`GET /trial-apply.mjs -> 200`);"
         }
       ],
@@ -1360,11 +1394,11 @@
     "serve_real_s5_session_guard": {
       "found": [
         {
-          "line": 197,
+          "line": 204,
           "text": "// - 試験単位のセッション（x-s5-session ヘッダー）が起動時に発行した"
         },
         {
-          "line": 220,
+          "line": 227,
           "text": "if (req.headers[\"x-s5-session\"] !== S5_SESSION) {"
         }
       ],
@@ -1373,7 +1407,7 @@
     "serve_real_s5_session_placeholder": {
       "found": [
         {
-          "line": 183,
+          "line": 190,
           "text": "const S5_SESSION_PLACEHOLDER = \"REPLACE_WITH_S5_SESSION\";"
         }
       ],
@@ -1382,11 +1416,11 @@
     "serve_real_s5_origin_guard": {
       "found": [
         {
-          "line": 208,
+          "line": 215,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         },
         {
-          "line": 217,
+          "line": 224,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         }
       ],
@@ -1395,11 +1429,11 @@
     "serve_real_s5_body_limit": {
       "found": [
         {
-          "line": 186,
+          "line": 193,
           "text": "const S5_MAX_BODY_BYTES = 64 * 1024;"
         },
         {
-          "line": 235,
+          "line": 242,
           "text": "if (size > S5_MAX_BODY_BYTES) {"
         }
       ],
@@ -1451,27 +1485,27 @@
           "text": "// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す"
         },
         {
-          "line": 51,
+          "line": 58,
           "text": "//   /s5-apply 画面へメモリ上で差し込む）と、発行に結び付ける試験 ID"
         },
         {
-          "line": 175,
+          "line": 182,
           "text": "// /s5-apply 画面へメモリ上で差し込む（ファイルは書き換えない）。画面"
         },
         {
-          "line": 342,
+          "line": 359,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply\") {"
         },
         {
-          "line": 343,
+          "line": 360,
           "text": "console.log(`GET /s5-apply -> 200`);"
         },
         {
-          "line": 348,
+          "line": 365,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply.mjs\") {"
         },
         {
-          "line": 349,
+          "line": 366,
           "text": "console.log(`GET /s5-apply.mjs -> 200`);"
         }
       ],
@@ -1480,39 +1514,39 @@
     "serve_real_s5_nonces_route": {
       "found": [
         {
-          "line": 47,
+          "line": 54,
           "text": "// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと"
         },
         {
-          "line": 57,
+          "line": 64,
           "text": "//   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・"
         },
         {
-          "line": 176,
+          "line": 183,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 188,
+          "line": 195,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 371,
+          "line": 400,
           "text": "if (req.method === \"GET\" && pathname === \"/s5/nonces\") {"
         },
         {
-          "line": 374,
+          "line": 403,
           "text": "console.log(`GET /s5/nonces -> ${entry.status}`);"
         },
         {
-          "line": 381,
+          "line": 410,
           "text": "console.log(`GET /s5/nonces -> 400`);"
         },
         {
-          "line": 388,
+          "line": 417,
           "text": "console.log(`GET /s5/nonces -> 200`);"
         },
         {
-          "line": 392,
+          "line": 421,
           "text": "console.log(`GET /s5/nonces -> 502`);"
         }
       ],
@@ -1521,51 +1555,51 @@
     "serve_real_s5_send_route": {
       "found": [
         {
-          "line": 53,
+          "line": 60,
           "text": "// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット"
         },
         {
-          "line": 176,
+          "line": 183,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 184,
+          "line": 191,
           "text": "// /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は"
         },
         {
-          "line": 188,
+          "line": 195,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 226,
+          "line": 233,
           "text": "// /s5/send の本体をサイズ上限付きで読む。上限を超えれば"
         },
         {
-          "line": 398,
+          "line": 427,
           "text": "if (req.method === \"POST\" && pathname === \"/s5/send\") {"
         },
         {
-          "line": 401,
+          "line": 430,
           "text": "console.log(`POST /s5/send -> ${entry.status}`);"
         },
         {
-          "line": 408,
+          "line": 437,
           "text": "console.log(`POST /s5/send -> 415`);"
         },
         {
-          "line": 415,
+          "line": 444,
           "text": "console.log(`POST /s5/send -> 413`);"
         },
         {
-          "line": 433,
+          "line": 462,
           "text": "console.log(`POST /s5/send -> 400`);"
         },
         {
-          "line": 443,
+          "line": 472,
           "text": "console.log(`POST /s5/send -> 200`);"
         },
         {
-          "line": 450,
+          "line": 479,
           "text": "console.log(`POST /s5/send -> ${status}`);"
         }
       ],
@@ -1798,6 +1832,130 @@
       ],
       "expect": "present"
     },
+    "s10_module_frozen_request": {
+      "found": [
+        {
+          "line": 296,
+          "text": "freezeRequest(trialId, gen) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_module_same_subject": {
+      "found": [
+        {
+          "line": 22,
+          "text": "//   の場合は機械的に same_subject で試行を停止する（同一アカウントを"
+        },
+        {
+          "line": 271,
+          "text": "// が同一の場合は same_subject で試行を停止する（同一アカウントを"
+        },
+        {
+          "line": 286,
+          "text": "fail(\"same_subject\", \"A と B の主体ハッシュが同一です\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_module_no_resend_on_no_response": {
+      "found": [
+        {
+          "line": 388,
+          "text": "recordNoResponse(trialId, gen) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_module_expected_generation_plus_one": {
+      "found": [
+        {
+          "line": 95,
+          "text": "generation: EXPECTED_GENERATION + 1,"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_page_pre_send_display": {
+      "found": [
+        {
+          "line": 160,
+          "text": "<pre id=\"frozenReq\">（まだ要求を凍結していません）</pre>"
+        },
+        {
+          "line": 228,
+          "text": "const frozenEl = document.getElementById(\"frozenReq\");"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_page_no_text_input": {
+      "found": [],
+      "expect": "absent"
+    },
+    "s10_page_redirect_manual": {
+      "found": [
+        {
+          "line": 18,
+          "text": "expected_generation}、redirect: \"manual\" です。リダイレクトは"
+        },
+        {
+          "line": 341,
+          "text": "const res = await fetch(PATHS.nonce, { credentials: \"include\", redirect: \"manual\" });"
+        },
+        {
+          "line": 590,
+          "text": "redirect: \"manual\","
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_serve_route": {
+      "found": [
+        {
+          "line": 47,
+          "text": "// - GET /s10-add-operator → public/s10-add-operator.html を返す（S10"
+        },
+        {
+          "line": 53,
+          "text": "//   （s10-add-operator 画面が import する純粋モジュール）。"
+        },
+        {
+          "line": 309,
+          "text": "const rawS10AddHtml = await readFile(path.join(root, \"public\", \"s10-add-operator.html\"), \"utf8\");"
+        },
+        {
+          "line": 311,
+          "text": "console.error(\"error: s10-add-operator.html にクライアント ID のプレースホルダが見つかりません\");"
+        },
+        {
+          "line": 383,
+          "text": "if (req.method === \"GET\" && pathname === \"/s10-add-operator\") {"
+        },
+        {
+          "line": 384,
+          "text": "console.log(`GET /s10-add-operator -> 200`);"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_guard_double_delivery": {
+      "found": [
+        {
+          "line": 11,
+          "text": "//   403 nonce_replayed で拒否される（nonce 消費が先に効く）。"
+        },
+        {
+          "line": 227,
+          "text": "test(\"S10ガード: 同一要求の再送（同じ nonce・トークン・Cookie・body）は 403 nonce_replayed で拒否される\", async () => {"
+        },
+        {
+          "line": 234,
+          "text": "assert.equal(replay.json.error, \"nonce_replayed\");"
+        }
+      ],
+      "expect": "present"
+    },
     "clean_boot_mirror_list": {
       "found": [
         {
@@ -1805,11 +1963,11 @@
           "text": "const MIRROR_FILES = ["
         },
         {
-          "line": 50,
+          "line": 52,
           "text": "for (const rel of MIRROR_FILES) {"
         },
         {
-          "line": 106,
+          "line": 108,
           "text": "assert.deepEqual(listed, [...MIRROR_FILES].sort());"
         }
       ],
@@ -1826,11 +1984,11 @@
           "text": "// test・node_modules・.persist-* は読まない。"
         },
         {
-          "line": 107,
+          "line": 109,
           "text": "// node_modules・.persist-* がミラーに含まれないこと。"
         },
         {
-          "line": 109,
+          "line": 111,
           "text": "assert.equal(listed.some((f) => f.includes(\".persist-\")), false);"
         }
       ],
@@ -1918,7 +2076,7 @@
     "clean_boot_uses_teardown_and_remove": {
       "found": [
         {
-          "line": 168,
+          "line": 170,
           "text": "const result = await teardownAndRemove({ child, server: relay, dir: mirrorDir });"
         }
       ],
@@ -1927,7 +2085,7 @@
     "clean_boot_reports_teardown_failure": {
       "found": [
         {
-          "line": 169,
+          "line": 171,
           "text": "if (!result.removed) {"
         }
       ],

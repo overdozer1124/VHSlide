@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>S10 運営者追加専用画面（検証用）</title>
+<!--
+  S10（項目6 手順1：運営者Bの追加）専用の検証画面です。Codex
+  レビュー Issue #3 コメント 6758375470 への対応で用意したもので、
+  Issue #3 コメント 6758362491（S10手順案）の手順5の仕様に沿います。
+
+  位置づけと制約:
+  - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で配信
+    し、どの Worker 版にも含めません。
+  - 送信先は同一生成元（http://localhost:8787）の固定パス
+    POST /admin/registry/add のみです。URL を入力・変更できる欄は
+    ありません。送信は fetch で method POST、headers content-type
+    application/json、body JSON {id_token, subject_hash,
+    expected_generation}、redirect: "manual" です。リダイレクトは
+    追従しません（3xx は応答として記録し、再送しません）。
+  - 順序は B の主体取得 → A の認可 → 凍結 → 送信の固定順です。
+    A の認可は B の主体取得が完了してからしか始められません
+    （B 取得の nonce・Cookie 文脈を、A 取得の /nonce が上書き
+    しないため）。順序は tools/s10-add.mjs の createAddSession が
+    強制します。
+  - 捕捉モード：GIS コールバックは送信せず、トークンを JS 変数にのみ
+    保持します。捕捉後に PC 内署名検証（tools/subject-hash-verify.mjs
+    の verifyIdTokenLocal）を行い、署名・iss・aud・exp・nonce の
+    すべてが通った場合にだけ次へ進みます。検証が通らなければ試行を
+    失敗させトークンを消去します。主体ハッシュは SHA-256(sub) を
+    PC 内で算出し、メモリー内に保持します（表示はこの画面の DOM だけ
+    で行い、ログ・Issue・チャットには出しません）。
+  - B と A の本人確認は、署名検証の通過と、所有者によるアカウント
+    選択の確認（チェック）の両方が揃った場合にだけ成立します。さらに
+    A と B の主体ハッシュが同一の場合は、セッションが same_subject
+    で試行を停止します（同一アカウントを両方に使う誤りを、送信前に
+    機械的に防ぐ）。B の表示と凍結要求の表示は別の DOM 領域で、所有者
+    が両方を目視で照合できます（根拠を分ける）。
+  - 凍結要求は、実際の送信に使う値から生成します。対象は B 取得で
+    保持した主体ハッシュ、期待世代は手順の固定値（2）であり、手入力
+    欄はありません。画面は displayData の内容（試行 ID・action・
+    対象・期待世代・送信先）を送信直前に表示し、所有者が「開始前の
+    読み戻しで generation=2 を確認した」チェックとともに「送信する」
+    ボタンを押した場合にだけ、凍結した要求をそのまま送信します。
+  - 送信は一度だけです。期待は 200 ok かつ返された generation が
+    3 であること。不一致なら試行を停止します。レスポンスなし
+    （fetch 例外）なら「応答なし：状態未確定、再送しません」とログに
+    出し停止します（再送しません。登録簿の読み戻しで結果を確かめます）。
+    二重配信に対するサーバー側の保護は、同一 nonce の再送が
+    nonce_replayed で拒否されることと、世代照合（成功後は世代が 3 に
+    なり、期待世代 2 の要求は stale_generation で拒否されること）で
+    あり、test/s10-add-guard.test.mjs でローカル模擬により確認します。
+  - 送信中の排他：sending フラグを持ち、送信中は準備・送信ボタンを
+    無効化します。試行の ID・世代・nonce・役割を閉じ込めた GIS
+    コールバックを使い、古い試行のコールバックは世代照合で拒否します。
+  - nonce 取得中の排他：/nonce 要求の飛行中は準備・破棄・新規試行
+    ボタンを無効化し、合成イベントで呼んでも取得中の再準備・破棄を
+    拒否します（セッション側の beginNonceFetch も nonce_fetch_busy
+    で拒否する）。並行する /nonce 要求を出さないことで、遅れて戻った
+    旧応答の Set-Cookie が現行試行のブラウザーCookie を上書きするのを
+    防ぎます。ブラウザーは応答受信時に Set-Cookie を自動適用するため、
+    事後の世代照合だけでは Cookie の上書きは防げません。
+  - 別タブ干渉：op2_nonce_ctx Cookie は同一生成元（ブラウザー）で
+    共有されるため、別タブで /nonce を取得すると現行試行の Cookie
+    文脈が上書きされ、送信は nonce_context_mismatch で拒否されます
+    （誤った適用にはなりません）。試行中は他の検証ページを開かないで
+    ください。
+  - トークン消去の契機（tools/s10-add.mjs の S10_TOKEN_ERASE_TRIGGERS）：
+    追加完了・追加停止（期待外れ応答・応答なし・同一主体の検出）・
+    試行の破棄・新規試行の開始。消去はメモリー内の変数を空にし、表示
+    した主体ハッシュも画面から消すことで行い、消去の事実だけをログに
+    出します。
+  - nonce の期限は要求開始時刻（/nonce 要求の fetch 呼び出し直前に
+    同期的に記録した時刻。試行・役割ごとに閉じ込める。S9 と同じ型）
+    ＋5分です。応答の受信時刻は起点に使いません。遅れて戻った旧試行
+    の応答は世代照合で破棄し、現行試行の期限・nonce を上書きしません。
+    画面の期限表示は要求開始時刻起点の目安であり、最終的な期限判定は
+    サーバー側が行います。期限を過ぎた送信は不可にして、新しい試行を
+    要求します。
+  - 表示・ログ・Issue・チャットに ID トークン・Cookie・nonce・主体
+    ハッシュを出しません。画面のログには試験 ID・ステップ・応答の状態
+    と理由コード・返された世代だけを出します。ログを書き込む前に
+    assertLogHasNoSecrets で秘密の混入を確認します。主体ハッシュの
+    表示はこの画面の DOM だけであり、ログには出しません。
+  - 入力の境界：この画面に主体ハッシュ・世代・トークンの入力欄はあり
+    ません（チェックだけです）。送信する値は、B 取得で保持した主体
+    ハッシュ、A 取得で保持したトークン、手順の固定値（期待世代 2）
+    だけであり、画面からの貼り付け・入力はできません。
+  - Origin の境界：Origin はページ自身の生成元であり、画面からは変え
+    られません。
+
+  先行実測の参照範囲（個別。画面内の注記も参照）：
+  - Cookie返送：S9 正常系の実施記録（Codex seq 632/634：GET /nonce 200、
+    POST /admin/verify-only 200 ok）で実証済みです。ctx が一致しなければ
+    403 nonce_context_mismatch になるため、200 ok は Cookie が返送され
+    ctx が一致したことの実証です。
+  - Cookie属性：属性値そのもの（Secure / HttpOnly / SameSite=Strict）の
+    実環境での実測元は存在しません。実環境の Set-Cookie ヘッダー値は
+    記録されていないため、実環境では未確認です。根拠はソース（両ビルド
+    の /nonce が verify 構成で Secure を付ける箇所）とローカル試験だけ
+    であり、本画面では属性値を読み取らず表示もしません。属性値を実測
+    したものとして扱いません。
+  - 実 Google nonce 一致：捕捉したトークンの nonce と /nonce で発行した
+    nonce の一致は、PC 内署名検証（verifyIdTokenLocal）の expectedNonce
+    照合で真偽だけ確認します。nonce の値そのものは表示・ログに出しません。
+  未実証のもの（本画面の対象外）：実トークン期限切れ、異なる aud／iss、
+  tokeninfo 到達不能。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+  button:disabled { opacity: 0.5; }
+</style>
+<body>
+<h1>S10 運営者追加専用画面（検証用）</h1>
+<p class="note">先行実測の参照範囲：Cookie返送は S9 正常系 seq 632/634 で実証済み（GET /nonce 200、POST /admin/verify-only 200 ok）。
+Cookie属性の実環境での実測元はなく、実環境では未確認です。実 Google nonce 一致は PC 内署名検証で確認します。
+未実証のもの（本画面の対象外）：実トークン期限切れ、異なる aud／iss、tokeninfo 到達不能。
+Origin の境界：Origin はページ自身の生成元であり、画面からは変えられません。</p>
+
+<fieldset>
+  <legend>① 試行の開始</legend>
+  <button id="newTrial" type="button">新しい試行を始める</button>
+  <p>試験ID： <span id="trialId">（新しい試行を始めてください）</span></p>
+  <p>試行の破棄：
+    <button id="discardTrial" type="button">試行を破棄する</button>
+  </p>
+</fieldset>
+
+<fieldset>
+  <legend>② Bの主体を取得</legend>
+  <button id="prepB" type="button">Bのnonceを取得してGoogleログインボタンを表示</button>
+  <div id="gisB"></div>
+  <p>署名検証の結果：</p>
+  <pre id="bEvidence">（まだ B のログインをしていません）</pre>
+  <p>Bの主体ハッシュ（この画面だけに表示します。ログには出しません）：</p>
+  <pre id="bHash">（まだ B のログインをしていません）</pre>
+  <label><input type="checkbox" id="bConfirmed"> 表示されたBの主体が、追加したいBであることを確認しました</label>
+  <p><button id="completeB" type="button">Bの取得を完了する</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>③ Aの認可</legend>
+  <button id="prepA" type="button">Aのnonceを取得してGoogleログインボタンを表示</button>
+  <div id="gisA"></div>
+  <p>署名検証の結果：</p>
+  <pre id="aEvidence">（まだ A のログインをしていません）</pre>
+  <p>Aの主体ハッシュ（この画面だけに表示します。ログには出しません）：</p>
+  <pre id="aHash">（まだ A のログインをしていません）</pre>
+  <p id="distinctCheck">A と B の主体ハッシュが異なること： 未確認</p>
+  <label><input type="checkbox" id="aConfirmed"> 表示されたAの主体が、認可する運営者Aであることを確認しました</label>
+  <p><button id="completeA" type="button">Aの認可を完了する</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>④ 凍結要求の表示と送信</legend>
+  <button id="freezeReq" type="button">要求を凍結して表示する</button>
+  <pre id="frozenReq">（まだ要求を凍結していません）</pre>
+  <label><input type="checkbox" id="preReadConfirmed"> 開始前の読み戻しで generation=2 を確認しました</label>
+  <p><button id="sendAdd" type="button">送信する（Bを追加する）</button></p>
+  <p class="note">送信は一度だけです。期待は 200 ok かつ返された generation が 3 であること。
+  応答がない場合は再送せず、登録簿の読み戻しで結果を確かめます。</p>
+</fieldset>
+
+<h2>状態</h2>
+<pre id="state">（試行がありません）</pre>
+<pre id="nonceInfo">（まだ nonce を取得していません）</pre>
+
+<h2>結果</h2>
+<pre id="log"></pre>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import {
+  createAddSession,
+  makeAddLogEntry,
+  ADD_PATH,
+} from "./s10-add.mjs";
+import { nonceDeadline, isNonceExpired, assertLogHasNoSecrets } from "./s9-negative.mjs";
+import { verifyIdTokenLocal, sha256hex } from "./subject-hash-verify.mjs";
+
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （検証用に作成した Web クライアントの ID を、tools/serve-real.mjs が
+// 起動時に環境変数 GOOGLE_CLIENT_ID からメモリ上で差し込みます）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+const PATHS = { nonce: "/nonce", add: ADD_PATH };
+
+const session = createAddSession();
+let attempt = null; // 最新の試行 { trialId, generation }（表示用）
+let sending = false; // 送信中のフラグ
+// 捕捉モードで保持する値（JS 変数のみ。表示・ログに出さない。主体
+// ハッシュは表示用の DOM だけに書き、ログには出さない）。
+let tokenB = null;
+let tokenA = null;
+let hashB = null;
+let hashA = null;
+let nonceB = null;
+let nonceA = null;
+// 検証の証拠（B／A それぞれの署名検証の通過）。画面の表示だけに使う。
+let verifiedB = null;
+let verifiedA = null;
+
+const logEl = document.getElementById("log");
+const stateEl = document.getElementById("state");
+const nonceInfoEl = document.getElementById("nonceInfo");
+const trialIdEl = document.getElementById("trialId");
+const newTrialBtn = document.getElementById("newTrial");
+const discardBtn = document.getElementById("discardTrial");
+const prepBBtn = document.getElementById("prepB");
+const gisBBox = document.getElementById("gisB");
+const bEvidenceEl = document.getElementById("bEvidence");
+const bHashEl = document.getElementById("bHash");
+const bConfirmCheck = document.getElementById("bConfirmed");
+const completeBBtn = document.getElementById("completeB");
+const prepABtn = document.getElementById("prepA");
+const gisABox = document.getElementById("gisA");
+const aEvidenceEl = document.getElementById("aEvidence");
+const aHashEl = document.getElementById("aHash");
+const distinctEl = document.getElementById("distinctCheck");
+const aConfirmCheck = document.getElementById("aConfirmed");
+const completeABtn = document.getElementById("completeA");
+const freezeBtn = document.getElementById("freezeReq");
+const frozenEl = document.getElementById("frozenReq");
+const preReadCheck = document.getElementById("preReadConfirmed");
+const sendBtn = document.getElementById("sendAdd");
+
+function log(...parts) {
+  // 試験 ID・ステップ・応答の状態と理由コード・返された世代だけを出す。
+  // トークン・Cookie・nonce・主体ハッシュは出さない。書き込む前に混入
+  // を確認する。
+  const line = parts.join(" ");
+  try {
+    assertLogHasNoSecrets(line, [tokenB, tokenA, nonceB, nonceA, hashB, hashA]);
+  } catch {
+    // 秘密が混ざる行は書かない。混入そのものだけを記録する。
+    logEl.textContent += "ログへの書き込みを拒否しました（秘密の混入の疑い）\n";
+    return;
+  }
+  logEl.textContent += line + "\n";
+}
+
+// トークンと主体ハッシュの消去。契機は S10_TOKEN_ERASE_TRIGGERS の4つの
+// いずれか。消去の事実だけをログに出す（値は出さない）。表示した主体
+// ハッシュも画面から消す。
+function eraseSecrets(trigger) {
+  tokenB = null;
+  tokenA = null;
+  hashB = null;
+  hashA = null;
+  nonceB = null;
+  nonceA = null;
+  verifiedB = null;
+  verifiedA = null;
+  bHashEl.textContent = "（消去されました）";
+  aHashEl.textContent = "（消去されました）";
+  log(`秘密を消去しました（${trigger}）`);
+}
+
+function currentPhase() {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  const snap = session.snapshot();
+  return snap ? snap.phase : null;
+}
+
+function currentNonceIssuedAt(role) {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  return session.nonceIssuedAt(attempt.trialId, attempt.generation, role);
+}
+
+function updateState() {
+  const snap = session.snapshot();
+  if (!snap) {
+    stateEl.textContent = "（試行がありません）";
+  } else {
+    stateEl.textContent = JSON.stringify({
+      trial_id: snap.trialId,
+      phase: snap.phase,
+      b_captured: snap.bCaptured,
+      a_captured: snap.aCaptured,
+      frozen: snap.frozen,
+      undetermined: snap.undetermined,
+    }, null, 2);
+  }
+  const issuedB = currentNonceIssuedAt("B");
+  const issuedA = currentNonceIssuedAt("A");
+  const parts = [];
+  if (issuedB !== null) {
+    parts.push(`B nonce 発行時刻：${new Date(issuedB).toISOString()}（${issuedB}）／期限：${new Date(nonceDeadline(issuedB)).toISOString()}（${nonceDeadline(issuedB)}）`);
+  }
+  if (issuedA !== null) {
+    parts.push(`A nonce 発行時刻：${new Date(issuedA).toISOString()}（${issuedA}）／期限：${new Date(nonceDeadline(issuedA)).toISOString()}（${nonceDeadline(issuedA)}）`);
+  }
+  nonceInfoEl.textContent = parts.length > 0
+    ? parts.join("\n") + "\n（発行時刻＋5分。期限ちょうどは期限切れ）"
+    : "（まだ nonce を取得していません）";
+  trialIdEl.textContent = attempt ? attempt.trialId : "（新しい試行を始めてください）";
+}
+
+// 各ボタンの有効・無効。セッションの段階が許可する時のみ有効にする。
+// 送信中は準備・送信ボタンを無効化する（送信中の排他）。nonce 取得中
+// は準備・破棄・新規試行ボタンも無効化する（取得中の排他）。
+function updateButtons() {
+  const phase = currentPhase();
+  const fetching =
+    attempt !== null &&
+    (session.isNonceFetchPending(attempt.trialId, attempt.generation, "B") ||
+      session.isNonceFetchPending(attempt.trialId, attempt.generation, "A"));
+  const canAct = !sending && !fetching && attempt !== null && phase !== null;
+  const expiredB = currentNonceIssuedAt("B") !== null &&
+    isNonceExpired(Date.now(), currentNonceIssuedAt("B"));
+  const expiredA = currentNonceIssuedAt("A") !== null &&
+    isNonceExpired(Date.now(), currentNonceIssuedAt("A"));
+  newTrialBtn.disabled = sending || fetching;
+  discardBtn.disabled = sending || fetching || attempt === null;
+  prepBBtn.disabled = !canAct || phase !== "b-preparing";
+  completeBBtn.disabled =
+    !canAct || phase !== "b-preparing" || tokenB === null || !bConfirmCheck.checked;
+  prepABtn.disabled = !canAct || phase !== "b-captured";
+  completeABtn.disabled =
+    !canAct || phase !== "b-captured" || tokenA === null || !aConfirmCheck.checked;
+  freezeBtn.disabled = !canAct || phase !== "a-captured" || expiredA;
+  sendBtn.disabled =
+    !canAct || phase !== "frozen" || tokenA === null || expiredA || !preReadCheck.checked;
+}
+
+async function fetchNonce(role) {
+  // 期限の起点は、要求開始前の保守的な時刻（S5 の issueStartedAt と
+  // 同じ型）。fetch 呼び出し直前に同期的に記録し、試行・役割に閉じ
+  // 込める。応答の受信時刻は使わない（受信時刻起点では、応答の遅延分
+  // だけ実際の期限より新しく見積もってしまう）。取得中の再取得は
+  // セッション側が nonce_fetch_busy で拒否する。
+  if (!attempt) throw new Error("試行がありません");
+  const req = session.beginNonceFetch(attempt.trialId, attempt.generation, role, Date.now());
+  // 取得中であることをボタンに反映する（準備・破棄・新規試行を無効化）。
+  updateButtons();
+  const res = await fetch(PATHS.nonce, { credentials: "include", redirect: "manual" });
+  const data = await res.json().catch(() => null);
+  log("GET /nonce ->", res.status, data && data.nonce ? "ok" : "ng", `(役割=${role})`);
+  if (!res.ok || !data || !data.nonce) throw new Error("nonce が取得できませんでした");
+  // 遅れて戻った旧試行の応答は、世代照合で破棄する（期限・nonce を
+  // 上書きしない）。Cookie の上書きは、並行する /nonce 要求を出さない
+  // こと（取得中の再準備・破棄の拒否）で防ぐ。ブラウザーは応答受信時
+  // に Set-Cookie を自動適用するため、事後の照合だけでは防げない。
+  const applied = session.finishNonceFetch(req.trialId, req.generation, role, data.nonce);
+  if (!applied) {
+    log("古い試行の nonce 応答を破棄しました");
+    return null;
+  }
+  return data.nonce;
+}
+
+// GIS コールバック。ID トークンを受け取り、PC 内で署名検証する。
+// 送信はしない。トークンは JS 変数にのみ保持する（捕捉モード）。
+// snap は initialize 時に閉じ込めたこの試行の ID・世代・役割・nonce
+// であり、グローバルな attempt は読まない。古い試行のコールバックは、
+// 開始時と各 await 後の照合で破棄する。共有の UI・状態の更新は、この
+// 試行が現行のときに限る。
+async function onGoogleSignIn(response, snap) {
+  if (!session.isCurrent(snap.trialId, snap.generation)) {
+    log("古い試行のコールバックを破棄しました");
+    return;
+  }
+  try {
+    // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で署名を
+    // 検証する。トークンは外部の検証サービスへ送らない。真偽だけを扱う。
+    const jwks = await (await fetch(JWKS_URL)).json();
+    if (!session.isCurrent(snap.trialId, snap.generation)) {
+      log("古い試行のコールバックを破棄しました");
+      return;
+    }
+    const sub = await verifyIdTokenLocal(response.credential, {
+      jwks,
+      expectedAud: GOOGLE_CLIENT_ID,
+      expectedIssuers: ISSUERS,
+      expectedNonce: snap.nonce,
+      nowSec: Math.floor(Date.now() / 1000),
+    }).then((r) => r.sub).catch((e) => {
+      log("署名検証 -> ng", e.code || "error", `(役割=${snap.role})`);
+      return null;
+    });
+    if (sub === null) throw new Error("署名検証が通りませんでした");
+    if (!session.isCurrent(snap.trialId, snap.generation)) {
+      log("古い試行のコールバックを破棄しました");
+      return;
+    }
+    // 主体ハッシュは PC 内で算出する。表示はこの画面の DOM だけであり、
+    // ログには出さない。
+    const hash = await sha256hex(sub);
+    const verified = { signature: true, iss: true, aud: true, exp: true, nonce: true };
+    if (snap.role === "B") {
+      tokenB = response.credential;
+      nonceB = snap.nonce;
+      hashB = hash;
+      verifiedB = verified;
+      bEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      bHashEl.textContent = hash;
+      log("B の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else {
+      tokenA = response.credential;
+      nonceA = snap.nonce;
+      hashA = hash;
+      verifiedA = verified;
+      aEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      aHashEl.textContent = hash;
+      distinctEl.textContent =
+        hashB !== null && hashA !== hashB
+          ? "A と B の主体ハッシュが異なること： 確認済み"
+          : "A と B の主体ハッシュが異なること： 未確認";
+      log("A の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    }
+    log("トークンを捕捉しました（送信はしていません）", `(役割=${snap.role})`);
+  } catch (e) {
+    // 共有の状態を変えるのは、この試行が現行のときに限る。古い試行の
+    // catch が新試行の状態を壊さないようにする。
+    if (session.isCurrent(snap.trialId, snap.generation)) {
+      log("準備エラー:", e.message);
+      // 捕捉に失敗した試行は破棄し、保持しかけた秘密があれば消去する。
+      eraseSecrets("trial-discarded");
+      session.discard(snap.trialId, snap.generation);
+      attempt = null;
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
+  } finally {
+    updateButtons();
+    updateState();
+  }
+}
+
+// GIS ボタンを描画する。nonce を取得してから描画し、コールバックに
+// この試行の ID・世代・役割・nonce を閉じ込める。
+async function renderGoogleButton(boxEl, role) {
+  const nonce = await fetchNonce(role);
+  if (nonce === null) return;
+  const snap = { trialId: attempt.trialId, generation: attempt.generation, role, nonce };
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce,
+    callback: (response) => onGoogleSignIn(response, snap),
+  });
+  boxEl.innerHTML = "";
+  google.accounts.id.renderButton(boxEl, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+  updateButtons();
+  updateState();
+}
+
+newTrialBtn.addEventListener("click", () => {
+  if (sending) {
+    log("送信中のため新しい試行は始められません");
+    return;
+  }
+  // 旧試行の秘密があれば消去する（S10_TOKEN_ERASE_TRIGGERS の new-trial-begun）。
+  if (attempt !== null) eraseSecrets("new-trial-begun");
+  attempt = session.beginTrial();
+  bEvidenceEl.textContent = "（まだ B のログインをしていません）";
+  bHashEl.textContent = "（まだ B のログインをしていません）";
+  aEvidenceEl.textContent = "（まだ A のログインをしていません）";
+  aHashEl.textContent = "（まだ A のログインをしていません）";
+  distinctEl.textContent = "A と B の主体ハッシュが異なること： 未確認";
+  frozenEl.textContent = "（まだ要求を凍結していません）";
+  bConfirmCheck.checked = false;
+  aConfirmCheck.checked = false;
+  preReadCheck.checked = false;
+  log("試行を開始しました", `試験ID=${attempt.trialId}`);
+  updateButtons();
+  updateState();
+});
+
+discardBtn.addEventListener("click", () => {
+  if (!attempt || sending) return;
+  eraseSecrets("trial-discarded");
+  session.discard(attempt.trialId, attempt.generation);
+  attempt = null;
+  log("試行を破棄しました");
+  updateButtons();
+  updateState();
+});
+
+prepBBtn.addEventListener("click", async () => {
+  try { await renderGoogleButton(gisBBox, "B"); } catch (e) { log("準備エラー:", e.message); updateButtons(); updateState(); }
+});
+
+completeBBtn.addEventListener("click", () => {
+  if (!attempt || tokenB === null || hashB === null || verifiedB === null) return;
+  if (!bConfirmCheck.checked) {
+    log("B であることの確認チェックがされていません");
+    return;
+  }
+  try {
+    session.markBCaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashB,
+      verified: verifiedB,
+    });
+    log("B の主体取得を完了しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    log("B の取得エラー:", e.code || "error", "-", e.message);
+  }
+  updateButtons();
+  updateState();
+});
+
+prepABtn.addEventListener("click", async () => {
+  try { await renderGoogleButton(gisABox, "A"); } catch (e) { log("準備エラー:", e.message); updateButtons(); updateState(); }
+});
+
+completeABtn.addEventListener("click", () => {
+  if (!attempt || tokenA === null || hashA === null || verifiedA === null) return;
+  if (!aConfirmCheck.checked) {
+    log("A であることの確認チェックがされていません");
+    return;
+  }
+  try {
+    session.markACaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashA,
+      verified: verifiedA,
+    });
+    log("A の認可を完了しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    // same_subject の場合は試行が停止する。秘密は消去する。
+    log("A の認可エラー:", e.code || "error", "-", e.message);
+    if (e.code === "same_subject") {
+      eraseSecrets("add-halted");
+      attempt = null;
+    }
+  }
+  updateButtons();
+  updateState();
+});
+
+freezeBtn.addEventListener("click", () => {
+  if (!attempt) return;
+  try {
+    const frozen = session.freezeRequest(attempt.trialId, attempt.generation);
+    // 凍結内容は実際の送信に使う値から生成する（入力欄の値は使わない）。
+    // 主体ハッシュの表示はこの画面の DOM だけであり、ログには出さない。
+    frozenEl.textContent =
+      `試行ID: ${frozen.trialId}\n` +
+      `action: ${frozen.action}\n` +
+      `対象の主体ハッシュ: ${frozen.targetSubjectHash}\n` +
+      `期待世代: ${frozen.expectedGeneration}\n` +
+      `送信先: ${frozen.path}\n` +
+      `根拠: B の主体取得の表示（上記②）と、開始前の読み戻し（generation=2）`;
+    log("要求を凍結しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    log("凍結エラー:", e.code || "error", "-", e.message);
+  }
+  updateButtons();
+  updateState();
+});
+
+sendBtn.addEventListener("click", async () => {
+  if (!attempt || tokenA === null || sending) return;
+  if (!session.canSend(attempt.trialId, attempt.generation)) {
+    log("送信できる状態ではありません");
+    return;
+  }
+  if (!preReadCheck.checked) {
+    log("開始前の読み戻し（generation=2）の確認チェックがされていません");
+    return;
+  }
+  // A の nonce の期限を送信時にも確認する（ボタン表示だけに頼らない）。
+  const issuedA = session.nonceIssuedAt(attempt.trialId, attempt.generation, "A");
+  if (issuedA !== null && isNonceExpired(Date.now(), issuedA)) {
+    log("A の nonce の期限が切れています。新しい試行を始めてください");
+    return;
+  }
+  // 送信する要求は、凍結済みの内容（セッションの displayData）から
+  // 生成する。入力欄の値は使わない。トークンは A 取得で保持したもの
+  // をメモリー内から使う。
+  const frozen = session.displayData(attempt.trialId, attempt.generation);
+  sending = true;
+  updateButtons();
+  let response = null;
+  try {
+    const res = await fetch(frozen.path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "include",
+      redirect: "manual",
+      body: JSON.stringify({
+        id_token: tokenA,
+        subject_hash: frozen.targetSubjectHash,
+        expected_generation: frozen.expectedGeneration,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    response = { status: res.status, error: data && data.error !== undefined ? data.error : null, ok: data && data.ok === true, generation: data && typeof data.generation === "number" ? data.generation : null };
+  } catch {
+    // fetch の例外はレスポンスなし（状態未確定）。再送しない。
+    response = null;
+  }
+  const trialId = attempt.trialId;
+  const gen = attempt.generation;
+  let outcome;
+  try {
+    outcome = session.recordSend(trialId, gen, response);
+  } catch (e) {
+    log("送信の記録エラー:", e.message);
+    sending = false;
+    updateButtons();
+    updateState();
+    return;
+  }
+  // ログには試験 ID・ステップ・応答の状態と理由コード・返された世代
+  // だけを出す（主体ハッシュ・トークンは出さない）。
+  const entry = makeAddLogEntry({
+    trialId,
+    step: "sent",
+    response: response === null ? { status: 0, error: "no_response" } : response,
+  });
+  if (response === null) {
+    log(`送信 -> 応答なし（状態未確定、再送しません） 試験ID=${entry.trial_id}`);
+  } else {
+    log(
+      `送信 -> ${entry.response.status} ${entry.response.error === null ? "ok" : entry.response.error}` +
+      (entry.response.generation !== null ? ` generation=${entry.response.generation}` : "") +
+      ` 試験ID=${entry.trial_id}`
+    );
+  }
+  sending = false;
+  // 送信後は秘密を消去する（S10_TOKEN_ERASE_TRIGGERS の add-completed／
+  // add-halted）。消去の事実だけをログに出す。
+  eraseSecrets(outcome.matched ? "add-completed" : "add-halted");
+  updateButtons();
+  updateState();
+});
+
+[bConfirmCheck, aConfirmCheck, preReadCheck].forEach((el) => {
+  el.addEventListener("change", () => updateButtons());
+});
+
+updateButtons();
+updateState();
+</script>
+</body>
+</html>

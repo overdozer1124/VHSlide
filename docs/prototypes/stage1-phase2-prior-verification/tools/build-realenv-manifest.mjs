@@ -81,6 +81,12 @@ const ARTIFACTS = [
   "test/s9-negative.test.mjs",
   "test/s9-negative.screen.mjs",
   "test/serve-real-s9.test.mjs",
+  "public/s10-add-operator.html",
+  "tools/s10-add.mjs",
+  "test/s10-add.test.mjs",
+  "test/s10-add-guard.test.mjs",
+  "test/s10-add.screen.mjs",
+  "test/serve-real-s10.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
@@ -129,6 +135,9 @@ const s5SenderLines = readRel("tools/s5-sender.mjs").split("\n");
 const s5ScreenLines = readRel("test/s5-apply.screen.mjs").split("\n");
 const s9NegativeLines = readRel("public/s9-negative.html").split("\n");
 const s9NegativeModuleLines = readRel("tools/s9-negative.mjs").split("\n");
+const s10AddLines = readRel("public/s10-add-operator.html").split("\n");
+const s10AddModuleLines = readRel("tools/s10-add.mjs").split("\n");
+const s10AddGuardLines = readRel("test/s10-add-guard.test.mjs").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
 const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
@@ -514,6 +523,51 @@ const checks = {
   },
   s9_module_nonce_stale_returns_null: {
     found: findLines(s9NegativeModuleLines, /finishNonceFetch/),
+    expect: "present",
+  },
+  // S10 専用画面：凍結要求は B 取得で保持した主体ハッシュと手順の
+  // 固定値（期待世代 2）から生成し、手入力欄は作らないこと。A と B
+  // の主体ハッシュが同一の場合は same_subject で試行を停止すること。
+  // 応答なしは状態未確定として停止し、再送しないこと。期待は 200 ok
+  // かつ返された generation が期待世代＋1（3）であること。送信は
+  // redirect: "manual" で行うこと。提供サーバーは /s10-add-operator
+  // と /s10-add.mjs を返すこと。二重配信ガード試験は、同一要求の
+  // 再送が nonce_replayed で拒否されることを確認すること
+  // （Codex レビュー 6758375470）。
+  s10_module_frozen_request: {
+    found: findLines(s10AddModuleLines, /freezeRequest/),
+    expect: "present",
+  },
+  s10_module_same_subject: {
+    found: findLines(s10AddModuleLines, /same_subject/),
+    expect: "present",
+  },
+  s10_module_no_resend_on_no_response: {
+    found: findLines(s10AddModuleLines, /recordNoResponse/),
+    expect: "present",
+  },
+  s10_module_expected_generation_plus_one: {
+    found: findLines(s10AddModuleLines, /EXPECTED_GENERATION \+ 1/),
+    expect: "present",
+  },
+  s10_page_pre_send_display: {
+    found: findLines(s10AddLines, /frozenReq/),
+    expect: "present",
+  },
+  s10_page_no_text_input: {
+    found: findLines(s10AddLines, /type="text"/),
+    expect: "absent",
+  },
+  s10_page_redirect_manual: {
+    found: findLines(s10AddLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s10_serve_route: {
+    found: findLines(serveRealLines, /s10-add-operator/),
+    expect: "present",
+  },
+  s10_guard_double_delivery: {
+    found: findLines(s10AddGuardLines, /nonce_replayed/),
     expect: "present",
   },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
