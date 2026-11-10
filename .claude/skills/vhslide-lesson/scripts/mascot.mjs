@@ -14,7 +14,7 @@ const bodies = {
 <path d="M70 150 Q66 120 92 96" fill="none" stroke="${c.wrap}" stroke-width="8" stroke-linecap="round" opacity=".5"/>${face(130, 160, c)}`,
   book: c => `<rect x="28" y="46" width="204" height="190" rx="14" fill="${c.wrap}" stroke="${c.outline}" stroke-width="5"/>
 <rect x="44" y="40" width="172" height="182" rx="10" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>
-<line x1="130" y1="44" x2="130" y2="220" stroke="${c.outline}" stroke-width="3" opacity=".25"/>${face(130, 120, c, 0.95)}`,
+<path d="M70 196 H190 M70 178 H190" stroke="${c.outline}" stroke-width="3" opacity=".2"/>${face(130, 120, c, 0.95)}`,
   sprout: c => `<path d="M130 92 C130 60 130 50 130 40" stroke="${c.wrap}" stroke-width="8" fill="none" stroke-linecap="round"/>
 <path d="M130 52 C100 20 64 28 60 46 C80 66 112 66 130 52 Z" fill="${c.wrap}"/><path d="M130 52 C160 20 196 28 200 46 C180 66 148 66 130 52 Z" fill="${c.wrap}"/>
 <ellipse cx="130" cy="168" rx="104" ry="80" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>${face(130, 160, c)}`,
