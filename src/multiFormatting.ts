@@ -1,11 +1,12 @@
 import type { Element, Shape } from "./model";
 import { alignRichParagraphs, textDelta } from "./richText";
+import type { TextFont } from "./richText";
 
 export type MultiTextPatch = Pick<
   Partial<Element>,
   "fontSize" | "color" | "bold" | "textAlign" | "verticalAlign" | "writingMode"
 > & {
-  font?: "sans" | "serif" | "mono";
+  font?: TextFont;
   italic?: boolean;
   underline?: boolean;
   strike?: boolean;

@@ -1,3 +1,26 @@
+export const TEXT_FONTS = [
+  "sans",
+  "serif",
+  "mono",
+  "rounded",
+  "klee",
+  "yomogi",
+  "ud",
+  "brush",
+  "shippori",
+] as const;
+export type TextFont = (typeof TEXT_FONTS)[number];
+export const TEXT_FONT_LABELS: Record<TextFont, string> = {
+  sans: "読みやすい文字",
+  serif: "明朝体",
+  mono: "等幅",
+  rounded: "丸ゴシック",
+  klee: "教科書風",
+  yomogi: "手書き風",
+  ud: "UDゴシック",
+  brush: "筆文字",
+  shippori: "見出し明朝",
+};
 /** Safe, serializable Quill/Y.Text insert delta; no embeds, HTML, URLs or arbitrary CSS. */
 export type TextAttributes = {
   bold?: boolean;
@@ -7,7 +30,7 @@ export type TextAttributes = {
   color?: string;
   background?: string;
   size?: string;
-  font?: "sans" | "serif" | "mono";
+  font?: TextFont;
   align?: "center" | "right" | "justify";
   list?: "bullet" | "ordered";
   lineheight?: "1" | "1.25" | "1.5" | "2";
@@ -94,7 +117,7 @@ export function parseRichText(input: unknown, plain: string): RichOp[] {
           )
             return fail();
         } else if (key === "font") {
-          if (!["sans", "serif", "mono"].includes(value as string))
+          if (!(TEXT_FONTS as readonly string[]).includes(value as string))
             return fail();
         } else if (key === "align") {
           if (!["center", "right", "justify"].includes(value as string))

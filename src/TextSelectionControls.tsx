@@ -1,5 +1,6 @@
 import { NumberField } from "./ObjectLayout";
 import type { TextAttributes } from "./richText";
+import { TEXT_FONTS, TEXT_FONT_LABELS } from "./richText";
 export type TextController = {
   id: string;
   defaultSize?: number;
@@ -69,9 +70,11 @@ export function TextSelectionControls({
             value={String(c.formats.font ?? "sans")}
             onChange={(e) => c.format("font", e.target.value)}
           >
-            <option value="sans">読みやすい文字</option>
-            <option value="serif">明朝体</option>
-            <option value="mono">等幅</option>
+            {TEXT_FONTS.map((font) => (
+              <option key={font} value={font}>
+                {TEXT_FONT_LABELS[font]}
+              </option>
+            ))}
           </select>
         </label>
         <NumberField

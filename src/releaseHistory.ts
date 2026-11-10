@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.101.0",
+    date: "2026-11-10",
+    title: "書体を6つ追加",
+    changes: [
+      "文字の書体に「丸ゴシック」「教科書風」「手書き風」「UDゴシック」「筆文字」「見出し明朝」を追加しました（合計9書体）。追加した書体はWebフォントとして読み込むため、生徒のChromebookなど、フォントが入っていない端末でも同じ見た目で表示されます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.100.2",
     date: "2026-11-10",
     title: "スライド移動の操作改善",

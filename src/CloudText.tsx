@@ -10,6 +10,7 @@ import {
   richPlain,
   textDelta,
   RICH_FORMATS,
+  TEXT_FONTS,
 } from "./richText";
 import {
   enableRichText,
@@ -26,7 +27,7 @@ Quill.register(Size, true);
 const Font = Quill.import(
   "attributors/class/font",
 ) as Parchment.ClassAttributor;
-Font.whitelist = ["sans", "serif", "mono"];
+Font.whitelist = [...TEXT_FONTS];
 Quill.register(Font, true);
 Quill.register(
   new Parchment.StyleAttributor("lineheight", "line-height", {

@@ -3,6 +3,8 @@ import { shapeCatalog } from "./shapeCatalog";
 import { isFormattableText } from "./multiFormatting";
 import type { MultiTextPatch } from "./multiFormatting";
 import { NumberField } from "./ObjectLayout";
+import { TEXT_FONTS, TEXT_FONT_LABELS } from "./richText";
+import type { TextFont } from "./richText";
 
 export function MultiFormatting({
   elements,
@@ -130,15 +132,17 @@ export function MultiFormatting({
               aria-label="選択した文字の書体"
               value={font ?? ""}
               onChange={(e) =>
-                onText({ font: e.target.value as "sans" | "serif" | "mono" })
+                onText({ font: e.target.value as TextFont })
               }
             >
               <option value="" disabled>
                 混在
               </option>
-              <option value="sans">読みやすい文字</option>
-              <option value="serif">明朝体</option>
-              <option value="mono">等幅</option>
+              {TEXT_FONTS.map((font) => (
+                <option key={font} value={font}>
+                  {TEXT_FONT_LABELS[font]}
+                </option>
+              ))}
             </select>
           </label>
           <div className="format-buttons">

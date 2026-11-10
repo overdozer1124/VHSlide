@@ -1,11 +1,18 @@
 import type { CSSProperties } from "react";
 import type { Element } from "./model";
-import type { TextAttributes } from "./richText";
-export const textFonts = {
+import type { TextAttributes, TextFont } from "./richText";
+export const textFonts: Record<TextFont, string> = {
   sans: '"Noto Sans JP", sans-serif',
   serif: '"Noto Serif JP", "Yu Mincho", serif',
   mono: "ui-monospace, monospace",
+  rounded: '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif',
+  klee: '"Klee One", "Hiragino Maru Gothic ProN", sans-serif',
+  yomogi: '"Yomogi", "Hiragino Maru Gothic ProN", sans-serif',
+  ud: '"BIZ UDPGothic", "Noto Sans JP", sans-serif',
+  brush: '"Yuji Syuku", "Yu Mincho", serif',
+  shippori: '"Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif',
 };
+
 export function RichTextView({ element: e }: { element: Element }) {
   if (!e.richText)
     return (
