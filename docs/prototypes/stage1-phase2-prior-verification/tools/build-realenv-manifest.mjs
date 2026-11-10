@@ -586,6 +586,17 @@ const checks = {
     found: findLines(s10AddLines, /isAnyNonceFetchPending/),
     expect: "present",
   },
+  // S10 専用画面の再々修正（Codex レビュー 6758817319）：各役割の
+  // 捕捉は claimCallbackCapture で1回に固定し、画面は受付時点で
+  // claim を取ること。
+  s10_module_one_capture_claim: {
+    found: findLines(s10AddModuleLines, /claimCallbackCapture/),
+    expect: "present",
+  },
+  s10_page_claims_capture: {
+    found: findLines(s10AddLines, /claimCallbackCapture/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {

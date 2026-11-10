@@ -144,7 +144,9 @@ function requireVerified(verified, what) {
 // して停止し、再送を許可しない。古い世代のコールバックは拒否する。
 // さらに役割と段階も照合する（isCallbackCurrent：B は b-preparing、
 // A は b-captured のときにだけ有効）。重複 GIS コールバックも段階で
-// 拒否する。
+// 拒否する。さらに各役割の捕捉は claimCallbackCapture で1回に固定
+// する（受付済み・処理中の同一試行・役割への後続コールバックは、
+// ユーザーの確認で段階が進む前でも拒否する）。
 // nonce の取得も試行に閉じ込める。beginNonceFetch は /nonce 要求の
 // 開始直前に同期的に呼び、開始時刻（startedAtMs）を試行に記録する。
 export function createAddSession() {
@@ -181,6 +183,8 @@ export function createAddSession() {
         phase: "b-preparing",
         bCapture: null, // { subjectHash, verified }
         aCapture: null, // { subjectHash, verified }
+        bCallbackClaimed: false, // 役割 B のコールバック受付済みか
+        aCallbackClaimed: false, // 役割 A のコールバック受付済みか
         bNonce: null, // { startedAtMs, state: "pending" | "issued", nonce }
         aNonce: null,
         frozen: null, // { action, subjectHash, expectedGeneration, path }
@@ -207,6 +211,22 @@ export function createAddSession() {
       if (role === "B") return current.phase === "b-preparing";
       if (role === "A") return current.phase === "b-captured";
       return false;
+    },
+    // 役割ごとの捕捉は1回だけ受け付ける。コールバックは受付の時点で
+    // この claim を取り、受付済み・処理中の同一試行・役割への後続
+    // コールバックは偽を返して拒否させる。段階（b-preparing／
+    // b-captured）はユーザーの確認（markBCaptured／markACaptured）
+    // まで変化しないため、段階の照合だけでは、並行して各 await を
+    // 通る同役割の複数コールバックのうち遅れて完了したものが、先に
+    // 署名検証済みとして表示されたハッシュ・トークンを上書きし得る
+    // （Codex コメント 6758817319）。claim は試行に閉じ込めるため、
+    // 新しい試行は前の試行の claim に妨げられない。
+    claimCallbackCapture(trialId, gen, role) {
+      if (!this.isCallbackCurrent(trialId, gen, role)) return false;
+      const slot = role === "B" ? "bCallbackClaimed" : "aCallbackClaimed";
+      if (current[slot]) return false;
+      current[slot] = true;
+      return true;
     },
     // /nonce 要求の開始を試行に記録する。role は "B" または "A"。
     // B の取得は b-preparing のときにだけ、A の認可は b-captured の

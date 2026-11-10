@@ -20,6 +20,10 @@
 //   あること（Codex レビュー Issue #3 コメント 6758648104 の指摘1：
 //   B は b-preparing、A は b-captured のときにだけ有効。重複
 //   コールバックも段階で拒否される）。
+// - 各役割の捕捉は1回だけ受け付けること（Codex レビュー Issue #3
+//   コメント 6758817319：claimCallbackCapture で受付済み・処理中の
+//   同一試行・役割への後続コールバックを、ユーザーの確認前でも
+//   拒否する。古い試行の claim は新しい試行を妨げない）。
 // - ログ記録には ID トークン・Cookie・nonce・主体ハッシュが含まれないこと。
 //
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
@@ -258,6 +262,31 @@ test("S10: GIS コールバックは試行・役割・段階が一致すると�
   assert.equal(session.discard(old.trialId, old.generation), true);
   assert.equal(session.isCallbackCurrent(old.trialId, old.generation, "B"), false);
   assert.equal(session.isCallbackCurrent(old.trialId, old.generation, "A"), false);
+});
+
+test("S10: GIS コールバックの捕捉は役割ごとに1回だけ受け付ける", () => {
+  const session = createAddSession();
+  const { trialId, generation } = session.beginTrial();
+  // 段階外の役割は claim できない。
+  assert.equal(session.claimCallbackCapture(trialId, generation, "A"), false);
+  // B は1回だけ claim できる（処理中・受付済みの2回目は拒否）。
+  assert.equal(session.claimCallbackCapture(trialId, generation, "B"), true);
+  assert.equal(session.claimCallbackCapture(trialId, generation, "B"), false);
+  session.beginNonceFetch(trialId, generation, "B", 1000);
+  session.finishNonceFetch(trialId, generation, "B", "nonce-b");
+  session.markBCaptured(trialId, generation, { subjectHash: HASH_B, verified: VERIFIED });
+  // 段階が進んだ後も B は claim できない（段階外かつ受付済み）。
+  assert.equal(session.claimCallbackCapture(trialId, generation, "B"), false);
+  // A は1回だけ claim できる。
+  assert.equal(session.claimCallbackCapture(trialId, generation, "A"), true);
+  assert.equal(session.claimCallbackCapture(trialId, generation, "A"), false);
+  // 古い試行の claim は新しい試行を妨げない。
+  const next = session.beginTrial();
+  assert.equal(session.claimCallbackCapture(trialId, generation, "B"), false);
+  assert.equal(session.claimCallbackCapture(next.trialId, next.generation, "B"), true);
+  // 破棄後は claim できない。
+  assert.equal(session.discard(next.trialId, next.generation), true);
+  assert.equal(session.claimCallbackCapture(next.trialId, next.generation, "B"), false);
 });
 
 test("S10: 古い試行のコールバックは拒否される", () => {

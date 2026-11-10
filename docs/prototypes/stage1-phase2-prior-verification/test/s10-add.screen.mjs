@@ -908,6 +908,92 @@ try {
     );
     window.close();
   }
+
+  // ---- 場面12：同役割の捕捉は1回だけ。並行する重複コールバックと
+  // 確認前の重複は claim で破棄され、旧試行の claim は新試行を妨げない
+  // （Codex 6758817319） ----
+  {
+    const { window } = await makeDom();
+    await newTrial(window);
+    // ハッシュ計算を遅延させる。先行コールバックが sha256hex に到達
+    // したことを旗で確認してから、並行する重複コールバックを呼ぶ。
+    let releaseHash;
+    window.__hashGate = new Promise((resolve) => { releaseHash = resolve; });
+    window.__hashReached = false;
+    const origSha256hex = window.sha256hex;
+    window.sha256hex = async (text) => {
+      window.__hashReached = true;
+      await window.__hashGate;
+      return origSha256hex(text);
+    };
+    const idxB = await prepRole(window, "B");
+    const nonceB = window.__gis.nonces[window.__gis.nonces.length - 1];
+    const cb1 = window.__gis.callbacks[idxB]({ credential: mintToken(nonceB, SUB_B) });
+    const reached = await waitFor(() => window.__hashReached === true);
+    if (!reached) throw new Error("先行コールバックが sha256hex まで進みませんでした");
+    // 並行する同役割の重複コールバック（別の主体・同じ nonce）。
+    await window.__gis.callbacks[idxB]({ credential: mintToken(nonceB, SUB_A) });
+    await sleep(200);
+    check(
+      "実画面: ハッシュ遅延中の同役割の並行コールバックが受け付け済みとして破棄される",
+      logText(window).includes("同じ役割のコールバックは既に受け付け済みのため破棄しました"),
+      logText(window).slice(-300)
+    );
+    releaseHash();
+    await cb1;
+    await sleep(300);
+    check(
+      "実画面: 遅延した先行コールバックだけが捕捉される",
+      el(window, "bHash").textContent === HASH_B &&
+        countOccurrences(logText(window), "B の署名検証 -> ok") === 1,
+      `bHash=${el(window, "bHash").textContent.slice(0, 20)}`
+    );
+    // 捕捉済み・確認前（completeB の前）の重複も claim で破棄される。
+    await invokeCallback(window, idxB, nonceB, SUB_A);
+    check(
+      "実画面: 確認前の重複コールバックが claim で破棄され、B の主体ハッシュが書き換わらない",
+      countOccurrences(logText(window), "同じ役割のコールバックは既に受け付け済みのため破棄しました") === 2 &&
+        el(window, "bHash").textContent === HASH_B,
+      `bHash=${el(window, "bHash").textContent.slice(0, 20)}`
+    );
+    // 確認（取得完了）の後も安定して段階が進む。
+    checkBox(window, "bConfirmed");
+    el(window, "completeB").click();
+    await sleep(300);
+    check(
+      "実画面: 重複の破棄後も B の取得完了で段階が b-captured になる",
+      stateText(window).includes('"phase": "b-captured"'),
+      stateText(window).slice(0, 200)
+    );
+    await captureRole(window, "A", SUB_A);
+    checkBox(window, "aConfirmed");
+    el(window, "completeA").click();
+    await sleep(300);
+    el(window, "freezeReq").click();
+    await sleep(300);
+    checkBox(window, "preReadConfirmed");
+    window.__addQueue = [{ status: 200, generation: 3 }];
+    el(window, "sendAdd").click();
+    await sleep(800);
+    const call = window.__addCalls[0] || {};
+    check(
+      "実画面: 凍結・送信まで安定し、追加が先行コールバックの対象で1回完了する",
+      window.__addCalls.length === 1 &&
+        call.body && call.body.subject_hash === HASH_B &&
+        stateText(window).includes('"phase": "completed"'),
+      `calls=${window.__addCalls.length}`
+    );
+    // 旧試行の claim は新しい試行を妨げない。
+    await newTrial(window);
+    await captureRole(window, "B", SUB_B);
+    check(
+      "実画面: 新しい試行では B の捕捉が再び受け付けられる",
+      countOccurrences(logText(window), "B の署名検証 -> ok") === 2 &&
+        el(window, "bHash").textContent === HASH_B,
+      logText(window).slice(-300)
+    );
+    window.close();
+  }
 } catch (e) {
   console.log("FAIL  実画面試験の実行中に例外:", e.message);
   results.push({ name: "実画面試験の実行", pass: false });

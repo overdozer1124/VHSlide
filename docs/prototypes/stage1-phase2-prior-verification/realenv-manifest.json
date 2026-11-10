@@ -138,18 +138,18 @@
     },
     {
       "path": "public/s10-add-operator.html",
-      "sha256": "3987e7eb5e11c87f81825b3628cf08c45a0737b94f1ccffceb4db74cb67da1ce",
-      "bytes": 35604
+      "sha256": "1cfae26229edf2ef5300d0dc9d6488e07d7cfe1da83ab1e5dd877f541908cf6a",
+      "bytes": 37126
     },
     {
       "path": "tools/s10-add.mjs",
-      "sha256": "0a77d0558fd6b1be9044310d5217d5ae78c6808bfe02b0d8b0890c061eb95004",
-      "bytes": 23281
+      "sha256": "42734c8833f3257be9c7625aaaac25df1a91b7b633bf4a1bd04581f0572e2832",
+      "bytes": 24770
     },
     {
       "path": "test/s10-add.test.mjs",
-      "sha256": "5ab82980fa3489b1b999bfa8a60d8ab1ef9d86e2b644f74c1e4d0ca1ceed7178",
-      "bytes": 15180
+      "sha256": "9c50f27eeca5d9aae760667930ef27efc3d95b090cda07225a9bad57af7de641",
+      "bytes": 17144
     },
     {
       "path": "test/s10-add-guard.test.mjs",
@@ -158,8 +158,8 @@
     },
     {
       "path": "test/s10-add.screen.mjs",
-      "sha256": "b79ecff8a01a904db093821c4c94eceb277365685687f15b9712459e1ef50836",
-      "bytes": 39780
+      "sha256": "3c9cde9b18b49ee5fe3a49aa144fb316629ea4e320ee0f1c097a89692cf5ae5d",
+      "bytes": 43904
     },
     {
       "path": "test/serve-real-s10.test.mjs",
@@ -1835,7 +1835,7 @@
     "s10_module_frozen_request": {
       "found": [
         {
-          "line": 314,
+          "line": 334,
           "text": "freezeRequest(trialId, gen) {"
         }
       ],
@@ -1848,11 +1848,11 @@
           "text": "//   の場合は機械的に same_subject で試行を停止する（同一アカウントを"
         },
         {
-          "line": 289,
+          "line": 309,
           "text": "// が同一の場合は same_subject で試行を停止する（同一アカウントを"
         },
         {
-          "line": 304,
+          "line": 324,
           "text": "fail(\"same_subject\", \"A と B の主体ハッシュが同一です\");"
         }
       ],
@@ -1861,7 +1861,7 @@
     "s10_module_no_resend_on_no_response": {
       "found": [
         {
-          "line": 406,
+          "line": 426,
           "text": "recordNoResponse(trialId, gen) {"
         }
       ],
@@ -1879,11 +1879,11 @@
     "s10_page_pre_send_display": {
       "found": [
         {
-          "line": 167,
+          "line": 176,
           "text": "<pre id=\"frozenReq\">（まだ要求を凍結していません）</pre>"
         },
         {
-          "line": 235,
+          "line": 244,
           "text": "const frozenEl = document.getElementById(\"frozenReq\");"
         }
       ],
@@ -1900,11 +1900,11 @@
           "text": "expected_generation}、redirect: \"manual\" です。リダイレクトは"
         },
         {
-          "line": 369,
+          "line": 378,
           "text": "const res = await fetch(PATHS.nonce, { credentials: \"include\", redirect: \"manual\" });"
         },
         {
-          "line": 647,
+          "line": 666,
           "text": "redirect: \"manual\","
         }
       ],
@@ -1963,8 +1963,12 @@
           "text": "// さらに役割と段階も照合する（isCallbackCurrent：B は b-preparing、"
         },
         {
-          "line": 205,
+          "line": 209,
           "text": "isCallbackCurrent(trialId, gen, role) {"
+        },
+        {
+          "line": 225,
+          "text": "if (!this.isCallbackCurrent(trialId, gen, role)) return false;"
         }
       ],
       "expect": "present"
@@ -1972,15 +1976,15 @@
     "s10_page_recheck_after_hash": {
       "found": [
         {
-          "line": 429,
+          "line": 448,
           "text": "const hashRejection = callbackRejection(snap);"
         },
         {
-          "line": 430,
+          "line": 449,
           "text": "if (hashRejection !== null) {"
         },
         {
-          "line": 431,
+          "line": 450,
           "text": "log(hashRejection);"
         }
       ],
@@ -1989,20 +1993,46 @@
     "s10_page_reject_while_fetching": {
       "found": [
         {
-          "line": 285,
+          "line": 294,
           "text": "function isAnyNonceFetchPending() {"
         },
         {
-          "line": 340,
+          "line": 349,
           "text": "const fetching = isAnyNonceFetchPending();"
         },
         {
-          "line": 509,
+          "line": 528,
           "text": "if (isAnyNonceFetchPending()) {"
         },
         {
-          "line": 535,
+          "line": 554,
           "text": "if (isAnyNonceFetchPending()) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_module_one_capture_claim": {
+      "found": [
+        {
+          "line": 147,
+          "text": "// 拒否する。さらに各役割の捕捉は claimCallbackCapture で1回に固定"
+        },
+        {
+          "line": 224,
+          "text": "claimCallbackCapture(trialId, gen, role) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s10_page_claims_capture": {
+      "found": [
+        {
+          "line": 61,
+          "text": "claim を取り（tools/s10-add.mjs の claimCallbackCapture）、受付済み・"
+        },
+        {
+          "line": 413,
+          "text": "if (!session.claimCallbackCapture(snap.trialId, snap.generation, snap.role)) {"
         }
       ],
       "expect": "present"
