@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.105.5",
+    date: "2026-11-10",
+    title: "ボタンの周りに二重の線が表示される問題を修正",
+    changes: [
+      "ボタンの枠線のすぐ外側に、文字と同じ色の細い線がもう1本表示されていた問題を直しました。枠線の指定と名前が重なった別の指定が同時に効いていたためで、不要な線が表示されないようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.105.4",
     date: "2026-11-10",
     title: "「ファイル」ボタンの左の線が細くなる問題を修正",

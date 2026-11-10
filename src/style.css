@@ -192,6 +192,15 @@ p {
   /* An inner ring keeps the frame readable at fractional display scales,
      where a plain 2px border can rasterize thinner on some edges. */
   box-shadow: inset 0 0 0 1px #b3c2b8;
+  /* The class name "outline" collides with Tailwind's outline utility
+     (outline-style + outline-width: 1px, color = currentColor), which
+     painted a stray 1px text-colored line around every outline button.
+     Suppress it here; the focus ring is restored by the rule below. */
+  outline: none;
+}
+.button.outline:focus-visible {
+  outline: 3px solid #7cad91;
+  outline-offset: 3px;
 }
 .button.primary {
   background: #315d4e;

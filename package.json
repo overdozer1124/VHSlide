@@ -1,7 +1,7 @@
 {
   "name": "vhslide",
   "private": true,
-  "version": "0.105.4",
+  "version": "0.105.5",
   "type": "module",
   "engines": {
     "node": "24.x"
