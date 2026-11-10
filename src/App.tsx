@@ -28,6 +28,7 @@ import { prepareImportedForms } from "./importForms";
 import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget } from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
+import { TeacherConsole } from "./TeacherConsole";
 import { addGuestPage } from "./guestPages";
 import { FitReview } from "./FitReview";
 import { fitKey, needsFitCheck } from "./checkContentFit";
@@ -267,7 +268,9 @@ export default function App() {
   const [, cloudChanged] = useState(0);
   const [past, setPast] = useState<Deck[]>([]),
     [future, setFuture] = useState<Deck[]>([]);
-  const [view, setView] = useState<"map" | "editor" | "present">("map");
+  const [view, setView] = useState<"map" | "editor" | "present" | "console">(
+    "map",
+  );
   const [mapToolbarHost, setMapToolbarHost] = useState<HTMLDivElement | null>(
     null,
   );
@@ -2416,6 +2419,15 @@ export default function App() {
           )}
         </div>
       )}
+      {cloud.active && cloud.isHost && view !== "present" && (
+        <button
+          className="button outline"
+          aria-pressed={view === "console"}
+          onClick={() => setView(view === "console" ? "map" : "console")}
+        >
+          {view === "console" ? "コンソールを閉じる" : "授業コンソール"}
+        </button>
+      )}
     </>
   );
   const undoRedoButtons = (
@@ -2614,7 +2626,7 @@ export default function App() {
         onKeyDownCapture={() => {
           if (flight) flushSync(() => setFlight(undefined));
         }}
-        className={`app-shell ${view !== "present" ? "workspace-mode" : ""} ${view === "editor" ? "editing" : view === "map" ? "mapping" : ""} ${flight ? `workspace-transition-${flight.destination}` : ""}`}
+        className={`app-shell ${view !== "present" ? "workspace-mode" : ""} ${view === "editor" ? "editing" : view === "map" ? "mapping" : view === "console" ? "consoling" : ""} ${flight ? `workspace-transition-${flight.destination}` : ""}`}
       >
         <input
           ref={jsonRef}
@@ -3017,7 +3029,7 @@ export default function App() {
                 }}
               />
             )}
-            {view !== "editor" && (
+            {view === "map" && (
               <ToolbarScroller label="全体マップのツールバー">
                 {(toolbarRef) => (
                   <nav
@@ -3110,7 +3122,14 @@ export default function App() {
             initialTab={cloudInitialTab}
           />
         )}
-        {view !== "present" && (
+        {view === "console" && cloud.active && (
+          <TeacherConsole
+            workbook={workbook}
+            cloud={cloud}
+            onClose={() => setView("map")}
+          />
+        )}
+        {view !== "present" && view !== "console" && (
           <MapView
             toolbarHost={mapToolbarHost}
             readOnly={!!cloud.active && cloud.access.mode === "none"}
@@ -3421,7 +3440,7 @@ export default function App() {
               onCancelLink={() => setPendingPresentationLink(undefined)}
             />
           )}
-        {view !== "present" && (
+        {view !== "present" && view !== "console" && (
           <SheetTabs
             readOnly={!cloud.isHost}
             sheets={sheetList(workbook)}
