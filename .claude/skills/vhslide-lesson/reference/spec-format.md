@@ -1,0 +1,83 @@
+# レッスン仕様（lesson spec）の書き方
+
+`build-deck.mjs` に渡すJSON。スライドは 960×540 の座標に自動配置されるので、座標は書かない。
+
+```jsonc
+{
+  "title": "作品名",
+  "course": "教科・単元（表紙の小見出し）",
+  "layout": "lesson-rows",          // または "phase-grid"
+  "theme": "natural",               // プリセット名、または { "base": "chic", "accent": "#c0392b", ... }
+  "mascot": "onigiri",              // onigiri | drop | book | sprout | blob | none
+  "lessons": [                      // 1要素＝1単位時間
+    {
+      "title": "4　中学生に必要な栄養",   // 表紙の題
+      "short": "第4時 中学生に必要な栄養", // 行名・シート名・ルート名（80字まで）
+      "hour": "第4時（全4時間）",
+      "goal": "学習の目標",
+      "worksheet": { "title": "ワークシート名", "summarySlide": true },
+      "phases": [
+        { "name": "導入", "minutes": 10, "slides": [ /* スライド */ ] },
+        { "name": "展開", "minutes": 30, "slides": [] },
+        { "name": "まとめ", "minutes": 10, "slides": [] }
+      ]
+    }
+  ]
+}
+```
+
+## 配置
+
+| layout | 行（上下） | 列（左右） | シート |
+| --- | --- | --- | --- |
+| `lesson-rows` | 単位時間（1時間目が1行目） | その時間の流れ | 1枚 |
+| `phase-grid` | 導入・展開・まとめ | その場面の流れ | 1時間なら1枚、複数時間なら1時間ごとに1枚 |
+
+どちらも各時間の授業順の **発表ルート** を作る。ワークシートは **1時間につき1つ**（セクション＝場面）。`summarySlide`（既定 true）で、時間の最後に「ワークシート全体」のページを追加する。
+
+## スライド共通
+
+| キー | 意味 |
+| --- | --- |
+| `kind` | 種類（下表） |
+| `tag` | 見出しの左のラベル（省略時は場面名）。例：レッツスタート、図1、考えよう、解説 |
+| `heading` | 見出し |
+| `notes` | 発表者ノート（指導のポイント・留意点・予想される反応・評価） |
+
+## 入力欄（field）
+
+```jsonc
+{ "id": "q1", "label": "問い（入力欄の見出し）", "type": "text", "placeholder": "書き出しの例",
+  "options": ["選択肢"], "reason": true, "public": true, "height": 140 }
+```
+
+- `type`：`text`（既定）／`single`（1つ選ぶ）／`multiple`（複数選ぶ）／`checkbox`。選択肢は2〜10個。
+- `reason`：選択式に理由欄を付ける。`public`：選択の集計を公開する。`height`：ワークシート全体表示での入力欄の高さ（32〜400）。
+- `id` は1時間の中で重複不可（英数字・`_`・`-`）。省略時は q1, q2…。1時間40個まで。
+
+## スライドの種類
+
+| kind | 主なキー | 用途 |
+| --- | --- | --- |
+| `title` | `title` `subtitle` `goal` `note` | 表紙（目標は lesson.goal を既定に使う） |
+| `task` | `text` `clues[]` | 学習課題 |
+| `question` | `prompt` `field` または `fields[]`（2〜3）、左側に `hints[]`(+`hintsTitle`)／`table`／`chart`／`image`／`body` のいずれか、`split`（左の幅の比率） | 問いと入力欄 |
+| `fields` | `prompt` `keywords[]` `fields[]` | まとめ・ふり返り（入力欄を横に並べる） |
+| `figure` | `image`（png/jpg/webp/gif/svg のパス）`alt` `lead` `source` `field` `imageShare` | 図の読み取り |
+| `table` | `rows[][]`（1行目が見出し、`\n`で改行）`highlight[]`（強調する行番号）`widths[]` `lead` `source` `field` | 表 |
+| `chart` | `chart: { type: bar/line/pie, title, data: [[ラベル, 値]], highlight: [ラベルか番号] }` `callout` `calloutTitle` `source` `field` | ネイティブグラフ |
+| `cards` | `lead` `cards[{title, body, sub, tone}]` `columns` `footer` | 解説・まとめのカード |
+| `flow` | `lead` `items[{top, bottom, note}]` `footer` | 「A → B」の対応図 |
+| `points` | `items[[項目, 説明]]` `note{title, body}` | ポイントの一覧 |
+| `board` | `task` `items[[見出し, 内容]]` | 板書例 |
+| `custom` | `elements[]`（VHSlide の要素をそのまま） | 上で表せないもの・新機能の利用 |
+
+`tone` は `plain`／`primary`／`accent`。グラフのラベルは短く（6字以内が目安）。長いと折り返す。
+
+## テーマのJSON
+
+```json
+{ "base": "minimal", "label": "学校カラー", "accent": "#c0392b", "accentSoft": "#fbe9e7", "primary": "#1b2a49" }
+```
+
+使えるキー：`bg` `surface` `ink` `sub` `primary` `onPrimary` `primarySoft` `accent` `onAccent` `accentSoft` `line` `muted` `chart[]` `header`（band/underline/tab/chalk/minimal）`card`（fill/strip/outline）`mascot{body, outline, wrap, cheek, think, idea}`。色は必ず `#rrggbb`。

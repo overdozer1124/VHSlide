@@ -1,0 +1,64 @@
+// Tone presets for lesson decks. Every color is #rrggbb (VHSlide accepts no other form).
+// header: band | underline | tab | chalk | minimal
+// card:   fill  (tinted panel) | strip (panel + accent bar on the left) | outline (thin frame)
+export const themes = {
+  natural: {
+    label: "ナチュラル（やさしい・落ち着いた緑とオレンジ）",
+    bg: "#fffdf8", surface: "#ffffff", ink: "#173d38", sub: "#5b6670",
+    primary: "#173d38", onPrimary: "#ffffff", primarySoft: "#eef6f1",
+    accent: "#e8742a", onAccent: "#ffffff", accentSoft: "#fff4e3",
+    line: "#c9d8d2", header: "band", card: "strip",
+    chart: ["#e8742a", "#2e7d5b", "#2f6fd6", "#c9a227", "#9b59b6", "#16a2a2"],
+    muted: "#9fb3ad", mascot: { body: "#ffffff", outline: "#3a3a3a", wrap: "#2f4f3a", cheek: "#f6b3a6", think: "#f39c3d", idea: "#2e9b6a" },
+  },
+  pop: {
+    label: "ポップ（明るい・元気）",
+    bg: "#ffffff", surface: "#fff9db", ink: "#24324a", sub: "#5d6b82",
+    primary: "#2b7de9", onPrimary: "#ffffff", primarySoft: "#e7f1ff",
+    accent: "#ff5c8a", onAccent: "#ffffff", accentSoft: "#ffe8ef",
+    line: "#ffd43b", header: "tab", card: "fill",
+    chart: ["#2b7de9", "#ff5c8a", "#ffb000", "#20c997", "#845ef7", "#ff922b"],
+    muted: "#c5cfdc", mascot: { body: "#ffffff", outline: "#24324a", wrap: "#2b7de9", cheek: "#ffb3c7", think: "#ffb000", idea: "#20c997" },
+  },
+  chic: {
+    label: "シック（大人っぽい・紺と金）",
+    bg: "#f7f5f0", surface: "#ffffff", ink: "#1f2a44", sub: "#69707f",
+    primary: "#1f2a44", onPrimary: "#ffffff", primarySoft: "#e9ecf3",
+    accent: "#b8892e", onAccent: "#ffffff", accentSoft: "#f6eedc",
+    line: "#d8d2c4", header: "underline", card: "outline",
+    chart: ["#1f2a44", "#b8892e", "#6b8fb3", "#a35d4a", "#7a8f6b", "#8c7aa8"],
+    muted: "#b9bfcb", mascot: { body: "#ffffff", outline: "#1f2a44", wrap: "#1f2a44", cheek: "#e8c3b0", think: "#b8892e", idea: "#6b8fb3" },
+  },
+  chalk: {
+    label: "黒板（板書の雰囲気）",
+    bg: "#1f4a3d", surface: "#285a4b", ink: "#f5f3e8", sub: "#c9dccf",
+    primary: "#f5f3e8", onPrimary: "#1f4a3d", primarySoft: "#285a4b",
+    accent: "#ffd84d", onAccent: "#1f4a3d", accentSoft: "#2f6555",
+    line: "#9cc5b5", header: "chalk", card: "outline",
+    chart: ["#ffd84d", "#ff9e9e", "#9ed0ff", "#b6f09c", "#f5f3e8", "#ffb86b"],
+    muted: "#9cc5b5", mascot: { body: "#fffdf4", outline: "#1f2a26", wrap: "#2a3a33", cheek: "#ffb7a8", think: "#ffd84d", idea: "#7fd1ae" },
+  },
+  minimal: {
+    label: "ミニマル（白基調・アクセント1色）",
+    bg: "#ffffff", surface: "#f4f5f7", ink: "#1d1f23", sub: "#6b7079",
+    primary: "#1d1f23", onPrimary: "#ffffff", primarySoft: "#f4f5f7",
+    accent: "#0f8b8d", onAccent: "#ffffff", accentSoft: "#e3f3f3",
+    line: "#dfe2e6", header: "minimal", card: "fill",
+    chart: ["#0f8b8d", "#1d1f23", "#8a9099", "#e07a5f", "#3d5a80", "#c9a227"],
+    muted: "#c4c8ce", mascot: { body: "#ffffff", outline: "#1d1f23", wrap: "#0f8b8d", cheek: "#f2b8a8", think: "#e07a5f", idea: "#0f8b8d" },
+  },
+};
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+/** Resolve a preset name or a custom object (optionally `base` + overrides). */
+export function resolveTheme(spec = "natural") {
+  if (typeof spec === "string") {
+    if (!themes[spec]) throw Error(`未知のテーマです: ${spec}（${Object.keys(themes).join(", ")}）`);
+    return structuredClone(themes[spec]);
+  }
+  const base = structuredClone(themes[spec.base ?? "natural"]);
+  const t = { ...base, ...spec, mascot: { ...base.mascot, ...(spec.mascot ?? {}) } };
+  for (const [k, v] of Object.entries(t))
+    if (typeof v === "string" && v.startsWith("#") && !HEX.test(v)) throw Error(`テーマの色 ${k} は #rrggbb で指定してください: ${v}`);
+  return t;
+}
