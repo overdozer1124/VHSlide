@@ -16,6 +16,10 @@
 //   再取得が拒否され、遅れて戻った旧応答が破棄されること。期限は要求
 //   開始時刻＋5分であること。
 // - 古い試行のコールバックは拒否されること。
+// - GIS コールバックは試行・役割・段階が一致するときにだけ有効で
+//   あること（Codex レビュー Issue #3 コメント 6758648104 の指摘1：
+//   B は b-preparing、A は b-captured のときにだけ有効。重複
+//   コールバックも段階で拒否される）。
 // - ログ記録には ID トークン・Cookie・nonce・主体ハッシュが含まれないこと。
 //
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
@@ -222,6 +226,38 @@ test("S10: 応答なしでは状態未確定として停止し、再送できな
   assert.equal(outcome.state, "halted");
   assert.equal(outcome.undetermined, true);
   assert.equal(session.canSend(trialId, generation), false);
+});
+
+test("S10: GIS コールバックは試行・役割・段階が一致するときにだけ有効である", () => {
+  const session = createAddSession();
+  const { trialId, generation } = session.beginTrial();
+  // b-preparing：B は有効、A は段階外。
+  assert.equal(session.isCallbackCurrent(trialId, generation, "B"), true);
+  assert.equal(session.isCallbackCurrent(trialId, generation, "A"), false);
+  assert.equal(session.isCallbackCurrent(trialId, generation, "X"), false);
+  session.beginNonceFetch(trialId, generation, "B", 1000);
+  session.finishNonceFetch(trialId, generation, "B", "nonce-b");
+  session.markBCaptured(trialId, generation, { subjectHash: HASH_B, verified: VERIFIED });
+  // b-captured：B は重複（段階外）、A は有効。
+  assert.equal(session.isCallbackCurrent(trialId, generation, "B"), false);
+  assert.equal(session.isCallbackCurrent(trialId, generation, "A"), true);
+  session.beginNonceFetch(trialId, generation, "A", 2000);
+  session.finishNonceFetch(trialId, generation, "A", "nonce-a");
+  session.markACaptured(trialId, generation, { subjectHash: HASH_A, verified: VERIFIED });
+  // a-captured：両方の役割とも段階外。
+  assert.equal(session.isCallbackCurrent(trialId, generation, "B"), false);
+  assert.equal(session.isCallbackCurrent(trialId, generation, "A"), false);
+  // 古い試行は世代で拒否される。
+  const old = session.beginTrial();
+  assert.equal(session.isCallbackCurrent(trialId, generation, "B"), false);
+  assert.equal(session.isCallbackCurrent(trialId, generation, "A"), false);
+  // 新しい試行は b-preparing に戻る。
+  assert.equal(session.isCallbackCurrent(old.trialId, old.generation, "B"), true);
+  assert.equal(session.isCallbackCurrent(old.trialId, old.generation, "A"), false);
+  // 破棄後はどちらの役割も無効になる。
+  assert.equal(session.discard(old.trialId, old.generation), true);
+  assert.equal(session.isCallbackCurrent(old.trialId, old.generation, "B"), false);
+  assert.equal(session.isCallbackCurrent(old.trialId, old.generation, "A"), false);
 });
 
 test("S10: 古い試行のコールバックは拒否される", () => {

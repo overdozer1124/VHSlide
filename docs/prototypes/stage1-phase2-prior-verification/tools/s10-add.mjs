@@ -142,6 +142,9 @@ function requireVerified(verified, what) {
 // 追加試行の状態機械。許可する順序は B の主体取得 → A の認可 →
 // 凍結 → 送信。fetch が例外（レスポンスなし）の場合は状態未確定と
 // して停止し、再送を許可しない。古い世代のコールバックは拒否する。
+// さらに役割と段階も照合する（isCallbackCurrent：B は b-preparing、
+// A は b-captured のときにだけ有効）。重複 GIS コールバックも段階で
+// 拒否する。
 // nonce の取得も試行に閉じ込める。beginNonceFetch は /nonce 要求の
 // 開始直前に同期的に呼び、開始時刻（startedAtMs）を試行に記録する。
 export function createAddSession() {
@@ -189,6 +192,21 @@ export function createAddSession() {
       return (
         current !== null && current.trialId === trialId && current.generation === gen
       );
+    },
+    // GIS コールバックが現行の試行・役割・段階に属するかを照合する。
+    // 役割 B は b-preparing、役割 A は b-captured のときにだけ有効。
+    // 古い試行・役割外・段階外のコールバックは偽を返す。画面は
+    // onGoogleSignIn の各 await の後（JWKS 取得後・署名検証後・
+    // sha256hex 後）でこれを呼び、遅延・破棄・新試行・役割移行を
+    // またいだ古い／重複コールバックが共有の状態へ書き込むのを防ぐ。
+    // 特に sha256hex は非同期であり、その完了を待つ間に試行が置換
+    // され得るため、ハッシュ後の再照合が必須である（Codex コメント
+    // 6758648104 の指摘1）。
+    isCallbackCurrent(trialId, gen, role) {
+      if (!this.isCurrent(trialId, gen)) return false;
+      if (role === "B") return current.phase === "b-preparing";
+      if (role === "A") return current.phase === "b-captured";
+      return false;
     },
     // /nonce 要求の開始を試行に記録する。role は "B" または "A"。
     // B の取得は b-preparing のときにだけ、A の認可は b-captured の

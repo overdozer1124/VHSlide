@@ -570,6 +570,22 @@ const checks = {
     found: findLines(s10AddGuardLines, /nonce_replayed/),
     expect: "present",
   },
+  // S10 専用画面の再修正（Codex レビュー 6758648104）：GIS
+  // コールバックは試行・役割・段階が一致するときにだけ有効で
+  // （isCallbackCurrent）、画面は sha256hex 後にも再照合すること。
+  // 新規試行・破棄のハンドラーは nonce 取得中も拒否すること。
+  s10_module_callback_current: {
+    found: findLines(s10AddModuleLines, /isCallbackCurrent/),
+    expect: "present",
+  },
+  s10_page_recheck_after_hash: {
+    found: findLines(s10AddLines, /hashRejection/),
+    expect: "present",
+  },
+  s10_page_reject_while_fetching: {
+    found: findLines(s10AddLines, /isAnyNonceFetchPending/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {

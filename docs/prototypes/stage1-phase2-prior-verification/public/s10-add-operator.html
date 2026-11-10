@@ -52,13 +52,20 @@
   - 送信中の排他：sending フラグを持ち、送信中は準備・送信ボタンを
     無効化します。試行の ID・世代・nonce・役割を閉じ込めた GIS
     コールバックを使い、古い試行のコールバックは世代照合で拒否します。
+    さらに各 await の後（JWKS 取得後・署名検証後・sha256hex 後）で
+    役割と段階も照合し（B は b-preparing、A は b-captured のときに
+    だけ有効）、遅延・破棄・新試行・役割移行をまたいだ古い／重複
+    コールバックが共有の状態へ書き込むのを防ぎます（Codex コメント
+    6758648104 の指摘1への対応）。
   - nonce 取得中の排他：/nonce 要求の飛行中は準備・破棄・新規試行
-    ボタンを無効化し、合成イベントで呼んでも取得中の再準備・破棄を
-    拒否します（セッション側の beginNonceFetch も nonce_fetch_busy
-    で拒否する）。並行する /nonce 要求を出さないことで、遅れて戻った
-    旧応答の Set-Cookie が現行試行のブラウザーCookie を上書きするのを
-    防ぎます。ブラウザーは応答受信時に Set-Cookie を自動適用するため、
-    事後の世代照合だけでは Cookie の上書きは防げません。
+    ボタンを無効化し、合成イベントで呼んでも取得中の再準備・破棄・
+    新規試行をハンドラー側でも拒否します（S9 と同じ型。セッション側
+    の beginNonceFetch も nonce_fetch_busy で拒否する）。並行する
+    /nonce 要求を出さないことで、遅れて戻った旧応答の Set-Cookie が
+    現行試行のブラウザーCookie を上書きするのを防ぎます（Codex
+    コメント 6758648104 の指摘2への対応）。ブラウザーは応答受信時
+    に Set-Cookie を自動適用するため、事後の世代照合だけでは Cookie
+    の上書きは防げません。
   - 別タブ干渉：op2_nonce_ctx Cookie は同一生成元（ブラウザー）で
     共有されるため、別タブで /nonce を取得すると現行試行の Cookie
     文脈が上書きされ、送信は nonce_context_mismatch で拒否されます
@@ -272,6 +279,30 @@ function currentNonceIssuedAt(role) {
   return session.nonceIssuedAt(attempt.trialId, attempt.generation, role);
 }
 
+// いずれかの役割の /nonce 取得が飛行中かどうか。新しい試行の開始・
+// 破棄のハンドラーでも使う（表示の無効化だけでは合成イベントを
+// 防げないため、ハンドラー側でも拒否する）。
+function isAnyNonceFetchPending() {
+  return (
+    attempt !== null &&
+    (session.isNonceFetchPending(attempt.trialId, attempt.generation, "B") ||
+      session.isNonceFetchPending(attempt.trialId, attempt.generation, "A"))
+  );
+}
+
+// GIS コールバックが現行の試行・役割・段階に属するかを照合する。
+// 拒否する場合はログに出す文言を返し、通る場合は null を返す。
+// 古い試行は世代で、重複コールバックは役割と段階で拒否する。
+function callbackRejection(snap) {
+  if (!session.isCurrent(snap.trialId, snap.generation)) {
+    return "古い試行のコールバックを破棄しました";
+  }
+  if (!session.isCallbackCurrent(snap.trialId, snap.generation, snap.role)) {
+    return "役割・段階が一致しないコールバックを破棄しました";
+  }
+  return null;
+}
+
 function updateState() {
   const snap = session.snapshot();
   if (!snap) {
@@ -306,10 +337,7 @@ function updateState() {
 // は準備・破棄・新規試行ボタンも無効化する（取得中の排他）。
 function updateButtons() {
   const phase = currentPhase();
-  const fetching =
-    attempt !== null &&
-    (session.isNonceFetchPending(attempt.trialId, attempt.generation, "B") ||
-      session.isNonceFetchPending(attempt.trialId, attempt.generation, "A"));
+  const fetching = isAnyNonceFetchPending();
   const canAct = !sending && !fetching && attempt !== null && phase !== null;
   const expiredB = currentNonceIssuedAt("B") !== null &&
     isNonceExpired(Date.now(), currentNonceIssuedAt("B"));
@@ -358,19 +386,22 @@ async function fetchNonce(role) {
 // 送信はしない。トークンは JS 変数にのみ保持する（捕捉モード）。
 // snap は initialize 時に閉じ込めたこの試行の ID・世代・役割・nonce
 // であり、グローバルな attempt は読まない。古い試行のコールバックは、
-// 開始時と各 await 後の照合で破棄する。共有の UI・状態の更新は、この
-// 試行が現行のときに限る。
+// 開始時と各 await 後の試行・役割・段階の照合（JWKS 取得後・署名検証
+// 後・sha256hex 後）で破棄する。共有の UI・状態の更新は、この試行が
+// 現行のときに限る。
 async function onGoogleSignIn(response, snap) {
-  if (!session.isCurrent(snap.trialId, snap.generation)) {
-    log("古い試行のコールバックを破棄しました");
+  const entryRejection = callbackRejection(snap);
+  if (entryRejection !== null) {
+    log(entryRejection);
     return;
   }
   try {
     // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で署名を
     // 検証する。トークンは外部の検証サービスへ送らない。真偽だけを扱う。
     const jwks = await (await fetch(JWKS_URL)).json();
-    if (!session.isCurrent(snap.trialId, snap.generation)) {
-      log("古い試行のコールバックを破棄しました");
+    const jwksRejection = callbackRejection(snap);
+    if (jwksRejection !== null) {
+      log(jwksRejection);
       return;
     }
     const sub = await verifyIdTokenLocal(response.credential, {
@@ -384,13 +415,22 @@ async function onGoogleSignIn(response, snap) {
       return null;
     });
     if (sub === null) throw new Error("署名検証が通りませんでした");
-    if (!session.isCurrent(snap.trialId, snap.generation)) {
-      log("古い試行のコールバックを破棄しました");
+    const verifyRejection = callbackRejection(snap);
+    if (verifyRejection !== null) {
+      log(verifyRejection);
       return;
     }
     // 主体ハッシュは PC 内で算出する。表示はこの画面の DOM だけであり、
-    // ログには出さない。
+    // ログには出さない。sha256hex は非同期であり、その完了を待つ間に
+    // 試行が破棄・置換され得るため、ハッシュ後にもう一度、試行・役割・
+    // 段階を照合してから共有の状態へ書き込む（Codex コメント
+    // 6758648104 の指摘1）。
     const hash = await sha256hex(sub);
+    const hashRejection = callbackRejection(snap);
+    if (hashRejection !== null) {
+      log(hashRejection);
+      return;
+    }
     const verified = { signature: true, iss: true, aud: true, exp: true, nonce: true };
     if (snap.role === "B") {
       tokenB = response.credential;
@@ -417,9 +457,10 @@ async function onGoogleSignIn(response, snap) {
     }
     log("トークンを捕捉しました（送信はしていません）", `(役割=${snap.role})`);
   } catch (e) {
-    // 共有の状態を変えるのは、この試行が現行のときに限る。古い試行の
-    // catch が新試行の状態を壊さないようにする。
-    if (session.isCurrent(snap.trialId, snap.generation)) {
+    // 共有の状態を変えるのは、このコールバックが現行の試行・役割・
+    // 段階に属するときに限る。古い／重複コールバックの catch が新試行
+    // の状態を壊さないようにする。
+    if (callbackRejection(snap) === null) {
       log("準備エラー:", e.message);
       // 捕捉に失敗した試行は破棄し、保持しかけた秘密があれば消去する。
       eraseSecrets("trial-discarded");
@@ -460,6 +501,15 @@ newTrialBtn.addEventListener("click", () => {
     log("送信中のため新しい試行は始められません");
     return;
   }
+  // nonce 取得中の新規試行の開始はできない。取得中の試行を置換すると、
+  // 遅れて戻った旧 /nonce 応答の Set-Cookie が新試行の Cookie 文脈を
+  // 上書きし得るため（S9 と同じ理由）。表示の無効化だけでは合成イベント
+  // を防げないため、ハンドラー側でも拒否する（Codex コメント
+  // 6758648104 の指摘2）。
+  if (isAnyNonceFetchPending()) {
+    log("nonce 取得中のため新しい試行を開始できません。取得完了後に開始してください");
+    return;
+  }
   // 旧試行の秘密があれば消去する（S10_TOKEN_ERASE_TRIGGERS の new-trial-begun）。
   if (attempt !== null) eraseSecrets("new-trial-begun");
   attempt = session.beginTrial();
@@ -479,6 +529,13 @@ newTrialBtn.addEventListener("click", () => {
 
 discardBtn.addEventListener("click", () => {
   if (!attempt || sending) return;
+  // nonce 取得中の破棄はできない（新規試行の開始と同じ理由）。
+  // 表示の無効化だけでは合成イベントを防げないため、ハンドラー側でも
+  // 拒否する（Codex コメント 6758648104 の指摘2）。
+  if (isAnyNonceFetchPending()) {
+    log("nonce 取得中のため破棄できません。取得完了後に破棄してください");
+    return;
+  }
   eraseSecrets("trial-discarded");
   session.discard(attempt.trialId, attempt.generation);
   attempt = null;

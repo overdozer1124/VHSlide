@@ -301,6 +301,9 @@ try {
     box.checked = true;
     box.dispatchEvent(new window.Event("change", { bubbles: true }));
   }
+  function countOccurrences(text, needle) {
+    return text.split(needle).length - 1;
+  }
   async function newTrial(window) {
     el(window, "newTrial").click();
     const ok = await waitFor(() => el(window, "trialId").textContent !== "（新しい試行を始めてください）");
@@ -642,6 +645,266 @@ try {
       "実画面: 送信中の2回目の送信は行われない",
       window.__addCalls.length === 1,
       `calls=${window.__addCalls.length}`
+    );
+    window.close();
+  }
+
+  // ---- 場面9：sha256hex の遅延中に旧試行を破棄・新規試行しても、
+  // 遅れた旧コールバックが新試行へ書き込まない（Codex 6758648104 指摘1） ----
+  {
+    const { window } = await makeDom();
+    check(
+      "実画面: 画面の sha256hex が差し替え可能である（遅延の再現用）",
+      typeof window.sha256hex === "function",
+      `typeof=${typeof window.sha256hex}`
+    );
+    const trial1 = await newTrial(window);
+    // ハッシュ計算を遅延させる。コールバックが sha256hex に到達した
+    // ことを旗で確認してから、破棄・新規試行を行う。
+    let releaseHash;
+    window.__hashGate = new Promise((resolve) => { releaseHash = resolve; });
+    window.__hashReached = false;
+    const origSha256hex = window.sha256hex;
+    window.sha256hex = async (text) => {
+      window.__hashReached = true;
+      await window.__hashGate;
+      return origSha256hex(text);
+    };
+    const idxB = await prepRole(window, "B");
+    const nonceB = window.__gis.nonces[window.__gis.nonces.length - 1];
+    const cbPromise = window.__gis.callbacks[idxB]({ credential: mintToken(nonceB, SUB_B) });
+    const reached = await waitFor(() => window.__hashReached === true);
+    check(
+      "実画面: 遅延させたハッシュ計算に旧コールバックが到達する",
+      reached,
+      "コールバックが sha256hex まで進まなかった"
+    );
+    el(window, "discardTrial").click();
+    await sleep(200);
+    const trial2 = await newTrial(window);
+    check(
+      "実画面: ハッシュ遅延中に破棄・新規試行で試行が置換される",
+      trial2 !== trial1,
+      `trial1=${trial1} trial2=${trial2}`
+    );
+    releaseHash();
+    await cbPromise;
+    await sleep(300);
+    check(
+      "実画面: 遅延した旧コールバックが破棄される（世代照合）",
+      logText(window).includes("古い試行のコールバックを破棄しました"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: 遅延した旧コールバックが新試行の B 表示へ書き込まない",
+      !logText(window).includes("B の署名検証 -> ok") &&
+        el(window, "bHash").textContent === "（まだ B のログインをしていません）",
+      `bHash=${el(window, "bHash").textContent.slice(0, 20)}`
+    );
+    check(
+      "実画面: 遅延した旧コールバックの後も新試行が b-preparing のままである",
+      stateText(window).includes('"phase": "b-preparing"'),
+      stateText(window).slice(0, 200)
+    );
+    // 新試行で B を取り直すと正常に捕捉できる。
+    await captureRole(window, "B", SUB_B);
+    check(
+      "実画面: 新試行で B を取り直すと署名検証 ok が1回だけ記録される",
+      countOccurrences(logText(window), "B の署名検証 -> ok") === 1 &&
+        el(window, "bHash").textContent === HASH_B,
+      logText(window).slice(-300)
+    );
+    window.close();
+  }
+
+  // ---- 場面10：捕捉済み・認可済みの役割への重複コールバックは
+  // 役割・段階で破棄される（Codex 6758648104 指摘1） ----
+  {
+    const { window } = await makeDom();
+    await newTrial(window);
+    const idxB = await prepRole(window, "B");
+    const nonceB = window.__gis.nonces[window.__gis.nonces.length - 1];
+    await invokeCallback(window, idxB, nonceB, SUB_B);
+    checkBox(window, "bConfirmed");
+    el(window, "completeB").click();
+    await sleep(300);
+    // 重複 B コールバック（別の主体・同じ nonce。署名検証は通る）。
+    await invokeCallback(window, idxB, nonceB, SUB_A);
+    check(
+      "実画面: 捕捉済みの B への重複コールバックが役割・段階で破棄される",
+      logText(window).includes("役割・段階が一致しないコールバックを破棄しました"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: 重複 B コールバックで B の主体ハッシュが書き換わらない",
+      el(window, "bHash").textContent === HASH_B,
+      `bHash=${el(window, "bHash").textContent.slice(0, 20)}`
+    );
+    check(
+      "実画面: B の署名検証 ok が1回だけ記録される",
+      countOccurrences(logText(window), "B の署名検証 -> ok") === 1,
+      logText(window).slice(-300)
+    );
+    const idxA = await prepRole(window, "A");
+    const nonceA = window.__gis.nonces[window.__gis.nonces.length - 1];
+    await invokeCallback(window, idxA, nonceA, SUB_A);
+    checkBox(window, "aConfirmed");
+    el(window, "completeA").click();
+    await sleep(300);
+    // 重複 A コールバック（別の主体・同じ nonce。署名検証は通る）。
+    await invokeCallback(window, idxA, nonceA, SUB_B);
+    check(
+      "実画面: 認可済みの A への重複コールバックが役割・段階で破棄される",
+      countOccurrences(logText(window), "役割・段階が一致しないコールバックを破棄しました") === 2,
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: 重複 A コールバックで A の主体ハッシュが書き換わらない",
+      el(window, "aHash").textContent === HASH_A,
+      `aHash=${el(window, "aHash").textContent.slice(0, 20)}`
+    );
+    check(
+      "実画面: A の署名検証 ok が1回だけ記録される",
+      countOccurrences(logText(window), "A の署名検証 -> ok") === 1,
+      logText(window).slice(-300)
+    );
+    // 重複を拒否した後も試行は正常に進み、送信できる。
+    el(window, "freezeReq").click();
+    await sleep(300);
+    checkBox(window, "preReadConfirmed");
+    window.__addQueue = [{ status: 200, generation: 3 }];
+    el(window, "sendAdd").click();
+    await sleep(800);
+    check(
+      "実画面: 重複コールバックの拒否後も追加が1回で完了する",
+      window.__addCalls.length === 1 && stateText(window).includes('"phase": "completed"'),
+      `calls=${window.__addCalls.length}`
+    );
+    window.close();
+  }
+
+  // ---- 場面11：遅延した B／A の nonce 取得中に、合成イベントでの
+  // 再準備・破棄・新規試行は拒否され、Cookie 文脈も保たれる
+  // （Codex 6758648104 指摘2） ----
+  {
+    const { window } = await makeDom();
+    const trial1 = await newTrial(window);
+    // B の nonce 取得を遅延させる。
+    window.__nonceDelayMs = 600;
+    el(window, "prepB").click();
+    const fetchingB = await waitFor(() => window.__nonceCalls === 1);
+    check(
+      "実画面: B の nonce 取得が飛行中になる",
+      fetchingB,
+      `nonceCalls=${window.__nonceCalls}`
+    );
+    dispatchClick(window, "newTrial");
+    dispatchClick(window, "discardTrial");
+    dispatchClick(window, "prepB");
+    await sleep(200);
+    check(
+      "実画面: B の nonce 取得中に合成イベントの新規試行が拒否される",
+      logText(window).includes("nonce 取得中のため新しい試行を開始できません"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: B の nonce 取得中に合成イベントの破棄が拒否される",
+      logText(window).includes("nonce 取得中のため破棄できません"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: B の nonce 取得中に合成イベントの再準備が拒否される",
+      logText(window).includes("準備エラー"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: B の nonce 取得中の拒否で試行が置換されず /nonce も増えない",
+      el(window, "trialId").textContent === trial1 &&
+        window.__nonceCalls === 1 &&
+        window.__gis.callbacks.length === 0,
+      `trialId=${el(window, "trialId").textContent} nonceCalls=${window.__nonceCalls} callbacks=${window.__gis.callbacks.length}`
+    );
+    const bReady = await waitFor(() => window.__gis.callbacks.length > 0);
+    check(
+      "実画面: 遅延した B の nonce 取得が完了して GIS コールバックが登録される",
+      bReady,
+      `callbacks=${window.__gis.callbacks.length}`
+    );
+    window.__nonceDelayMs = 0;
+    await invokeCallback(window, window.__gis.callbacks.length - 1, window.__gis.nonces[window.__gis.nonces.length - 1], SUB_B);
+    check(
+      "実画面: 遅延した B の nonce で捕捉でき、/nonce は1回のままである",
+      logText(window).includes("B の署名検証 -> ok") && window.__nonceCalls === 1,
+      `nonceCalls=${window.__nonceCalls}`
+    );
+    checkBox(window, "bConfirmed");
+    el(window, "completeB").click();
+    await sleep(300);
+    // A の nonce 取得も同様に遅延させる。
+    window.__nonceDelayMs = 600;
+    el(window, "prepA").click();
+    const fetchingA = await waitFor(() => window.__nonceCalls === 2);
+    check(
+      "実画面: A の nonce 取得が飛行中になる",
+      fetchingA,
+      `nonceCalls=${window.__nonceCalls}`
+    );
+    dispatchClick(window, "newTrial");
+    dispatchClick(window, "discardTrial");
+    dispatchClick(window, "prepA");
+    await sleep(200);
+    check(
+      "実画面: A の nonce 取得中に合成イベントの新規試行が拒否される",
+      logText(window).includes("nonce 取得中のため新しい試行を開始できません"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: A の nonce 取得中に合成イベントの破棄が拒否される",
+      logText(window).includes("nonce 取得中のため破棄できません"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: A の nonce 取得中に合成イベントの再準備が拒否される",
+      logText(window).includes("準備エラー"),
+      logText(window).slice(-300)
+    );
+    check(
+      "実画面: A の nonce 取得中の拒否で試行が置換されず /nonce も増えない",
+      el(window, "trialId").textContent === trial1 && window.__nonceCalls === 2,
+      `trialId=${el(window, "trialId").textContent} nonceCalls=${window.__nonceCalls}`
+    );
+    const aReady = await waitFor(() => window.__gis.callbacks.length > 1);
+    check(
+      "実画面: 遅延した A の nonce 取得が完了して GIS コールバックが登録される",
+      aReady,
+      `callbacks=${window.__gis.callbacks.length}`
+    );
+    window.__nonceDelayMs = 0;
+    await invokeCallback(window, window.__gis.callbacks.length - 1, window.__gis.nonces[window.__gis.nonces.length - 1], SUB_A);
+    checkBox(window, "aConfirmed");
+    el(window, "completeA").click();
+    await sleep(300);
+    el(window, "freezeReq").click();
+    await sleep(300);
+    checkBox(window, "preReadConfirmed");
+    window.__addQueue = [{ status: 200, generation: 3 }];
+    el(window, "sendAdd").click();
+    await sleep(800);
+    check(
+      "実画面: 取得中の拒否の後も追加が1回で完了する",
+      window.__addCalls.length === 1 && stateText(window).includes('"phase": "completed"'),
+      `calls=${window.__addCalls.length}`
+    );
+    const call = window.__addCalls[0] || {};
+    check(
+      "実画面: 取得中の拒否の後も送信に A の nonce の Cookie 文脈が送られる",
+      typeof call.cookie === "string" && call.cookie.includes("op2_nonce_ctx="),
+      `cookie=${call.cookie}`
+    );
+    check(
+      "実画面: 取得中の拒否で余分な /nonce が発行されていない",
+      window.__nonceCalls === 2,
+      `nonceCalls=${window.__nonceCalls}`
     );
     window.close();
   }
