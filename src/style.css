@@ -187,7 +187,7 @@ p {
   white-space: nowrap;
 }
 .button.outline {
-  border: 1px solid #b3c2b8;
+  border: 2px solid #b3c2b8;
   background: white;
 }
 .button.primary {
@@ -2697,7 +2697,7 @@ h1 span {
   display: flex;
   align-items: center;
   margin-left: auto;
-  border: 1px solid #b3c2b8;
+  border: 2px solid #b3c2b8;
   border-radius: 5px;
 }
 .map-find input {
@@ -6571,13 +6571,13 @@ h1 span {
 .header-actions .file-actions .action-menu-labeled {padding-inline:10px;border-radius:8px;}
 .header-actions .present-action {flex-shrink:0;}
 /* A single map toolbar row. On small screens it scrolls rather than wrapping. */
-.mapping .map-toolbar {flex-wrap:nowrap;height:50px;min-height:50px;gap:8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
+.mapping .map-toolbar {flex-wrap:nowrap;height:auto;min-height:50px;gap:8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
 .mapping .map-toolbar > * {flex-shrink:0;}
 .mapping .map-toolbar .map-summary {flex-shrink:1;min-width:100px;}
 .mapping .map-toolbar .map-stats {max-width:220px;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .mapping .map-toolbar .map-find {margin-left:auto;}
 .mapping .map-toolbar .map-find + .map-zoom {margin-left:0;}
-.mapping .view-bar.map-workspace-bar {height:50px;min-height:50px;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
+.mapping .view-bar.map-workspace-bar {height:auto;min-height:50px;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
 .mapping .map-workspace-bar .view-tabs {flex-shrink:0;gap:12px;}
 .mapping .map-workspace-bar .view-tabs button {white-space:nowrap;}
 .map-toolbar-slot {display:contents;}

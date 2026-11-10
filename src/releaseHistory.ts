@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.105.3",
+    date: "2026-11-10",
+    title: "ボタンの枠線の太さとツールバーの高さの扱いを修正",
+    changes: [
+      "枠線つきボタンの線を2pxに太くし、表示倍率の影響で線がかすれないようにしました。マップ画面のツールバーは、横スクロールバーの分まで含めて高さが確保されるようにし、「ヘルプ」ボタンの上の線が欠けないようにしました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.105.2",
     date: "2026-11-10",
     title: "ボタンの枠線が薄く見える問題を修正",
