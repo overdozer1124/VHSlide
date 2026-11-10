@@ -311,8 +311,8 @@
      "text": "日本の伝統的な文様を見かけた場面",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q1",
        "label": "日本の伝統的な文様を見かけた場面",
@@ -477,8 +477,8 @@
      "text": "麻の葉文様に込められた願い",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q2",
        "label": "麻の葉文様に込められた願い",
@@ -1109,8 +1109,8 @@
      "text": "和服を着た経験・和服を見た場面",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q3",
        "label": "和服を着た経験・和服を見た場面",
@@ -1571,7 +1571,7 @@
      "x": 36,
      "y": 78,
      "w": 28,
-     "h": 80,
+     "h": 70,
      "fill": "#c4473a",
      "stroke": "#c4473a",
      "strokeWidth": 0
@@ -1582,8 +1582,8 @@
      "shape": "rect",
      "x": 44,
      "y": 78,
-     "w": 782,
-     "h": 80,
+     "w": 792,
+     "h": 70,
      "fill": "#f9e8e3",
      "stroke": "#f9e8e3",
      "strokeWidth": 0
@@ -1593,10 +1593,10 @@
      "type": "text",
      "x": 58,
      "y": 88,
-     "w": 754,
-     "h": 60,
-     "text": "日本各地に伝わる染織（染め・織り）から1つ選び、特徴や込められた思いを調べよう。",
-     "fontSize": 20,
+     "w": 764,
+     "h": 50,
+     "text": "日本各地の染織（染め・織り）から1つ選び、画像と文章で紹介しよう。",
+     "fontSize": 21,
      "color": "#1f2a3a",
      "bold": true,
      "textAlign": "center",
@@ -1605,10 +1605,10 @@
     {
      "id": "m-34",
      "type": "image",
-     "x": 840,
+     "x": 850,
      "y": 74,
-     "w": 88,
-     "h": 88,
+     "w": 78,
+     "h": 78,
      "src": "data:image/png;base64,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",
      "altText": "考えるキャラクター",
      "aspectLocked": true
@@ -1617,9 +1617,9 @@
      "id": "tb-35",
      "type": "table",
      "x": 36,
-     "y": 172,
-     "w": 436,
-     "h": 344,
+     "y": 162,
+     "w": 261.6,
+     "h": 354,
      "fontSize": 15,
      "color": "#1d1f23",
      "fill": "#ffffff",
@@ -1677,8 +1677,8 @@
        "r9:c2": "染め"
       },
       "widths": {
-       "c0": 1.4,
-       "c1": 1.1,
+       "c0": 1.6,
+       "c1": 1.4,
        "c2": 0.7
       }
      }
@@ -1687,26 +1687,58 @@
      "id": "f-36",
      "type": "shape",
      "shape": "rounded",
-     "x": 488,
-     "y": 172,
-     "w": 436,
-     "h": 344,
+     "x": 313.6,
+     "y": 162,
+     "w": 375.7,
+     "h": 354,
      "fill": "#ffffff",
      "stroke": "#c4473a",
      "strokeWidth": 2,
      "color": "#1d1f23",
-     "fontSize": 19,
-     "text": "調べた染織（名前・地域・特徴・込められた思い）",
+     "fontSize": 16,
+     "text": "染織の画像（貼り付け・書き込み）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "field": {
+       "id": "q4img",
+       "label": "染織の画像（貼り付け・書き込み）",
+       "kind": "drawing",
+       "options": [],
+       "placeholder": "",
+       "section": "和服の文化",
+       "sectionId": "s2",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-37",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 703.3,
+     "y": 162,
+     "w": 220.7,
+     "h": 354,
+     "fill": "#ffffff",
+     "stroke": "#c4473a",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 16,
+     "text": "名前・地域・特徴・込められた思い",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q4",
-       "label": "調べた染織（名前・地域・特徴・込められた思い）",
+       "label": "名前・地域・特徴・込められた思い",
        "kind": "text",
        "options": [],
-       "placeholder": "例：○○（△△県）は、□□の糸を使った織物で…",
+       "placeholder": "例：○○（△△県）は、□□で模様を付けた染め物で…",
        "section": "和服の文化",
        "sectionId": "s2",
        "wide": true,
@@ -1717,7 +1749,7 @@
      }
     }
    ],
-   "speakerNotes": "糸を染めてから模様を織り出す「織り」の布と、布を織った後に染料や顔料で模様を付ける「染め」の布がある。地域に伝わる布が、どのような場面でどのような物に使われているか調べる。自分が住んでいる地域の衣文化を調べると、継承する大切さに気づきやすい（総合的な学習の時間や長期休業中の活用も可）。"
+   "speakerNotes": "糸を染めてから模様を織り出す「織り」の布と、布を織った後に染料や顔料で模様を付ける「染め」の布がある。地域に伝わる布が、どのような場面でどのような物に使われているか調べる。自分が住んでいる地域の衣文化を調べると、継承する大切さに気づきやすい（総合的な学習の時間や長期休業中の活用も可）。\n画像の入力欄には、調べた染織の画像を貼り付けたり、文様の特徴を書き込んだりできる。著作権に配慮し、自分で撮影した写真や利用が許可された画像を使うよう指導する。"
   },
   {
    "id": "L1-0-9",
@@ -1727,7 +1759,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-37",
+     "id": "r-38",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -1739,7 +1771,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-38",
+     "id": "r-39",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -1751,7 +1783,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-39",
+     "id": "t-3a",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -1765,7 +1797,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-3a",
+     "id": "t-3b",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -1778,7 +1810,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-3b",
+     "id": "t-3c",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -1791,7 +1823,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-3c",
+     "id": "r-3d",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -1803,7 +1835,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-3d",
+     "id": "r-3e",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -1815,7 +1847,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-3e",
+     "id": "t-3f",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -1829,7 +1861,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "m-3f",
+     "id": "m-3g",
      "type": "image",
      "x": 840,
      "y": 74,
@@ -1840,7 +1872,7 @@
      "aspectLocked": true
     },
     {
-     "id": "r-3g",
+     "id": "r-3h",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -1852,7 +1884,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-3h",
+     "id": "r-3i",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -1864,7 +1896,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-3i",
+     "id": "t-3j",
      "type": "text",
      "x": 58,
      "y": 182,
@@ -1876,7 +1908,7 @@
      "bold": true
     },
     {
-     "id": "t-3j",
+     "id": "t-3k",
      "type": "text",
      "x": 58,
      "y": 226,
@@ -1888,7 +1920,7 @@
      "verticalAlign": "top"
     },
     {
-     "id": "f-3k",
+     "id": "f-3l",
      "type": "shape",
      "shape": "rounded",
      "x": 348.5,
@@ -1903,8 +1935,8 @@
      "text": "場面と、その場面で着る和服",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q5",
        "label": "場面と、その場面で着る和服",
@@ -1930,7 +1962,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-3l",
+     "id": "r-3m",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -1942,7 +1974,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-3m",
+     "id": "r-3n",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -1954,7 +1986,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-3n",
+     "id": "t-3o",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -1968,7 +2000,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-3o",
+     "id": "t-3p",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -1981,7 +2013,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-3p",
+     "id": "t-3q",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -1994,7 +2026,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-3q",
+     "id": "r-3r",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2006,7 +2038,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-3r",
+     "id": "r-3s",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2018,7 +2050,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-3s",
+     "id": "t-3t",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -2032,7 +2064,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-3t",
+     "id": "t-3u",
      "type": "text",
      "x": 354,
      "y": 78,
@@ -2044,7 +2076,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-3u",
+     "id": "r-3v",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2056,7 +2088,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-3v",
+     "id": "r-3w",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2068,7 +2100,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-3w",
+     "id": "t-3x",
      "type": "text",
      "x": 58,
      "y": 158.5,
@@ -2082,7 +2114,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-3x",
+     "id": "t-3y",
      "type": "text",
      "x": 354,
      "y": 148.5,
@@ -2094,7 +2126,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-3y",
+     "id": "r-3z",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2106,7 +2138,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-3z",
+     "id": "r-40",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2118,7 +2150,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-40",
+     "id": "t-41",
      "type": "text",
      "x": 58,
      "y": 229,
@@ -2132,7 +2164,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-41",
+     "id": "t-42",
      "type": "text",
      "x": 354,
      "y": 219,
@@ -2144,7 +2176,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-42",
+     "id": "r-43",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2156,7 +2188,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-43",
+     "id": "r-44",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2168,7 +2200,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-44",
+     "id": "t-45",
      "type": "text",
      "x": 58,
      "y": 299.5,
@@ -2182,7 +2214,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-45",
+     "id": "t-46",
      "type": "text",
      "x": 354,
      "y": 289.5,
@@ -2194,7 +2226,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-46",
+     "id": "r-47",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2206,7 +2238,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-47",
+     "id": "r-48",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2218,7 +2250,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-48",
+     "id": "t-49",
      "type": "text",
      "x": 58,
      "y": 376,
@@ -2230,7 +2262,7 @@
      "bold": true
     },
     {
-     "id": "t-49",
+     "id": "t-4a",
      "type": "text",
      "x": 58,
      "y": 420,
@@ -2252,7 +2284,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-4a",
+     "id": "r-4b",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -2264,7 +2296,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-4b",
+     "id": "r-4c",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -2276,7 +2308,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-4c",
+     "id": "t-4d",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -2290,7 +2322,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-4d",
+     "id": "t-4e",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -2303,7 +2335,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-4e",
+     "id": "t-4f",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -2316,7 +2348,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-4f",
+     "id": "r-4g",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2328,7 +2360,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-4g",
+     "id": "r-4h",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2340,7 +2372,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-4h",
+     "id": "t-4i",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -2354,7 +2386,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "m-4i",
+     "id": "m-4j",
      "type": "image",
      "x": 840,
      "y": 74,
@@ -2365,7 +2397,7 @@
      "aspectLocked": true
     },
     {
-     "id": "i-4j",
+     "id": "i-4k",
      "type": "image",
      "x": 36,
      "y": 172,
@@ -2376,7 +2408,7 @@
      "aspectLocked": true
     },
     {
-     "id": "f-4k",
+     "id": "f-4l",
      "type": "shape",
      "shape": "rounded",
      "x": 610.1,
@@ -2391,8 +2423,8 @@
      "text": "和服と洋服の構成の違い",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q6",
        "label": "和服と洋服の構成の違い",
@@ -2418,7 +2450,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-4l",
+     "id": "r-4m",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -2430,7 +2462,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-4m",
+     "id": "r-4n",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -2442,7 +2474,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-4n",
+     "id": "t-4o",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -2456,7 +2488,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-4o",
+     "id": "t-4p",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -2469,7 +2501,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-4p",
+     "id": "t-4q",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -2482,7 +2514,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "tb-4q",
+     "id": "tb-4r",
      "type": "table",
      "x": 36,
      "y": 78,
@@ -2539,7 +2571,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-4r",
+     "id": "r-4s",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -2551,7 +2583,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-4s",
+     "id": "r-4t",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -2563,7 +2595,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-4t",
+     "id": "t-4u",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -2577,7 +2609,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-4u",
+     "id": "t-4v",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -2590,7 +2622,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-4v",
+     "id": "t-4w",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -2603,7 +2635,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-4w",
+     "id": "r-4x",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2615,7 +2647,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-4x",
+     "id": "r-4y",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2627,7 +2659,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-4y",
+     "id": "t-4z",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -2641,7 +2673,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "m-4z",
+     "id": "m-50",
      "type": "image",
      "x": 840,
      "y": 74,
@@ -2652,7 +2684,7 @@
      "aspectLocked": true
     },
     {
-     "id": "i-50",
+     "id": "i-51",
      "type": "image",
      "x": 46.5,
      "y": 172,
@@ -2663,7 +2695,7 @@
      "aspectLocked": true
     },
     {
-     "id": "f-51",
+     "id": "f-52",
      "type": "shape",
      "shape": "rounded",
      "x": 453.1,
@@ -2678,8 +2710,8 @@
      "text": "浴衣を着るとき、先に体に合わせるのは？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q7",
        "label": "浴衣を着るとき、先に体に合わせるのは？",
@@ -2710,7 +2742,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-52",
+     "id": "r-53",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -2722,7 +2754,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-53",
+     "id": "r-54",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -2734,7 +2766,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-54",
+     "id": "t-55",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -2748,7 +2780,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-55",
+     "id": "t-56",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -2761,7 +2793,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-56",
+     "id": "t-57",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -2774,7 +2806,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-57",
+     "id": "t-58",
      "type": "text",
      "x": 36,
      "y": 78,
@@ -2786,7 +2818,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "m-58",
+     "id": "m-59",
      "type": "image",
      "x": 836,
      "y": 74,
@@ -2797,7 +2829,7 @@
      "aspectLocked": true
     },
     {
-     "id": "r-59",
+     "id": "r-5a",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -2809,7 +2841,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-5a",
+     "id": "r-5b",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -2821,7 +2853,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-5b",
+     "id": "t-5c",
      "type": "text",
      "x": 58,
      "y": 168,
@@ -2833,7 +2865,7 @@
      "bold": true
     },
     {
-     "id": "t-5c",
+     "id": "t-5d",
      "type": "text",
      "x": 58,
      "y": 210,
@@ -2844,7 +2876,7 @@
      "color": "#1f2a3a"
     },
     {
-     "id": "t-5d",
+     "id": "t-5e",
      "type": "text",
      "x": 58,
      "y": 376,
@@ -2855,7 +2887,7 @@
      "color": "#6a6458"
     },
     {
-     "id": "r-5e",
+     "id": "r-5f",
      "type": "shape",
      "shape": "rect",
      "x": 261.5,
@@ -2867,7 +2899,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-5f",
+     "id": "r-5g",
      "type": "shape",
      "shape": "rect",
      "x": 269.5,
@@ -2879,7 +2911,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-5g",
+     "id": "t-5h",
      "type": "text",
      "x": 283.5,
      "y": 168,
@@ -2891,7 +2923,7 @@
      "bold": true
     },
     {
-     "id": "t-5h",
+     "id": "t-5i",
      "type": "text",
      "x": 283.5,
      "y": 210,
@@ -2902,7 +2934,7 @@
      "color": "#1f2a3a"
     },
     {
-     "id": "t-5i",
+     "id": "t-5j",
      "type": "text",
      "x": 283.5,
      "y": 376,
@@ -2913,7 +2945,7 @@
      "color": "#6a6458"
     },
     {
-     "id": "r-5j",
+     "id": "r-5k",
      "type": "shape",
      "shape": "rect",
      "x": 487,
@@ -2925,7 +2957,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-5k",
+     "id": "r-5l",
      "type": "shape",
      "shape": "rect",
      "x": 495,
@@ -2937,7 +2969,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-5l",
+     "id": "t-5m",
      "type": "text",
      "x": 509,
      "y": 168,
@@ -2949,7 +2981,7 @@
      "bold": true
     },
     {
-     "id": "t-5m",
+     "id": "t-5n",
      "type": "text",
      "x": 509,
      "y": 210,
@@ -2960,7 +2992,7 @@
      "color": "#1f2a3a"
     },
     {
-     "id": "t-5n",
+     "id": "t-5o",
      "type": "text",
      "x": 509,
      "y": 376,
@@ -2971,7 +3003,7 @@
      "color": "#6a6458"
     },
     {
-     "id": "r-5o",
+     "id": "r-5p",
      "type": "shape",
      "shape": "rect",
      "x": 712.5,
@@ -2983,7 +3015,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-5p",
+     "id": "r-5q",
      "type": "shape",
      "shape": "rect",
      "x": 720.5,
@@ -2995,7 +3027,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-5q",
+     "id": "t-5r",
      "type": "text",
      "x": 734.5,
      "y": 168,
@@ -3007,7 +3039,7 @@
      "bold": true
     },
     {
-     "id": "t-5r",
+     "id": "t-5s",
      "type": "text",
      "x": 734.5,
      "y": 210,
@@ -3018,7 +3050,7 @@
      "color": "#1f2a3a"
     },
     {
-     "id": "t-5s",
+     "id": "t-5t",
      "type": "text",
      "x": 734.5,
      "y": 376,
@@ -3029,7 +3061,7 @@
      "color": "#6a6458"
     },
     {
-     "id": "r-5t",
+     "id": "r-5u",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -3041,7 +3073,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-5u",
+     "id": "r-5v",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -3053,7 +3085,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-5v",
+     "id": "t-5w",
      "type": "text",
      "x": 58,
      "y": 440,
@@ -3075,7 +3107,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-5w",
+     "id": "r-5x",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -3087,7 +3119,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-5x",
+     "id": "r-5y",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -3099,7 +3131,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-5y",
+     "id": "t-5z",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -3113,7 +3145,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-5z",
+     "id": "t-60",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -3126,7 +3158,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-60",
+     "id": "t-61",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -3139,7 +3171,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-61",
+     "id": "r-62",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -3151,7 +3183,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-62",
+     "id": "r-63",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -3163,7 +3195,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-63",
+     "id": "t-64",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -3177,7 +3209,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "m-64",
+     "id": "m-65",
      "type": "image",
      "x": 856,
      "y": 74,
@@ -3188,7 +3220,7 @@
      "aspectLocked": true
     },
     {
-     "id": "t-65",
+     "id": "t-66",
      "type": "text",
      "x": 36,
      "y": 152,
@@ -3199,7 +3231,7 @@
      "color": "#6a6458"
     },
     {
-     "id": "f-66",
+     "id": "f-67",
      "type": "shape",
      "shape": "rounded",
      "x": 36,
@@ -3214,8 +3246,8 @@
      "text": "生活の中で和服を着る機会をふり返り、和服の文化の良さと、受け継ぐ大切さをまとめよう",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q8",
        "label": "生活の中で和服を着る機会をふり返り、和服の文化の良さと、受け継ぐ大切さをまとめよう",
@@ -3242,7 +3274,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-67",
+     "id": "r-68",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -3254,7 +3286,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-68",
+     "id": "r-69",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -3266,7 +3298,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-69",
+     "id": "t-6a",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -3280,7 +3312,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6a",
+     "id": "t-6b",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -3293,7 +3325,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6b",
+     "id": "t-6c",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -3306,7 +3338,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-6c",
+     "id": "r-6d",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -3318,7 +3350,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-6d",
+     "id": "r-6e",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -3330,7 +3362,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-6e",
+     "id": "t-6f",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -3342,7 +3374,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "tb-6f",
+     "id": "tb-6g",
      "type": "table",
      "x": 36,
      "y": 138,
@@ -3435,7 +3467,7 @@
      }
     },
     {
-     "id": "f-6g",
+     "id": "f-6h",
      "type": "shape",
      "shape": "rounded",
      "x": 636.1,
@@ -3450,48 +3482,11 @@
      "text": "自己評価：和服の文化（知識・技能）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "self1",
        "label": "自己評価：和服の文化（知識・技能）",
-       "kind": "single",
-       "options": [
-        "A",
-        "B",
-        "C"
-       ],
-       "placeholder": "",
-       "section": "まとめよう",
-       "sectionId": "s5",
-       "wide": true,
-       "aggregatePublic": true
-      },
-      "showLabel": true,
-      "showSection": false
-     }
-    },
-    {
-     "id": "f-6h",
-     "type": "shape",
-     "shape": "rounded",
-     "x": 636.1,
-     "y": 267.3,
-     "w": 287.9,
-     "h": 119.3,
-     "fill": "#ffffff",
-     "stroke": "#c4473a",
-     "strokeWidth": 2,
-     "color": "#1d1f23",
-     "fontSize": 16,
-     "text": "自己評価：和服と洋服の構成（知識・技能）",
-     "responseField": {
-      "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
-      "field": {
-       "id": "self2",
-       "label": "自己評価：和服と洋服の構成（知識・技能）",
        "kind": "single",
        "options": [
         "A",
@@ -3513,6 +3508,43 @@
      "type": "shape",
      "shape": "rounded",
      "x": 636.1,
+     "y": 267.3,
+     "w": 287.9,
+     "h": 119.3,
+     "fill": "#ffffff",
+     "stroke": "#c4473a",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 16,
+     "text": "自己評価：和服と洋服の構成（知識・技能）",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
+      "field": {
+       "id": "self2",
+       "label": "自己評価：和服と洋服の構成（知識・技能）",
+       "kind": "single",
+       "options": [
+        "A",
+        "B",
+        "C"
+       ],
+       "placeholder": "",
+       "section": "まとめよう",
+       "sectionId": "s5",
+       "wide": true,
+       "aggregatePublic": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-6j",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 636.1,
      "y": 396.7,
      "w": 287.9,
      "h": 119.3,
@@ -3524,8 +3556,8 @@
      "text": "自己評価：受け継ぐ大切さ（主体的に学習に取り組む態度）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "self3",
        "label": "自己評価：受け継ぐ大切さ（主体的に学習に取り組む態度）",
@@ -3556,7 +3588,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-6j",
+     "id": "r-6k",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -3568,7 +3600,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-6k",
+     "id": "r-6l",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -3580,7 +3612,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-6l",
+     "id": "t-6m",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -3594,7 +3626,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6m",
+     "id": "t-6n",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -3607,7 +3639,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6n",
+     "id": "t-6o",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -3620,7 +3652,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "f-6o",
+     "id": "f-6p",
      "type": "shape",
      "shape": "rounded",
      "x": 36,
@@ -3635,8 +3667,8 @@
      "text": "これから和服を着てみたい場面は？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q9",
        "label": "これから和服を着てみたい場面は？",
@@ -3660,7 +3692,7 @@
      }
     },
     {
-     "id": "f-6p",
+     "id": "f-6q",
      "type": "shape",
      "shape": "rounded",
      "x": 488,
@@ -3675,8 +3707,8 @@
      "text": "和服の文化を受け継ぐために、自分にできること",
      "responseField": {
       "source": "worksheet",
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "field": {
        "id": "q10",
        "label": "和服の文化を受け継ぐために、自分にできること",
@@ -3701,7 +3733,7 @@
    "background": "#fbf7ee",
    "elements": [
     {
-     "id": "r-6q",
+     "id": "r-6r",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -3713,7 +3745,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-6r",
+     "id": "r-6s",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -3725,7 +3757,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-6s",
+     "id": "t-6t",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -3739,7 +3771,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6t",
+     "id": "t-6u",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -3752,7 +3784,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6u",
+     "id": "t-6v",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -3765,7 +3797,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "r-6v",
+     "id": "r-6w",
      "type": "shape",
      "shape": "rect",
      "x": 36,
@@ -3777,7 +3809,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-6w",
+     "id": "r-6x",
      "type": "shape",
      "shape": "rect",
      "x": 44,
@@ -3789,7 +3821,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-6x",
+     "id": "t-6y",
      "type": "text",
      "x": 58,
      "y": 88,
@@ -3802,7 +3834,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-6y",
+     "id": "t-6z",
      "type": "text",
      "x": 48,
      "y": 142,
@@ -3814,7 +3846,7 @@
      "bold": true
     },
     {
-     "id": "t-6z",
+     "id": "t-70",
      "type": "text",
      "x": 80,
      "y": 180,
@@ -3825,7 +3857,7 @@
      "color": "#c4473a"
     },
     {
-     "id": "t-70",
+     "id": "t-71",
      "type": "text",
      "x": 48,
      "y": 266.7,
@@ -3837,7 +3869,7 @@
      "bold": true
     },
     {
-     "id": "t-71",
+     "id": "t-72",
      "type": "text",
      "x": 80,
      "y": 304.7,
@@ -3848,7 +3880,7 @@
      "color": "#c4473a"
     },
     {
-     "id": "t-72",
+     "id": "t-73",
      "type": "text",
      "x": 48,
      "y": 391.3,
@@ -3860,7 +3892,7 @@
      "bold": true
     },
     {
-     "id": "t-73",
+     "id": "t-74",
      "type": "text",
      "x": 80,
      "y": 429.3,
@@ -3871,7 +3903,7 @@
      "color": "#c4473a"
     },
     {
-     "id": "m-74",
+     "id": "m-75",
      "type": "image",
      "x": 820,
      "y": 412,
@@ -3892,7 +3924,7 @@
    "speakerNotes": "各ページの入力欄と同じワークシートの全体表示。提出前の見直しや家庭学習に使う。",
    "elements": [
     {
-     "id": "r-75",
+     "id": "r-76",
      "type": "shape",
      "shape": "rect",
      "x": 0,
@@ -3904,7 +3936,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "r-76",
+     "id": "r-77",
      "type": "shape",
      "shape": "rounded",
      "x": 18,
@@ -3916,7 +3948,7 @@
      "strokeWidth": 0
     },
     {
-     "id": "t-77",
+     "id": "t-78",
      "type": "text",
      "x": 18,
      "y": 14,
@@ -3930,7 +3962,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-78",
+     "id": "t-79",
      "type": "text",
      "x": 186,
      "y": 8,
@@ -3943,7 +3975,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "t-79",
+     "id": "t-7a",
      "type": "text",
      "x": 800,
      "y": 18,
@@ -3956,7 +3988,7 @@
      "verticalAlign": "middle"
     },
     {
-     "id": "ws-7a",
+     "id": "ws-7b",
      "type": "shape",
      "shape": "rounded",
      "x": 36,
@@ -3968,8 +4000,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "d6f5c107-f39e-4117-b033-5e59388e5f02",
-      "worksheetId": "068aa43f-6cca-43b8-9d2f-c4034ea3e641",
+      "deckId": "e6304870-298a-4571-ad22-6b9989ba81c8",
+      "worksheetId": "b15d5897-add7-4859-96b5-1478fe0c382f",
       "title": "日本の衣服の文化 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -4033,11 +4065,21 @@
         "wide": true
        },
        {
+        "id": "q4img",
+        "label": "染織の画像（貼り付け・書き込み）",
+        "kind": "drawing",
+        "options": [],
+        "placeholder": "",
+        "section": "和服の文化",
+        "sectionId": "s2",
+        "wide": true
+       },
+       {
         "id": "q4",
-        "label": "調べた染織（名前・地域・特徴・込められた思い）",
+        "label": "名前・地域・特徴・込められた思い",
         "kind": "text",
         "options": [],
-        "placeholder": "例：○○（△△県）は、□□の糸を使った織物で…",
+        "placeholder": "例：○○（△△県）は、□□で模様を付けた染め物で…",
         "section": "和服の文化",
         "sectionId": "s2",
         "wide": true,

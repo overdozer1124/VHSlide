@@ -123,6 +123,9 @@ function field(f, x, y, w, h, fs = 18) {
     ...(f.height ? { inputHeight: f.height } : {}),
   };
   ws.fields.push(wf);
+  // In the cloud a drawing field shows a label, a toolbar and a 16:9 canvas as wide as the frame.
+  if (kind === "drawing" && h < w * 0.5625 + 90)
+    console.warn(`※ 画像・手描きの入力欄「${f.label}」の枠が低く、キャンバスが隠れます（幅${Math.round(w)}なら高さ${Math.ceil(w * 0.5625 + 90)}以上）。`);
   return {
     id: nid("f"), type: "shape", shape: "rounded", x: r(x), y: r(y), w: r(w), h: r(h),
     fill: "#ffffff",
@@ -232,8 +235,19 @@ const kinds = {
     const split = s.split ?? (s.hints || s.body ? 0.34 : 0.55);
     let fx = X0, fw = X1 - X0;
     if (hasSide) { const sw = (X1 - X0 - 16) * split; els.push(...(await side(s, X0, y, sw, h))); fx = X0 + sw + 16; fw = X1 - fx; }
-    const gap = 14, each = (fw - gap * (fields.length - 1)) / Math.max(1, fields.length);
-    fields.forEach((f, i) => els.push(field(f, fx + i * (each + gap), y, each, h, s.fieldFont ?? 19)));
+    const gap = 14;
+    if (s.stack) { // fields one above another; `share` gives each field's share of the height (e.g. [0.6, 0.4])
+      const share = s.share ?? fields.map(() => 1 / fields.length);
+      const free = h - gap * (fields.length - 1);
+      let fy = y;
+      fields.forEach((f, i) => { const fh = free * share[i]; els.push(field(f, fx, fy, fw, fh, s.fieldFont ?? 18)); fy += fh + gap; });
+      return els;
+    }
+    // Side by side; `share` gives each field's share of the width (e.g. [0.62, 0.38]).
+    const share = s.share ?? fields.map(() => 1 / fields.length);
+    const free = fw - gap * (fields.length - 1);
+    let fx2 = fx;
+    fields.forEach((f, i) => { const w = free * share[i]; els.push(field(f, fx2, y, w, h, s.fieldFont ?? 19)); fx2 += w + gap; });
     return els;
   },
   async figure(s, _L, top) {

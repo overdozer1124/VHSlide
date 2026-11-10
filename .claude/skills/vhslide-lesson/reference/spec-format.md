@@ -58,7 +58,7 @@
   "options": ["選択肢"], "reason": true, "public": true, "height": 140 }
 ```
 
-- `type`：`text`（既定）／`single`（1つ選ぶ）／`multiple`（複数選ぶ）／`checkbox`。選択肢は2〜10個。
+- `type`：`text`（既定）／`single`（1つ選ぶ）／`multiple`（複数選ぶ）／`checkbox`／`drawing`（画像・手描き：生徒が画像を貼り付けたり、ペンで書き込んだりできる）。クラウドでは見出し・道具ボタン・幅いっぱいの16:9キャンバスが入るため、枠の高さは「幅×0.56＋90」以上にする（足りないとビルドが警告する）。縦に重ねるより、説明の欄と横に並べるほうが収まりやすい。選択肢は2〜10個。
 - `reason`：選択式に理由欄を付ける。`public`：選択の集計を公開する。`height`：ワークシート全体表示での入力欄の高さ（32〜400）。
 - `id` は1時間の中で重複不可（英数字・`_`・`-`）。省略時は q1, q2…。1時間40個まで。
 
@@ -68,7 +68,7 @@
 | --- | --- | --- |
 | `title` | `title` `subtitle` `goal` `note` | 表紙（目標は lesson.goal を既定に使う） |
 | `task` | `text` `clues[]` | 学習課題 |
-| `question` | `prompt` `field` または `fields[]`（2〜3）、左側に `hints[]`(+`hintsTitle`)／`table`／`chart`／`image`／`body` のいずれか、`split`（左の幅の比率） | 問いと入力欄 |
+| `question` | `prompt` `field` または `fields[]`（2〜3。`share: [0.62, 0.38]` で横幅の比、`stack: true` で縦に重ねて `share` は高さの比）、左側に `hints[]`(+`hintsTitle`)／`table`／`chart`／`image`／`body` のいずれか、`split`（左の幅の比率） | 問いと入力欄 |
 | `fields` | `prompt` `keywords[]` `fields[]` | まとめ・ふり返り（入力欄を横に並べる） |
 | `figure` | `image`（png/jpg/webp/gif/svg のパス）`alt` `lead` `source` `field` `imageShare` | 図の読み取り |
 | `table` | `rows[][]`（1行目が見出し、`\n`で改行）`highlight[]`（強調する行番号）`widths[]`（列の幅の比）`heights[]`（行の高さの比、0.25〜8）`fontSize` `lead` `source` `field` | 表 |
