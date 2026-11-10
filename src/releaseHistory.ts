@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.105.1",
+    date: "2026-11-10",
+    title: "ヘッダーのボタンの枠が切れる問題を修正",
+    changes: [
+      "画面上部のボタンの枠線が上下に切れて見えることがあった問題を直しました。横にスクロールするボタン列の内側に余白を確保し、マップ画面のツールバーの高さもボタンが収まる高さに広げました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.105.0",
     date: "2026-11-10",
     title: "授業コンソールの左一覧を「行」単位の開閉に修正",

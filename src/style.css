@@ -158,6 +158,10 @@ p {
   overflow-x: auto;
   min-width: 0;
   scrollbar-width: none;
+  /* A horizontal scroll box also clips vertically; give the buttons
+     breathing room inside the clip area without changing the layout. */
+  padding-block: 6px;
+  margin-block: -6px;
 }
 .header-scroll::-webkit-scrollbar {
   display: none;
@@ -6567,13 +6571,13 @@ h1 span {
 .header-actions .file-actions .action-menu-labeled {padding-inline:10px;border-radius:8px;}
 .header-actions .present-action {flex-shrink:0;}
 /* A single map toolbar row. On small screens it scrolls rather than wrapping. */
-.mapping .map-toolbar {flex-wrap:nowrap;height:44px;min-height:44px;gap:8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
+.mapping .map-toolbar {flex-wrap:nowrap;height:50px;min-height:50px;gap:8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
 .mapping .map-toolbar > * {flex-shrink:0;}
 .mapping .map-toolbar .map-summary {flex-shrink:1;min-width:100px;}
 .mapping .map-toolbar .map-stats {max-width:220px;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .mapping .map-toolbar .map-find {margin-left:auto;}
 .mapping .map-toolbar .map-find + .map-zoom {margin-left:0;}
-.mapping .view-bar.map-workspace-bar {height:44px;min-height:44px;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
+.mapping .view-bar.map-workspace-bar {height:50px;min-height:50px;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
 .mapping .map-workspace-bar .view-tabs {flex-shrink:0;gap:12px;}
 .mapping .map-workspace-bar .view-tabs button {white-space:nowrap;}
 .map-toolbar-slot {display:contents;}
@@ -6603,7 +6607,7 @@ h1 span {
  .workspace-mode .app-header {height:auto;min-height:76px;flex-wrap:wrap;padding:4px 8px;gap:3px 6px;}
  .workspace-mode .app-header .header-divider {display:none;}
  .workspace-mode .app-header .header-document {flex:1;min-width:80px;}
- .workspace-mode .header-actions {flex-basis:100%;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;margin:0;gap:4px;padding-bottom:2px;}
+ .workspace-mode .header-actions {flex-basis:100%;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;margin:0;gap:4px;padding-block:5px;margin-block:-3px;}
  .workspace-mode .header-actions > * {flex-shrink:0;}
 }
 @media(min-width:761px) and (max-width:900px) {
