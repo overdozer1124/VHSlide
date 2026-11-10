@@ -9,6 +9,25 @@ export function consoleSlides(deck: Deck, sheetId: string): Slide[] {
     .sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
+/** Group slides into map rows (same y). Rows run top to bottom; slides
+ * within a row run left to right. */
+export function consoleRows(
+  slides: Slide[],
+): { y: number; slides: Slide[] }[] {
+  const byRow = new Map<number, Slide[]>();
+  for (const s of slides) {
+    const list = byRow.get(s.y) ?? [];
+    list.push(s);
+    byRow.set(s.y, list);
+  }
+  return [...byRow.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([y, list]) => ({
+      y,
+      slides: [...list].sort((a, b) => a.x - b.x),
+    }));
+}
+
 export function consoleSheets(deck: Deck): { id: string; name: string }[] {
   return deck.sheets ?? [{ id: "main", name: "メイン" }];
 }

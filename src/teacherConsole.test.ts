@@ -4,6 +4,7 @@ import { idleFollow, type FollowState } from "./hostFollow";
 import {
   consoleDefaultSheet,
   consoleInitialSlide,
+  consoleRows,
   consoleSlides,
   fieldAnswered,
 } from "./teacherConsole";
@@ -52,6 +53,13 @@ describe("teacher console helpers", () => {
       "c",
     ]);
     expect(consoleSlides(deck, "sub").map((s) => s.id)).toEqual(["z"]);
+  });
+
+  it("groups slides into map rows, left to right within a row", () => {
+    const rows = consoleRows(consoleSlides(deck, "main"));
+    expect(rows.map((r) => r.y)).toEqual([0, 1]);
+    expect(rows[0].slides.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(rows[1].slides.map((s) => s.id)).toEqual(["c"]);
   });
 
   it("opens on the followed sheet and focuses the projected slide", () => {

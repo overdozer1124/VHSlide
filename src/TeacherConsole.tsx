@@ -14,6 +14,7 @@ import type { ResponseGallery } from "./responseGallery";
 import {
   consoleDefaultSheet,
   consoleInitialSlide,
+  consoleRows,
   consoleSheets,
   consoleSlides,
   fieldAnswered,
@@ -45,7 +46,7 @@ export function TeacherConsole({
   const [focusId, setFocusId] = useState(() =>
     consoleInitialSlide(workbook, follow),
   );
-  const [expandedId, setExpandedId] = useState<string>();
+  const [expandedRow, setExpandedRow] = useState<number>();
   const focus = slides.find((s) => s.id === focusId) ?? slides[0];
   const projected =
     follow.active && follow.target.mode === "page"
@@ -64,7 +65,7 @@ export function TeacherConsole({
     if (!projected) return;
     setSheetId(projected.sheetId ?? "main");
     setFocusId(projected.id);
-    setExpandedId(projected.id);
+    setExpandedRow(projected.y);
   }
 
   return (
@@ -104,7 +105,7 @@ export function TeacherConsole({
               onChange={(e) => {
                 setSheetId(e.target.value);
                 setFocusId(consoleSlides(workbook, e.target.value)[0]?.id);
-                setExpandedId(undefined);
+                setExpandedRow(undefined);
               }}
             >
               {sheets.map((s) => (
@@ -114,30 +115,36 @@ export function TeacherConsole({
               ))}
             </select>
           )}
-          {slides.map((s) => {
-            const isProjected = projected?.id === s.id;
-            const isFocus = focus?.id === s.id;
-            const expanded = expandedId === s.id;
-            const form = hasForm(s);
+          {consoleRows(slides).map((row) => {
+            const expanded = expandedRow === row.y;
+            const rowForm = row.slides.some(hasForm);
+            const rowProjected = projected
+              ? row.slides.some((s) => s.id === projected.id)
+              : false;
+            const rowFocus = focus
+              ? row.slides.some((s) => s.id === focus.id)
+              : false;
             return (
               <div
-                key={s.id}
-                className={`console-rail-item ${expanded ? "expanded" : ""} ${form ? "has-form" : ""}`}
+                key={row.y}
+                className={`console-rail-item ${rowForm ? "has-form" : ""}`}
               >
                 <button
                   type="button"
-                  className={`console-rail-head ${isFocus ? "is-focus" : ""}`}
+                  className={`console-rail-head ${rowFocus ? "is-focus" : ""}`}
                   aria-expanded={expanded}
-                  onClick={() => {
-                    setFocusId(s.id);
-                    setExpandedId(expanded ? undefined : s.id);
-                  }}
+                  onClick={() =>
+                    setExpandedRow(expanded ? undefined : row.y)
+                  }
                 >
                   <span className="console-rail-title">
-                    {s.x + 1}.{s.y + 1} {s.title}
+                    {row.y + 1}行目：
+                    {row.slides.map((s) => s.title).join(" ・ ")}
                   </span>
-                  {form && <span className="console-form-chip">回答欄</span>}
-                  {isProjected && (
+                  {rowForm && (
+                    <span className="console-form-chip">回答欄</span>
+                  )}
+                  {rowProjected && (
                     <span className="console-badge">投影中</span>
                   )}
                   {expanded ? (
@@ -146,11 +153,35 @@ export function TeacherConsole({
                     <ChevronRight size={14} />
                   )}
                 </button>
-                {expanded && (
-                  <div className="console-thumb-canvas">
-                    <Canvas slide={s} zoom={148 / W} />
-                  </div>
-                )}
+                {expanded &&
+                  row.slides.map((s) => {
+                    const isProjected = projected?.id === s.id;
+                    const isFocus = focus?.id === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`console-rail-slide ${isFocus ? "is-focus" : ""} ${hasForm(s) ? "has-form" : ""}`}
+                        onClick={() => setFocusId(s.id)}
+                        aria-pressed={isFocus}
+                      >
+                        <span className="console-thumb-canvas">
+                          <Canvas slide={s} zoom={148 / W} />
+                        </span>
+                        <span className="console-thumb-label">
+                          <span>
+                            {s.x + 1}.{s.y + 1} {s.title}
+                          </span>
+                          {hasForm(s) && (
+                            <span className="console-form-chip">回答欄</span>
+                          )}
+                          {isProjected && (
+                            <span className="console-badge">投影中</span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             );
           })}
