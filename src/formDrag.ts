@@ -1,4 +1,20 @@
 import type { PointerEvent } from "react";
+/** True when a pointer gesture means "add this object to the selection"
+ * (multi-select mode or a modifier key) rather than answering a form part.
+ * Form parts (response fields, worksheet parts, survey parts) swallow plain
+ * clicks so the host can test answers while editing, so the canvas must
+ * check this intent before letting a form part keep the gesture. */
+export function additiveSelectionIntent(
+  event: { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean },
+  selectMultiple: boolean,
+): boolean {
+  return !!(
+    selectMultiple ||
+    event.shiftKey ||
+    event.ctrlKey ||
+    event.metaKey
+  );
+}
 /** Keep native answer controls and scrollbars interactive when dragging a form. */
 export function canDragForm(event: PointerEvent<HTMLElement>): boolean {
   const target = event.target;

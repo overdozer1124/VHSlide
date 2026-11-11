@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { blank } from "../../src/model";
+import { worksheetTemplate } from "../../src/worksheetTemplates";
 test("copies selected objects between slides and preserves keyboard text editing", async ({
   page,
 }, info) => {
@@ -165,6 +166,99 @@ test("matches sizes to a chosen reference and supports undo", async ({
   await page.getByRole("button", { name: "もとに戻す", exact: true }).click();
   await expect(target).toHaveCSS("height", "60px");
   await expect(reference).toHaveCSS("width", "200px");
+});
+test("multi-selects a response field with a shape and matches its size", async ({
+  page,
+}, info) => {
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (await page.request.get("/__test/token?name=field-size-host")).text()
+      : "field-size-host";
+  expect(
+    (
+      await page.request.post("/api/auth/google", {
+        headers,
+        data: { credential },
+      })
+    ).status(),
+  ).toBe(200);
+  const slide = {
+    ...blank(0, 0),
+    title: "回答欄のサイズ確認",
+    elements: [
+      {
+        id: "reference",
+        type: "shape",
+        shape: "rect",
+        x: 40,
+        y: 80,
+        w: 200,
+        h: 120,
+        fill: "#ffffff",
+        stroke: "#173d38",
+        text: "基準",
+        fontSize: 24,
+        color: "#173d38",
+      },
+      {
+        id: "field",
+        type: "shape",
+        shape: "rect",
+        x: 300,
+        y: 80,
+        w: 100,
+        h: 60,
+        fill: "#ffffff",
+        stroke: "#173d38",
+        responseField: {
+          source: "worksheet",
+          deckId: crypto.randomUUID(),
+          worksheetId: crypto.randomUUID(),
+          field: worksheetTemplate("reason").fields[0],
+          showLabel: true,
+        },
+      },
+    ],
+  };
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "回答欄のサイズ調整", slides: [slide] },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page
+    .getByRole("button", { name: "回答欄のサイズ確認を編集", exact: true })
+    .click();
+  await expect(page.locator(".workspace-flight")).toHaveCount(0);
+  const reference = page.locator(
+    '.editor-page-current .element[data-element-id="reference"]',
+  );
+  const field = page.locator(
+    '.editor-page-current .element[data-element-id="field"]',
+  );
+  if (info.project.name.includes("touch")) {
+    await page.getByRole("button", { name: "まとめて選択" }).tap();
+    await reference.tap();
+    await field.tap();
+  } else {
+    await reference.click();
+    // The second click lands on the field's answer area; it must still add
+    // the field to the selection instead of starting an answer.
+    await field.click({ modifiers: ["Shift"] });
+  }
+  await expect(
+    page.getByRole("combobox", { name: "大きさの基準" }),
+  ).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "大きさの基準" })
+    .selectOption("reference");
+  await page.getByRole("button", { name: "幅を揃える", exact: true }).click();
+  await expect(field).toHaveCSS("width", "200px");
+  await expect(field).toHaveCSS("height", "60px");
+  await page.getByRole("button", { name: "幅と高さを揃える" }).click();
+  await expect(field).toHaveCSS("height", "120px");
 });
 test("shape labels and transforms sync, own undo preserves remote text, read-only clients cannot insert", async ({
   page,

@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import type { FormDraft } from "./formEditing";
+import { additiveSelectionIntent } from "./formDrag";
 import { ResponseField } from "./ResponseField";
 import { SurveyResultCaption } from "./SurveyResultCaption";
 import { SlideWorksheet } from "./SlideWorksheet";
@@ -540,7 +541,15 @@ export function Canvas({
           // Touch browsers can retarget a thin frame to a nearby textarea.
           // Use the physical hit point before that input handles the event.
           const hit = document.elementFromPoint(event.clientX, event.clientY);
-          if (hit?.closest("[data-slide-survey]")) return;
+          // Form parts keep plain clicks for answering, but an additive
+          // selection gesture (Shift/Ctrl/⌘ or multi-select mode) must still
+          // reach the selection branch below, or form parts can never be
+          // multi-selected for align / match-size / distribute.
+          if (
+            hit?.closest("[data-slide-survey]") &&
+            !additiveSelectionIntent(event, selectMultiple)
+          )
+            return;
           const owner = hit?.closest<HTMLElement>(".element");
           // Chromium may adjust a touch inside an empty table cell onto a
           // nearby native resize button. Route that down through the actual
@@ -589,10 +598,7 @@ export function Canvas({
             return;
           }
           if (
-            (selectMultiple ||
-              event.shiftKey ||
-              event.ctrlKey ||
-              event.metaKey) &&
+            additiveSelectionIntent(event, selectMultiple) &&
             owner &&
             ref.current?.contains(owner)
           ) {
