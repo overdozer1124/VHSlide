@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>S11 並行送信専用画面（検証用）</title>
+<!--
+  S11（項目6 手順3：古い世代の拒否、手順4：同一の追加（C）の並行
+  2件）専用の検証画面です。Codex の手順レビュー（SwarmChat seq
+  691）で合意した手順と条件に沿います。
+
+  位置づけと制約:
+  - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で
+    配信し、どの Worker 版にも含めません。
+  - 順序は C の主体取得 → B の参照取得 → 手順3の A 認可 → 手順3
+    の凍結 → 手順3の送信 → 手順4の A 認可×2 → 手順4の凍結 →
+    手順4の同時送信の固定順です。手順4は手順3が期待どおり
+    409 stale_generation で拒否された場合にだけ始められます
+    （手順3で状態が変わっていないことが手順4の前提）。
+    順序は tools/s11-parallel.mjs の createS11Session が強制します。
+  - Cookie 文脈の分離（seq 691 の条件1）：送信はブラウザーから
+    直接行いません。ブラウザーの Cookie jar は生成元で1つしか
+    なく、2件目の /nonce が1件目の op2_nonce_ctx を上書きする
+    ため、単一ブラウザーからは2件それぞれに異なる nonce 文脈を
+    送れません。送信は提供サーバー側の送信器
+    （tools/s11-sender.mjs、Node）がスロットごとに Cookie jar
+    を分けて行います（S5 送信器と同じ解決）。この画面は C の
+    主体ハッシュと A の実トークンを集めて凍結した要求を作り、
+    表示を確認したうえで、送信指示を提供サーバー側の送信器へ
+    渡します。手順3の単発送信も、送信経路を1つにそろえ、ブラ
+    ウザーの共有 Cookie jar に一切依存しないため送信器経由です。
+  - nonce の発行も送信器が行います（GET /s11/nonces）。画面は
+    nonce の値を受け取りますが、表示・ログには出しません。各
+    nonce は対応するスロットの GIS ログインにだけ使います。
+    最初の nonce の発行開始から4分以内に送信しなければ送信器が
+    拒否します（nonce の有効期限は5分。期限を過ぎた場合は
+    再準備します。Worker の状態は消費されません）。
+  - C・B の主体ハッシュ捕捉は S10 と同じ型です。ブラウザーが
+    /nonce を取得して GIS に渡し、捕捉したトークンを PC 内署名
+    検証（tools/subject-hash-verify.mjs の verifyIdTokenLocal）
+    で確認して SHA-256(sub) だけを保持します。捕捉用トークンは
+    どこへも送信しません。ブラウザーの Cookie jar が他の検証
+    ページと共有されても、捕捉は Cookie を使わないため影響を
+    受けません（nonce の値は GIS へ渡した値とトークンの
+    クレームの照合で確認します）。
+  - 機械的な確認（送信前に状態機械が強制します）：対象 C の
+    主体ハッシュが運営者 B の参照ハッシュとも認可者 A の主体
+    ハッシュとも異なること。手順4の2件の認可が同一主体（A）で
+    あり、手順3の認可者とも同一であること。凍結した2件の要求
+    が action・対象・期待世代まで同一であること（トークンと
+    nonce だけが異なる）。「A である」ことの最終確認は、所有者
+    がアカウント選択を目視で確認することと組み合わせます。
+  - 凍結要求は、実際の送信に使う値から生成します。対象は C
+    取得で保持した主体ハッシュ、期待世代は手順の固定値（手順3
+    は 2、手順4は 3）であり、手入力欄はありません。画面は凍結
+    内容（試行 ID・action・対象・期待世代・送信先）を送信直前
+    に表示し、所有者が開始前の読み戻しの確認チェックとともに
+    送信ボタンを押した場合にだけ、凍結した要求をそのまま送信
+    指示として送信器へ渡します。
+  - 送信は各手順で一度だけです（seq 691 の条件：凍結後の同時
+    送信・再送禁止・結果不明時の読み戻し）。手順3の期待は
+    409 stale_generation、手順4の期待は正確に1件が 200 ok
+    （generation 4）でもう1件が 409 stale_generation である
+    こと。通常ビルドでは世代チェックが既存メンバー判定より先
+    であるため、負け側は stale_generation になります。不一致
+    なら試行を停止します。応答なし（送信器が status null を
+    返した場合）は「状態未確定、再送しません」とログに出し
+    停止します（登録簿の読み戻しで結果を確かめます）。
+  - 送信指示が送信器の事前確認で拒否された場合（理由コードが
+    s11_* / slot_nonce_mismatch）は、1件も送信されていません。
+    画面はその旨をログに出し、試行を停止します。送信指示自体
+    の通信が失敗した場合は、実施有無が不明なため状態未確定と
+    して扱い、再送しません。
+  - 送信中の排他：sending フラグを持ち、送信中は準備・送信
+    ボタンを無効化します。試行の ID・世代・nonce・役割を閉じ
+    込めた GIS コールバックを使い、古い試行のコールバックは
+    世代照合で拒否します。さらに各 await の後（JWKS 取得後・
+    署名検証後・sha256hex 後）で役割と段階も照合します。
+  - 1役割1捕捉：各役割のコールバックは、受付の時点で試行に
+    閉じ込めた claim を取り（tools/s11-parallel.mjs の
+    claimCallbackCapture）、受付済み・処理中の同一試行・役割へ
+    の後続コールバックは、ユーザーの確認で段階が進む前でも
+    拒否します。
+  - nonce 取得中の排他：取得要求の飛行中は準備・破棄・新規
+    試行ボタンを無効化し、合成イベントで呼んでもハンドラー側
+    でも拒否します。並行する取得要求を出さないことで、遅れて
+    戻った旧応答が現行試行の期限・nonce を上書きするのを防ぎ
+    ます（状態機械の finishNonceFetch も世代照合で破棄します）。
+  - トークン消去の契機（tools/s11-parallel.mjs の
+    S11_TOKEN_ERASE_TRIGGERS）：手順3の送信後・S11 完了・
+    S11 停止・試行の破棄・新規試行の開始。消去はメモリー内の
+    変数を空にし、表示した主体ハッシュも画面から消すことで
+    行い、消去の事実だけをログに出します。
+  - nonce の期限：C・B の捕捉用 nonce は要求開始時刻＋5分
+    （s9-negative.mjs と同一の規則）。手順3・手順4の認可用
+    nonce は送信器の規則で発行開始時刻から4分が送信期限です。
+    画面の期限表示は目安であり、最終的な期限判定は送信器と
+    サーバー側が行います。期限を過ぎた送信は不可にして、新しい
+    試行を要求します。
+  - 表示・ログ・Issue・チャットに ID トークン・Cookie・nonce・
+    主体ハッシュを出しません。画面のログには試験 ID・ステップ・
+    応答の状態と理由コード・返された世代だけを出します。ログを
+    書き込む前に assertLogHasNoSecrets で秘密の混入を確認します。
+    主体ハッシュの表示はこの画面の DOM だけであり、ログには
+    出しません。
+  - 入力の境界：この画面に主体ハッシュ・世代・トークンの入力
+    欄はありません（チェックだけです）。
+  - Origin の境界：Origin はページ自身の生成元であり、画面
+    からは変えられません。送信器から Worker への送信では、
+    送信器が固定の Origin（http://localhost:8787）を付けます。
+
+  先行実測の参照範囲（個別。画面内の注記も参照）：
+  - 実 Google nonce 一致：捕捉したトークンの nonce と発行した
+    nonce の一致は、PC 内署名検証（verifyIdTokenLocal）の
+    expectedNonce 照合で真偽だけ確認します。nonce の値そのもの
+    は表示・ログに出しません。
+  - 送信器の Cookie 返送：S5 実環境試験で、送信器がスロット
+    ごとに保持した ctx を対応する送信にだけ付ける経路が実証
+    済みです（S5 の 201 が正確に1件）。S11 の送信器は同じ仕組み
+    を /admin/registry/add へ使うものであり、経路自体の新規性
+    はありません。
+  未実証のもの（本画面の対象外）：実トークン期限切れ、異なる
+  aud／iss、tokeninfo 到達不能。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+  button:disabled { opacity: 0.5; }
+</style>
+<body>
+<h1>S11 並行送信専用画面（検証用）</h1>
+<p class="note">先行実測の参照範囲：実 Google nonce 一致は PC 内署名検証で確認します。送信器のスロット別 Cookie 保持は S5 実環境試験で実証済みの仕組みです。
+未実証のもの（本画面の対象外）：実トークン期限切れ、異なる aud／iss、tokeninfo 到達不能。
+Origin の境界：Origin はページ自身の生成元であり、画面からは変えられません。</p>
+
+<fieldset>
+  <legend>① 試行の開始</legend>
+  <button id="newTrial" type="button">新しい試行を始める</button>
+  <p>試験ID： <span id="trialId">（新しい試行を始めてください）</span></p>
+  <p>試行の破棄：
+    <button id="discardTrial" type="button">試行を破棄する</button>
+  </p>
+</fieldset>
+
+<fieldset>
+  <legend>② Cの主体を取得</legend>
+  <button id="prepC" type="button">Cのnonceを取得してGoogleログインボタンを表示</button>
+  <div id="gisC"></div>
+  <p>署名検証の結果：</p>
+  <pre id="cEvidence">（まだ C のログインをしていません）</pre>
+  <p>Cの主体ハッシュ（この画面だけに表示します。ログには出しません）：</p>
+  <pre id="cHash">（まだ C のログインをしていません）</pre>
+  <label><input type="checkbox" id="cConfirmed"> 表示されたCの主体が、追加したいCであることを確認しました</label>
+  <p><button id="completeC" type="button">Cの取得を完了する</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>③ Bの主体を参照取得</legend>
+  <button id="prepB" type="button">Bのnonceを取得してGoogleログインボタンを表示</button>
+  <div id="gisB"></div>
+  <p>署名検証の結果：</p>
+  <pre id="bEvidence">（まだ B のログインをしていません）</pre>
+  <p>Bの主体ハッシュ（この画面だけに表示します。ログには出しません）：</p>
+  <pre id="bHash">（まだ B のログインをしていません）</pre>
+  <p id="cbDistinct">C と B の主体ハッシュが異なること： 未確認</p>
+  <label><input type="checkbox" id="bConfirmed"> 表示されたBの主体が、既存の運営者Bであることを確認しました</label>
+  <p><button id="completeB" type="button">Bの参照取得を完了する</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>④ 手順3：古い世代の拒否（Cの追加・期待世代2）</legend>
+  <button id="prepP3" type="button">送信器からnonceを取得してAのGoogleログインボタンを表示</button>
+  <div id="gisP3"></div>
+  <p>署名検証の結果：</p>
+  <pre id="p3Evidence">（まだ A のログインをしていません）</pre>
+  <p>認可者（A）の主体ハッシュ（この画面だけに表示します。ログには出しません）：</p>
+  <pre id="p3Hash">（まだ A のログインをしていません）</pre>
+  <p id="p3Facts">認可者が B・C と異なること： 未確認</p>
+  <label><input type="checkbox" id="p3Confirmed"> 認可に使うアカウントが運営者Aであることを確認しました</label>
+  <p><button id="completeP3" type="button">手順3の認可を完了する</button></p>
+  <button id="freezeStale" type="button">手順3の要求を凍結して表示する</button>
+  <pre id="frozenStale">（まだ手順3の要求を凍結していません）</pre>
+  <label><input type="checkbox" id="preRead3"> 開始前の読み戻しで generation=3・登録簿 {A, B} を確認しました</label>
+  <p><button id="sendStale" type="button">手順3を送信する（409 stale_generation が期待結果です）</button></p>
+  <p class="note">送信は一度だけです。期待は 409 stale_generation で拒否され、状態が変わらないこと。
+  応答がない場合は再送せず、登録簿の読み戻しで結果を確かめます。</p>
+</fieldset>
+
+<fieldset>
+  <legend>⑤ 手順4：同一の追加（C）の並行2件（期待世代3）</legend>
+  <button id="prepP4" type="button">送信器から2件分のnonceを取得する</button>
+  <pre id="p4SlotStatus">スロット 1/2: 未取得
+スロット 2/2: 未取得</pre>
+  <div id="gisP4"></div>
+  <p>署名検証の結果：</p>
+  <pre id="p4Evidence">（まだ A のログインをしていません）</pre>
+  <p>認可者（A）の主体ハッシュ（この画面だけに表示します。ログには出しません）：</p>
+  <pre id="p4Hash">（まだ A のログインをしていません）</pre>
+  <p id="p4Facts">2件の認可が同一主体（A）で、B・C と異なること： 未確認</p>
+  <label><input type="checkbox" id="p4Confirmed"> 2件とも運営者Aのログインであることを確認しました</label>
+  <p><button id="completeP4" type="button">手順4の認可を完了する</button></p>
+  <button id="freezeP4" type="button">手順4の要求を凍結して表示する</button>
+  <pre id="frozenP4">（まだ手順4の要求を凍結していません）</pre>
+  <label><input type="checkbox" id="preRead4"> 手順3が期待どおり拒否され、読み戻しで generation=3 のままであることを確認しました</label>
+  <p><button id="sendP4" type="button">手順4を同時送信する（成功ちょうど1件が期待結果です）</button></p>
+  <p class="note">2件は送信器が同時に送ります。片方の結果を見てから他方を送ることはありません。
+  負けた側の再送はしません。応答がない場合は再送せず、登録簿の読み戻しで結果を確かめます。</p>
+</fieldset>
+
+<h2>状態</h2>
+<pre id="state">（試行がありません）</pre>
+<pre id="nonceInfo">（まだ nonce を取得していません）</pre>
+
+<h2>結果</h2>
+<pre id="log"></pre>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import {
+  createS11Session,
+  buildS11Request,
+  buildS11Requests,
+  verifyS11RequestsIdentical,
+  verifyNoncesDistinct,
+  makeS11LogEntry,
+  makeS11ConcurrentLogEntry,
+} from "./s11-parallel.mjs";
+import { nonceDeadline, isNonceExpired, assertLogHasNoSecrets } from "./s9-negative.mjs";
+import { verifyIdTokenLocal, sha256hex } from "./subject-hash-verify.mjs";
+
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （検証用に作成した Web クライアントの ID を、tools/serve-real.mjs が
+// 起動時に環境変数 GOOGLE_CLIENT_ID からメモリ上で差し込みます）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+// 試験単位の不可推測セッション。提供サーバーが起動時に発行し、メモリ上で
+// 差し込む（ファイル自体は書き換えない）。/s11/nonces・/s11/send-* の
+// 呼び出し時にヘッダーで示し、別オリジン・別画面からの状態変更を拒否する。
+// 秘密の値ではないが、表示・ログには出さない。
+const S11_SESSION = "REPLACE_WITH_S11_SESSION";
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+const PATHS = { browserNonce: "/nonce", nonces: "/s11/nonces", sendStale: "/s11/send-stale", sendConcurrent: "/s11/send-concurrent" };
+// 送信器の送信期限（発行開始から4分。tools/s11-sender.mjs の
+// SEND_WITHIN_MS と同じ値）。画面のボタン制御と送信直前の確認に使う
+// 目安であり、最終的な判定は送信器が行う。
+const SEND_WINDOW_MS = 4 * 60 * 1000;
+// 送信指示の事前確認で送信器が返す、1件も送信されていないことを示す
+// 理由コード。これらを受けた場合は試行を停止する。それ以外の失敗
+// （通信失敗・5xx）は実施有無が不明なため、状態未確定として扱う。
+const PRE_SEND_ERROR_CODES = new Set([
+  "s11_busy",
+  "s11_not_prepared",
+  "s11_trial_mismatch",
+  "s11_procedure_mismatch",
+  "s11_nonces_expired",
+  "s11_bad_procedure",
+  "s11_bad_request_count",
+  "s11_bad_expected_generation",
+  "s11_tokens_not_distinct",
+  "s11_requests_differ",
+  "slot_nonce_mismatch",
+  "bad_trial_input",
+  "s11_bad_session",
+  "s11_bad_origin",
+  "bad_body",
+  "bad_content_type",
+  "body_too_large",
+]);
+
+const session = createS11Session();
+let attempt = null; // 最新の試行 { trialId, generation }（表示用）
+let sending = false; // 送信中のフラグ（手順3・手順4共通）
+// 捕捉モードで保持する値（JS 変数のみ。表示・ログに出さない。主体
+// ハッシュは表示用の DOM だけに書き、ログには出さない）。
+let tokenC = null;
+let tokenB = null;
+let tokenP3 = null;
+let hashC = null;
+let hashB = null;
+let hashP3 = null;
+let nonceC = null;
+let nonceB = null;
+let nonceP3 = null;
+let verifiedC = null;
+let verifiedB = null;
+let verifiedP3 = null;
+let p4Tokens = [null, null];
+let p4Hashes = [null, null];
+let p4Nonces = [null, null];
+let p4Verified = [null, null];
+
+const logEl = document.getElementById("log");
+const stateEl = document.getElementById("state");
+const nonceInfoEl = document.getElementById("nonceInfo");
+const trialIdEl = document.getElementById("trialId");
+const newTrialBtn = document.getElementById("newTrial");
+const discardBtn = document.getElementById("discardTrial");
+const prepCBtn = document.getElementById("prepC");
+const gisCBox = document.getElementById("gisC");
+const cEvidenceEl = document.getElementById("cEvidence");
+const cHashEl = document.getElementById("cHash");
+const cConfirmCheck = document.getElementById("cConfirmed");
+const completeCBtn = document.getElementById("completeC");
+const prepBBtn = document.getElementById("prepB");
+const gisBBox = document.getElementById("gisB");
+const bEvidenceEl = document.getElementById("bEvidence");
+const bHashEl = document.getElementById("bHash");
+const cbDistinctEl = document.getElementById("cbDistinct");
+const bConfirmCheck = document.getElementById("bConfirmed");
+const completeBBtn = document.getElementById("completeB");
+const prepP3Btn = document.getElementById("prepP3");
+const gisP3Box = document.getElementById("gisP3");
+const p3EvidenceEl = document.getElementById("p3Evidence");
+const p3HashEl = document.getElementById("p3Hash");
+const p3FactsEl = document.getElementById("p3Facts");
+const p3ConfirmCheck = document.getElementById("p3Confirmed");
+const completeP3Btn = document.getElementById("completeP3");
+const freezeStaleBtn = document.getElementById("freezeStale");
+const frozenStaleEl = document.getElementById("frozenStale");
+const preRead3Check = document.getElementById("preRead3");
+const sendStaleBtn = document.getElementById("sendStale");
+const prepP4Btn = document.getElementById("prepP4");
+const p4SlotStatusEl = document.getElementById("p4SlotStatus");
+const gisP4Box = document.getElementById("gisP4");
+const p4EvidenceEl = document.getElementById("p4Evidence");
+const p4HashEl = document.getElementById("p4Hash");
+const p4FactsEl = document.getElementById("p4Facts");
+const p4ConfirmCheck = document.getElementById("p4Confirmed");
+const completeP4Btn = document.getElementById("completeP4");
+const freezeP4Btn = document.getElementById("freezeP4");
+const frozenP4El = document.getElementById("frozenP4");
+const preRead4Check = document.getElementById("preRead4");
+const sendP4Btn = document.getElementById("sendP4");
+
+function allSecrets() {
+  return [
+    tokenC, tokenB, tokenP3, ...p4Tokens,
+    nonceC, nonceB, nonceP3, ...p4Nonces,
+    hashC, hashB, hashP3, ...p4Hashes,
+  ];
+}
+
+function log(...parts) {
+  // 試験 ID・ステップ・応答の状態と理由コード・返された世代だけを出す。
+  // トークン・Cookie・nonce・主体ハッシュは出さない。書き込む前に混入
+  // を確認する。
+  const line = parts.join(" ");
+  try {
+    assertLogHasNoSecrets(line, allSecrets());
+  } catch {
+    // 秘密が混ざる行は書かない。混入そのものだけを記録する。
+    logEl.textContent += "ログへの書き込みを拒否しました（秘密の混入の疑い）\n";
+    return;
+  }
+  logEl.textContent += line + "\n";
+}
+
+// 手順3の認可まわりの秘密の消去（契機は S11_TOKEN_ERASE_TRIGGERS）。
+// 消去の事実だけをログに出す（値は出さない）。
+function eraseP3Secrets(trigger) {
+  tokenP3 = null;
+  nonceP3 = null;
+  hashP3 = null;
+  verifiedP3 = null;
+  p3HashEl.textContent = "（消去されました）";
+  log(`秘密を消去しました（${trigger}）`);
+}
+
+// すべての秘密の消去。表示した主体ハッシュも画面から消す。
+function eraseAllSecrets(trigger) {
+  tokenC = null;
+  tokenB = null;
+  tokenP3 = null;
+  hashC = null;
+  hashB = null;
+  hashP3 = null;
+  nonceC = null;
+  nonceB = null;
+  nonceP3 = null;
+  verifiedC = null;
+  verifiedB = null;
+  verifiedP3 = null;
+  p4Tokens = [null, null];
+  p4Hashes = [null, null];
+  p4Nonces = [null, null];
+  p4Verified = [null, null];
+  cHashEl.textContent = "（消去されました）";
+  bHashEl.textContent = "（消去されました）";
+  p3HashEl.textContent = "（消去されました）";
+  p4HashEl.textContent = "（消去されました）";
+  log(`秘密を消去しました（${trigger}）`);
+}
+
+function currentPhase() {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  const snap = session.snapshot();
+  return snap ? snap.phase : null;
+}
+
+function currentNonceIssuedAt(role) {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  return session.nonceIssuedAt(attempt.trialId, attempt.generation, role);
+}
+
+// いずれかの役割の nonce 取得が飛行中かどうか。新しい試行の開始・
+// 破棄のハンドラーでも使う（表示の無効化だけでは合成イベントを
+// 防げないため、ハンドラー側でも拒否する）。
+function isAnyNonceFetchPending() {
+  if (attempt === null) return false;
+  return ["C", "B", "P3", "P4-1", "P4-2"].some((role) =>
+    session.isNonceFetchPending(attempt.trialId, attempt.generation, role)
+  );
+}
+
+// 送信器発行の nonce の送信期限（発行開始＋4分）を過ぎているか。
+function senderWindowExpired(roles) {
+  const issued = roles
+    .map((role) => currentNonceIssuedAt(role))
+    .filter((v) => v !== null);
+  if (issued.length === 0) return false;
+  return Date.now() - Math.min(...issued) > SEND_WINDOW_MS;
+}
+
+// GIS コールバックが現行の試行・役割・段階に属するかを照合する。
+// 拒否する場合はログに出す文言を返し、通る場合は null を返す。
+function callbackRejection(snap) {
+  if (!session.isCurrent(snap.trialId, snap.generation)) {
+    return "古い試行のコールバックを破棄しました";
+  }
+  if (!session.isCallbackCurrent(snap.trialId, snap.generation, snap.role)) {
+    return "役割・段階が一致しないコールバックを破棄しました";
+  }
+  return null;
+}
+
+function renderP4SlotStatus() {
+  const lines = [];
+  for (let i = 0; i < 2; i++) {
+    lines.push(`スロット ${i + 1}/2: ${p4Tokens[i] !== null ? "トークン取得済み・署名検証通過" : "未取得"}`);
+  }
+  p4SlotStatusEl.textContent = lines.join("\n");
+}
+
+function updateState() {
+  const snap = session.snapshot();
+  if (!snap) {
+    stateEl.textContent = "（試行がありません）";
+  } else {
+    stateEl.textContent = JSON.stringify({
+      trial_id: snap.trialId,
+      phase: snap.phase,
+      c_captured: snap.cCaptured,
+      b_captured: snap.bCaptured,
+      p3_captured: snap.p3Captured,
+      p4_captured: snap.p4CapturedCount,
+      stale_frozen: snap.staleFrozen,
+      concurrent_frozen: snap.concurrentFrozen,
+      undetermined: snap.undetermined,
+    }, null, 2);
+  }
+  const parts = [];
+  for (const [role, label] of [["C", "C"], ["B", "B"]]) {
+    const issued = currentNonceIssuedAt(role);
+    if (issued !== null) {
+      parts.push(`${label} nonce 発行時刻：${new Date(issued).toISOString()}（${issued}）／期限：${new Date(nonceDeadline(issued)).toISOString()}（${nonceDeadline(issued)}）`);
+    }
+  }
+  for (const [role, label] of [["P3", "手順3"], ["P4-1", "手順4-1"], ["P4-2", "手順4-2"]]) {
+    const issued = currentNonceIssuedAt(role);
+    if (issued !== null) {
+      parts.push(`${label} nonce 発行時刻：${new Date(issued).toISOString()}（${issued}）／送信期限：${new Date(issued + SEND_WINDOW_MS).toISOString()}（${issued + SEND_WINDOW_MS}）`);
+    }
+  }
+  nonceInfoEl.textContent = parts.length > 0
+    ? parts.join("\n") + "\n（C・B は発行時刻＋5分、期限ちょうどは期限切れ。手順3・手順4は発行開始＋4分が送信器の送信期限）"
+    : "（まだ nonce を取得していません）";
+  trialIdEl.textContent = attempt ? attempt.trialId : "（新しい試行を始めてください）";
+}
+
+// 各ボタンの有効・無効。セッションの段階が許可する時のみ有効にする。
+// 送信中は準備・送信ボタンを無効化する（送信中の排他）。nonce 取得中
+// は準備・破棄・新規試行ボタンも無効化する（取得中の排他）。
+function updateButtons() {
+  const phase = currentPhase();
+  const fetching = isAnyNonceFetchPending();
+  const canAct = !sending && !fetching && attempt !== null && phase !== null;
+  const expiredC = currentNonceIssuedAt("C") !== null &&
+    isNonceExpired(Date.now(), currentNonceIssuedAt("C"));
+  const expiredB = currentNonceIssuedAt("B") !== null &&
+    isNonceExpired(Date.now(), currentNonceIssuedAt("B"));
+  const staleWindow = senderWindowExpired(["P3"]);
+  const concWindow = senderWindowExpired(["P4-1", "P4-2"]);
+  newTrialBtn.disabled = sending || fetching;
+  discardBtn.disabled = sending || fetching || attempt === null;
+  prepCBtn.disabled = !canAct || phase !== "c-preparing";
+  completeCBtn.disabled =
+    !canAct || phase !== "c-preparing" || tokenC === null || !cConfirmCheck.checked;
+  prepBBtn.disabled = !canAct || phase !== "c-captured";
+  completeBBtn.disabled =
+    !canAct || phase !== "c-captured" || tokenB === null || !bConfirmCheck.checked;
+  prepP3Btn.disabled = !canAct || phase !== "refs-captured";
+  completeP3Btn.disabled =
+    !canAct || phase !== "refs-captured" || tokenP3 === null || !p3ConfirmCheck.checked;
+  freezeStaleBtn.disabled = !canAct || phase !== "p3-captured" || staleWindow;
+  sendStaleBtn.disabled =
+    !canAct || phase !== "p3-frozen" || tokenP3 === null || staleWindow || !preRead3Check.checked;
+  prepP4Btn.disabled = !canAct || phase !== "p3-completed";
+  completeP4Btn.disabled =
+    !canAct || phase !== "p3-completed" ||
+    p4Tokens[0] === null || p4Tokens[1] === null || !p4ConfirmCheck.checked;
+  freezeP4Btn.disabled = !canAct || phase !== "p4-captured" || concWindow;
+  sendP4Btn.disabled =
+    !canAct || phase !== "p4-frozen" ||
+    p4Tokens[0] === null || p4Tokens[1] === null || concWindow || !preRead4Check.checked;
+  // 捕捉用 nonce の期限切れは、完了ボタンの無効化にも反映する
+  // （期限切れの捕捉で進めても送信器・サーバー側で拒否されるため）。
+  if (expiredC) completeCBtn.disabled = true;
+  if (expiredB) completeBBtn.disabled = true;
+}
+
+// C・B 捕捉用の /nonce をブラウザーで取得する（S10 と同じ型）。
+// 期限の起点は要求開始直前に同期的に記録した時刻であり、試行・
+// 役割に閉じ込める。応答の受信時刻は使わない。
+async function fetchBrowserNonce(role) {
+  if (!attempt) throw new Error("試行がありません");
+  const req = session.beginNonceFetch(attempt.trialId, attempt.generation, role, Date.now());
+  updateButtons();
+  const res = await fetch(PATHS.browserNonce, { credentials: "include", redirect: "manual" });
+  const data = await res.json().catch(() => null);
+  log("GET /nonce ->", res.status, data && data.nonce ? "ok" : "ng", `(役割=${role})`);
+  if (!res.ok || !data || !data.nonce) throw new Error("nonce が取得できませんでした");
+  // 遅れて戻った旧試行の応答は、世代照合で破棄する（期限・nonce を
+  // 上書きしない）。
+  const applied = session.finishNonceFetch(req.trialId, req.generation, role, data.nonce);
+  if (!applied) {
+    log("古い試行の nonce 応答を破棄しました");
+    return null;
+  }
+  return data.nonce;
+}
+
+// 手順3・手順4の認可用 nonce を送信器から取得する。発行は試行 ID
+// と手順に結び付ける。送信指示の試行 ID・手順と一致しなければ
+// 送信器は送信しない。試験単位のセッションもヘッダーで示す
+// （別オリジン・別画面からの呼び出しは拒否される）。
+async function fetchSenderNonces(procedure, roles) {
+  if (!attempt) throw new Error("試行がありません");
+  const startedAt = Date.now();
+  const reqs = roles.map((role) =>
+    session.beginNonceFetch(attempt.trialId, attempt.generation, role, startedAt)
+  );
+  updateButtons();
+  const res = await fetch(
+    `${PATHS.nonces}?trial_id=${encodeURIComponent(attempt.trialId)}&procedure=${encodeURIComponent(procedure)}`,
+    { credentials: "include", headers: { "x-s11-session": S11_SESSION } }
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || !Array.isArray(data.nonces) || data.nonces.length !== roles.length) {
+    throw new Error("送信器から nonce が取得できませんでした");
+  }
+  // nonce の値は表示しない。対応する役割の GIS ログインにだけ使う。
+  verifyNoncesDistinct(data.nonces, roles.length);
+  const applied = [];
+  for (let i = 0; i < roles.length; i++) {
+    const a = session.finishNonceFetch(reqs[i].trialId, reqs[i].generation, roles[i], data.nonces[i]);
+    if (!a) {
+      log("古い試行の nonce 応答を破棄しました");
+      return null;
+    }
+    applied.push(data.nonces[i]);
+  }
+  return applied;
+}
+
+// GIS コールバック。ID トークンを受け取り、PC 内で署名検証する。
+// 送信はしない。トークンは JS 変数にのみ保持する（捕捉モード）。
+// snap は initialize 時に閉じ込めたこの試行の ID・世代・役割・
+// nonce であり、グローバルな attempt は読まない。古い試行の
+// コールバックは、開始時と各 await 後の試行・役割・段階の照合
+// （JWKS 取得後・署名検証後・sha256hex 後）で破棄する。共有の
+// UI・状態の更新は、この試行が現行のときに限る。
+async function onGoogleSignIn(response, snap) {
+  const entryRejection = callbackRejection(snap);
+  if (entryRejection !== null) {
+    log(entryRejection);
+    return;
+  }
+  // 1役割1捕捉の排他。受付済み・処理中の同一試行・役割への後続
+  // コールバックは、ユーザーの確認（取得完了／認可完了）で段階が
+  // 進む前でも拒否する。
+  if (!session.claimCallbackCapture(snap.trialId, snap.generation, snap.role)) {
+    log("同じ役割のコールバックは既に受け付け済みのため破棄しました");
+    return;
+  }
+  try {
+    // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で
+    // 署名を検証する。トークンは外部の検証サービスへ送らない。
+    // 真偽だけを扱う。
+    const jwks = await (await fetch(JWKS_URL)).json();
+    const jwksRejection = callbackRejection(snap);
+    if (jwksRejection !== null) {
+      log(jwksRejection);
+      return;
+    }
+    const sub = await verifyIdTokenLocal(response.credential, {
+      jwks,
+      expectedAud: GOOGLE_CLIENT_ID,
+      expectedIssuers: ISSUERS,
+      expectedNonce: snap.nonce,
+      nowSec: Math.floor(Date.now() / 1000),
+    }).then((r) => r.sub).catch((e) => {
+      log("署名検証 -> ng", e.code || "error", `(役割=${snap.role})`);
+      return null;
+    });
+    if (sub === null) throw new Error("署名検証が通りませんでした");
+    const verifyRejection = callbackRejection(snap);
+    if (verifyRejection !== null) {
+      log(verifyRejection);
+      return;
+    }
+    // 主体ハッシュは PC 内で算出する。表示はこの画面の DOM だけ
+    // であり、ログには出さない。sha256hex は非同期であり、その
+    // 完了を待つ間に試行が破棄・置換され得るため、ハッシュ後に
+    // もう一度、試行・役割・段階を照合してから共有の状態へ書き
+    // 込む。
+    const hash = await sha256hex(sub);
+    const hashRejection = callbackRejection(snap);
+    if (hashRejection !== null) {
+      log(hashRejection);
+      return;
+    }
+    const verified = { signature: true, iss: true, aud: true, exp: true, nonce: true };
+    if (snap.role === "C") {
+      tokenC = response.credential;
+      nonceC = snap.nonce;
+      hashC = hash;
+      verifiedC = verified;
+      cEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      cHashEl.textContent = hash;
+      log("C の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else if (snap.role === "B") {
+      tokenB = response.credential;
+      nonceB = snap.nonce;
+      hashB = hash;
+      verifiedB = verified;
+      bEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      bHashEl.textContent = hash;
+      cbDistinctEl.textContent =
+        hashC !== null && hash !== hashC
+          ? "C と B の主体ハッシュが異なること： 確認済み"
+          : "C と B の主体ハッシュが異なること： 未確認";
+      log("B の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else if (snap.role === "P3") {
+      tokenP3 = response.credential;
+      nonceP3 = snap.nonce;
+      hashP3 = hash;
+      verifiedP3 = verified;
+      p3EvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      p3HashEl.textContent = hash;
+      p3FactsEl.textContent =
+        hashC !== null && hashB !== null && hash !== hashC && hash !== hashB
+          ? "認可者が B・C と異なること： 確認済み"
+          : "認可者が B・C と異なること： 未確認";
+      log("手順3の認可の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else {
+      const slot = snap.role === "P4-1" ? 0 : 1;
+      p4Tokens[slot] = response.credential;
+      p4Nonces[slot] = snap.nonce;
+      p4Hashes[slot] = hash;
+      p4Verified[slot] = verified;
+      p4EvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      if (p4Hashes[0] !== null && p4Hashes[1] !== null) {
+        p4HashEl.textContent = p4Hashes[0] === p4Hashes[1] ? p4Hashes[0] : "（2件の主体ハッシュが一致しません）";
+        p4FactsEl.textContent =
+          p4Hashes[0] === p4Hashes[1] && hashC !== null && hashB !== null &&
+          p4Hashes[0] !== hashC && p4Hashes[0] !== hashB
+            ? "2件の認可が同一主体（A）で、B・C と異なること： 確認済み"
+            : "2件の認可が同一主体（A）で、B・C と異なること： 未確認";
+      } else if (p4Hashes[slot] !== null) {
+        p4HashEl.textContent = p4Hashes[slot];
+      }
+      renderP4SlotStatus();
+      log(`手順4の認可（スロット ${slot + 1}/2）の署名検証 -> ok`, `試験ID=${snap.trialId}`);
+      // 次のスロットのログインボタンを描く。
+      if (slot === 0 && p4Tokens[1] === null) {
+        renderSenderSlotButton(1);
+      }
+    }
+    log("トークンを捕捉しました（送信はしていません）", `(役割=${snap.role})`);
+  } catch (e) {
+    // 共有の状態を変えるのは、このコールバックが現行の試行・
+    // 役割・段階に属するときに限る。古い／重複コールバックの
+    // catch が新試行の状態を壊さないようにする。
+    if (callbackRejection(snap) === null) {
+      log("準備エラー:", e.message);
+      // 捕捉に失敗した試行は破棄し、保持しかけた秘密があれば消去する。
+      eraseAllSecrets("trial-discarded");
+      session.discard(snap.trialId, snap.generation);
+      attempt = null;
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
+  } finally {
+    updateButtons();
+    updateState();
+  }
+}
+
+// C・B 用の GIS ボタンを描画する。ブラウザーで nonce を取得して
+// から描画し、コールバックにこの試行の ID・世代・役割・nonce を
+// 閉じ込める。
+async function renderBrowserButton(boxEl, role) {
+  const nonce = await fetchBrowserNonce(role);
+  if (nonce === null) return;
+  const snap = { trialId: attempt.trialId, generation: attempt.generation, role, nonce };
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce,
+    callback: (response) => onGoogleSignIn(response, snap),
+  });
+  boxEl.innerHTML = "";
+  google.accounts.id.renderButton(boxEl, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+  updateButtons();
+  updateState();
+}
+
+// 手順3用の GIS ボタンを描画する。nonce は送信器から取得済みの
+// ものを使う。
+let nonceP3Pending = null;
+function renderP3Button() {
+  const snap = { trialId: attempt.trialId, generation: attempt.generation, role: "P3", nonce: nonceP3Pending };
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce: nonceP3Pending,
+    callback: (response) => onGoogleSignIn(response, snap),
+  });
+  gisP3Box.innerHTML = "";
+  google.accounts.id.renderButton(gisP3Box, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+  updateButtons();
+  updateState();
+}
+
+// 手順4のスロット用 GIS ボタンを描画する。GIS の initialize は
+// 全体で1つの設定しか持たないため、スロットごとに initialize
+// し直してボタンを描き直す（S5 画面と同じ）。
+function renderSenderSlotButton(slot) {
+  const role = slot === 0 ? "P4-1" : "P4-2";
+  const snap = { trialId: attempt.trialId, generation: attempt.generation, role, nonce: p4Nonces[slot] };
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce: p4Nonces[slot],
+    callback: (response) => onGoogleSignIn(response, snap),
+  });
+  gisP4Box.innerHTML = "";
+  google.accounts.id.renderButton(gisP4Box, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+  log(`手順4のスロット ${slot + 1}/2 の Google ログインボタンを表示しました。運営者Aでログインしてください`);
+  updateButtons();
+  updateState();
+}
+
+newTrialBtn.addEventListener("click", () => {
+  if (sending) {
+    log("送信中のため新しい試行は始められません");
+    return;
+  }
+  // nonce 取得中の新規試行の開始はできない。取得中の試行を置換
+  // すると、遅れて戻った旧応答が新試行の期限・nonce を上書き
+  // し得るため。表示の無効化だけでは合成イベントを防げないため、
+  // ハンドラー側でも拒否する。
+  if (isAnyNonceFetchPending()) {
+    log("nonce 取得中のため新しい試行を開始できません。取得完了後に開始してください");
+    return;
+  }
+  // 旧試行の秘密があれば消去する（S11_TOKEN_ERASE_TRIGGERS の new-trial-begun）。
+  if (attempt !== null) eraseAllSecrets("new-trial-begun");
+  attempt = session.beginTrial();
+  nonceP3Pending = null;
+  cEvidenceEl.textContent = "（まだ C のログインをしていません）";
+  cHashEl.textContent = "（まだ C のログインをしていません）";
+  bEvidenceEl.textContent = "（まだ B のログインをしていません）";
+  bHashEl.textContent = "（まだ B のログインをしていません）";
+  cbDistinctEl.textContent = "C と B の主体ハッシュが異なること： 未確認";
+  p3EvidenceEl.textContent = "（まだ A のログインをしていません）";
+  p3HashEl.textContent = "（まだ A のログインをしていません）";
+  p3FactsEl.textContent = "認可者が B・C と異なること： 未確認";
+  p4EvidenceEl.textContent = "（まだ A のログインをしていません）";
+  p4HashEl.textContent = "（まだ A のログインをしていません）";
+  p4FactsEl.textContent = "2件の認可が同一主体（A）で、B・C と異なること： 未確認";
+  frozenStaleEl.textContent = "（まだ手順3の要求を凍結していません）";
+  frozenP4El.textContent = "（まだ手順4の要求を凍結していません）";
+  renderP4SlotStatus();
+  cConfirmCheck.checked = false;
+  bConfirmCheck.checked = false;
+  p3ConfirmCheck.checked = false;
+  p4ConfirmCheck.checked = false;
+  preRead3Check.checked = false;
+  preRead4Check.checked = false;
+  log("試行を開始しました", `試験ID=${attempt.trialId}`);
+  updateButtons();
+  updateState();
+});
+
+discardBtn.addEventListener("click", () => {
+  if (!attempt || sending) return;
+  // nonce 取得中の破棄はできない（新規試行の開始と同じ理由）。
+  if (isAnyNonceFetchPending()) {
+    log("nonce 取得中のため破棄できません。取得完了後に破棄してください");
+    return;
+  }
+  eraseAllSecrets("trial-discarded");
+  session.discard(attempt.trialId, attempt.generation);
+  attempt = null;
+  nonceP3Pending = null;
+  log("試行を破棄しました");
+  updateButtons();
+  updateState();
+});
+
+prepCBtn.addEventListener("click", async () => {
+  try { await renderBrowserButton(gisCBox, "C"); } catch (e) { log("準備エラー:", e.message); updateButtons(); updateState(); }
+});
+
+completeCBtn.addEventListener("click", () => {
+  if (!attempt || tokenC === null || hashC === null || verifiedC === null) return;
+  if (!cConfirmCheck.checked) {
+    log("C であることの確認チェックがされていません");
+    return;
+  }
+  try {
+    session.markCCaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashC,
+      verified: verifiedC,
+    });
+    log("C の主体取得を完了しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    log("C の取得エラー:", e.code || "error", "-", e.message);
+  }
+  updateButtons();
+  updateState();
+});
+
+prepBBtn.addEventListener("click", async () => {
+  try { await renderBrowserButton(gisBBox, "B"); } catch (e) { log("準備エラー:", e.message); updateButtons(); updateState(); }
+});
+
+completeBBtn.addEventListener("click", () => {
+  if (!attempt || tokenB === null || hashB === null || verifiedB === null) return;
+  if (!bConfirmCheck.checked) {
+    log("B であることの確認チェックがされていません");
+    return;
+  }
+  try {
+    session.markBCaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashB,
+      verified: verifiedB,
+    });
+    log("B の参照取得を完了しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    // target_matches_operator の場合は試行が停止する。秘密は消去する。
+    log("B の参照取得エラー:", e.code || "error", "-", e.message);
+    if (e.code === "target_matches_operator") {
+      eraseAllSecrets("s11-halted");
+      attempt = null;
+    }
+  }
+  updateButtons();
+  updateState();
+});
+
+prepP3Btn.addEventListener("click", async () => {
+  if (!attempt) return;
+  try {
+    const nonces = await fetchSenderNonces("stale", ["P3"]);
+    if (nonces === null) return;
+    nonceP3Pending = nonces[0];
+    renderP3Button();
+  } catch (e) {
+    log("準備エラー:", e.message);
+    updateButtons();
+    updateState();
+  }
+});
+
+completeP3Btn.addEventListener("click", () => {
+  if (!attempt || tokenP3 === null || hashP3 === null || verifiedP3 === null) return;
+  if (!p3ConfirmCheck.checked) {
+    log("A であることの確認チェックがされていません");
+    return;
+  }
+  try {
+    session.markP3Captured(attempt.trialId, attempt.generation, {
+      subjectHash: hashP3,
+      verified: verifiedP3,
+    });
+    log("手順3の認可を完了しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    // wrong_authorizer の場合は試行が停止する。秘密は消去する。
+    log("手順3の認可エラー:", e.code || "error", "-", e.message);
+    if (e.code === "wrong_authorizer") {
+      eraseAllSecrets("s11-halted");
+      attempt = null;
+    }
+  }
+  updateButtons();
+  updateState();
+});
+
+freezeStaleBtn.addEventListener("click", () => {
+  if (!attempt) return;
+  try {
+    const frozen = session.freezeStaleRequest(attempt.trialId, attempt.generation);
+    // 凍結内容は実際の送信に使う値から生成する（入力欄の値は使わない）。
+    // 主体ハッシュの表示はこの画面の DOM だけであり、ログには出さない。
+    frozenStaleEl.textContent =
+      `試行ID: ${frozen.trialId}\n` +
+      `action: ${frozen.action}\n` +
+      `対象の主体ハッシュ: ${frozen.targetSubjectHash}\n` +
+      `期待世代: ${frozen.expectedGeneration}\n` +
+      `送信先: ${frozen.path}（送信器経由）\n` +
+      `根拠: C の主体取得の表示（上記②）と、開始前の読み戻し（generation=3・{A, B}）`;
+    log("手順3の要求を凍結しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    log("凍結エラー:", e.code || "error", "-", e.message);
+  }
+  updateButtons();
+  updateState();
+});
+
+sendStaleBtn.addEventListener("click", async () => {
+  if (!attempt || tokenP3 === null || sending) return;
+  if (!session.canSendStale(attempt.trialId, attempt.generation)) {
+    log("送信できる状態ではありません");
+    return;
+  }
+  if (!preRead3Check.checked) {
+    log("開始前の読み戻し（generation=3）の確認チェックがされていません");
+    return;
+  }
+  // 送信器の送信期限を送信時にも確認する（ボタン表示だけに頼らない）。
+  if (senderWindowExpired(["P3"])) {
+    log("手順3の nonce の送信期限（発行開始から4分）が切れています。新しい試行を始めてください");
+    return;
+  }
+  // 送信する要求は、凍結済みの内容（セッションの staleDisplayData）
+  // から生成する。入力欄の値は使わない。トークンは手順3の認可で
+  // 保持したものをメモリー内から使う。
+  const frozen = session.staleDisplayData(attempt.trialId, attempt.generation);
+  const request = buildS11Request({
+    idToken: tokenP3,
+    subjectHash: frozen.targetSubjectHash,
+    expectedGeneration: frozen.expectedGeneration,
+  });
+  const trialId = attempt.trialId;
+  const gen = attempt.generation;
+  sending = true;
+  updateButtons();
+  let result = null;
+  let preSendError = null;
+  let instructionFailed = false;
+  try {
+    const res = await fetch(PATHS.sendStale, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-s11-session": S11_SESSION,
+      },
+      credentials: "include",
+      body: JSON.stringify({ trial_id: trialId, request }),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.result) {
+      result = data.result;
+    } else if (data && PRE_SEND_ERROR_CODES.has(data.error)) {
+      // 送信器の事前確認で拒否された。1件も送信されていない。
+      preSendError = data.error;
+    } else {
+      // 応答の形が想定外。実施有無は不明として扱う。
+      instructionFailed = true;
+    }
+  } catch {
+    // 送信指示の通信自体が失敗した。実施有無は不明。再送しない。
+    instructionFailed = true;
+  }
+  sending = false;
+  if (preSendError !== null) {
+    log(`送信指示エラー: ${preSendError}（1件も送信されていません。試行を停止します）`);
+    eraseAllSecrets("s11-halted");
+    session.discard(trialId, gen);
+    attempt = null;
+    updateButtons();
+    updateState();
+    return;
+  }
+  let outcome;
+  try {
+    outcome = session.recordStaleSend(
+      trialId,
+      gen,
+      instructionFailed || result === null || result.status === null ? null : result
+    );
+  } catch (e) {
+    log("送信の記録エラー:", e.message);
+    updateButtons();
+    updateState();
+    return;
+  }
+  // ログには試験 ID・ステップ・応答の状態と理由コードだけを出す
+  // （主体ハッシュ・トークンは出さない）。
+  if (outcome.undetermined) {
+    log(`手順3の送信 -> 応答なし（状態未確定、再送しません） 試験ID=${trialId}`);
+  } else {
+    const entry = makeS11LogEntry({
+      trialId,
+      step: "p3-sent",
+      response: result,
+    });
+    log(
+      `手順3の送信 -> ${entry.response.status} ${entry.response.error === null ? "ok" : entry.response.error}` +
+      ` 試験ID=${entry.trial_id}`
+    );
+  }
+  // 手順3の認可トークンは送信後に消去する（消費済み。再利用しない）。
+  eraseP3Secrets(outcome.matched ? "stale-sent" : "s11-halted");
+  updateButtons();
+  updateState();
+});
+
+prepP4Btn.addEventListener("click", async () => {
+  if (!attempt) return;
+  try {
+    const nonces = await fetchSenderNonces("concurrent", ["P4-1", "P4-2"]);
+    if (nonces === null) return;
+    p4Nonces = [nonces[0], nonces[1]];
+    log("2件分の nonce を取得しました。発行開始から4分以内に2件のログインと送信を終えてください");
+    renderSenderSlotButton(0);
+  } catch (e) {
+    log("準備エラー:", e.message);
+    updateButtons();
+    updateState();
+  }
+});
+
+completeP4Btn.addEventListener("click", () => {
+  if (!attempt || p4Tokens[0] === null || p4Tokens[1] === null) return;
+  if (!p4ConfirmCheck.checked) {
+    log("A であることの確認チェックがされていません");
+    return;
+  }
+  try {
+    session.markP4Captured(attempt.trialId, attempt.generation, 0, {
+      subjectHash: p4Hashes[0],
+      verified: p4Verified[0],
+    });
+    session.markP4Captured(attempt.trialId, attempt.generation, 1, {
+      subjectHash: p4Hashes[1],
+      verified: p4Verified[1],
+    });
+    log("手順4の認可を完了しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    // wrong_authorizer／authorizer_mismatch の場合は試行が停止する。
+    // 秘密は消去する。
+    log("手順4の認可エラー:", e.code || "error", "-", e.message);
+    if (e.code === "wrong_authorizer" || e.code === "authorizer_mismatch") {
+      eraseAllSecrets("s11-halted");
+      attempt = null;
+    }
+  }
+  updateButtons();
+  updateState();
+});
+
+freezeP4Btn.addEventListener("click", () => {
+  if (!attempt) return;
+  try {
+    const frozen = session.freezeConcurrentRequests(attempt.trialId, attempt.generation);
+    frozenP4El.textContent = frozen.requests
+      .map((r) =>
+        `スロット ${r.slot + 1}/2\n` +
+        `試行ID: ${frozen.trialId}\n` +
+        `action: ${r.action}\n` +
+        `対象の主体ハッシュ: ${r.targetSubjectHash}\n` +
+        `期待世代: ${r.expectedGeneration}\n` +
+        `送信先: ${r.path}（送信器経由・同時送信）`
+      )
+      .join("\n\n") +
+      `\n\n根拠: C の主体取得の表示（上記②）と、手順3の結果（409 stale_generation・状態不変）`;
+    log("手順4の要求を凍結しました", `試験ID=${attempt.trialId}`);
+  } catch (e) {
+    log("凍結エラー:", e.code || "error", "-", e.message);
+  }
+  updateButtons();
+  updateState();
+});
+
+sendP4Btn.addEventListener("click", async () => {
+  if (!attempt || p4Tokens[0] === null || p4Tokens[1] === null || sending) return;
+  if (!session.canSendConcurrent(attempt.trialId, attempt.generation)) {
+    log("送信できる状態ではありません");
+    return;
+  }
+  if (!preRead4Check.checked) {
+    log("手順3の結果と読み戻しの確認チェックがされていません");
+    return;
+  }
+  if (senderWindowExpired(["P4-1", "P4-2"])) {
+    log("手順4の nonce の送信期限（発行開始から4分）が切れています。新しい試行を始めてください");
+    return;
+  }
+  // 送信する要求は、凍結済みの内容（セッションの
+  // concurrentDisplayData）から生成する。2件の同一性は送信直前に
+  // 再確認する。
+  const frozen = session.concurrentDisplayData(attempt.trialId, attempt.generation);
+  const requests = buildS11Requests({
+    tokens: [p4Tokens[0], p4Tokens[1]],
+    subjectHash: frozen.requests[0].targetSubjectHash,
+    expectedGeneration: frozen.requests[0].expectedGeneration,
+  });
+  verifyS11RequestsIdentical(requests);
+  const trialId = attempt.trialId;
+  const gen = attempt.generation;
+  sending = true;
+  updateButtons();
+  let results = null;
+  let preSendError = null;
+  let instructionFailed = false;
+  try {
+    const res = await fetch(PATHS.sendConcurrent, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-s11-session": S11_SESSION,
+      },
+      credentials: "include",
+      body: JSON.stringify({ trial_id: trialId, requests }),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && Array.isArray(data.results)) {
+      results = data.results;
+    } else if (data && PRE_SEND_ERROR_CODES.has(data.error)) {
+      preSendError = data.error;
+    } else {
+      instructionFailed = true;
+    }
+  } catch {
+    instructionFailed = true;
+  }
+  sending = false;
+  if (preSendError !== null) {
+    log(`送信指示エラー: ${preSendError}（1件も送信されていません。試行を停止します）`);
+    eraseAllSecrets("s11-halted");
+    session.discard(trialId, gen);
+    attempt = null;
+    updateButtons();
+    updateState();
+    return;
+  }
+  let outcome;
+  try {
+    outcome = session.recordConcurrentSend(
+      trialId,
+      gen,
+      instructionFailed || results === null ? [null, null] : results
+    );
+  } catch (e) {
+    log("送信の記録エラー:", e.message);
+    updateButtons();
+    updateState();
+    return;
+  }
+  const entry = makeS11ConcurrentLogEntry({
+    trialId,
+    results: instructionFailed || results === null ? [null, null] : results,
+  });
+  log("試験ログ:", JSON.stringify(entry));
+  log(
+    `集計: 200 ok（generation 4）=${entry.aggregate.success}件、409 stale_generation=${entry.aggregate.stale}件、` +
+    `応答なし=${entry.aggregate.no_response}件（期待は成功ちょうど1件）`
+  );
+  if (outcome.undetermined) {
+    log("応答なしのスロットがあります（状態未確定、再送しません。読み戻しで判断してください）", `試験ID=${trialId}`);
+  }
+  // 送信後は秘密を消去する（S11_TOKEN_ERASE_TRIGGERS の s11-completed／
+  // s11-halted）。消去の事実だけをログに出す。
+  eraseAllSecrets(outcome.matched ? "s11-completed" : "s11-halted");
+  updateButtons();
+  updateState();
+});
+
+[cConfirmCheck, bConfirmCheck, p3ConfirmCheck, p4ConfirmCheck, preRead3Check, preRead4Check].forEach((el) => {
+  el.addEventListener("change", () => updateButtons());
+});
+
+updateButtons();
+updateState();
+</script>
+</body>
+</html>

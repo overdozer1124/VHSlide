@@ -87,6 +87,14 @@ const ARTIFACTS = [
   "test/s10-add-guard.test.mjs",
   "test/s10-add.screen.mjs",
   "test/serve-real-s10.test.mjs",
+  "public/s11-parallel.html",
+  "tools/s11-parallel.mjs",
+  "tools/s11-sender.mjs",
+  "test/s11-parallel.test.mjs",
+  "test/s11-sender.test.mjs",
+  "test/s11-guard.test.mjs",
+  "test/s11-parallel.screen.mjs",
+  "test/serve-real-s11.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
@@ -138,6 +146,11 @@ const s9NegativeModuleLines = readRel("tools/s9-negative.mjs").split("\n");
 const s10AddLines = readRel("public/s10-add-operator.html").split("\n");
 const s10AddModuleLines = readRel("tools/s10-add.mjs").split("\n");
 const s10AddGuardLines = readRel("test/s10-add-guard.test.mjs").split("\n");
+const s11ParallelLines = readRel("public/s11-parallel.html").split("\n");
+const s11ModuleLines = readRel("tools/s11-parallel.mjs").split("\n");
+const s11SenderLines = readRel("tools/s11-sender.mjs").split("\n");
+const s11GuardLines = readRel("test/s11-guard.test.mjs").split("\n");
+const s11ScreenLines = readRel("test/s11-parallel.screen.mjs").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
 const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
@@ -597,6 +610,95 @@ const checks = {
     found: findLines(s10AddLines, /claimCallbackCapture/),
     expect: "present",
   },
+  // S11 並行送信ツール（Codex の手順レビュー seq 691 への対応）：
+  // 手順3の凍結（期待世代 2）と手順4の凍結（期待世代 3）が固定値
+  // から生成されること。対象 C が既存運営者と同一なら停止する
+  // こと。手順4の認可者が手順3の認可者と異なれば停止すること。
+  // 集計が成功ちょうど1件を要求すること。送信器がスロットごとに
+  // Cookie を分けて並行送信し、結び付け確認と redirect: "manual"
+  // を持つこと。画面にテキスト入力欄がなく、セッションの
+  // プレースホルダを持つこと。提供サーバーが S11 の経路を返す
+  // こと。ガード試験が実際の送信器で手順3・手順4を通すこと。
+  s11_module_freeze_stale: {
+    found: findLines(s11ModuleLines, /freezeStaleRequest/),
+    expect: "present",
+  },
+  s11_module_freeze_concurrent: {
+    found: findLines(s11ModuleLines, /freezeConcurrentRequests/),
+    expect: "present",
+  },
+  s11_module_target_guard: {
+    found: findLines(s11ModuleLines, /target_matches_operator/),
+    expect: "present",
+  },
+  s11_module_authorizer_mismatch: {
+    found: findLines(s11ModuleLines, /authorizer_mismatch/),
+    expect: "present",
+  },
+  s11_module_aggregate: {
+    found: findLines(s11ModuleLines, /aggregateS11ConcurrentResults/),
+    expect: "present",
+  },
+  s11_module_one_capture_claim: {
+    found: findLines(s11ModuleLines, /claimCallbackCapture/),
+    expect: "present",
+  },
+  s11_sender_per_slot_cookie: {
+    found: findLines(s11SenderLines, /postAdd\(slots\[i\]\.ctx/),
+    expect: "present",
+  },
+  s11_sender_parallel_send: {
+    found: findLines(s11SenderLines, /Promise\.allSettled/),
+    expect: "present",
+  },
+  s11_sender_slot_binding: {
+    found: findLines(s11SenderLines, /slot_nonce_mismatch/),
+    expect: "present",
+  },
+  s11_sender_redirect_manual: {
+    found: findLines(s11SenderLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s11_sender_no_resend_consume: {
+    found: findLines(s11SenderLines, /issued = null/),
+    expect: "present",
+  },
+  s11_page_no_text_input: {
+    found: findLines(s11ParallelLines, /type="text"/),
+    expect: "absent",
+  },
+  s11_page_session_placeholder: {
+    found: findLines(s11ParallelLines, /REPLACE_WITH_S11_SESSION/),
+    expect: "present",
+  },
+  s11_page_sends_session: {
+    found: findLines(s11ParallelLines, /x-s11-session/),
+    expect: "present",
+  },
+  s11_serve_route: {
+    found: findLines(serveRealLines, /s11-parallel/),
+    expect: "present",
+  },
+  s11_serve_nonces_route: {
+    found: findLines(serveRealLines, /\/s11\/nonces/),
+    expect: "present",
+  },
+  s11_serve_send_route: {
+    found: findLines(serveRealLines, /\/s11\/send-concurrent/),
+    expect: "present",
+  },
+  s11_guard_uses_sender: {
+    found: findLines(s11GuardLines, /createS11Sender/),
+    expect: "present",
+  },
+  s11_screen_fake_gis: {
+    found: findLines(s11ScreenLines, /__gis/),
+    expect: "present",
+  },
+  s11_screen_jsdom: {
+    found: findLines(s11ScreenLines, /jsdom/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -775,6 +877,7 @@ const manifest = {
     subject_hash_page: "public/subject-hash.html（tools/serve-real.mjs が /subject-hash で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。ID トークンを外部へ送らず、公開鍵・JWKS による PC 内署名検証で SHA-256(sub) だけを表示する。検証モジュール tools/subject-hash-verify.mjs は Node 試験と共用）",
     trial_apply_page: "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する。S4 の消費済み・初期化済み試験も同じ画面で行う（用途は試験種別で決まる固定値。不一致試験は full-replace、S4 の2試験は bootstrap）」",
     s5_apply_page: "public/s5-apply.html（tools/serve-real.mjs が /s5-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。送信する JSON の全文表示はしない。検証モジュール tools/s5-apply.mjs は Node 試験 test/s5-apply.test.mjs と共用する。並行送信は提供サーバー側の tools/s5-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信器の試験は test/s5-sender.test.mjs、画面の実画面試験は test/s5-apply.screen.mjs）",
+    s11_parallel_page: "public/s11-parallel.html（tools/serve-real.mjs が /s11-parallel で配信。GOOGLE_CLIENT_ID と S11 セッションをメモリ上で差し込む。項目6 手順3・手順4の専用画面。C の主体ハッシュと A の実トークンを集めて凍結した要求を作り、送信直前に表示して、その送信指示を送信器へ渡す。送信はブラウザーから直接行わない。検証モジュール tools/s11-parallel.mjs は Node 試験 test/s11-parallel.test.mjs と共用する。並行送信は提供サーバー側の tools/s11-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、手順4の2件を Promise.allSettled で並行送信する。手順3の単発送信も送信器経由とする。送信器の試験は test/s11-sender.test.mjs、実 Worker との結線は test/s11-guard.test.mjs、画面の実画面試験は test/s11-parallel.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,

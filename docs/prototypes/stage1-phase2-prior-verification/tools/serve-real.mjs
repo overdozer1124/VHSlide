@@ -51,6 +51,28 @@
 //   tools/s10-add.mjs と tools/subject-hash-verify.mjs を import する。
 // - GET /s10-add.mjs → tools/s10-add.mjs をそのまま返す
 //   （s10-add-operator 画面が import する純粋モジュール）。
+// - GET /s11-parallel → public/s11-parallel.html を返す（S11 並行送信
+//   専用画面。同じくクライアント ID をメモリ上で差し込む）。この
+//   ページは C の主体ハッシュと A の実トークンを集めて凍結した要求を
+//   作り、送信直前に表示して、その送信指示を送信器へ渡す。送信は
+//   ブラウザーから直接行わない（Cookie 文脈の分離のため）。検証
+//   モジュール tools/s11-parallel.mjs と tools/subject-hash-verify.mjs
+//   を import する。
+// - GET /s11-parallel.mjs → tools/s11-parallel.mjs をそのまま返す
+//   （s11-parallel 画面が import する純粋モジュール）。
+// - GET /s11/nonces → 送信器が中継先の /nonce を手順に応じた件数
+//   （stale は1回、concurrent は2回）呼び、スロットごとに nonce
+//   context Cookie を保持し、nonce の配列だけを返す（ctx は返さ
+//   ない）。発行から4分以内に送信しなければ送信器が拒否する。
+//   呼び出し元の境界は S5 と同じ型（試験単位セッション・Host・
+//   Origin）であり、発行は試験 ID と手順に結び付ける。
+// - POST /s11/send-stale → 画面からの手順3の要求を受け取り、送信器
+//   がそのスロットの Cookie で1件を送信し、応答（状態と理由コード・
+//   返された世代だけ）を返す。
+// - POST /s11/send-concurrent → 画面からの手順4の要求2件を受け取り、
+//   送信器がスロットごとに Cookie jar を分けて2件を並行送信し、
+//   スロットごとの応答と集計を返す。ID トークン・Cookie・nonce の
+//   値はログ・応答に出さない。送信器は送信の完了直後に保持を破棄する。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -96,6 +118,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createS5Sender } from "./s5-sender.mjs";
+import { createS11Sender } from "./s11-sender.mjs";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
@@ -247,6 +270,64 @@ async function readS5SendBody(req) {
   return { body: Buffer.concat(chunks) };
 }
 
+// S11 並行送信の送信器（1プロセスに1つ）。nonce・ctx・要求の保持は
+// メモリー内だけであり、送信の完了直後に破棄する。
+const s11Sender = createS11Sender({ relayUrl: RELAY });
+
+// S11 入口の試験単位セッション。S5 と同じ型であり、起動ごとに不可
+// 推測の値を新規発行し、/s11-parallel 画面へメモリ上で差し込む
+// （ファイルは書き換えない）。画面は /s11/nonces・/s11/send-* の
+// 呼び出し時にこの値をヘッダーで示す。脅威範囲は S5 と同じである
+// （DESIGN.md の S5 付録の脅威範囲を参照）。
+const S11_SESSION = randomUUID();
+const S11_SESSION_PLACEHOLDER = "REPLACE_WITH_S11_SESSION";
+// /s11/send-* の本体サイズ上限。2件の要求（ID トークン各1件を含む）
+// は 10 KiB 程度であり、64 KiB で十分に足りる。超過は 413 で拒否する。
+const S11_MAX_BODY_BYTES = 64 * 1024;
+
+// S11 入口（/s11/nonces・/s11/send-*）の呼び出し元境界。S5 入口と
+// 同じ型であり、次をすべて満たさなければ、状態を変更せず理由コード
+// だけを返す。
+function checkS11Entry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "s11_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "s11_bad_origin" };
+    }
+  }
+  if (req.headers["x-s11-session"] !== S11_SESSION) {
+    return { ok: false, status: 403, error: "s11_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /s11/send-* の本体をサイズ上限付きで読む（S5 と同じ型）。
+async function readS11SendBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > S11_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -313,6 +394,23 @@ if (!rawS10AddHtml.includes(PLACEHOLDER)) {
 }
 const s10AddHtml = rawS10AddHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const s10AddJs = await readFile(path.join(root, "tools", "s10-add.mjs"), "utf8");
+
+// S11 並行送信専用画面も同じく、起動時に読み込み、クライアント ID と
+// S11 セッションをメモリ上で差し込む（ファイルは書き換えない）。検証
+// モジュールはそのまま返す。
+const rawS11ParallelHtml = await readFile(path.join(root, "public", "s11-parallel.html"), "utf8");
+if (!rawS11ParallelHtml.includes(PLACEHOLDER)) {
+  console.error("error: s11-parallel.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+if (!rawS11ParallelHtml.includes(S11_SESSION_PLACEHOLDER)) {
+  console.error("error: s11-parallel.html に S11 セッションのプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s11ParallelHtml = rawS11ParallelHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(S11_SESSION_PLACEHOLDER).join(S11_SESSION);
+const s11ParallelJs = await readFile(path.join(root, "tools", "s11-parallel.mjs"), "utf8");
 
 const FORWARD_PATHS = new Set([
   "/nonce",
@@ -390,6 +488,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s10-add.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s10AddJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s11-parallel") {
+      console.log(`GET /s11-parallel -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s11ParallelHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s11-parallel.mjs") {
+      console.log(`GET /s11-parallel.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s11ParallelJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
@@ -479,6 +589,101 @@ const server = http.createServer(async (req, res) => {
         console.log(`POST /s5/send -> ${status}`);
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s5_send_failed" }));
+      }
+      return;
+    }
+    // S11 並行送信の送信器への入口。ループバック限定の提供サーバー上
+    // でのみ動く。要求・応答の本体、トークン・Cookie・nonce の値は
+    // ログに出さない。送信器の局所エラーは理由コードだけを返す。
+    // 呼び出し元の境界（Host・Origin・試験単位セッション）を先に
+    // 確認し、通らなければ状態を変更しない。
+    if (req.method === "GET" && pathname === "/s11/nonces") {
+      const entry = checkS11Entry(req);
+      if (!entry.ok) {
+        console.log(`GET /s11/nonces -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const trialId = params.get("trial_id");
+      const procedure = params.get("procedure");
+      if (!trialId || (procedure !== "stale" && procedure !== "concurrent")) {
+        console.log(`GET /s11/nonces -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        const nonces = await s11Sender.issueNonces({ trialId, procedure });
+        console.log(`GET /s11/nonces -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ nonces }));
+      } catch (e) {
+        console.log(`GET /s11/nonces -> 502`);
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s11_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (pathname === "/s11/send-stale" || pathname === "/s11/send-concurrent")
+    ) {
+      const entry = checkS11Entry(req);
+      if (!entry.ok) {
+        console.log(`POST ${pathname} -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST ${pathname} -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS11SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST ${pathname} -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        // 読み残した本体がソケットに残るため、応答の送信後に破棄する。
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        console.log(`POST ${pathname} -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        const out =
+          pathname === "/s11/send-stale"
+            ? await s11Sender.sendStale({ trialId: parsed.trial_id, request: parsed.request })
+            : await s11Sender.sendConcurrent({ trialId: parsed.trial_id, requests: parsed.requests });
+        console.log(`POST ${pathname} -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(out));
+      } catch (e) {
+        // 送信前の確認に失敗した場合は1件も送っていない。理由コード
+        // だけを返し、値は返さない。期限切れは 410、その他は 409 とする。
+        const status = e.code === "s11_nonces_expired" ? 410 : 409;
+        console.log(`POST ${pathname} -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s11_send_failed" }));
       }
       return;
     }
