@@ -54,9 +54,12 @@ export function ResponseField({
     : binding.source === "survey"
       ? binding.question
       : "";
+  // The host can hide a field's heading in the worksheet editor; that choice
+  // wins over this placement's own "show label" setting.
+  const hideLabel = !binding.showLabel || !!field?.hideLabel;
   return (
     <section
-      className={`response-field ${binding.showLabel ? "" : "hide-label"} ${interactive ? "interactive" : "preview"} ${onMoveStart ? "is-movable" : ""}`}
+      className={`response-field ${hideLabel ? "hide-label" : ""} ${interactive ? "interactive" : "preview"} ${onMoveStart ? "is-movable" : ""}`}
       data-slide-survey={interactive || undefined}
       data-response-field={binding.source}
       style={{

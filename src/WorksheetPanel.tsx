@@ -619,6 +619,10 @@ export function WorksheetPanel({
                                     .value as WorksheetField["kind"];
                                   editField(f.id, {
                                     kind,
+                                    hideLabel:
+                                      kind === "checkbox"
+                                        ? undefined
+                                        : f.hideLabel,
                                     aggregatePublic:
                                       kind === "single" || kind === "multiple"
                                         ? f.aggregatePublic
@@ -793,6 +797,22 @@ export function WorksheetPanel({
                               />
                               横幅いっぱいに配置
                             </label>
+                            {f.kind !== "checkbox" && (
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={!!f.hideLabel}
+                                  aria-label={`入力欄${i + 1}の項目名を表示しない`}
+                                  onChange={(e) =>
+                                    editField(f.id, {
+                                      hideLabel:
+                                        e.target.checked || undefined,
+                                    })
+                                  }
+                                />{" "}
+                                項目名（見出し）を表示しない
+                              </label>
+                            )}
                             <details className="worksheet-layout-settings">
                               <summary>入力欄の大きさ・文字を調整</summary>
                               <p>

@@ -24,6 +24,33 @@ import {
   worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
 describe("worksheets", () => {
+  it("round-trips the hide-label setting and rejects it for checkbox fields", () => {
+    const sheet = worksheetTemplate("blank");
+    sheet.fields[0].kind = "drawing";
+    sheet.fields[0].hideLabel = true;
+    const parsed = parseWorksheet(sheet);
+    expect(parsed.fields[0].hideLabel).toBe(true);
+    expect(parseWorksheet(parsed)).toEqual(parsed);
+    const visible = parseWorksheet({
+      ...sheet,
+      fields: [{ ...sheet.fields[0], hideLabel: false }],
+    });
+    expect(visible.fields[0].hideLabel).toBeUndefined();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [
+          { ...sheet.fields[0], kind: "checkbox", hideLabel: true },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], hideLabel: "yes" as never }],
+      }),
+    ).toThrow();
+  });
   it("validates image answers as bounded JPEG data and keeps empty answers compatible", () => {
     const sheet = worksheetTemplate("blank");
     sheet.fields[0].kind = "drawing";

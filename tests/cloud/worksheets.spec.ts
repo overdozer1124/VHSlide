@@ -1515,6 +1515,9 @@ test("students paste an image, draw, save privately, and the host views their an
     ).toBe(200);
     await guest.goto(`/?room=${id}`);
     await openWorksheets(guest);
+    await modal(guest)
+      .getByRole("button", { name: "自分の絵の画像・手描きを編集" })
+      .click();
     const canvas = modal(guest).getByLabel("自分の絵の手描き欄");
     await expect(canvas).toBeVisible();
     const emptyRect = (await canvas.boundingBox())!;
@@ -1599,6 +1602,9 @@ test("students paste an image, draw, save privately, and the host views their an
     expect(JSON.stringify(otherView)).not.toContain(saved);
     await guest.reload();
     await openWorksheets(guest);
+    await modal(guest)
+      .getByRole("button", { name: "自分の絵の画像・手描きを編集" })
+      .click();
     await expect(modal(guest).getByLabel("自分の絵の手描き欄")).toBeVisible();
     await page.goto(`/?room=${id}`);
     await openWorksheets(page);
@@ -1612,6 +1618,10 @@ test("students paste an image, draw, save privately, and the host views their an
       .click();
     await guest.reload();
     await guest.locator(".thumbnail").first().click();
+    await guest
+      .locator(".editor-workspace .slide-worksheet")
+      .getByRole("button", { name: "自分の絵の画像・手描きを編集" })
+      .click();
     const slideCanvas = guest
       .locator(".editor-workspace .slide-worksheet")
       .getByLabel("自分の絵の手描き欄");

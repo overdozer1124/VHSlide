@@ -11,6 +11,7 @@ export type WorksheetField = {
   wide: boolean;
   reason?: boolean;
   aggregatePublic?: boolean;
+  hideLabel?: boolean;
   widthPercent?: number;
   inputHeight?: number;
   fontSize?: number;
@@ -155,6 +156,11 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
           (f.kind === "single" || f.kind === "multiple")),
       "集計の公開設定を確認してください。",
     );
+    check(
+      f.hideLabel === undefined ||
+        (typeof f.hideLabel === "boolean" && f.kind !== "checkbox"),
+      "項目名の表示設定を確認してください。",
+    );
     if (f.kind === "radar") {
       const radar = f.radar;
       const validLabels = (
@@ -194,6 +200,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       wide: f.wide,
       ...(f.reason ? { reason: true } : {}),
       ...(f.aggregatePublic ? { aggregatePublic: true } : {}),
+      ...(f.hideLabel ? { hideLabel: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
       ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),
       ...(f.fontSize !== undefined ? { fontSize: f.fontSize } : {}),

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ClipboardEvent, PointerEvent } from "react";
+import type { ClipboardEvent, FocusEvent, PointerEvent } from "react";
 
 const MAX_DATA = 120000;
 const W = 960,
@@ -38,6 +38,8 @@ export function WorksheetDrawing({
   onChange: (value: string) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const pendingFile = useRef<File | null>(null);
   const lastEmitted = useRef<string | undefined>(undefined);
   const generation = useRef(0);
   const drawing = useRef(false);
@@ -47,6 +49,9 @@ export function WorksheetDrawing({
   const [canUndo, setCanUndo] = useState(false);
   const [hasContent, setHasContent] = useState(!!value);
   const [ready, setReady] = useState(false);
+  // Until the learner clicks into the field, only the pasted/drawn image is
+  // shown: no toolbar, heading note or hint text competes with it for space.
+  const [active, setActive] = useState(false);
   function paintBlank() {
     const node = canvas.current;
     if (!node) return;
@@ -82,11 +87,38 @@ export function WorksheetDrawing({
     if (disabled || preview) {
       lastEmitted.current = undefined;
       setReady(false);
-    } else if (value !== lastEmitted.current) restore(value);
+      return;
+    }
+    // In view mode the saved value is rendered as an <img>; the canvas only
+    // needs restoring once the learner enters edit mode.
+    if (!active) return;
+    if (value !== lastEmitted.current) restore(value);
     return () => {
       generation.current++;
     };
-  }, [value, disabled, preview]);
+  }, [value, disabled, preview, active]);
+  useEffect(() => {
+    if (!active) return;
+    canvas.current?.focus({ preventScroll: true });
+    if (pendingFile.current) {
+      const file = pendingFile.current;
+      pendingFile.current = null;
+      load(file);
+    }
+    // Leaving the field (click elsewhere) returns it to the image-only view.
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      if (
+        container.current &&
+        event.target instanceof Node &&
+        !container.current.contains(event.target)
+      )
+        setActive(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
   function save() {
     if (!canvas.current) return;
     try {
@@ -156,8 +188,16 @@ export function WorksheetDrawing({
       ?.getAsFile();
     if (file) {
       event.preventDefault();
-      load(file);
+      if (active) load(file);
+      else {
+        pendingFile.current = file;
+        setActive(true);
+      }
     }
+  }
+  function blur(event: FocusEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+      setActive(false);
   }
   if (disabled || preview)
     return value ? (
@@ -169,8 +209,33 @@ export function WorksheetDrawing({
     ) : (
       <div className="worksheet-drawing-placeholder">画像・手描きの回答欄</div>
     );
+  if (!active)
+    return (
+      <button
+        type="button"
+        className="worksheet-drawing-view"
+        aria-label={`${label}の画像・手描きを編集`}
+        onClick={() => setActive(true)}
+        onPaste={paste}
+      >
+        {value ? (
+          <img src={value} alt={`${label}の画像・手描き回答`} />
+        ) : (
+          <span>クリックして画像を貼り付け・手描き</span>
+        )}
+      </button>
+    );
   return (
-    <div className="worksheet-drawing" onPaste={paste} aria-busy={!ready}>
+    <div
+      className="worksheet-drawing"
+      ref={container}
+      onPaste={paste}
+      onBlur={blur}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setActive(false);
+      }}
+      aria-busy={!ready}
+    >
       <div className="worksheet-drawing-toolbar">
         <button
           type="button"
@@ -240,6 +305,13 @@ export function WorksheetDrawing({
         >
           消去
         </button>
+        <button
+          type="button"
+          className="worksheet-drawing-done"
+          onClick={() => setActive(false)}
+        >
+          完了
+        </button>
       </div>
       <canvas
         ref={canvas}
@@ -291,9 +363,6 @@ export function WorksheetDrawing({
           }
         }}
       />
-      <small>
-        画像を貼り付け、ペンや消しゴムで書き込めます。入力は自動保存されます。
-      </small>
       {error && <p role="alert">{error}</p>}
     </div>
   );

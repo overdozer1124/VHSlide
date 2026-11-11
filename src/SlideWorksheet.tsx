@@ -174,7 +174,11 @@ export function WorksheetInputs({
                           />
                         ) : (
                           <label
-                            className="worksheet-input-label"
+                            className={
+                              f.hideLabel
+                                ? "sr-only"
+                                : "worksheet-input-label"
+                            }
                             htmlFor={`${prefix}-${f.id}`}
                           >
                             {f.label}

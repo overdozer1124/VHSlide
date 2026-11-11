@@ -478,6 +478,9 @@ test("creates an image and drawing response field directly on a slide", async ({
     .getByRole("button", { name: "受付を開始してスライドに追加", exact: true })
     .click();
   const field = page.locator(".editor-workspace .response-field");
+  await field
+    .getByRole("button", { name: "絵で説明しようの画像・手描きを編集" })
+    .click();
   await expect(field.getByLabel("絵で説明しようの手描き欄")).toBeVisible();
   const worksheets = (
     await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
