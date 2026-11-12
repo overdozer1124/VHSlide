@@ -6925,6 +6925,7 @@ h1 span {
 .worksheet-drawing-upload { display:inline-flex; position:relative; overflow:hidden; }
 .worksheet-drawing-upload input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
 .worksheet-drawing small { color:#63766a; font-size:12px; }
+.worksheet-drawing-notice { margin:0; color:#63766a; font-size:12px; }
 .worksheet-drawing-image { display:block; max-width:100%; max-height:300px; object-fit:contain; border:1px solid #dfaa7f; border-radius:7px; }
 .worksheet-drawing-placeholder { min-height:70px; display:grid; place-items:center; border:1px dashed #cba584; border-radius:7px; color:#796b60; font-size:13px; }
 .worksheet-drawing-view { display:block; width:100%; padding:0; border:0; background:transparent; font:inherit; color:inherit; cursor:pointer; }

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { ClipboardEvent, FocusEvent, PointerEvent } from "react";
+import type {
+  ClipboardEvent,
+  DragEvent,
+  FocusEvent,
+  PointerEvent,
+} from "react";
 
 const MAX_DATA = 120000;
 const W = 960,
@@ -43,10 +48,16 @@ export function WorksheetDrawing({
   const lastEmitted = useRef<string | undefined>(undefined);
   const generation = useRef(0);
   const loadSeq = useRef(0);
+  // While the file dialog is up (and just after it closes) a stray focus
+  // change or click must not end edit mode before the chosen file has been
+  // handed over and decoded; guardUntil / loadingFile hold it open.
+  const guardUntil = useRef(0);
+  const loadingFile = useRef(false);
   const drawing = useRef(false);
   const history = useRef<{ data: string; hasContent: boolean }[]>([]);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [canUndo, setCanUndo] = useState(false);
   const [hasContent, setHasContent] = useState(!!value);
   const [ready, setReady] = useState(false);
@@ -108,6 +119,7 @@ export function WorksheetDrawing({
     }
     // Leaving the field (click elsewhere) returns it to the image-only view.
     const onPointerDown = (event: globalThis.PointerEvent) => {
+      if (loadingFile.current || Date.now() < guardUntil.current) return;
       if (
         container.current &&
         event.target instanceof Node &&
@@ -154,8 +166,11 @@ export function WorksheetDrawing({
       file.size > 10_000_000
     ) {
       setError("PNG・JPEG・WebP・GIFの10MB以下の画像を選んでください。");
+      setNotice("");
       return;
     }
+    setNotice(`「${file.name}」を読み込み中…`);
+    loadingFile.current = true;
     const url = URL.createObjectURL(file);
     const image = new Image();
     const seq = ++loadSeq.current;
@@ -167,6 +182,8 @@ export function WorksheetDrawing({
       URL.revokeObjectURL(url);
       // A newer load superseded this one; let it win.
       if (seq !== loadSeq.current) return;
+      loadingFile.current = false;
+      setNotice("");
       // Compose the picture offscreen first, then emit it even if the edit
       // view closed while the image was decoding (the file dialog and the
       // focus changes around it can close the view), so an added image is
@@ -206,6 +223,8 @@ export function WorksheetDrawing({
     image.onerror = () => {
       URL.revokeObjectURL(url);
       if (seq === loadSeq.current) {
+        loadingFile.current = false;
+        setNotice("");
         setReady(true);
         setError("画像を読み込めませんでした。");
       }
@@ -226,8 +245,22 @@ export function WorksheetDrawing({
     }
   }
   function blur(event: FocusEvent<HTMLDivElement>) {
+    if (loadingFile.current || Date.now() < guardUntil.current) return;
     if (!event.currentTarget.contains(event.relatedTarget as Node | null))
       setActive(false);
+  }
+  function drop(event: DragEvent<HTMLElement>) {
+    const file = Array.from(event.dataTransfer.files).find((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (file) {
+      event.preventDefault();
+      if (active) load(file);
+      else {
+        pendingFile.current = file;
+        setActive(true);
+      }
+    }
   }
   if (disabled || preview)
     return value ? (
@@ -248,6 +281,8 @@ export function WorksheetDrawing({
           aria-label={`${label}の画像・手描きを編集`}
           onClick={() => setActive(true)}
           onPaste={paste}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={drop}
         >
           {value ? (
             <img src={value} alt={`${label}の画像・手描き回答`} />
@@ -255,6 +290,7 @@ export function WorksheetDrawing({
             <span>クリックして画像を貼り付け・手描き</span>
           )}
         </button>
+        {notice && <p>{notice}</p>}
         {error && <p role="alert">{error}</p>}
       </>
     );
@@ -263,6 +299,8 @@ export function WorksheetDrawing({
       className="worksheet-drawing"
       ref={container}
       onPaste={paste}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={drop}
       onBlur={blur}
       onKeyDown={(event) => {
         if (event.key === "Escape") setActive(false);
@@ -311,12 +349,22 @@ export function WorksheetDrawing({
         >
           戻す
         </button>
-        <label className="worksheet-drawing-upload">
+        <label
+          className="worksheet-drawing-upload"
+          onClick={() => {
+            // The file dialog is about to open; hold edit mode open until
+            // the chosen file has been handed over (see guardUntil).
+            guardUntil.current = Date.now() + 5000;
+          }}
+        >
           画像を追加
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp,image/gif"
             aria-label={`${label}に画像を追加`}
+            onClick={() => {
+              guardUntil.current = Date.now() + 5000;
+            }}
             onChange={(e) => {
               const file = e.currentTarget.files?.[0];
               if (file) load(file);
@@ -346,6 +394,7 @@ export function WorksheetDrawing({
           完了
         </button>
       </div>
+      {notice && <p className="worksheet-drawing-notice">{notice}</p>}
       <canvas
         ref={canvas}
         width={W}
