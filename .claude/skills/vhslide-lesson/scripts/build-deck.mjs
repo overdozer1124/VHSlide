@@ -123,9 +123,10 @@ function field(f, x, y, w, h, fs = 18) {
     ...(f.height ? { inputHeight: f.height } : {}),
   };
   ws.fields.push(wf);
-  // In the cloud a drawing field shows a label, a toolbar and a 16:9 canvas as wide as the frame.
+  // Before VHSlide 0.109 a drawing field showed a label, a toolbar and a 16:9 canvas as wide as the frame;
+  // 0.109+ fills the frame and opens the tools on click. Keep the older layout working too.
   if (kind === "drawing" && h < w * 0.5625 + 90)
-    console.warn(`※ 画像・手描きの入力欄「${f.label}」の枠が低く、キャンバスが隠れます（幅${Math.round(w)}なら高さ${Math.ceil(w * 0.5625 + 90)}以上）。`);
+    console.warn(`※ 画像・手描きの入力欄「${f.label}」の枠が低く、VHSlide 0.109より前の版ではキャンバスが隠れます（幅${Math.round(w)}なら高さ${Math.ceil(w * 0.5625 + 90)}以上）。`);
   return {
     id: nid("f"), type: "shape", shape: "rounded", x: r(x), y: r(y), w: r(w), h: r(h),
     fill: "#ffffff",
@@ -382,7 +383,7 @@ const kinds = {
     // Header row short; criterion rows grow with their longest description.
     const longest = R.criteria.map(c => Math.max(...c.levels.map(v => String(v).length)));
     const avg = longest.reduce((a, b) => a + b, 0) / longest.length;
-    tb.table.heights = { r0: 0.45, ...Object.fromEntries(R.criteria.map((_, i) => [`r${i + 1}`, Math.min(2.5, Math.max(0.6, longest[i] / avg))])) };
+    tb.table.heights = { r0: 0.45, ...Object.fromEntries(R.criteria.map((_, i) => [`r${i + 1}`, Math.min(2.5, Math.max(0.85, longest[i] / avg))])) };
     tb.table.columns.slice(1).forEach(c => (tb.table.styles[`r0:${c}`] = { fill: T.accentSoft, bold: true, color: "#1d1f23", textAlign: "center" }));
     tb.table.rows.slice(1).forEach(r => (tb.table.styles[`${r}:c0`] = { fill: T.primarySoft, bold: true, color: "#1d1f23" }));
     if (self) {

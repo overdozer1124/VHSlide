@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.105.4 (82385a6): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.109.3 (a80ae49): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/surveys.ts
 var SurveyError = class extends Error {
@@ -10,6 +10,7 @@ var SurveyError = class extends Error {
 };
 
 // src/worksheets.ts
+var TEXT_PLACEHOLDER_DEFAULT = "\u3053\u3053\u306B\u81EA\u5206\u306E\u8003\u3048\u3092\u5165\u529B";
 function check(ok, message, status = 400) {
   if (!ok) throw new SurveyError(status, message);
 }
@@ -81,6 +82,10 @@ function parseWorksheet(value) {
       f.aggregatePublic === void 0 || typeof f.aggregatePublic === "boolean" && (f.kind === "single" || f.kind === "multiple"),
       "\u96C6\u8A08\u306E\u516C\u958B\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
     );
+    check(
+      f.hideLabel === void 0 || typeof f.hideLabel === "boolean" && f.kind !== "checkbox",
+      "\u9805\u76EE\u540D\u306E\u8868\u793A\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
     if (f.kind === "radar") {
       const radar = f.radar;
       const validLabels = (labels, min, max) => Array.isArray(labels) && labels.length >= min && labels.length <= max && labels.every((label) => str(label, 80) && label.trim()) && new Set(labels.map((label) => label.trim())).size === labels.length;
@@ -98,12 +103,13 @@ function parseWorksheet(value) {
       label: f.label.trim(),
       kind: f.kind,
       options: [...f.options],
-      placeholder: f.placeholder,
+      placeholder: f.kind === "drawing" && f.placeholder === TEXT_PLACEHOLDER_DEFAULT ? "" : f.placeholder,
       section: f.section,
       ...f.sectionId !== void 0 ? { sectionId: f.sectionId } : {},
       wide: f.wide,
       ...f.reason ? { reason: true } : {},
       ...f.aggregatePublic ? { aggregatePublic: true } : {},
+      ...f.hideLabel ? { hideLabel: true } : {},
       ...f.widthPercent !== void 0 ? { widthPercent: f.widthPercent } : {},
       ...f.inputHeight !== void 0 ? { inputHeight: f.inputHeight } : {},
       ...f.fontSize !== void 0 ? { fontSize: f.fontSize } : {},

@@ -26,6 +26,14 @@ const bodies = {
 <circle cx="130" cy="92" r="64" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>
 <path d="M66 104 C62 10 198 10 194 104 L194 124 C188 112 184 98 178 86 C150 98 110 98 82 86 C76 98 72 112 66 124 Z" fill="#2b2b2b" stroke="${c.outline}" stroke-width="5" stroke-linejoin="round"/>
 <circle cx="184" cy="54" r="11" fill="${c.think}"/><circle cx="184" cy="54" r="4" fill="#ffd56b"/>${face(130, 112, c, 0.8)}`,
+  // ひよこ: a chick peeking out of an egg shell (growth).
+  hiyoko: c => `<path d="M126 34 Q118 14 132 10 Q128 24 142 22 Q134 30 136 40" fill="${c.body}" stroke="${c.outline}" stroke-width="4" stroke-linejoin="round"/>
+<ellipse cx="130" cy="128" rx="86" ry="84" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>
+<path d="M50 140 Q30 150 40 176 Q56 168 64 152" fill="${c.body}" stroke="${c.outline}" stroke-width="4"/><path d="M210 140 Q230 150 220 176 Q204 168 196 152" fill="${c.body}" stroke="${c.outline}" stroke-width="4"/>
+<circle cx="102" cy="112" r="9" fill="${c.outline}"/><circle cx="158" cy="112" r="9" fill="${c.outline}"/>
+<circle cx="86" cy="138" r="11" fill="${c.cheek}" opacity=".85"/><circle cx="174" cy="138" r="11" fill="${c.cheek}" opacity=".85"/>
+<path d="M118 128 L142 128 L130 146 Z" fill="#f29b38" stroke="${c.outline}" stroke-width="3" stroke-linejoin="round"/>
+<path d="M44 176 L66 162 L88 180 L110 160 L130 180 L150 160 L172 180 L194 162 L216 176 Q220 246 130 248 Q40 246 44 176 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="5" stroke-linejoin="round"/>`,
   blob: c => `<path d="M64 76 C92 30 176 26 206 70 C246 96 248 196 206 226 C168 252 92 252 56 224 C14 192 22 104 64 76 Z" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>${face(130, 140, c)}`,
 };
 const badge = (fill, mark, size = 40) =>

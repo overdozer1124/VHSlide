@@ -47,6 +47,15 @@ export const themes = {
     chart: ["#243b63", "#c4473a", "#c9a227", "#3a7d5c", "#7a5c99", "#5b8fb0"],
     muted: "#bdb5a6", mascot: { body: "#fff8ef", outline: "#2b2b2b", wrap: "#243b63", cheek: "#f2a7a0", think: "#c4473a", idea: "#3a7d5c" },
   },
+  pastel: {
+    label: "パステル（やわらかい桃色・若草色）",
+    bg: "#fffaf6", surface: "#ffffff", ink: "#3f3a44", sub: "#7a7078",
+    primary: "#d97a8c", onPrimary: "#ffffff", primarySoft: "#fde9ee",
+    accent: "#5f9e52", onAccent: "#ffffff", accentSoft: "#ebf5e6",
+    line: "#f3c9d2", header: "tab", card: "fill",
+    chart: ["#d97a8c", "#5f9e52", "#e6a23c", "#6aa3c8", "#a07cc5", "#e5866a"],
+    muted: "#dccfd5", mascot: { body: "#ffe27a", outline: "#4a3f45", wrap: "#ffffff", cheek: "#f7a8b8", think: "#e58a9c", idea: "#7cb46b" },
+  },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",
     bg: "#ffffff", surface: "#f4f5f7", ink: "#1d1f23", sub: "#6b7079",
