@@ -110,7 +110,7 @@ async function figure(file, x, y, w, h, alt) {
 
 // ---------- worksheet ----------
 let ws; // current lesson worksheet
-function field(f, x, y, w, h, fs = 18) {
+function field(f, x, y, w, h, fs = 18, opts = {}) {
   const kind = f.type ?? f.kind ?? "text";
   const id = f.id ?? `q${ws.fields.length + 1}`;
   if (ws.fields.some(g => g.id === id)) throw Error(`入力欄のIDが重複しています: ${id}`);
@@ -130,7 +130,7 @@ function field(f, x, y, w, h, fs = 18) {
   return {
     id: nid("f"), type: "shape", shape: "rounded", x: r(x), y: r(y), w: r(w), h: r(h),
     fill: "#ffffff",
-    stroke: T.accent, strokeWidth: 2, color: "#1d1f23", fontSize: fs, text: f.label,
+    stroke: opts.stroke ?? T.accent, strokeWidth: opts.strokeWidth ?? 2, color: "#1d1f23", fontSize: fs, text: f.label,
     responseField: { source: "worksheet", deckId: ws.deckId, worksheetId: ws.worksheetId, field: wf, showLabel: true, showSection: false },
   };
 }
@@ -395,6 +395,21 @@ const kinds = {
     }
     return els;
   },
+  /** Free layout (e.g. a paper worksheet rebuilt on one slide). Items are placed at slide coordinates.
+   *  item.type: "field" (worksheet answer field) | "band" (coloured heading strip) | "text" | "mascot".
+   *  Colours may be #rrggbb or a theme key such as "primarySoft". */
+  async form(s) {
+    const col = c => (c && !c.startsWith("#") ? T[c] : c);
+    const els = [];
+    for (const it of s.items) {
+      const t = it.type ?? (it.field ? "field" : "text");
+      if (t === "field") els.push(field(it.field, it.x, it.y, it.w, it.h, it.fontSize ?? s.fieldFont ?? 14, { stroke: col(it.stroke ?? s.stroke) }));
+      else if (t === "band") els.push(rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.primarySoft), text(it.text, it.x + 6, it.y, it.w - 12, it.h, it.fontSize ?? 15, { bold: true, align: it.align ?? "center", valign: "middle", color: col(it.color) ?? T.ink, min: 12 }));
+      else if (t === "mascot") els.push(...(await mascotEl(it.pose ?? "idea", it.x, it.y, it.s ?? 48)));
+      else els.push(text(it.text, it.x, it.y, it.w, it.h, it.fontSize ?? 18, { bold: it.bold, align: it.align, valign: it.valign ?? "middle", color: col(it.color) ?? T.ink }));
+    }
+    return els;
+  },
   async custom(s) { return s.elements.map(e => ({ ...e, id: e.id ?? nid("x") })); },
 };
 
@@ -422,6 +437,7 @@ for (const [li, L] of lessons.entries()) {
       const meta = si === 0 && P.minutes ? `${P.name} ${P.minutes}分` : P.name;
       let els, top = 0;
       if (S.kind === "title") els = await kinds.title(S, L);
+      else if (S.header === false) els = await kinds[S.kind](S, L, 0); // the slide draws its own heading
       else {
         const h = header(S.tag ?? P.name, S.heading ?? S.title ?? "", meta);
         top = h.top;

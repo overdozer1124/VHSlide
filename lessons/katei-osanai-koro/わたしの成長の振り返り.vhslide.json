@@ -1,0 +1,712 @@
+{
+ "version": 1,
+ "title": "わたしの成長の振り返り",
+ "sheets": [
+  {
+   "id": "main",
+   "name": "わたしの成長の振り返り",
+   "rowLabels": {
+    "0": "わたしの成長の振り返り"
+   }
+  }
+ ],
+ "slides": [
+  {
+   "id": "L1-0-0",
+   "x": 0,
+   "y": 0,
+   "title": "わたしの成長の振り返り",
+   "background": "#fffaf6",
+   "elements": [
+    {
+     "id": "t-1",
+     "type": "text",
+     "x": 16,
+     "y": 4,
+     "w": 620,
+     "h": 42,
+     "text": "わたしの成長の振り返り",
+     "fontSize": 26,
+     "color": "#3f3a44",
+     "bold": true,
+     "verticalAlign": "middle"
+    },
+    {
+     "id": "m-2",
+     "type": "image",
+     "x": 904,
+     "y": 2,
+     "w": 46,
+     "h": 46,
+     "src": "data:image/png;base64,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",
+     "altText": "キャラクター",
+     "aspectLocked": true
+    },
+    {
+     "id": "f-3",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 14,
+     "y": 52,
+     "w": 300,
+     "h": 170,
+     "fill": "#ffffff",
+     "stroke": "#d97a8c",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "小さい頃の写真",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_photo",
+       "label": "小さい頃の写真",
+       "kind": "drawing",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-4",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 14,
+     "y": 228,
+     "w": 300,
+     "h": 58,
+     "fill": "#ffffff",
+     "stroke": "#5f9e52",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "氏名",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_name",
+       "label": "氏名",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-5",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 14,
+     "y": 292,
+     "w": 146,
+     "h": 60,
+     "fill": "#ffffff",
+     "stroke": "#5f9e52",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "生年月日",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_birthday",
+       "label": "生年月日",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-6",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 168,
+     "y": 292,
+     "w": 146,
+     "h": 60,
+     "fill": "#ffffff",
+     "stroke": "#5f9e52",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "生まれた時間",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_birthtime",
+       "label": "生まれた時間",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-7",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 14,
+     "y": 358,
+     "w": 146,
+     "h": 60,
+     "fill": "#ffffff",
+     "stroke": "#5f9e52",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "出生時の身長",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_height",
+       "label": "出生時の身長",
+       "kind": "text",
+       "options": [],
+       "placeholder": "例：50 cm",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-8",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 168,
+     "y": 358,
+     "w": 146,
+     "h": 60,
+     "fill": "#ffffff",
+     "stroke": "#5f9e52",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "出生時の体重",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_weight",
+       "label": "出生時の体重",
+       "kind": "text",
+       "options": [],
+       "placeholder": "例：3000 g",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-9",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 14,
+     "y": 424,
+     "w": 300,
+     "h": 108,
+     "fill": "#ffffff",
+     "stroke": "#d9b44a",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "名前の由来",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_namereason",
+       "label": "名前の由来",
+       "kind": "text",
+       "options": [],
+       "placeholder": "だれが、どんな願いを込めて付けた？",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-a",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 324,
+     "y": 52,
+     "w": 630,
+     "h": 64,
+     "fill": "#ffffff",
+     "stroke": "#d97a8c",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "1〜3歳までの主なエピソード",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_age1to3",
+       "label": "1〜3歳までの主なエピソード",
+       "kind": "text",
+       "options": [],
+       "placeholder": "例：2歳ごろ、絵本を読んでもらうのが大好きだった",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "r-b",
+     "type": "shape",
+     "shape": "rect",
+     "x": 324,
+     "y": 122,
+     "w": 310,
+     "h": 24,
+     "fill": "#efe8f7",
+     "stroke": "#efe8f7",
+     "strokeWidth": 0
+    },
+    {
+     "id": "t-c",
+     "type": "text",
+     "x": 330,
+     "y": 122,
+     "w": 298,
+     "h": 24,
+     "text": "保育園・幼稚園",
+     "fontSize": 15,
+     "color": "#3f3a44",
+     "bold": true,
+     "textAlign": "center",
+     "verticalAlign": "middle"
+    },
+    {
+     "id": "r-d",
+     "type": "shape",
+     "shape": "rect",
+     "x": 644,
+     "y": 122,
+     "w": 310,
+     "h": 24,
+     "fill": "#fdebdc",
+     "stroke": "#fdebdc",
+     "strokeWidth": 0
+    },
+    {
+     "id": "t-e",
+     "type": "text",
+     "x": 650,
+     "y": 122,
+     "w": 298,
+     "h": 24,
+     "text": "小学校",
+     "fontSize": 15,
+     "color": "#3f3a44",
+     "bold": true,
+     "textAlign": "center",
+     "verticalAlign": "middle"
+    },
+    {
+     "id": "f-f",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 324,
+     "y": 150,
+     "w": 310,
+     "h": 58,
+     "fill": "#ffffff",
+     "stroke": "#9b84c4",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "名称",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_en_name",
+       "label": "名称",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-g",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 324,
+     "y": 212,
+     "w": 310,
+     "h": 96,
+     "fill": "#ffffff",
+     "stroke": "#9b84c4",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "エピソード",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_en_episode",
+       "label": "エピソード",
+       "kind": "text",
+       "options": [],
+       "placeholder": "印象に残っている出来事",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-h",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 324,
+     "y": 312,
+     "w": 310,
+     "h": 78,
+     "fill": "#ffffff",
+     "stroke": "#9b84c4",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "好きだった○○",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_en_like",
+       "label": "好きだった○○",
+       "kind": "text",
+       "options": [],
+       "placeholder": "遊び・食べ物・歌など",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-i",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 644,
+     "y": 150,
+     "w": 310,
+     "h": 58,
+     "fill": "#ffffff",
+     "stroke": "#e0965f",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "名称",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_es_name",
+       "label": "名称",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-j",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 644,
+     "y": 212,
+     "w": 310,
+     "h": 96,
+     "fill": "#ffffff",
+     "stroke": "#e0965f",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "エピソード",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_es_episode",
+       "label": "エピソード",
+       "kind": "text",
+       "options": [],
+       "placeholder": "印象に残っている出来事",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-k",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 644,
+     "y": 312,
+     "w": 310,
+     "h": 78,
+     "fill": "#ffffff",
+     "stroke": "#e0965f",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "好きだった○○",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_es_like",
+       "label": "好きだった○○",
+       "kind": "text",
+       "options": [],
+       "placeholder": "教科・遊び・本など",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "r-l",
+     "type": "shape",
+     "shape": "rect",
+     "x": 324,
+     "y": 398,
+     "w": 630,
+     "h": 24,
+     "fill": "#e8f1fa",
+     "stroke": "#e8f1fa",
+     "strokeWidth": 0
+    },
+    {
+     "id": "t-m",
+     "type": "text",
+     "x": 330,
+     "y": 398,
+     "w": 618,
+     "h": 24,
+     "text": "中学生になって",
+     "fontSize": 15,
+     "color": "#3f3a44",
+     "bold": true,
+     "textAlign": "center",
+     "verticalAlign": "middle"
+    },
+    {
+     "id": "f-n",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 324,
+     "y": 426,
+     "w": 150,
+     "h": 106,
+     "fill": "#ffffff",
+     "stroke": "#6aa3c8",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "1年生の思い出",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_jh1",
+       "label": "1年生の思い出",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-o",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 484,
+     "y": 426,
+     "w": 150,
+     "h": 106,
+     "fill": "#ffffff",
+     "stroke": "#6aa3c8",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "2年生の思い出",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_jh2",
+       "label": "2年生の思い出",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-p",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 644,
+     "y": 426,
+     "w": 150,
+     "h": 106,
+     "fill": "#ffffff",
+     "stroke": "#6aa3c8",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "できるようになったこと",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_can",
+       "label": "できるようになったこと",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    },
+    {
+     "id": "f-q",
+     "type": "shape",
+     "shape": "rounded",
+     "x": 804,
+     "y": 426,
+     "w": 150,
+     "h": 106,
+     "fill": "#ffffff",
+     "stroke": "#6aa3c8",
+     "strokeWidth": 2,
+     "color": "#1d1f23",
+     "fontSize": 13,
+     "text": "今頑張っていること",
+     "responseField": {
+      "source": "worksheet",
+      "deckId": "31993474-944a-49ff-bf51-e78559eb512e",
+      "worksheetId": "e650af3c-d4b1-4281-9687-6c3ef359d63d",
+      "field": {
+       "id": "g_now",
+       "label": "今頑張っていること",
+       "kind": "text",
+       "options": [],
+       "placeholder": "",
+       "section": "わたしの成長の振り返り",
+       "sectionId": "s1",
+       "wide": true
+      },
+      "showLabel": true,
+      "showSection": false
+     }
+    }
+   ],
+   "speakerNotes": "A4縦のワークシート「わたしの成長の振り返り」を1枚のスライドに再配置したもの。入力欄はすべて今日のワークシートに入る。\n小さい頃の写真は「画像・手描き」の欄（クリックして画像を追加、またはペンで絵をかく）。写真は本人や家族が了解したものに限り、絵でもよいことを伝える。\n生まれた時間・出生時の身長や体重・名前の由来などは家庭で聞き取る内容のため、事前に配布しておくとよい。家庭環境に配慮し、わからない項目は空欄でよいこと、無理に書かなくてよいことを伝える。"
+  }
+ ],
+ "routes": [
+  {
+   "id": "route-1",
+   "name": "わたしの成長の振り返り（授業の流れ）",
+   "slides": [
+    "L1-0-0"
+   ]
+  }
+ ]
+}

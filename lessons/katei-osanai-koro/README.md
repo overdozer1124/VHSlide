@@ -4,7 +4,8 @@
 
 - `幼い頃の振り返り.vhslide.json`：「ファイル → 開く」で読み込み、**クラウドに保存** すると入力欄（ワークシート）が使えます。
 - `osanai.spec.json`：レッスン仕様。`src/figures.mjs`：ウェビングの例と成長の流れの図。
-- `preview-*.png`：全ページの見本。`preview-cloud-webbing.png`：クラウドで画像・手描きの欄を使った画面。
+- `わたしの成長の振り返り.vhslide.json`：A4縦のワークシート「わたしの成長の振り返り」を横型1枚に再配置したページだけのJSON（授業スライドの11枚目と同じもの）。`seicho-worksheet.spec.json` から生成。
+- `preview-*.png`：全ページの見本。`preview-seicho-cloud*.png`：クラウドで開いた「わたしの成長の振り返り」（空欄／入力例）。`preview-cloud-webbing.png`：クラウドで画像・手描きの欄を使った画面。
 
 配置：1行／トーン：パステル（桃色・若草色）／キャラクター：ひよこ
 

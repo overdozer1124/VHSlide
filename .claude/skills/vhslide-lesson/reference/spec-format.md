@@ -78,6 +78,7 @@
 | `points` | `items[[項目, 説明]]` `note{title, body}` | ポイントの一覧 |
 | `board` | `task` `items[[見出し, 内容]]` | 板書例 |
 | `rubric` | `lead` `selfCheck`（`true`＝観点ごとの A/B/C 自己評価欄、`"public"`＝集計も公開）`split` `fontSize`。内容は lesson.rubric（`rubric` キーで上書き可） | ルーブリック（見通し・自己評価） |
+| `form` | `items[]`（座標で自由配置。`{type:"field", field, x, y, w, h, fontSize, stroke}`／`{type:"band", text, x, y, w, h, fill, color}`／`{type:"text", ...}`／`{type:"mascot", pose, x, y, s}`）`fieldFont` `stroke`。`header: false` で見出し帯を省き、ページ全体を使う。色は #rrggbb かテーマの色名（例：`primarySoft`） | 紙のワークシートを1枚に再配置する、入力欄の多いページ |
 | `custom` | `elements[]`（VHSlide の要素をそのまま） | 上で表せないもの・新機能の利用 |
 
 `tone` は `plain`／`primary`／`accent`。グラフのラベルは短く（6字以内が目安）。長いと折り返す。

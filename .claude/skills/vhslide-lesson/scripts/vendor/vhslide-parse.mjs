@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.109.3 (a80ae49): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.110.0 (ba80e77): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/surveys.ts
 var SurveyError = class extends Error {
@@ -235,6 +235,15 @@ function parseSurveyResultBinding(value) {
   if (!v || typeof v.deckId !== "string" || typeof v.surveyId !== "string" || !/^[a-f0-9-]{36}$/.test(v.deckId) || !/^[a-f0-9-]{36}$/.test(v.surveyId) || !["chart", "caption"].includes(v.part))
     throw Error("\u30A2\u30F3\u30B1\u30FC\u30C8\u96C6\u8A08\u306E\u53C2\u7167\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
   return { deckId: v.deckId, surveyId: v.surveyId, part: v.part };
+}
+
+// src/webbingBinding.ts
+function parseWebbingBinding(value) {
+  const v = value;
+  if (!v || typeof v.deckId !== "string" || typeof v.mapId !== "string" || !/^[a-f0-9-]{36}$/.test(v.deckId) || !/^[a-f0-9-]{36}$/.test(v.mapId) || typeof v.title !== "string" || !v.title.trim() || v.title.length > 100) {
+    throw new Error("\u30B9\u30E9\u30A4\u30C9\u5185\u30A6\u30A7\u30D3\u30F3\u30B0\u30DE\u30C3\u30D7\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
+  }
+  return { deckId: v.deckId, mapId: v.mapId, title: v.title };
 }
 
 // src/webLink.ts
@@ -690,9 +699,14 @@ function parseDeck(input) {
         }
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
         if (e.responseField !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0)
             fail();
           base.responseField = parseResponseField(e.responseField);
+        }
+        if (e.webbing !== void 0) {
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0)
+            fail();
+          base.webbing = parseWebbingBinding(e.webbing);
         }
         if (e.surveyResult !== void 0) {
           const binding = parseSurveyResultBinding(e.surveyResult);
@@ -705,11 +719,12 @@ function parseDeck(input) {
           base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0) fail();
+          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0)
+            fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);
         }
         if (e.survey !== void 0) {
-          if (e.type !== "shape") fail();
+          if (e.type !== "shape" || e.webbing !== void 0) fail();
           base.survey = parseSurveyBinding(e.survey);
         }
         if (e.rotation !== void 0)
