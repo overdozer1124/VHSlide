@@ -16,6 +16,10 @@ import {
 } from "./ResponseFieldLauncher";
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
+import { WebbingProvider } from "./WebbingContext";
+import { WebbingPanel } from "./WebbingPanel";
+import { parseWebbingBinding } from "./webbingBinding";
+import type { WebbingView } from "./webbing";
 import { parseWorksheetBinding } from "./worksheets";
 import { createElement } from "react";
 import { SurveySlideContext } from "./SurveySlideContext";
@@ -3692,6 +3696,67 @@ export default function App() {
             onFormSaved={syncSavedForm}
           />
         }
+        webbing={
+          <WebbingPanel
+            host={cloud.isHost}
+            onEmbed={(map: WebbingView) => {
+              if (!cloud.active || !cloud.isHost || map.status === "draft")
+                throw new Error("ホストが受付を開始してから配置してください。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target || target.elements.length >= 200)
+                throw new Error(
+                  "配置先のページを確認してください。1ページ200要素までです。",
+                );
+              const element: Element = {
+                id: uid(),
+                type: "shape",
+                shape: "rounded",
+                x: 60,
+                y: 50,
+                w: 840,
+                h: 440,
+                fill: "#ffffff",
+                stroke: "#587d59",
+                color: "#173d38",
+                fontSize: 24,
+                text: `ウェブマップ：${map.title}`,
+                webbing: parseWebbingBinding({
+                  deckId: cloud.active.id,
+                  mapId: map.id,
+                  title: map.title,
+                }),
+              };
+              const next = {
+                ...current,
+                slides: current.slides.map((s) =>
+                  s.id === target.id
+                    ? { ...s, elements: [...s.elements, element] }
+                    : s,
+                ),
+              };
+              if (
+                !commitWorkbook(parseDeck(serializeDeck(next)), current, true)
+              )
+                throw new Error("ウェビングマップを配置できませんでした。");
+              if (view === "present") {
+                setSpeakerLaunch(undefined);
+                setPresentation(undefined);
+                setObjectTrail([]);
+                setPendingPresentationLink(undefined);
+                if (document.fullscreenElement)
+                  void document.exitFullscreen().catch(() => {});
+              }
+              setSelected(element.id);
+              setView("editor");
+              notify(
+                "ウェビングマップをスライドに配置しました。全員が同じマップに書き込めます。",
+              );
+            }}
+          />
+        }
         survey={
           <SurveyPanel
             onFormSaved={syncSavedForm}
@@ -3860,7 +3925,17 @@ export default function App() {
     children: createElement(
       WorksheetProvider,
       worksheetProps,
-      createElement(ActivityPanelProvider, { children: content }),
+      createElement(
+        WebbingProvider,
+        {
+          deckId: cloud.active?.id,
+          userId: cloud.user?.id,
+          host: cloud.isHost,
+          blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+          pollActive: !!displayedFormSlide?.elements.some((e) => e.webbing),
+        },
+        createElement(ActivityPanelProvider, { children: content }),
+      ),
     ),
   });
 }

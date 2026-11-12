@@ -11,6 +11,12 @@ import {
   SurveyError,
 } from "../src/surveys.ts";
 import {
+  webbingSchema,
+  webbingList,
+  webbingCommand,
+  WebbingError,
+} from "../src/webbing.ts";
+import {
   expireFollow,
   idleFollow,
   publicFollow,
@@ -316,6 +322,7 @@ export function createApplication(options: Options) {
   db.exec(historySchema);
   db.exec(surveySchema);
   db.exec(worksheetSchema);
+  db.exec(webbingSchema);
   db.exec(
     "CREATE TABLE IF NOT EXISTS work_trash(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE, created INTEGER NOT NULL, purging INTEGER NOT NULL DEFAULT 0)",
   );
@@ -1062,6 +1069,58 @@ export function createApplication(options: Options) {
             const surveys = surveyList(historySQL, id, u.id, host);
             db.exec("COMMIT");
             return json(res, 200, { surveys });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        if (extra === "webbing" || extra?.startsWith("webbing/")) {
+          insist(
+            ["GET", "POST", "DELETE"].includes(method),
+            405,
+            "この操作には対応していません。",
+          );
+          const route =
+            /^webbing(?:\/([a-f0-9-]{36})(?:\/(status|node-add|node-edit|node-delete|lock|unlock))?)?$/.exec(
+              extra,
+            );
+          insist(
+            route &&
+              (method === "GET"
+                ? extra === "webbing"
+                : method === "DELETE"
+                  ? !!route[1] && !route[2]
+                  : extra === "webbing" || !!route[2]),
+            404,
+            "ウェビングマップの操作が見つかりません。",
+          );
+          const value =
+            method === "POST"
+              ? JSON.parse((await body(req, 12000)).toString())
+              : {};
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            let extraResult: { createdId?: string } | undefined;
+            if (method !== "GET")
+              extraResult = webbingCommand(
+                historySQL,
+                id,
+                u.id,
+                host,
+                method === "DELETE" ? "delete" : (route![2] ?? "create"),
+                route![1],
+                value,
+              );
+            const webbing = webbingList(historySQL, id, host);
+            db.exec("COMMIT");
+            return json(res, 200, {
+              webbing,
+              ...(extraResult?.createdId
+                ? { createdId: extraResult.createdId }
+                : {}),
+            });
           } catch (error) {
             db.exec("ROLLBACK");
             throw error;
@@ -1827,7 +1886,8 @@ export function createApplication(options: Options) {
       const status =
         error instanceof HttpError ||
         error instanceof JoinRequestError ||
-        error instanceof SurveyError
+        error instanceof SurveyError ||
+        error instanceof WebbingError
           ? error.status
           : error instanceof SyntaxError
             ? 400

@@ -1,6 +1,7 @@
 import { exerciseWorksheets } from "../support/worksheets.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
+import { exerciseWebbing } from "../support/webbing.ts";
 import {
   exerciseHostFollow,
   measureHostFollow40,
@@ -1549,6 +1550,24 @@ test("surveys enforce host-only results, private answers, validation, closing an
   await joinRoom(id, friend);
   const other = await create();
   await exerciseSurveys(
+    request,
+    id,
+    other,
+    owner,
+    friend,
+    stranger,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+  );
+});
+
+test("webbing maps share one map, enforce authorship and edit locks, and persist across restart", async () => {
+  const id = await create();
+  await joinRoom(id, friend);
+  const other = await create();
+  await exerciseWebbing(
     request,
     id,
     other,

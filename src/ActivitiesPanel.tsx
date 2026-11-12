@@ -9,7 +9,7 @@ import {
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { useWorksheets } from "./WorksheetContext";
-type Kind = "survey" | "worksheet" | "gallery" | "fields";
+type Kind = "survey" | "worksheet" | "gallery" | "fields" | "webbing";
 const Context = createContext({
   open: false,
   active: "survey" as Kind,
@@ -68,11 +68,13 @@ export function ActivitiesPanel({
   worksheet,
   gallery,
   fields,
+  webbing,
 }: {
   survey: ReactNode;
   worksheet: ReactNode;
   gallery: ReactNode;
   fields: ReactNode;
+  webbing: ReactNode;
 }) {
   const ctx = useWorksheets();
   const { open, active, close, busy, select } = useActivityPanel();
@@ -80,13 +82,14 @@ export function ActivitiesPanel({
   const id = useId();
   const kinds: Kind[] =
     ctx.enabled && !ctx.host
-      ? ["survey", "worksheet", "gallery"]
-      : ["survey", "worksheet", "fields", "gallery"];
+      ? ["survey", "worksheet", "webbing", "gallery"]
+      : ["survey", "worksheet", "webbing", "fields", "gallery"];
   const labels: Record<Kind, string> = {
     survey: "アンケート",
     worksheet: "ワークシート",
     gallery: "回答スライド",
     fields: "回答欄の追加",
+    webbing: "ウェブマップ",
   };
   const title = labels[active];
   useEffect(() => {
@@ -213,6 +216,15 @@ export function ActivitiesPanel({
             hidden={active !== "worksheet"}
           >
             {worksheet}
+          </div>
+          <div
+            className="activity-content"
+            role="tabpanel"
+            id={`${id}-webbing-pane`}
+            aria-labelledby={`${id}-webbing-tab`}
+            hidden={active !== "webbing"}
+          >
+            {webbing}
           </div>
           <div
             className="activity-content"

@@ -6,6 +6,8 @@ import { parseWorksheetBinding } from "./worksheets.ts";
 import type { WorksheetBinding } from "./worksheets.ts";
 import { parseSurveyBinding } from "./surveyBinding.ts";
 import type { SurveyBinding } from "./surveyBinding.ts";
+import { parseWebbingBinding } from "./webbingBinding.ts";
+import type { WebbingBinding } from "./webbingBinding.ts";
 import { webLink } from "./webLink.ts";
 import { parseChart } from "./chartData.ts";
 import type { ChartData } from "./chartData.ts";
@@ -37,6 +39,7 @@ export interface Element {
   worksheet?: WorksheetBinding;
   survey?: SurveyBinding;
   surveyResult?: SurveyResultBinding;
+  webbing?: WebbingBinding;
   id: string;
   type: "text" | "image" | "shape" | "table" | "line" | "chart";
   groupId?: string;
@@ -694,10 +697,22 @@ export function parseDeck(input: string): Deck {
             e.type !== "shape" ||
             e.survey !== undefined ||
             e.worksheet !== undefined ||
-            e.surveyResult !== undefined
+            e.surveyResult !== undefined ||
+            e.webbing !== undefined
           )
             fail();
           base.responseField = parseResponseField(e.responseField);
+        }
+        if (e.webbing !== undefined) {
+          if (
+            e.type !== "shape" ||
+            e.survey !== undefined ||
+            e.worksheet !== undefined ||
+            e.surveyResult !== undefined ||
+            e.responseField !== undefined
+          )
+            fail();
+          base.webbing = parseWebbingBinding(e.webbing);
         }
         if (e.surveyResult !== undefined) {
           const binding = parseSurveyResultBinding(e.surveyResult);
@@ -714,11 +729,12 @@ export function parseDeck(input: string): Deck {
           base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== undefined) {
-          if (e.type !== "shape" || e.survey !== undefined) fail();
+          if (e.type !== "shape" || e.survey !== undefined || e.webbing !== undefined)
+            fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);
         }
         if (e.survey !== undefined) {
-          if (e.type !== "shape") fail();
+          if (e.type !== "shape" || e.webbing !== undefined) fail();
           base.survey = parseSurveyBinding(e.survey);
         }
         if (e.rotation !== undefined)
