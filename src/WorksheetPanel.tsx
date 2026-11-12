@@ -25,7 +25,7 @@ import {
   sectionWorksheet,
   worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
-import { parseWorksheet } from "./worksheets";
+import { parseWorksheet, TEXT_PLACEHOLDER_DEFAULT } from "./worksheets";
 import type { FormDraft } from "./formEditing";
 export function WorksheetPanel({
   host,
@@ -619,6 +619,12 @@ export function WorksheetPanel({
                                     .value as WorksheetField["kind"];
                                   editField(f.id, {
                                     kind,
+                                    placeholder:
+                                      kind === "drawing" &&
+                                      f.placeholder ===
+                                        TEXT_PLACEHOLDER_DEFAULT
+                                        ? ""
+                                        : f.placeholder,
                                     hideLabel:
                                       kind === "checkbox"
                                         ? undefined

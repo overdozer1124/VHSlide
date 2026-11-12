@@ -24,6 +24,24 @@ import {
   worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
 describe("worksheets", () => {
+  it("clears the legacy text default from drawing guidance, keeps custom guidance", () => {
+    const sheet = worksheetTemplate("blank");
+    sheet.fields[0].kind = "drawing";
+    sheet.fields[0].placeholder = "ここに自分の考えを入力";
+    expect(parseWorksheet(sheet).fields[0].placeholder).toBe("");
+    const custom = parseWorksheet({
+      ...sheet,
+      fields: [
+        { ...sheet.fields[0], placeholder: "調べた画像を貼り付けよう" },
+      ],
+    });
+    expect(custom.fields[0].placeholder).toBe("調べた画像を貼り付けよう");
+    const text = parseWorksheet({
+      ...sheet,
+      fields: [{ ...sheet.fields[0], kind: "text" }],
+    });
+    expect(text.fields[0].placeholder).toBe("ここに自分の考えを入力");
+  });
   it("round-trips the hide-label setting and rejects it for checkbox fields", () => {
     const sheet = worksheetTemplate("blank");
     sheet.fields[0].kind = "drawing";

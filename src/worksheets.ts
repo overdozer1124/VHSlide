@@ -1,5 +1,9 @@
 import type { HistorySQL } from "./historyStore.ts";
 import { SurveyError } from "./surveys.ts";
+// The template default guidance for text fields. Drawing fields created
+// from templates or switched from text used to inherit it, where it makes
+// no sense as an instruction; parseWorksheet treats it as unset there.
+export const TEXT_PLACEHOLDER_DEFAULT = "ここに自分の考えを入力";
 export type WorksheetField = {
   id: string;
   label: string;
@@ -194,7 +198,10 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       label: f.label.trim(),
       kind: f.kind,
       options: [...f.options],
-      placeholder: f.placeholder,
+      placeholder:
+        f.kind === "drawing" && f.placeholder === TEXT_PLACEHOLDER_DEFAULT
+          ? ""
+          : f.placeholder,
       section: f.section,
       ...(f.sectionId !== undefined ? { sectionId: f.sectionId } : {}),
       wide: f.wide,

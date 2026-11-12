@@ -1,4 +1,5 @@
 import type { WorksheetDefinition, WorksheetField } from "./worksheets";
+import { TEXT_PLACEHOLDER_DEFAULT } from "./worksheets";
 const field = (
   label: string,
   section = "",
@@ -10,7 +11,7 @@ const field = (
   section,
   kind,
   wide,
-  placeholder: "ここに自分の考えを入力",
+  placeholder: kind === "text" ? TEXT_PLACEHOLDER_DEFAULT : "",
   options:
     kind === "single" || kind === "multiple" ? ["選択肢1", "選択肢2"] : [],
 });
