@@ -7533,8 +7533,8 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .form-sidebar-editor label { display:block; margin:6px 0; }
 .form-sidebar-editor input:not([type=checkbox]):not([type=radio]), .form-sidebar-editor textarea, .form-sidebar-editor select { width:100%; box-sizing:border-box; border:1px solid #b8cabe; border-radius:7px; padding:7px 8px; font:inherit; margin-top:4px; background:#fff; }
 .form-sidebar-editor textarea { min-height:56px; resize:vertical; }
-.form-sidebar-editor .worksheet-field-editor { border:1px solid #c9d8ce; border-radius:9px; padding:8px 10px 10px; margin:8px 0; min-width:0; }
-.form-sidebar-editor .worksheet-field-editor legend { padding:0 4px; font-weight:700; color:#47614f; }
+.form-sidebar-editor .worksheet-field-editor { border:1px solid #c9d8ce; border-radius:9px; padding:8px 10px 10px; margin:14px 0 8px; min-width:0; }
+.form-sidebar-editor .worksheet-field-editor legend { padding:0 6px; margin-left:2px; background:#f6f9f6; font-weight:700; color:#47614f; }
 .form-sidebar-editor .worksheet-layout-controls { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
 .form-sidebar-editor .worksheet-layout-controls label { margin:0; }
 .form-sidebar-editor .worksheet-layout-controls input { max-width:none; }
@@ -7547,4 +7547,4 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .form-sidebar-actions { position:sticky; top:0; z-index:1; background:#f6f9f6; padding:6px 0; margin:0; }
 .form-sidebar-section { margin:10px 0 2px; font-size:13px; color:#47614f; }
 .form-sidebar-target { margin:0; color:#47614f; font-size:12px; font-weight:600; line-height:1.5; }
-.form-sidebar-highlight { border-color:#d97706 !important; box-shadow: inset 0 0 0 1px #d97706; }
+.form-sidebar-highlight { border-color:#d97706 !important; background:#fff8ec; }
