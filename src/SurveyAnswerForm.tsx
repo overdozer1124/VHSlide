@@ -88,28 +88,32 @@ export function SurveyAnswerForm({
           選択を取り消す
         </button>
       )}
-      {!ctx.readOnly && (
+      {!ctx.readOnly && (status.error || !embedded) && (
         <p
           className={`answer-inline-status ${status.error ? "is-error" : ""}`}
-          role="status"
+          role={status.error ? "alert" : "status"}
         >
-          {!status.error && !status.saving && !status.dirty && survey.own && (
-            <span aria-hidden="true">✓ </span>
+          {status.error ? (
+            `未保存：${status.error}`
+          ) : (
+            <>
+              {!status.saving && !status.dirty && survey.own && (
+                <span aria-hidden="true">✓ </span>
+              )}
+              {status.saving
+                ? "保存中…"
+                : status.dirty
+                  ? "入力を自動保存します…"
+                  : survey.own
+                    ? "回答は保存済みです。"
+                    : "入力すると自動保存します。"}
+              {survey.status === "open"
+                ? " 受付が終わるまでは直せます。"
+                : survey.status === "draft"
+                  ? " 先生が受付を始めると入力できます。"
+                  : " 受付は終了しました。"}
+            </>
           )}
-          {status.error
-            ? `未保存：${status.error}`
-            : status.saving
-              ? "保存中…"
-              : status.dirty
-                ? "入力を自動保存します…"
-                : survey.own
-                  ? "回答は保存済みです。"
-                  : "入力すると自動保存します。"}
-          {survey.status === "open"
-            ? " 受付が終わるまでは直せます。"
-            : survey.status === "draft"
-              ? " 先生が受付を始めると入力できます。"
-              : " 受付は終了しました。"}
         </p>
       )}
     </form>

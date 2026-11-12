@@ -143,25 +143,11 @@ export function ResponseField({
       )}
       {interactive && field && sheet && (
         open ? (
-          <p
-            className={`answer-inline-status ${fieldStatus.error ? "is-error" : ""}`}
-            role="status"
-          >
-            {!fieldStatus.error &&
-              !fieldStatus.saving &&
-              !fieldStatus.dirty &&
-              sheet.own && <span aria-hidden="true">✓ </span>}
-            {fieldStatus.error
-              ? `未保存：${fieldStatus.error}`
-              : fieldStatus.saving
-                ? "保存中…"
-                : fieldStatus.dirty
-                  ? "入力を自動保存します…"
-                  : sheet.own
-                    ? "入力は保存済みです。"
-                    : "入力すると自動保存します。"}
-            {" 受付が終わるまでは直せます。"}
-          </p>
+          fieldStatus.error ? (
+            <p className="answer-inline-status is-error" role="alert">
+              {`未保存：${fieldStatus.error}`}
+            </p>
+          ) : null
         ) : (
           <small>
             {worksheets.readOnly

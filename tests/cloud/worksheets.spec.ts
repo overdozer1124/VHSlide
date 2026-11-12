@@ -202,7 +202,7 @@ test("existing worksheet fields become individually movable and keep personal an
       .getByRole("textbox", { name: "選んだ理由" })
       .fill("保存済みの答え");
     await guestForm.getByRole("textbox", { name: "選んだ理由" }).blur();
-    await expect(guestForm).toContainText("入力は保存済みです。");
+    await expect(guestForm).not.toContainText("入力は保存済みです。");
     const hostForm = page.locator(".editor-workspace .slide-worksheet");
     await hostForm.locator("header h3").click();
     await page.getByRole("button", { name: "入力欄を個別に配置" }).click();
@@ -345,7 +345,7 @@ test("radar worksheets chart each participant's scores and export separate colum
     await form.getByRole("spinbutton", { name: "式典：安全" }).fill("2");
     await form.getByRole("spinbutton", { name: "式典：安全" }).blur();
     await expect(chart.locator(".radar-area")).toHaveCount(1);
-    await expect(form).toContainText("入力は保存済みです。");
+    await expect(form).not.toContainText("入力は保存済みです。");
     await guest.reload();
     await guest.locator(".thumbnail").first().click();
     await expect(
@@ -516,7 +516,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .getByRole("checkbox", { name: "今日から実践", exact: true })
       .check();
     await card.locator("textarea,input").first().blur();
-    await expect(card).toContainText("入力は保存済みです。");
+    await expect(card).not.toContainText("入力は保存済みです。");
     await openWorksheets(page);
     await page.getByRole("button", { name: "設定・内容の確認" }).click();
     await page.getByRole("button", { name: "項目を編集・追加" }).click();
@@ -569,8 +569,8 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .getByRole("textbox", { name: "新しい質問", exact: true })
       .fill("追加した回答");
     await card.getByRole("textbox", { name: "新しい質問", exact: true }).blur();
-    await expect(card).toContainText("入力は保存済みです。");
-    await expect(card.locator(".answer-inline-status")).toContainText("✓");
+    await expect(card).not.toContainText("入力は保存済みです。");
+    await expect(card.locator(".answer-inline-status")).toHaveCount(0);
     await expect(card).not.toContainText(
       "名前・メールアドレスと入力内容はホストが確認できます。",
     );
@@ -620,7 +620,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       .getByRole("textbox", { name: "選んだ理由", exact: true })
       .press("ArrowLeft");
     await presented.locator("textarea,input").first().blur();
-    await expect(presented).toContainText("入力は保存済みです。");
+    await expect(presented).not.toContainText("入力は保存済みです。");
     await guest.mouse.move(10, 10);
     await guest
       .getByRole("button", { name: "発表をおわる", exact: true })
@@ -633,7 +633,7 @@ test("worksheet templates embed on slides, save per account, export named CSV an
       followed.getByRole("textbox", { name: "選んだ理由", exact: true }),
     ).toHaveValue(answer);
     await followed.locator("textarea,input").first().blur();
-    await expect(followed).toContainText("入力は保存済みです。");
+    await expect(followed).not.toContainText("入力は保存済みです。");
     const fixedPage = await guest
       .locator(".host-follow-page")
       .getAttribute("data-follow-page");
@@ -653,10 +653,10 @@ test("worksheet templates embed on slides, save per account, export named CSV an
     });
     await fixedInput.fill(answer + "追記");
     await fixedInput.blur();
-    await expect(followed).toContainText("入力は保存済みです。");
+    await expect(followed).not.toContainText("入力は保存済みです。");
     await fixedInput.fill(answer);
     await fixedInput.blur();
-    await expect(followed).toContainText("入力は保存済みです。");
+    await expect(followed).not.toContainText("入力は保存済みです。");
     await page.mouse.move(10, 10);
     await page.getByRole("button", { name: "画面の同期を再開" }).click();
     await expect(guest.locator(".host-follow-page")).not.toHaveAttribute(

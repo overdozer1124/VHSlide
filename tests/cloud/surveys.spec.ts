@@ -349,7 +349,7 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     else
       await guestCard.getByRole("radio", { name: "春", exact: true }).check();
     await guestCard.locator("textarea,input").first().blur();
-    await expect(guestCard).toContainText("回答は保存済みです。");
+    await expect(guestCard).not.toContainText("回答は保存済みです。");
     expect(await guestCard.boundingBox({ timeout: 5000 })).toEqual(before);
     const list = async () =>
       (await (await page.request.get(`/api/decks/${id}/surveys`)).json())
@@ -383,7 +383,7 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     await expect(presentCard).toContainText("好きな季節");
     await presentCard.getByRole("radio", { name: "夏", exact: true }).check();
     await presentCard.locator("textarea,input").first().blur();
-    await expect(presentCard).toContainText("回答は保存済みです。");
+    await expect(presentCard).not.toContainText("回答は保存済みです。");
     expect(
       (await list()).find((s: any) => s.id === ids.single).results,
     ).toMatchObject({ count: 1, counts: [0, 1] });
@@ -397,7 +397,7 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
     await answer.press("ArrowLeft");
     await expect(presentCard).toContainText("今日の気づき");
     await presentCard.locator("textarea,input").first().blur();
-    await expect(presentCard).toContainText("回答は保存済みです。");
+    await expect(presentCard).not.toContainText("回答は保存済みです。");
     await guest.mouse.move(10, 10);
     await launch(guest).click();
     await expect(dialog(guest)).toBeVisible();
@@ -422,7 +422,7 @@ test("embedded surveys accept private answers in viewer, presentation and host-f
       .getByRole("textbox", { name: "スライド内アンケートの回答" })
       .fill("集合中も記述して回答🌸");
     await followCard.locator("textarea,input").first().blur();
-    await expect(followCard).toContainText("回答は保存済みです。");
+    await expect(followCard).not.toContainText("回答は保存済みです。");
     expect(
       (await list()).find((s: any) => s.id === ids.text).results.texts,
     ).toEqual(["集合中も記述して回答🌸"]);

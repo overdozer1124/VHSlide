@@ -7082,7 +7082,7 @@ h1 span {
   height: 100%;
   box-sizing: border-box;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
 }
 .response-field form,
 .response-field .worksheet-inputs {

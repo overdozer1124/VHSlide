@@ -424,31 +424,33 @@ export function WorksheetAnswer({
         />
       )}
       {!edit && !ctx.readOnly && <WorksheetSummary sheet={sheet} />}
-      {!ctx.readOnly && !edit && (
-        <>
-          <p
-            className={`answer-inline-status ${status.error ? "is-error" : ""}`}
-            role="status"
-          >
-            {!status.error && !status.saving && !status.dirty && sheet.own && (
-              <span aria-hidden="true">✓ </span>
-            )}
-            {status.error
-              ? `未保存：${status.error}`
-              : status.saving
+      {!ctx.readOnly && !edit && (status.error || modal) && (
+        <p
+          className={`answer-inline-status ${status.error ? "is-error" : ""}`}
+          role={status.error ? "alert" : "status"}
+        >
+          {status.error ? (
+            `未保存：${status.error}`
+          ) : (
+            <>
+              {!status.saving && !status.dirty && sheet.own && (
+                <span aria-hidden="true">✓ </span>
+              )}
+              {status.saving
                 ? "保存中…"
                 : status.dirty
                   ? "入力を自動保存します…"
                   : sheet.own
                     ? "入力は保存済みです。"
                     : "入力すると自動保存します。"}
-            {sheet.status === "open"
-              ? " 受付が終わるまでは直せます。"
-              : sheet.status === "draft"
-                ? " 先生が受付を始めると入力できます。"
-                : " 受付は終了しました。"}
-          </p>
-        </>
+              {sheet.status === "open"
+                ? " 受付が終わるまでは直せます。"
+                : sheet.status === "draft"
+                  ? " 先生が受付を始めると入力できます。"
+                  : " 受付は終了しました。"}
+            </>
+          )}
+        </p>
       )}
     </form>
   );
