@@ -36,13 +36,15 @@ export function WorksheetSidebarEditor({
   sheet,
   deckId,
   elementId,
-  highlightFieldId,
+  fieldId,
   onFormSaved,
 }: {
   sheet: WorksheetView;
   deckId: string;
   elementId: string;
-  highlightFieldId?: string;
+  // When a single response field is selected, only that field is shown:
+  // the other items of the worksheet do not belong to the selected object.
+  fieldId?: string;
   onFormSaved: (draft: FormDraft) => boolean;
 }) {
   const worksheets = useWorksheets();
@@ -65,10 +67,12 @@ export function WorksheetSidebarEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet]);
   useEffect(() => {
-    if (!highlightFieldId) return;
-    const node = fieldRefs.current.get(highlightFieldId);
+    if (!fieldId) return;
+    const node = fieldRefs.current.get(fieldId);
     node?.scrollIntoView({ block: "nearest" });
-  }, [highlightFieldId]);
+  }, [fieldId]);
+  const single =
+    !!fieldId && draft.fields.some((f) => f.id === fieldId);
   function reload() {
     setBase(sheet);
     setDraft(definitionFrom(sheet));
@@ -199,33 +203,45 @@ export function WorksheetSidebarEditor({
           元に戻す
         </button>
       </div>
-      <label>
-        ワークシート名
-        <input
-          value={draft.title}
-          maxLength={200}
-          onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-        />
-      </label>
-      <label>
-        説明
-        <input
-          value={draft.description}
-          maxLength={500}
-          onChange={(e) =>
-            setDraft((d) => ({ ...d, description: e.target.value }))
-          }
-        />
-      </label>
+      {single ? (
+        <p className="form-sidebar-target">
+          ワークシート「{draft.title}」の項目
+        </p>
+      ) : (
+        <>
+          <label>
+            ワークシート名
+            <input
+              value={draft.title}
+              maxLength={200}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, title: e.target.value }))
+              }
+            />
+          </label>
+          <label>
+            説明
+            <input
+              value={draft.description}
+              maxLength={500}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, description: e.target.value }))
+              }
+            />
+          </label>
+        </>
+      )}
       {draft.fields.map((f, i) => {
+        if (single && f.id !== fieldId) return null;
         const sectionKey = f.sectionId ?? f.section;
-        const heading = sectionKey !== lastSection ? f.section : "";
+        const heading =
+          !single && sectionKey !== lastSection ? f.section : "";
         lastSection = sectionKey;
         return (
           <div key={f.id}>
             {heading ? <h4 className="form-sidebar-section">{heading}</h4> : null}
             <fieldset
-              className={`worksheet-field-editor${highlightFieldId === f.id ? " form-sidebar-highlight" : ""}`}
+              className={`worksheet-field-editor${fieldId === f.id ? " form-sidebar-highlight" : ""}`}
               ref={(node) => {
                 if (node) fieldRefs.current.set(f.id, node);
                 else fieldRefs.current.delete(f.id);
@@ -465,45 +481,49 @@ export function WorksheetSidebarEditor({
                   </label>
                 </div>
               </details>
-              <div className="worksheet-editor-actions">
-                <button
-                  type="button"
-                  disabled={i === 0}
-                  aria-label={`入力欄${i + 1}を上へ移動`}
-                  onClick={() => move(i, -1)}
-                >
-                  上へ
-                </button>
-                <button
-                  type="button"
-                  disabled={i === draft.fields.length - 1}
-                  aria-label={`入力欄${i + 1}を下へ移動`}
-                  onClick={() => move(i, 1)}
-                >
-                  下へ
-                </button>
-                <button
-                  type="button"
-                  aria-label={`入力欄${i + 1}を削除`}
-                  onClick={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      fields: d.fields.filter((x) => x.id !== f.id),
-                    }))
-                  }
-                >
-                  削除
-                </button>
-              </div>
+              {!single && (
+                <div className="worksheet-editor-actions">
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    aria-label={`入力欄${i + 1}を上へ移動`}
+                    onClick={() => move(i, -1)}
+                  >
+                    上へ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === draft.fields.length - 1}
+                    aria-label={`入力欄${i + 1}を下へ移動`}
+                    onClick={() => move(i, 1)}
+                  >
+                    下へ
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`入力欄${i + 1}を削除`}
+                    onClick={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        fields: d.fields.filter((x) => x.id !== f.id),
+                      }))
+                    }
+                  >
+                    削除
+                  </button>
+                </div>
+              )}
             </fieldset>
           </div>
         );
       })}
-      <div className="worksheet-editor-actions">
-        <button type="button" onClick={addField}>
-          入力欄を追加
-        </button>
-      </div>
+      {!single && (
+        <div className="worksheet-editor-actions">
+          <button type="button" onClick={addField}>
+            入力欄を追加
+          </button>
+        </div>
+      )}
       {stale && (
         <p role="alert">
           他の画面で内容が更新されています。

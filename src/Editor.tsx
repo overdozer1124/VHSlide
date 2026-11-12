@@ -1084,7 +1084,7 @@ export function Editor({
                 sheet={sidebarSheet}
                 deckId={cloud!.active!.id}
                 elementId={element!.id}
-                highlightFieldId={
+                fieldId={
                   element!.responseField?.source === "worksheet"
                     ? element!.responseField.field.id
                     : undefined

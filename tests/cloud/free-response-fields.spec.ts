@@ -668,3 +668,77 @@ test("the drawing canvas adopts the placed frame's aspect", async ({
   expect(Math.abs(dims.width / dims.height - 560 / 340)).toBeLessThan(0.03);
   expect(dims).not.toEqual({ width: 960, height: 540 });
 });
+
+test("sidebar shows only the selected response field's item", async ({
+  page,
+}) => {
+  await signIn(page, "sidebar-single-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "サイドバー単一項目", slides: [blank(0, 0)] },
+  });
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page.locator(".thumbnail").first().click();
+  const tools = page.getByRole("region", {
+    name: "回答欄の追加",
+    exact: true,
+  });
+  for (const label of ["1つ目の項目", "2つ目の項目"]) {
+    await launcher(page).click();
+    await page
+      .getByRole("tab", { name: "回答欄を追加", exact: true })
+      .click();
+    await tools
+      .getByRole("textbox", { name: "新しい入力項目名" })
+      .fill(label);
+    await tools.getByRole("button", { name: /^記述/ }).click();
+    // The second field goes into the already-open worksheet, whose
+    // placement button is labelled just "スライドに追加".
+    const start = tools.getByRole("button", {
+      name: "受付を開始してスライドに追加",
+      exact: true,
+    });
+    if (await start.isVisible().catch(() => false)) {
+      await start.click();
+    } else {
+      await tools
+        .getByRole("button", { name: "スライドに追加", exact: true })
+        .click();
+    }
+  }
+  const second = page.locator(".editor-workspace .response-field", {
+    hasText: "2つ目の項目",
+  });
+  // Click the top edge (away from the corner resize handles) to select it.
+  await second.click({ position: { x: 40, y: 8 } });
+  const sidebar = page.locator(".form-sidebar-editor");
+  await expect(sidebar).toBeVisible();
+  // Only the selected field's editor is shown, not the whole worksheet.
+  await expect(sidebar.locator("fieldset.worksheet-field-editor")).toHaveCount(
+    1,
+  );
+  await expect(
+    sidebar.getByRole("textbox", { name: "項目名2" }),
+  ).toHaveValue("2つ目の項目");
+  await sidebar
+    .getByRole("textbox", { name: "項目名2" })
+    .fill("直した2つ目の項目");
+  await sidebar
+    .getByRole("button", { name: "保存する" })
+    .first()
+    .click();
+  await expect
+    .poll(
+      async () => {
+        const sheets = (
+          await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+        ).worksheets;
+        return sheets.flatMap((s: any) =>
+          s.fields.map((f: any) => f.label),
+        );
+      },
+      { timeout: 15000 },
+    )
+    .toEqual(expect.arrayContaining(["1つ目の項目", "直した2つ目の項目"]));
+});

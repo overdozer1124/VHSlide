@@ -7545,4 +7545,5 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .form-sidebar-editor .survey-option-edit input { flex:1; min-width:0; margin-top:0; }
 .form-sidebar-actions { position:sticky; top:0; z-index:1; background:#fff; padding:6px 0; margin:0; }
 .form-sidebar-section { margin:10px 0 2px; font-size:13px; color:#47614f; }
+.form-sidebar-target { margin:0; color:#63766a; font-size:12px; }
 .form-sidebar-highlight { outline:2px solid #d97706; outline-offset:1px; }
