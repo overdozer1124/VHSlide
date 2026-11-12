@@ -73,6 +73,31 @@
 //   送信器がスロットごとに Cookie jar を分けて2件を並行送信し、
 //   スロットごとの応答と集計を返す。ID トークン・Cookie・nonce の
 //   値はログ・応答に出さない。送信器は送信の完了直後に保持を破棄する。
+// - GET /s12-revoke → public/s12-revoke.html を返す（S12 失効専用
+//   画面。同じくクライアント ID をメモリ上で差し込む）。このページは
+//   B のトークンを未使用のまま保持し、A の認可で B の失効を送り、
+//   新しい B と保持した失効前トークンの提示拒否（not_operator）と
+//   C の提示成功を確認する。送信はブラウザーから直接行わない
+//   （Cookie 文脈の分離と保持のため）。検証モジュール
+//   tools/s12-revoke.mjs と tools/subject-hash-verify.mjs を
+//   import する。
+// - GET /s12-revoke.mjs → tools/s12-revoke.mjs をそのまま返す
+//   （s12-revoke 画面が import する純粋モジュール）。
+// - GET /s12/nonces → 送信器が中継先の /nonce をスロット
+//   （heldB / revokeA / freshB / checkC）ごとに1回呼び、その
+//   スロットの nonce context Cookie を保持し、nonce だけを返す
+//   （ctx は返さない）。スロットごとに発行から4分以内に送信
+//   しなければ送信器が拒否する。呼び出し元の境界は S11 と同じ型
+//   （試験単位セッション・Host・Origin）であり、発行は試験 ID と
+//   スロットに結び付ける。
+// - POST /s12/send-revoke → 画面からの失効要求を受け取り、送信器
+//   が revokeA スロットの Cookie で1件を送信し、応答（状態と理由
+//   コード・返された世代だけ）を返す。送信前に送信器が保持
+//   トークン（heldB）の鮮度も確認し、古ければ1件も送らない。
+// - POST /s12/send-verify-only → 画面からの提示要求とスロット名
+//   を受け取り、送信器がそのスロットの Cookie で1件を送信し、
+//   応答を返す。ID トークン・Cookie・nonce の値はログ・応答に
+//   出さない。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -119,6 +144,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createS5Sender } from "./s5-sender.mjs";
 import { createS11Sender } from "./s11-sender.mjs";
+import { createS12Sender } from "./s12-sender.mjs";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
@@ -328,6 +354,63 @@ async function readS11SendBody(req) {
   return { body: Buffer.concat(chunks) };
 }
 
+// S12 失効の送信器（1プロセスに1つ）。スロットごとの nonce・ctx・
+// 要求の保持はメモリー内だけである。
+const s12Sender = createS12Sender({ relayUrl: RELAY });
+
+// S12 入口の試験単位セッション。S11 と同じ型であり、起動ごとに不可
+// 推測の値を新規発行し、/s12-revoke 画面へメモリ上で差し込む
+// （ファイルは書き換えない）。画面は /s12/nonces・/s12/send-* の
+// 呼び出し時にこの値をヘッダーで示す。
+const S12_SESSION = randomUUID();
+const S12_SESSION_PLACEHOLDER = "REPLACE_WITH_S12_SESSION";
+// /s12/send-* の本体サイズ上限。要求1件（ID トークンを含む）は
+// 数 KiB であり、64 KiB で十分に足りる。超過は 413 で拒否する。
+const S12_MAX_BODY_BYTES = 64 * 1024;
+
+// S12 入口（/s12/nonces・/s12/send-*）の呼び出し元境界。S11 入口と
+// 同じ型であり、次をすべて満たさなければ、状態を変更せず理由コード
+// だけを返す。
+function checkS12Entry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "s12_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "s12_bad_origin" };
+    }
+  }
+  if (req.headers["x-s12-session"] !== S12_SESSION) {
+    return { ok: false, status: 403, error: "s12_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /s12/send-* の本体をサイズ上限付きで読む（S11 と同じ型）。
+async function readS12SendBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > S12_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -411,6 +494,23 @@ const s11ParallelHtml = rawS11ParallelHtml
   .split(PLACEHOLDER).join(CLIENT_ID)
   .split(S11_SESSION_PLACEHOLDER).join(S11_SESSION);
 const s11ParallelJs = await readFile(path.join(root, "tools", "s11-parallel.mjs"), "utf8");
+
+// S12 失効専用画面も同じく、起動時に読み込み、クライアント ID と
+// S12 セッションをメモリ上で差し込む（ファイルは書き換えない）。検証
+// モジュールはそのまま返す。
+const rawS12RevokeHtml = await readFile(path.join(root, "public", "s12-revoke.html"), "utf8");
+if (!rawS12RevokeHtml.includes(PLACEHOLDER)) {
+  console.error("error: s12-revoke.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+if (!rawS12RevokeHtml.includes(S12_SESSION_PLACEHOLDER)) {
+  console.error("error: s12-revoke.html に S12 セッションのプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s12RevokeHtml = rawS12RevokeHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(S12_SESSION_PLACEHOLDER).join(S12_SESSION);
+const s12RevokeJs = await readFile(path.join(root, "tools", "s12-revoke.mjs"), "utf8");
 
 const FORWARD_PATHS = new Set([
   "/nonce",
@@ -500,6 +600,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s11-parallel.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s11ParallelJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s12-revoke") {
+      console.log(`GET /s12-revoke -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s12RevokeHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s12-revoke.mjs") {
+      console.log(`GET /s12-revoke.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s12RevokeJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
@@ -684,6 +796,115 @@ const server = http.createServer(async (req, res) => {
         console.log(`POST ${pathname} -> ${status}`);
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s11_send_failed" }));
+      }
+      return;
+    }
+    // S12 失効の送信器への入口。ループバック限定の提供サーバー上での
+    // み動く。要求・応答の本体、トークン・Cookie・nonce の値はログに
+    // 出さない。送信器の局所エラーは理由コードだけを返す。呼び出し元
+    // の境界（Host・Origin・試験単位セッション）を先に確認し、通らな
+    // ければ状態を変更しない。
+    if (req.method === "GET" && pathname === "/s12/nonces") {
+      const entry = checkS12Entry(req);
+      if (!entry.ok) {
+        console.log(`GET /s12/nonces -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const trialId = params.get("trial_id");
+      const slot = params.get("slot");
+      const S12_SLOT_NAMES = ["heldB", "revokeA", "freshB", "checkC"];
+      if (!trialId || !S12_SLOT_NAMES.includes(slot)) {
+        console.log(`GET /s12/nonces -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は画面の試行に追随する。画面が新しい試行を
+        // 始めたら、送信器もその試行で開始する（旧試行のスロットは
+        // 破棄される）。
+        const snap = s12Sender.snapshot();
+        if (!snap || snap.trialId !== trialId) {
+          s12Sender.beginTrial(trialId);
+        }
+        const issued = await s12Sender.issueNonce({ trialId, slot });
+        console.log(`GET /s12/nonces -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ nonce: issued.nonce }));
+      } catch (e) {
+        console.log(`GET /s12/nonces -> 502`);
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s12_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (pathname === "/s12/send-revoke" || pathname === "/s12/send-verify-only")
+    ) {
+      const entry = checkS12Entry(req);
+      if (!entry.ok) {
+        console.log(`POST ${pathname} -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST ${pathname} -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS12SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST ${pathname} -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        // 読み残した本体がソケットに残るため、応答の送信後に破棄する。
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        console.log(`POST ${pathname} -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        const out =
+          pathname === "/s12/send-revoke"
+            ? await s12Sender.sendRevoke({ trialId: parsed.trial_id, request: parsed.request })
+            : await s12Sender.sendVerifyOnly({
+                trialId: parsed.trial_id,
+                slot: parsed.slot,
+                request: parsed.request,
+              });
+        console.log(`POST ${pathname} -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(out));
+      } catch (e) {
+        // 送信前の確認に失敗した場合は1件も送っていない。理由コード
+        // だけを返し、値は返さない。期限切れ・保持トークンの鮮度不足
+        // は 410、その他は 409 とする。
+        const status =
+          e.code === "s12_nonces_expired" || e.code === "s12_held_token_stale" ? 410 : 409;
+        console.log(`POST ${pathname} -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s12_send_failed" }));
       }
       return;
     }

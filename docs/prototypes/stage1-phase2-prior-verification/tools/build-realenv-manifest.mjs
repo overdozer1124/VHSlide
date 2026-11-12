@@ -95,6 +95,14 @@ const ARTIFACTS = [
   "test/s11-guard.test.mjs",
   "test/s11-parallel.screen.mjs",
   "test/serve-real-s11.test.mjs",
+  "public/s12-revoke.html",
+  "tools/s12-revoke.mjs",
+  "tools/s12-sender.mjs",
+  "test/s12-revoke.test.mjs",
+  "test/s12-sender.test.mjs",
+  "test/s12-guard.test.mjs",
+  "test/s12-revoke.screen.mjs",
+  "test/serve-real-s12.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
@@ -151,6 +159,11 @@ const s11ModuleLines = readRel("tools/s11-parallel.mjs").split("\n");
 const s11SenderLines = readRel("tools/s11-sender.mjs").split("\n");
 const s11GuardLines = readRel("test/s11-guard.test.mjs").split("\n");
 const s11ScreenLines = readRel("test/s11-parallel.screen.mjs").split("\n");
+const s12RevokeLines = readRel("public/s12-revoke.html").split("\n");
+const s12ModuleLines = readRel("tools/s12-revoke.mjs").split("\n");
+const s12SenderLines = readRel("tools/s12-sender.mjs").split("\n");
+const s12GuardLines = readRel("test/s12-guard.test.mjs").split("\n");
+const s12ScreenLines = readRel("test/s12-revoke.screen.mjs").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
 const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
@@ -699,6 +712,96 @@ const checks = {
     found: findLines(s11ScreenLines, /jsdom/),
     expect: "present",
   },
+  // S12 失効専用モジュール・送信器・画面：失効要求が凍結でき、
+  // 保持トークンの鮮度（heldTokenFreshness）が失効の送信前に
+  // 機械確認されること（s12_held_token_stale）。保持トークンの
+  // 提示が状態機械の段階で失効後に限られること
+  // （recordHeldBVerifyOnly）。新しい B が失効対象と異なれば
+  // 停止すること（subject_mismatch）。送信器がスロットごとに
+  // Cookie を分け、保持トークンの鮮度ゲートと送信窓と
+  // redirect: "manual" を持つこと。画面にテキスト入力欄がなく、
+  // セッションのプレースホルダを持つこと。提供サーバーが S12 の
+  // 経路を返すこと。ガード試験が実際の送信器で本手順を通すこと。
+  s12_module_freeze_revoke: {
+    found: findLines(s12ModuleLines, /freezeRevokeRequest/),
+    expect: "present",
+  },
+  s12_module_held_freshness: {
+    found: findLines(s12ModuleLines, /heldTokenFreshness/),
+    expect: "present",
+  },
+  s12_module_held_stale_guard: {
+    found: findLines(s12ModuleLines, /s12_held_token_stale/),
+    expect: "present",
+  },
+  s12_module_held_order: {
+    found: findLines(s12ModuleLines, /recordHeldBVerifyOnly/),
+    expect: "present",
+  },
+  s12_module_subject_mismatch: {
+    found: findLines(s12ModuleLines, /subject_mismatch/),
+    expect: "present",
+  },
+  s12_module_one_capture_claim: {
+    found: findLines(s12ModuleLines, /claimCallbackCapture/),
+    expect: "present",
+  },
+  s12_module_revoke_path: {
+    found: findLines(s12ModuleLines, /\/admin\/registry\/revoke/),
+    expect: "present",
+  },
+  s12_sender_per_slot_cookie: {
+    found: findLines(s12SenderLines, /op2_nonce_ctx=\$\{slotState\.ctx\}/),
+    expect: "present",
+  },
+  s12_sender_held_gate: {
+    found: findLines(s12SenderLines, /s12_held_token_stale/),
+    expect: "present",
+  },
+  s12_sender_redirect_manual: {
+    found: findLines(s12SenderLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s12_sender_window: {
+    found: findLines(s12SenderLines, /s12_nonces_expired/),
+    expect: "present",
+  },
+  s12_page_no_text_input: {
+    found: findLines(s12RevokeLines, /type="text"/),
+    expect: "absent",
+  },
+  s12_page_session_placeholder: {
+    found: findLines(s12RevokeLines, /REPLACE_WITH_S12_SESSION/),
+    expect: "present",
+  },
+  s12_page_sends_session: {
+    found: findLines(s12RevokeLines, /x-s12-session/),
+    expect: "present",
+  },
+  s12_serve_route: {
+    found: findLines(serveRealLines, /s12-revoke/),
+    expect: "present",
+  },
+  s12_serve_nonces_route: {
+    found: findLines(serveRealLines, /\/s12\/nonces/),
+    expect: "present",
+  },
+  s12_serve_send_route: {
+    found: findLines(serveRealLines, /\/s12\/send-revoke/),
+    expect: "present",
+  },
+  s12_guard_uses_sender: {
+    found: findLines(s12GuardLines, /createS12Sender/),
+    expect: "present",
+  },
+  s12_screen_fake_gis: {
+    found: findLines(s12ScreenLines, /__gis/),
+    expect: "present",
+  },
+  s12_screen_jsdom: {
+    found: findLines(s12ScreenLines, /jsdom/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -878,6 +981,7 @@ const manifest = {
     trial_apply_page: "public/trial-apply.html（tools/serve-real.mjs が /trial-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。送信に使う単一の要求を凍結し、送信直前に非秘密項目と一致／不一致の事実だけを表示して、その同じ要求を /platform/apply へ送る。送信する JSON の全文表示はしない。検証モジュール tools/trial-apply.mjs は Node 試験 test/trial-apply.test.mjs と共用し、主体の確認は署名検証と tools/subject-hash-verify.mjs を再利用する。S4 の消費済み・初期化済み試験も同じ画面で行う（用途は試験種別で決まる固定値。不一致試験は full-replace、S4 の2試験は bootstrap）」",
     s5_apply_page: "public/s5-apply.html（tools/serve-real.mjs が /s5-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。送信する JSON の全文表示はしない。検証モジュール tools/s5-apply.mjs は Node 試験 test/s5-apply.test.mjs と共用する。並行送信は提供サーバー側の tools/s5-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信器の試験は test/s5-sender.test.mjs、画面の実画面試験は test/s5-apply.screen.mjs）",
     s11_parallel_page: "public/s11-parallel.html（tools/serve-real.mjs が /s11-parallel で配信。GOOGLE_CLIENT_ID と S11 セッションをメモリ上で差し込む。項目6 手順3・手順4の専用画面。C の主体ハッシュと A の実トークンを集めて凍結した要求を作り、送信直前に表示して、その送信指示を送信器へ渡す。送信はブラウザーから直接行わない。検証モジュール tools/s11-parallel.mjs は Node 試験 test/s11-parallel.test.mjs と共用する。並行送信は提供サーバー側の tools/s11-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、手順4の2件を Promise.allSettled で並行送信する。手順3の単発送信も送信器経由とする。送信器の試験は test/s11-sender.test.mjs、実 Worker との結線は test/s11-guard.test.mjs、画面の実画面試験は test/s11-parallel.screen.mjs）",
+    s12_revoke_page: "public/s12-revoke.html（tools/serve-real.mjs が /s12-revoke で配信。GOOGLE_CLIENT_ID と S12 セッションをメモリ上で差し込む。項目6 手順5（運営者 B の失効）の専用画面。B のトークンを未使用のまま保持し、A の認可で失効を送り、新しい B と保持した失効前トークンの提示拒否（not_operator）と C の提示成功を確認する。送信はブラウザーから直接行わない。検証モジュール tools/s12-revoke.mjs は Node 試験 test/s12-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s12-sender.mjs（Node）が行う。名前付きスロット（heldB / revokeA / freshB / checkC）ごとに Cookie jar を分け、保持トークンの鮮度を失効の送信前に機械確認する。送信器の試験は test/s12-sender.test.mjs、実 Worker との結線は test/s12-guard.test.mjs、画面の実画面試験は test/s12-revoke.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,
