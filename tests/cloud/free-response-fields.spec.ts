@@ -488,3 +488,71 @@ test("creates an image and drawing response field directly on a slide", async ({
   expect(worksheets[0].fields[0].kind).toBe("drawing");
   expect(worksheets[0].status).toBe("open");
 });
+
+test("keeps an added image even if editing ends while it is still loading", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await signIn(page, "drawing-race-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "画像の読み込み競合", slides: [blank(0, 0)] },
+  });
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page.locator(".thumbnail").first().click();
+  await launcher(page).click();
+  await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
+  const tools = page.getByRole("region", { name: "回答欄の追加", exact: true });
+  await tools
+    .getByRole("textbox", { name: "新しい入力項目名" })
+    .fill("大きな画像");
+  await tools.getByRole("button", { name: /^画像・手描き/ }).click();
+  await tools
+    .getByRole("button", { name: "受付を開始してスライドに追加", exact: true })
+    .click();
+  const field = page.locator(".editor-workspace .response-field");
+  await field
+    .getByRole("button", { name: "大きな画像の画像・手描きを編集" })
+    .click();
+  await expect(field.getByLabel("大きな画像の手描き欄")).toBeVisible();
+  // Hand the field a very large photo and leave edit mode in the same
+  // turn, before the image can finish decoding — the file dialog and the
+  // focus changes around it can close the editor in just this window.
+  await field.evaluate(async (section) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 12000;
+    canvas.height = 9000;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#a03c31";
+    ctx.fillRect(0, 0, 12000, 9000);
+    ctx.fillStyle = "#f4e3c1";
+    for (let i = 0; i < 2000; i++)
+      ctx.fillRect((i * 197) % 11800, (i * 389) % 8800, 90, 60);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.9),
+    );
+    const input = section.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    )!;
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([blob!], "photo.jpg", { type: "image/jpeg" }));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
+  await expect
+    .poll(
+      async () => {
+        const sheets = (
+          await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+        ).worksheets;
+        return Object.values(sheets[0]?.own?.values ?? {})[0];
+      },
+      { timeout: 30_000 },
+    )
+    .toMatch(/^data:image\/jpeg;base64,/);
+  await expect(field.locator(".worksheet-drawing-view img")).toBeVisible();
+});

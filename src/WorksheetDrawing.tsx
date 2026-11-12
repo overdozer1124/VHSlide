@@ -42,6 +42,7 @@ export function WorksheetDrawing({
   const pendingFile = useRef<File | null>(null);
   const lastEmitted = useRef<string | undefined>(undefined);
   const generation = useRef(0);
+  const loadSeq = useRef(0);
   const drawing = useRef(false);
   const history = useRef<{ data: string; hasContent: boolean }[]>([]);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
@@ -157,25 +158,54 @@ export function WorksheetDrawing({
     }
     const url = URL.createObjectURL(file);
     const image = new Image();
-    const version = ++generation.current;
+    const seq = ++loadSeq.current;
+    // A pending restore of the previous value must not repaint over the
+    // image being loaded.
+    ++generation.current;
     setReady(false);
     image.onload = () => {
       URL.revokeObjectURL(url);
-      if (version !== generation.current || !canvas.current) return;
-      remember();
-      paintBlank();
+      // A newer load superseded this one; let it win.
+      if (seq !== loadSeq.current) return;
+      // Compose the picture offscreen first, then emit it even if the edit
+      // view closed while the image was decoding (the file dialog and the
+      // focus changes around it can close the view), so an added image is
+      // never silently lost.
+      const composed = document.createElement("canvas");
+      composed.width = W;
+      composed.height = H;
+      const off = composed.getContext("2d")!;
+      off.fillStyle = "#ffffff";
+      off.fillRect(0, 0, W, H);
       const ratio = Math.min(W / image.width, H / image.height);
       const width = image.width * ratio,
         height = image.height * ratio;
-      canvas.current
-        .getContext("2d")!
-        .drawImage(image, (W - width) / 2, (H - height) / 2, width, height);
+      off.drawImage(image, (W - width) / 2, (H - height) / 2, width, height);
+      const node = canvas.current;
+      if (node) {
+        remember();
+        const ctx = node.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(composed, 0, 0);
+      }
       setReady(true);
-      save();
+      try {
+        const data = encode(composed);
+        // Only when the visible canvas shows this same picture may the
+        // restore effect treat the value as already painted; otherwise
+        // re-entering edit mode restores it from the value.
+        if (node) lastEmitted.current = data;
+        setHasContent(true);
+        setError("");
+        onChange(data);
+      } catch (e) {
+        setError((e as Error).message);
+      }
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
-      if (version === generation.current) {
+      if (seq === loadSeq.current) {
         setReady(true);
         setError("画像を読み込めませんでした。");
       }
@@ -211,19 +241,22 @@ export function WorksheetDrawing({
     );
   if (!active)
     return (
-      <button
-        type="button"
-        className="worksheet-drawing-view"
-        aria-label={`${label}の画像・手描きを編集`}
-        onClick={() => setActive(true)}
-        onPaste={paste}
-      >
-        {value ? (
-          <img src={value} alt={`${label}の画像・手描き回答`} />
-        ) : (
-          <span>クリックして画像を貼り付け・手描き</span>
-        )}
-      </button>
+      <>
+        <button
+          type="button"
+          className="worksheet-drawing-view"
+          aria-label={`${label}の画像・手描きを編集`}
+          onClick={() => setActive(true)}
+          onPaste={paste}
+        >
+          {value ? (
+            <img src={value} alt={`${label}の画像・手描き回答`} />
+          ) : (
+            <span>クリックして画像を貼り付け・手描き</span>
+          )}
+        </button>
+        {error && <p role="alert">{error}</p>}
+      </>
     );
   return (
     <div
