@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.109.1",
+    date: "2026-11-12",
+    title: "サイドバーの項目編集画面を見やすく調整",
+    changes: [
+      "右のサイドバーの項目編集画面を、薄い色のパネルで囲んでほかの設定と区別し、見出しに色帯を付けました。選んでいる項目の枠線が左右で切れて見えることも直しました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.109.0",
     date: "2026-11-12",
     title: "スライドの回答欄をすっきり表示",

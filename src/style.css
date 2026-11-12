@@ -7527,8 +7527,9 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-main .worksheet-results.compact .worksheet-frozen-wrap {flex:1;min-height:0;max-height:none;}
 
 /* Host sidebar form editor (selected worksheet/survey object) */
-.form-sidebar-editor { display:flex; flex-direction:column; gap:8px; border-bottom:2px solid #d9e2d5; padding-bottom:16px; margin-bottom:16px; font-size:13px; }
-.form-sidebar-editor h3 { margin:0; font-size:15px; }
+.form-sidebar-editor { display:flex; flex-direction:column; gap:8px; background:#f6f9f6; border:1px solid #cfdccf; border-radius:12px; padding:0 12px 12px; margin-bottom:16px; font-size:13px; }
+.form-sidebar-editor > div { min-width:0; }
+.form-sidebar-editor h3 { margin:0 -12px 4px; padding:9px 12px; background:#e7efe7; border-bottom:1px solid #cfdccf; border-radius:12px 12px 0 0; font-size:14px; color:#31543c; }
 .form-sidebar-editor label { display:block; margin:6px 0; }
 .form-sidebar-editor input:not([type=checkbox]):not([type=radio]), .form-sidebar-editor textarea, .form-sidebar-editor select { width:100%; box-sizing:border-box; border:1px solid #b8cabe; border-radius:7px; padding:7px 8px; font:inherit; margin-top:4px; background:#fff; }
 .form-sidebar-editor textarea { min-height:56px; resize:vertical; }
@@ -7543,7 +7544,7 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .form-sidebar-editor .worksheet-editor-actions button, .form-sidebar-editor .worksheet-save button { padding:6px 10px; font-size:13px; }
 .form-sidebar-editor .survey-option-edit { display:flex; gap:6px; align-items:center; margin:6px 0; }
 .form-sidebar-editor .survey-option-edit input { flex:1; min-width:0; margin-top:0; }
-.form-sidebar-actions { position:sticky; top:0; z-index:1; background:#fff; padding:6px 0; margin:0; }
+.form-sidebar-actions { position:sticky; top:0; z-index:1; background:#f6f9f6; padding:6px 0; margin:0; }
 .form-sidebar-section { margin:10px 0 2px; font-size:13px; color:#47614f; }
-.form-sidebar-target { margin:0; color:#63766a; font-size:12px; }
-.form-sidebar-highlight { outline:2px solid #d97706; outline-offset:1px; }
+.form-sidebar-target { margin:0; color:#47614f; font-size:12px; font-weight:600; line-height:1.5; }
+.form-sidebar-highlight { border-color:#d97706 !important; box-shadow: inset 0 0 0 1px #d97706; }
