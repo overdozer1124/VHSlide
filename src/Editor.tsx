@@ -1071,36 +1071,38 @@ export function Editor({
           </aside>
         ) : (
           <aside className="inspector" id="editor-inspector">
-            {editable && element?.responseField && (
-              <ResponseFieldAppearance
-                element={element}
-                onPlace={onInsertStructure}
-                onChange={(patch) => updateElement(patch)}
-              />
-            )}
-            {editable && !formDraft && sidebarSheet && (
-              <WorksheetSidebarEditor
-                key={`${element!.id}:${sidebarSheet.id}`}
-                sheet={sidebarSheet}
-                deckId={cloud!.active!.id}
-                elementId={element!.id}
-                fieldId={
-                  element!.responseField?.source === "worksheet"
-                    ? element!.responseField.field.id
-                    : undefined
-                }
-                onFormSaved={onFormSaved}
-              />
-            )}
-            {editable && !formDraft && sidebarSurvey && (
-              <SurveySidebarEditor
-                key={`${element!.id}:${sidebarSurvey.id}`}
-                survey={sidebarSurvey}
-                deckId={cloud!.active!.id}
-                elementId={element!.id}
-                onFormSaved={onFormSaved}
-              />
-            )}
+            <div className="inspector-prelude">
+              {editable && element?.responseField && (
+                <ResponseFieldAppearance
+                  element={element}
+                  onPlace={onInsertStructure}
+                  onChange={(patch) => updateElement(patch)}
+                />
+              )}
+              {editable && !formDraft && sidebarSheet && (
+                <WorksheetSidebarEditor
+                  key={`${element!.id}:${sidebarSheet.id}`}
+                  sheet={sidebarSheet}
+                  deckId={cloud!.active!.id}
+                  elementId={element!.id}
+                  fieldId={
+                    element!.responseField?.source === "worksheet"
+                      ? element!.responseField.field.id
+                      : undefined
+                  }
+                  onFormSaved={onFormSaved}
+                />
+              )}
+              {editable && !formDraft && sidebarSurvey && (
+                <SurveySidebarEditor
+                  key={`${element!.id}:${sidebarSurvey.id}`}
+                  survey={sidebarSurvey}
+                  deckId={cloud!.active!.id}
+                  elementId={element!.id}
+                  onFormSaved={onFormSaved}
+                />
+              )}
+            </div>
             <EditorInspector
               headerAction={panelToggle("inspector")}
               pageKey={`${cloud?.active?.id ?? "local"}:${slide.id}`}

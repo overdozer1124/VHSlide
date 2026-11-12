@@ -7526,8 +7526,13 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-main .worksheet-results.compact .worksheet-all-results {flex:1;min-height:0;display:flex;flex-direction:column;}
 .console-main .worksheet-results.compact .worksheet-frozen-wrap {flex:1;min-height:0;max-height:none;}
 
+/* The inspector is a flex column whose only scroll region used to be
+   EditorInspector's .inspector-scroll; blocks rendered above it (answer
+   field appearance, the form editor) could overflow the aside and become
+   unreachable. They now live in their own scrollable prelude. */
+.inspector-prelude { flex:0 1 auto; min-height:0; max-height:60%; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
 /* Host sidebar form editor (selected worksheet/survey object) */
-.form-sidebar-editor { display:flex; flex-direction:column; gap:8px; background:#f6f9f6; border:1px solid #cfdccf; border-radius:12px; padding:0 12px 12px; margin-bottom:16px; font-size:13px; }
+.form-sidebar-editor { display:flex; flex-direction:column; gap:8px; background:#f6f9f6; border:1px solid #cfdccf; border-radius:12px; padding:0 12px 12px; margin:12px; font-size:13px; }
 .form-sidebar-editor > div { min-width:0; }
 .form-sidebar-editor h3 { margin:0 -12px 4px; padding:9px 12px; background:#e7efe7; border-bottom:1px solid #cfdccf; border-radius:12px 12px 0 0; font-size:14px; color:#31543c; }
 .form-sidebar-editor label { display:block; margin:6px 0; }
