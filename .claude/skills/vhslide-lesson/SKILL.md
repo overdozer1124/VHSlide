@@ -5,6 +5,8 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 
 # 指導書・教科書から VHSlide の授業スライドを作る
 
+**利用者への回答・報告・質問は、すべて日本語で書く。**
+
 入力（指導書・教科書の画像やPDF）から授業の流れを読み取り、生徒への問いとワークシートの入力欄を含む VHSlide の作品JSONを作る。
 組み立ては `scripts/build-deck.mjs` が行う。Claude は **授業の設計（レッスン仕様JSON）と図・イラスト** に集中する。
 
