@@ -642,3 +642,58 @@ test("existing result graphs link without new slides and refresh for guests whil
     await guestContext.close();
   }
 });
+
+test("host edits a survey from the right sidebar", async ({ page }) => {
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  await signIn(page, "sidebar-survey-host");
+  const { id } = await (
+    await page.request.post("/api/decks", { headers, data: sample() })
+  ).json();
+  const created = await page.request.post(`/api/decks/${id}/surveys`, {
+    headers,
+    data: {
+      kind: "single",
+      question: "好きな給食は？",
+      options: ["カレー", "ラーメン"],
+    },
+  });
+  expect(created.status()).toBe(200);
+  const survey = (await created.json()).surveys.find(
+    (s: any) => s.question === "好きな給食は？",
+  );
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/surveys/${survey.id}/status`, {
+        headers,
+        data: { status: "open" },
+      })
+    ).status(),
+  ).toBe(200);
+  await page.goto(`/?room=${id}`);
+  await launch(page).click();
+  await dialog(page)
+    .getByRole("button", { name: /好きな給食は/ })
+    .click();
+  await page
+    .getByRole("button", { name: "このアンケートをスライドに配置" })
+    .click();
+  const object = page.locator(
+    ".editor-workspace .element:has([data-slide-survey])",
+  );
+  await object.click({ position: { x: 4, y: 4 } });
+  const sidebar = page.locator(".form-sidebar-editor");
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar.getByLabel("アンケートの質問")).toHaveValue(
+    "好きな給食は？",
+  );
+  await sidebar.getByLabel("アンケートの質問").fill("一番好きな給食は？");
+  await sidebar.getByRole("button", { name: "保存する" }).click();
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/decks/${id}/surveys`)).json())
+          .surveys[0].question,
+      { timeout: 15000 },
+    )
+    .toBe("一番好きな給食は？");
+});

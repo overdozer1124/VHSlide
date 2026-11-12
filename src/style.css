@@ -7525,3 +7525,12 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-main .worksheet-results.compact {flex:1;min-height:0;display:flex;flex-direction:column;}
 .console-main .worksheet-results.compact .worksheet-all-results {flex:1;min-height:0;display:flex;flex-direction:column;}
 .console-main .worksheet-results.compact .worksheet-frozen-wrap {flex:1;min-height:0;max-height:none;}
+
+/* Host sidebar form editor (selected worksheet/survey object) */
+.form-sidebar-editor { display:flex; flex-direction:column; gap:8px; border-bottom:2px solid #d9e2d5; padding-bottom:16px; margin-bottom:16px; }
+.form-sidebar-editor h3 { margin:0; font-size:15px; }
+.form-sidebar-editor > label { display:block; font-size:13px; }
+.form-sidebar-editor > label input, .form-sidebar-editor > label textarea { width:100%; box-sizing:border-box; margin-top:4px; padding:6px; font:inherit; }
+.form-sidebar-editor .worksheet-field-editor { margin:6px 0; }
+.form-sidebar-section { margin:10px 0 2px; font-size:13px; color:#47614f; }
+.form-sidebar-highlight { outline:2px solid #d97706; outline-offset:1px; }

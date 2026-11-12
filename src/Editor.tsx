@@ -11,6 +11,10 @@ import { ResponseFieldAppearance } from "./ResponseFieldTools";
 import { InkControls } from "./InkControls";
 import { emptyInkImage } from "./InkObject";
 import { EditorInspector, TableInspector } from "./EditorInspector";
+import {
+  SurveySidebarEditor,
+  WorksheetSidebarEditor,
+} from "./FormSidebarEditor";
 import type { ResolvedPageScope } from "./pageScope";
 import { PageScopeSummary } from "./PageScopeSummary";
 import { resolveConnections } from "./structureData";
@@ -424,6 +428,32 @@ export function Editor({
   ).join("・");
   const resolvedElements = resolveConnections(slide.elements);
   const element = resolvedElements.find((e) => e.id === selected);
+  // Host-only: the selected form object's definition is edited directly in
+  // the right sidebar, without the form dialog's drill-down path.
+  const activeDeckId = cloud?.active?.id;
+  const responseBinding = element?.responseField;
+  const sidebarSheetId =
+    element?.worksheet?.deckId === activeDeckId
+      ? element!.worksheet!.worksheetId
+      : responseBinding?.source === "worksheet" &&
+          responseBinding.deckId === activeDeckId
+        ? responseBinding.worksheetId
+        : undefined;
+  const sidebarSurveyId =
+    element?.survey?.deckId === activeDeckId
+      ? element!.survey!.surveyId
+      : responseBinding?.source === "survey" &&
+          responseBinding.deckId === activeDeckId
+        ? responseBinding.surveyId
+        : undefined;
+  const sidebarSheet =
+    cloud?.isHost && activeDeckId
+      ? worksheets.sheets.find((s) => s.id === sidebarSheetId)
+      : undefined;
+  const sidebarSurvey =
+    cloud?.isHost && activeDeckId
+      ? surveyContext.surveys.find((s) => s.id === sidebarSurveyId)
+      : undefined;
   const [inkSelection, setInkSelection] = useState<{
     id: string;
     index: number;
@@ -1046,6 +1076,29 @@ export function Editor({
                 element={element}
                 onPlace={onInsertStructure}
                 onChange={(patch) => updateElement(patch)}
+              />
+            )}
+            {editable && !formDraft && sidebarSheet && (
+              <WorksheetSidebarEditor
+                key={`${element!.id}:${sidebarSheet.id}`}
+                sheet={sidebarSheet}
+                deckId={cloud!.active!.id}
+                elementId={element!.id}
+                highlightFieldId={
+                  element!.responseField?.source === "worksheet"
+                    ? element!.responseField.field.id
+                    : undefined
+                }
+                onFormSaved={onFormSaved}
+              />
+            )}
+            {editable && !formDraft && sidebarSurvey && (
+              <SurveySidebarEditor
+                key={`${element!.id}:${sidebarSurvey.id}`}
+                survey={sidebarSurvey}
+                deckId={cloud!.active!.id}
+                elementId={element!.id}
+                onFormSaved={onFormSaved}
               />
             )}
             <EditorInspector

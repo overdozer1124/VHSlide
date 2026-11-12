@@ -1742,3 +1742,54 @@ test("drawing field shows its guidance until an image is added", async ({
     "あなたが調べた染織の画像を貼り付けよう",
   );
 });
+
+test("host edits worksheet items from the right sidebar", async ({ page }) => {
+  await signIn(page, "sidebar-editor-host");
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const { id } = await (
+    await page.request.post("/api/decks", { headers, data: sample() })
+  ).json();
+  const template = worksheetTemplate("blank");
+  template.title = "サイドバー編集の確認";
+  template.fields[0].label = "元の項目名";
+  const created = await page.request.post(`/api/decks/${id}/worksheets`, {
+    headers,
+    data: template,
+  });
+  expect(created.status()).toBe(200);
+  const sheet = (await created.json()).worksheets[0];
+  expect(
+    (
+      await page.request.post(
+        `/api/decks/${id}/worksheets/${sheet.id}/status`,
+        { headers, data: { status: "open" } },
+      )
+    ).status(),
+  ).toBe(200);
+  await page.goto(`/?room=${id}`);
+  await openWorksheets(page);
+  await modal(page)
+    .getByRole("button", { name: /サイドバー編集の確認/ })
+    .click();
+  await page
+    .getByRole("button", { name: "このワークシートをスライドに配置" })
+    .click();
+  const card = page.locator(".editor-workspace .slide-worksheet");
+  await expect(card).toContainText("元の項目名");
+  await card.locator("header h3").click();
+  const sidebar = page.locator(".form-sidebar-editor");
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar.getByLabel("項目名1")).toHaveValue("元の項目名");
+  await sidebar.getByLabel("項目名1").fill("サイドバーで直した項目名");
+  await sidebar.getByRole("button", { name: "保存する" }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+        ).worksheets[0].fields[0].label,
+      { timeout: 15000 },
+    )
+    .toBe("サイドバーで直した項目名");
+  await expect(card).toContainText("サイドバーで直した項目名");
+});
