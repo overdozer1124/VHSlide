@@ -226,6 +226,7 @@ test("S12ガード（負の分岐）：世代3で固定値4の失効を送ると
   const held = await sender.issueNonce({ trialId, slot: "heldB" });
   const auth = await sender.issueNonce({ trialId, slot: "revokeA" });
   assert.ok(held.nonce && auth.nonce);
+  sender.freezeRevokeTarget({ trialId, subjectHash: HASH_B });
   const out = await sender.sendRevoke({
     trialId,
     request: buildS12RevokeRequest({
@@ -259,6 +260,7 @@ test("S12ガード：本手順（保持→失効→新しいB拒否→失効前�
   const heldToken = mockToken(SUB_B, held.nonce);
   // 手順2：A の認可で B の失効を送る。
   const auth = await sender.issueNonce({ trialId, slot: "revokeA" });
+  sender.freezeRevokeTarget({ trialId, subjectHash: HASH_B });
   const revokeOut = await sender.sendRevoke({
     trialId,
     request: buildS12RevokeRequest({

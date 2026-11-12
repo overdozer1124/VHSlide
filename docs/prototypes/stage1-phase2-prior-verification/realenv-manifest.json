@@ -48,8 +48,8 @@
     },
     {
       "path": "tools/serve-real.mjs",
-      "sha256": "57c60958fbce740960d1393a97db82cd46dad95e97bd0d94212a79f65a7571c4",
-      "bytes": 48450
+      "sha256": "e1468711baec4afc1d2168a6eb4fa24da3749bd3ce0828d1920f682e07ae06fd",
+      "bytes": 51612
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
@@ -208,8 +208,8 @@
     },
     {
       "path": "public/s12-revoke.html",
-      "sha256": "154df634c9181b1771dca228e9a2614e126cf24d3ed3cae44b58a5339e606332",
-      "bytes": 54504
+      "sha256": "019019f21a7a61ca77476aeb12a19865249ffc8f5cd32ebedc9aee9dca4cd768",
+      "bytes": 56966
     },
     {
       "path": "tools/s12-revoke.mjs",
@@ -218,8 +218,8 @@
     },
     {
       "path": "tools/s12-sender.mjs",
-      "sha256": "1b21e98704a17944486378039991545a8c3adbd648572a8eefe315804bb93226",
-      "bytes": 14857
+      "sha256": "36d4b3e595e9c0a9e8aab0d93acefb487ba299e33ed29a1273ab0486e563d272",
+      "bytes": 18248
     },
     {
       "path": "test/s12-revoke.test.mjs",
@@ -228,23 +228,23 @@
     },
     {
       "path": "test/s12-sender.test.mjs",
-      "sha256": "155108f7c3e3c5da1145f2bffe647a6b8cf73b2de3074de70c436e5edeaced54",
-      "bytes": 17752
+      "sha256": "0f6e948485ac21bf3bd75d84653c6a6c9a3a5adb03517c4488f752cd47f6a440",
+      "bytes": 21597
     },
     {
       "path": "test/s12-guard.test.mjs",
-      "sha256": "1bd0eab9cf87e3a1e4efbf40977d56c738053d03e2f7585589cf4762ddc47b82",
-      "bytes": 13811
+      "sha256": "637d36d46a878c36e39fcfa3e8b625901dfc4b98f1acb859bf0eeb0db794bee5",
+      "bytes": 13937
     },
     {
       "path": "test/s12-revoke.screen.mjs",
-      "sha256": "9c140682a72bb937852c7681bfcf113ba723abd63ffc782282a47985cc8d60db",
-      "bytes": 26102
+      "sha256": "81caebfb7db6094fe04148d4c895b6e03247a90aa50d62bf7edb74fe3dfbc637",
+      "bytes": 27927
     },
     {
       "path": "test/serve-real-s12.test.mjs",
-      "sha256": "51baa5f8895c0c537f6928a26fca9a645c01ce976f5bbfcf15d945f1917ee6c9",
-      "bytes": 11205
+      "sha256": "ec8693f222c7358863be788e01a9a74d81c0755e4ff69189628e58c4020e4f57",
+      "bytes": 12461
     },
     {
       "path": "test/clean-boot.test.mjs",
@@ -726,19 +726,19 @@
           "text": "//   tools/s12-revoke.mjs と tools/subject-hash-verify.mjs を"
         },
         {
-          "line": 533,
+          "line": 539,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
         },
         {
-          "line": 534,
+          "line": 540,
           "text": "console.log(`GET /subject-hash -> 200`);"
         },
         {
-          "line": 539,
+          "line": 545,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
         },
         {
-          "line": 540,
+          "line": 546,
           "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
@@ -1147,19 +1147,19 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 545,
+          "line": 551,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply\") {"
         },
         {
-          "line": 546,
+          "line": 552,
           "text": "console.log(`GET /trial-apply -> 200`);"
         },
         {
-          "line": 551,
+          "line": 557,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply.mjs\") {"
         },
         {
-          "line": 552,
+          "line": 558,
           "text": "console.log(`GET /trial-apply.mjs -> 200`);"
         }
       ],
@@ -1484,11 +1484,11 @@
     "serve_real_s5_session_guard": {
       "found": [
         {
-          "line": 253,
+          "line": 259,
           "text": "// - 試験単位のセッション（x-s5-session ヘッダー）が起動時に発行した"
         },
         {
-          "line": 276,
+          "line": 282,
           "text": "if (req.headers[\"x-s5-session\"] !== S5_SESSION) {"
         }
       ],
@@ -1497,7 +1497,7 @@
     "serve_real_s5_session_placeholder": {
       "found": [
         {
-          "line": 239,
+          "line": 245,
           "text": "const S5_SESSION_PLACEHOLDER = \"REPLACE_WITH_S5_SESSION\";"
         }
       ],
@@ -1506,11 +1506,11 @@
     "serve_real_s5_origin_guard": {
       "found": [
         {
-          "line": 264,
+          "line": 270,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         },
         {
-          "line": 273,
+          "line": 279,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         }
       ],
@@ -1519,11 +1519,11 @@
     "serve_real_s5_body_limit": {
       "found": [
         {
-          "line": 242,
+          "line": 248,
           "text": "const S5_MAX_BODY_BYTES = 64 * 1024;"
         },
         {
-          "line": 291,
+          "line": 297,
           "text": "if (size > S5_MAX_BODY_BYTES) {"
         }
       ],
@@ -1575,27 +1575,27 @@
           "text": "// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す"
         },
         {
-          "line": 105,
+          "line": 111,
           "text": "//   /s5-apply 画面へメモリ上で差し込む）と、発行に結び付ける試験 ID"
         },
         {
-          "line": 231,
+          "line": 237,
           "text": "// /s5-apply 画面へメモリ上で差し込む（ファイルは書き換えない）。画面"
         },
         {
-          "line": 557,
+          "line": 563,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply\") {"
         },
         {
-          "line": 558,
+          "line": 564,
           "text": "console.log(`GET /s5-apply -> 200`);"
         },
         {
-          "line": 563,
+          "line": 569,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply.mjs\") {"
         },
         {
-          "line": 564,
+          "line": 570,
           "text": "console.log(`GET /s5-apply.mjs -> 200`);"
         }
       ],
@@ -1604,39 +1604,39 @@
     "serve_real_s5_nonces_route": {
       "found": [
         {
-          "line": 101,
+          "line": 107,
           "text": "// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと"
         },
         {
-          "line": 111,
+          "line": 117,
           "text": "//   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・"
         },
         {
-          "line": 232,
+          "line": 238,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 244,
+          "line": 250,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 622,
+          "line": 628,
           "text": "if (req.method === \"GET\" && pathname === \"/s5/nonces\") {"
         },
         {
-          "line": 625,
+          "line": 631,
           "text": "console.log(`GET /s5/nonces -> ${entry.status}`);"
         },
         {
-          "line": 632,
+          "line": 638,
           "text": "console.log(`GET /s5/nonces -> 400`);"
         },
         {
-          "line": 639,
+          "line": 645,
           "text": "console.log(`GET /s5/nonces -> 200`);"
         },
         {
-          "line": 643,
+          "line": 649,
           "text": "console.log(`GET /s5/nonces -> 502`);"
         }
       ],
@@ -1645,51 +1645,51 @@
     "serve_real_s5_send_route": {
       "found": [
         {
-          "line": 107,
+          "line": 113,
           "text": "// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット"
         },
         {
-          "line": 232,
+          "line": 238,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 240,
+          "line": 246,
           "text": "// /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は"
         },
         {
-          "line": 244,
+          "line": 250,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 282,
+          "line": 288,
           "text": "// /s5/send の本体をサイズ上限付きで読む。上限を超えれば"
         },
         {
-          "line": 649,
+          "line": 655,
           "text": "if (req.method === \"POST\" && pathname === \"/s5/send\") {"
         },
         {
-          "line": 652,
+          "line": 658,
           "text": "console.log(`POST /s5/send -> ${entry.status}`);"
         },
         {
-          "line": 659,
+          "line": 665,
           "text": "console.log(`POST /s5/send -> 415`);"
         },
         {
-          "line": 666,
+          "line": 672,
           "text": "console.log(`POST /s5/send -> 413`);"
         },
         {
-          "line": 684,
+          "line": 690,
           "text": "console.log(`POST /s5/send -> 400`);"
         },
         {
-          "line": 694,
+          "line": 700,
           "text": "console.log(`POST /s5/send -> 200`);"
         },
         {
-          "line": 701,
+          "line": 707,
           "text": "console.log(`POST /s5/send -> ${status}`);"
         }
       ],
@@ -2011,19 +2011,19 @@
           "text": "//   （s10-add-operator 画面が import する純粋モジュール）。"
         },
         {
-          "line": 473,
+          "line": 479,
           "text": "const rawS10AddHtml = await readFile(path.join(root, \"public\", \"s10-add-operator.html\"), \"utf8\");"
         },
         {
-          "line": 475,
+          "line": 481,
           "text": "console.error(\"error: s10-add-operator.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 581,
+          "line": 587,
           "text": "if (req.method === \"GET\" && pathname === \"/s10-add-operator\") {"
         },
         {
-          "line": 582,
+          "line": 588,
           "text": "console.log(`GET /s10-add-operator -> 200`);"
         }
       ],
@@ -2335,39 +2335,39 @@
           "text": "//   （s11-parallel 画面が import する純粋モジュール）。"
         },
         {
-          "line": 304,
+          "line": 310,
           "text": "// 推測の値を新規発行し、/s11-parallel 画面へメモリ上で差し込む"
         },
         {
-          "line": 484,
+          "line": 490,
           "text": "const rawS11ParallelHtml = await readFile(path.join(root, \"public\", \"s11-parallel.html\"), \"utf8\");"
         },
         {
-          "line": 486,
+          "line": 492,
           "text": "console.error(\"error: s11-parallel.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 490,
+          "line": 496,
           "text": "console.error(\"error: s11-parallel.html に S11 セッションのプレースホルダが見つかりません\");"
         },
         {
-          "line": 496,
+          "line": 502,
           "text": "const s11ParallelJs = await readFile(path.join(root, \"tools\", \"s11-parallel.mjs\"), \"utf8\");"
         },
         {
-          "line": 593,
+          "line": 599,
           "text": "if (req.method === \"GET\" && pathname === \"/s11-parallel\") {"
         },
         {
-          "line": 594,
+          "line": 600,
           "text": "console.log(`GET /s11-parallel -> 200`);"
         },
         {
-          "line": 599,
+          "line": 605,
           "text": "if (req.method === \"GET\" && pathname === \"/s11-parallel.mjs\") {"
         },
         {
-          "line": 600,
+          "line": 606,
           "text": "console.log(`GET /s11-parallel.mjs -> 200`);"
         }
       ],
@@ -2380,31 +2380,31 @@
           "text": "// - GET /s11/nonces → 送信器が中継先の /nonce を手順に応じた件数"
         },
         {
-          "line": 305,
+          "line": 311,
           "text": "// （ファイルは書き換えない）。画面は /s11/nonces・/s11/send-* の"
         },
         {
-          "line": 314,
+          "line": 320,
           "text": "// S11 入口（/s11/nonces・/s11/send-*）の呼び出し元境界。S5 入口と"
         },
         {
-          "line": 712,
+          "line": 718,
           "text": "if (req.method === \"GET\" && pathname === \"/s11/nonces\") {"
         },
         {
-          "line": 715,
+          "line": 721,
           "text": "console.log(`GET /s11/nonces -> ${entry.status}`);"
         },
         {
-          "line": 724,
+          "line": 730,
           "text": "console.log(`GET /s11/nonces -> 400`);"
         },
         {
-          "line": 731,
+          "line": 737,
           "text": "console.log(`GET /s11/nonces -> 200`);"
         },
         {
-          "line": 735,
+          "line": 741,
           "text": "console.log(`GET /s11/nonces -> 502`);"
         }
       ],
@@ -2417,7 +2417,7 @@
           "text": "// - POST /s11/send-concurrent → 画面からの手順4の要求2件を受け取り、"
         },
         {
-          "line": 743,
+          "line": 749,
           "text": "(pathname === \"/s11/send-stale\" || pathname === \"/s11/send-concurrent\")"
         }
       ],
@@ -2648,7 +2648,7 @@
     "s12_sender_per_slot_cookie": {
       "found": [
         {
-          "line": 169,
+          "line": 181,
           "text": "Cookie: `op2_nonce_ctx=${slotState.ctx}`,"
         }
       ],
@@ -2657,11 +2657,11 @@
     "s12_sender_held_gate": {
       "found": [
         {
-          "line": 35,
+          "line": 45,
           "text": "//   送らない。失敗コード s12_held_token_stale）。"
         },
         {
-          "line": 287,
+          "line": 329,
           "text": "\"s12_held_token_stale\","
         }
       ],
@@ -2674,19 +2674,19 @@
           "text": "// redirect: \"manual\" などの安全規則は S11 送信器からそのまま"
         },
         {
-          "line": 57,
+          "line": 69,
           "text": "// - 中継 /nonce への GET は redirect: \"manual\"。中継の 3xx は"
         },
         {
-          "line": 59,
+          "line": 71,
           "text": "//   redirect: \"manual\"。3xx は redirect_not_followed として"
         },
         {
-          "line": 172,
+          "line": 184,
           "text": "redirect: \"manual\","
         },
         {
-          "line": 233,
+          "line": 274,
           "text": "redirect: \"manual\","
         }
       ],
@@ -2695,19 +2695,19 @@
     "s12_sender_window": {
       "found": [
         {
-          "line": 44,
+          "line": 56,
           "text": "//   こと（s12_nonces_expired）。"
         },
         {
-          "line": 48,
+          "line": 60,
           "text": "//   スロットの送信窓を過ぎていれば s12_nonces_expired で送信"
         },
         {
-          "line": 142,
+          "line": 154,
           "text": "fail(\"s12_nonces_expired\", \"nonce の送信期限を過ぎています\");"
         },
         {
-          "line": 315,
+          "line": 366,
           "text": "// 過ぎていたら s12_nonces_expired で送信自体を拒否する"
         }
       ],
@@ -2729,11 +2729,15 @@
     "s12_page_sends_session": {
       "found": [
         {
-          "line": 538,
+          "line": 540,
           "text": "{ credentials: \"include\", headers: { \"x-s12-session\": S12_SESSION } }"
         },
         {
-          "line": 721,
+          "line": 723,
+          "text": "\"x-s12-session\": S12_SESSION,"
+        },
+        {
+          "line": 766,
           "text": "\"x-s12-session\": S12_SESSION,"
         }
       ],
@@ -2758,39 +2762,39 @@
           "text": "//   （s12-revoke 画面が import する純粋モジュール）。"
         },
         {
-          "line": 362,
+          "line": 368,
           "text": "// 推測の値を新規発行し、/s12-revoke 画面へメモリ上で差し込む"
         },
         {
-          "line": 501,
+          "line": 507,
           "text": "const rawS12RevokeHtml = await readFile(path.join(root, \"public\", \"s12-revoke.html\"), \"utf8\");"
         },
         {
-          "line": 503,
+          "line": 509,
           "text": "console.error(\"error: s12-revoke.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 507,
+          "line": 513,
           "text": "console.error(\"error: s12-revoke.html に S12 セッションのプレースホルダが見つかりません\");"
         },
         {
-          "line": 513,
+          "line": 519,
           "text": "const s12RevokeJs = await readFile(path.join(root, \"tools\", \"s12-revoke.mjs\"), \"utf8\");"
         },
         {
-          "line": 605,
+          "line": 611,
           "text": "if (req.method === \"GET\" && pathname === \"/s12-revoke\") {"
         },
         {
-          "line": 606,
+          "line": 612,
           "text": "console.log(`GET /s12-revoke -> 200`);"
         },
         {
-          "line": 611,
+          "line": 617,
           "text": "if (req.method === \"GET\" && pathname === \"/s12-revoke.mjs\") {"
         },
         {
-          "line": 612,
+          "line": 618,
           "text": "console.log(`GET /s12-revoke.mjs -> 200`);"
         }
       ],
@@ -2803,32 +2807,36 @@
           "text": "// - GET /s12/nonces → 送信器が中継先の /nonce をスロット"
         },
         {
-          "line": 363,
+          "line": 369,
           "text": "// （ファイルは書き換えない）。画面は /s12/nonces・/s12/send-* の"
         },
         {
-          "line": 371,
+          "line": 377,
           "text": "// S12 入口（/s12/nonces・/s12/send-*）の呼び出し元境界。S11 入口と"
         },
         {
-          "line": 807,
+          "line": 813,
           "text": "if (req.method === \"GET\" && pathname === \"/s12/nonces\") {"
         },
         {
-          "line": 810,
+          "line": 816,
           "text": "console.log(`GET /s12/nonces -> ${entry.status}`);"
         },
         {
-          "line": 820,
+          "line": 826,
           "text": "console.log(`GET /s12/nonces -> 400`);"
         },
         {
-          "line": 834,
+          "line": 840,
           "text": "console.log(`GET /s12/nonces -> 200`);"
         },
         {
-          "line": 838,
+          "line": 844,
           "text": "console.log(`GET /s12/nonces -> 502`);"
+        },
+        {
+          "line": 894,
+          "text": "// 送信器の試行は画面の試行に追随する（/s12/nonces と同じ）。"
         }
       ],
       "expect": "present"
@@ -2836,15 +2844,15 @@
     "s12_serve_send_route": {
       "found": [
         {
-          "line": 93,
+          "line": 99,
           "text": "// - POST /s12/send-revoke → 画面からの失効要求を受け取り、送信器"
         },
         {
-          "line": 846,
+          "line": 917,
           "text": "(pathname === \"/s12/send-revoke\" || pathname === \"/s12/send-verify-only\")"
         },
         {
-          "line": 889,
+          "line": 960,
           "text": "pathname === \"/s12/send-revoke\""
         }
       ],
@@ -2866,43 +2874,43 @@
     "s12_screen_fake_gis": {
       "found": [
         {
-          "line": 194,
+          "line": 195,
           "text": "window.__gis = { callbacks: [], nonces: [] };"
         },
         {
-          "line": 197,
+          "line": 198,
           "text": "window.__gis.callbacks.push(opts.callback);"
         },
         {
-          "line": 198,
+          "line": 199,
           "text": "window.__gis.nonces.push(opts.nonce);"
         },
         {
-          "line": 322,
+          "line": 340,
           "text": "const idx = window.__gis.callbacks.length - 1;"
         },
         {
-          "line": 323,
+          "line": 341,
           "text": "const nonce = window.__gis.nonces[idx];"
         },
         {
-          "line": 325,
+          "line": 343,
           "text": "await window.__gis.callbacks[idx]({ credential: token });"
         },
         {
-          "line": 332,
+          "line": 350,
           "text": "const before = window.__gis.callbacks.length;"
         },
         {
-          "line": 334,
+          "line": 352,
           "text": "const ok = await waitFor(() => window.__gis.callbacks.length > before);"
         },
         {
-          "line": 482,
+          "line": 511,
           "text": "const gisBefore = window.__gis.callbacks.length;"
         },
         {
-          "line": 486,
+          "line": 515,
           "text": "window.__gis.callbacks.length === gisBefore && window.__verifyCalls.length === 0);"
         }
       ],
@@ -2915,19 +2923,19 @@
           "text": "// jsdom でページを実行する（s11-parallel.screen.mjs と同じ方式）。"
         },
         {
-          "line": 35,
+          "line": 36,
           "text": "import pkg from \"jsdom\";"
         },
         {
-          "line": 172,
+          "line": 173,
           "text": "const jsdomErrors = [];"
         },
         {
-          "line": 173,
+          "line": 174,
           "text": "vc.on(\"jsdomError\", (e) => jsdomErrors.push(String(e && e.detail ? e.detail : e)));"
         },
         {
-          "line": 289,
+          "line": 307,
           "text": "if (jsdomErrors.length) throw new Error(`ページの実行エラー: ${jsdomErrors[0]}`);"
         }
       ],

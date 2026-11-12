@@ -26,6 +26,16 @@
 //   スロット単位で1回のみ。発行開始時刻（発行 await の直前）を
 //   スロットの期限基準（issuedAt）に固定する（Worker は /nonce
 //   の要求受理時に期限を始めるため、応答時刻より保守的）。
+// - freezeRevokeTarget({ trialId, subjectHash })：失効対象の
+//   固定。画面が失効要求を凍結した時点で、凍結済み要求の対象
+//   （状態機械が手順1で保持した B の主体ハッシュから作る）を
+//   送信器にも登録し、以後の sendRevoke はこの固定値と一致
+//   する要求だけを受け付ける（送信器の境界での対象の結び
+//   付け）。固定は試行ごとに1回だけであり、同じ値の再登録は
+//   冪等に成功し、異なる値の再登録は
+//   s12_revoke_target_mismatch で拒否する。固定値は送信器の
+//   メモリー内だけに保持し、戻り値・snapshot・例外には含め
+//   ない（snapshot は固定済みかどうかの真偽だけを出す）。
 // - sendRevoke({ trialId, request })：revokeA のスロットを消費
 //   して /admin/registry/revoke へ1回だけ送る。送信前に次の
 //   すべてを確認する（1つでも欠ければ1件も送らない）：
@@ -35,9 +45,11 @@
 //   送らない。失敗コード s12_held_token_stale）。
 //   (2) スロットの確保済み nonce が要求の ID トークンの nonce
 //   主張と一致（s12_slot_nonce_mismatch）。
-//   (3) 対象の主体ハッシュが凍結済み要求にあること（S12 の対象
-//   は状態機械が手順1の B で凍結する。送信器は対象ハッシュの
-//   値を保持せず、非空であることだけを見る）。
+//   (3) 対象の結び付け：要求の subject_hash が、凍結時に
+//   freezeRevokeTarget で固定した対象と一致すること。固定が
+//   まだ無い場合は s12_revoke_not_frozen、要求の対象が空の
+//   場合は s12_revoke_target_fixed、固定値と異なる場合は
+//   s12_revoke_target_mismatch。
 //   (4) expected_generation が手順の固定値 4 であること
 //   （s12_unexpected_generation）。
 //   (5) revokeA のスロットの送信窓（発行開始＋4分）内である
@@ -204,7 +216,36 @@ export function createS12Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
       }
       const slots = {};
       for (const slot of S12_SLOTS) slots[slot] = emptySlot();
-      current = { trialId, slots };
+      current = { trialId, slots, frozenRevokeTarget: null };
+      return true;
+    },
+    // 失効対象の固定：画面が失効要求を凍結した時点で、凍結済み
+    // 要求の対象（手順1で保持した B の主体ハッシュ）を登録する。
+    // 以後の sendRevoke は、この固定値と一致する要求だけを受け
+    // 付ける。固定は試行ごとに1回だけ（同じ値の再登録は冪等、
+    // 異なる値は s12_revoke_target_mismatch で拒否）。固定値は
+    // メモリー内だけに保持し、戻り値には含めない。
+    freezeRevokeTarget({ trialId, subjectHash }) {
+      if (busy) {
+        fail("s12_sender_busy", "別の送信または発行が進行中です");
+      }
+      const cur = mustCurrent(trialId);
+      if (typeof subjectHash !== "string" || !/^[0-9a-f]{64}$/.test(subjectHash)) {
+        fail("s12_revoke_target_fixed", "固定する失効対象の主体ハッシュが64桁の16進数ではありません");
+      }
+      if (cur.frozenRevokeTarget !== null) {
+        if (cur.frozenRevokeTarget === subjectHash) return true;
+        fail("s12_revoke_target_mismatch", "失効対象は既に別の主体ハッシュで固定されています");
+      }
+      // 固定は手順1の保持（heldB の発行）の後、失効の送信の前で
+      // なければならない。
+      if (cur.slots.heldB.nonce === null) {
+        fail("s12_not_prepared", "保持トークン（heldB）が確保される前に失効対象は固定できません");
+      }
+      if (cur.slots.revokeA.consumed) {
+        fail("s12_not_prepared", "失効は送信済みです");
+      }
+      cur.frozenRevokeTarget = subjectHash;
       return true;
     },
     // スロットの nonce を発行する。発行開始時刻（発行 await の
@@ -268,8 +309,9 @@ export function createS12Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
       return cur.slots[slot].consumed;
     },
     // 手順2：revokeA のスロットを消費して失効を1回だけ送る。
-    // 送信前確認（保持トークンの鮮度・nonce 一致・固定対象・
-    // 期待世代・送信窓）のどれか1つでも失敗したら1件も送らない。
+    // 送信前確認（保持トークンの鮮度・nonce 一致・対象の結び
+    // 付け（凍結時の固定値との一致）・期待世代・送信窓）の
+    // どれか1つでも失敗したら1件も送らない。
     async sendRevoke({ trialId, request }) {
       if (busy) {
         fail("s12_sender_busy", "別の送信または発行が進行中です");
@@ -290,10 +332,19 @@ export function createS12Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
       }
       // (2) nonce の一致。
       assertTokenMatchesSlot(s, request);
-      // (3) 対象の固定：凍結済み要求の subject_hash が非空の文字列
-      // であること（値は保持しない・照合しない）。
+      // (3) 対象の結び付け：要求の subject_hash が、凍結時に
+      // freezeRevokeTarget で固定した対象と一致すること。固定値
+      // は状態機械が手順1の B から作る凍結済み要求の対象であり、
+      // 送信されてきた要求の値だけでは決まらない。一致しなけれ
+      // ば1件も送らない（スロットも消費しない）。
       if (typeof request.subject_hash !== "string" || request.subject_hash.length === 0) {
-        fail("s12_revoke_target_fixed", "失効対象の主体ハッシュが凍結済み要求にありません");
+        fail("s12_revoke_target_fixed", "失効対象の主体ハッシュが要求にありません");
+      }
+      if (cur.frozenRevokeTarget === null) {
+        fail("s12_revoke_not_frozen", "失効対象が送信器に固定されていません");
+      }
+      if (request.subject_hash !== cur.frozenRevokeTarget) {
+        fail("s12_revoke_target_mismatch", "失効対象が凍結時に固定した対象と一致しません");
       }
       // (4) 期待世代の固定値。
       if (request.expected_generation !== REVOKE_EXPECTED_GENERATION) {
@@ -351,7 +402,12 @@ export function createS12Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
           consumed: s.consumed,
         };
       }
-      return Object.freeze({ trialId: current.trialId, slots });
+      return Object.freeze({
+        trialId: current.trialId,
+        slots,
+        // 失効対象が固定済みかどうかだけ（固定値そのものは出さない）。
+        revokeTargetFrozen: current.frozenRevokeTarget !== null,
+      });
     },
   };
 }

@@ -119,6 +119,7 @@ test("S12 入口：/s12-revoke は画面を返し、クライアント ID とセ
   assert.equal(body.includes("手順4"), true);
   assert.equal(body.includes("手順5"), true);
   assert.equal(body.includes("/s12/nonces"), true);
+  assert.equal(body.includes("/s12/freeze-revoke"), true);
   assert.equal(body.includes("/s12/send-revoke"), true);
   assert.equal(body.includes("/s12/send-verify-only"), true);
   // 主体ハッシュ・世代・トークンの入力欄がないこと（チェックだけ）。
@@ -174,7 +175,7 @@ test("S12 入口：/s12/nonces は未知のスロットを 400 で拒否する",
 });
 
 test("S12 入口：/s12/send-* はセッションなしでは 403 になる", async () => {
-  for (const p of ["/s12/send-revoke", "/s12/send-verify-only"]) {
+  for (const p of ["/s12/freeze-revoke", "/s12/send-revoke", "/s12/send-verify-only"]) {
     const r = await fetch(base + p, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -198,6 +199,32 @@ test("S12 入口：送信経路（失効→提示）が偽の中継と往復し�
   const heldNonce = await get("heldB");
   const authNonce = await get("revokeA");
   const freshNonce = await get("freshB");
+  // 凍結した対象（B）を送信器に固定する。応答は ok だけで、
+  // 固定値そのものは返らない。
+  const freezeRes = await fetch(base + "/s12/freeze-revoke", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-s12-session": s12Session },
+    body: JSON.stringify({ trial_id: trial, subject_hash: HASH_B }),
+  });
+  assert.equal(freezeRes.status, 200);
+  assert.deepEqual(await freezeRes.json(), { ok: true });
+  // 固定した対象と異なる失効要求は、送信器の境界で 409 に
+  // なり、中継へは送られない（スロットも消費されない）。
+  const mismatchRes = await fetch(base + "/s12/send-revoke", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-s12-session": s12Session },
+    body: JSON.stringify({
+      trial_id: trial,
+      request: {
+        id_token: fakeToken("sub-a", authNonce),
+        subject_hash: "a".repeat(64),
+        expected_generation: 4,
+      },
+    }),
+  });
+  assert.equal(mismatchRes.status, 409);
+  assert.equal((await mismatchRes.json()).error, "s12_revoke_target_mismatch");
+  assert.equal(relayCalls.revoke.length, 0);
   // 失効の送信。
   const revokeRes = await fetch(base + "/s12/send-revoke", {
     method: "POST",

@@ -90,6 +90,12 @@
 //   しなければ送信器が拒否する。呼び出し元の境界は S11 と同じ型
 //   （試験単位セッション・Host・Origin）であり、発行は試験 ID と
 //   スロットに結び付ける。
+// - POST /s12/freeze-revoke → 画面が失効要求を凍結した時点で、
+//   凍結済み要求の対象（手順1で保持した B の主体ハッシュ）を
+//   送信器に固定する。送信器は以後の失効送信で、送信されてきた
+//   要求の対象をこの固定値と照合し、異なれば1件も送らない
+//   （送信器の境界での対象の結び付け）。応答は固定できたか
+//   （ok）または理由コードだけを返し、固定値は返さない。
 // - POST /s12/send-revoke → 画面からの失効要求を受け取り、送信器
 //   が revokeA スロットの Cookie で1件を送信し、応答（状態と理由
 //   コード・返された世代だけ）を返す。送信前に送信器が保持
@@ -838,6 +844,71 @@ const server = http.createServer(async (req, res) => {
         console.log(`GET /s12/nonces -> 502`);
         res.writeHead(502, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s12_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (req.method === "POST" && pathname === "/s12/freeze-revoke") {
+      const entry = checkS12Entry(req);
+      if (!entry.ok) {
+        console.log(`POST /s12/freeze-revoke -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST /s12/freeze-revoke -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS12SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST /s12/freeze-revoke -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (
+        !parsed || typeof parsed !== "object" ||
+        typeof parsed.trial_id !== "string" || parsed.trial_id.length === 0 ||
+        typeof parsed.subject_hash !== "string"
+      ) {
+        console.log(`POST /s12/freeze-revoke -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は画面の試行に追随する（/s12/nonces と同じ）。
+        const snap = s12Sender.snapshot();
+        if (!snap || snap.trialId !== parsed.trial_id) {
+          s12Sender.beginTrial(parsed.trial_id);
+        }
+        s12Sender.freezeRevokeTarget({
+          trialId: parsed.trial_id,
+          subjectHash: parsed.subject_hash,
+        });
+        console.log(`POST /s12/freeze-revoke -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        // 固定できなかった場合は理由コードだけを返す。固定値は
+        // 応答・ログに出さない。
+        console.log(`POST /s12/freeze-revoke -> 409`);
+        res.writeHead(409, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s12_freeze_failed" }));
       }
       return;
     }

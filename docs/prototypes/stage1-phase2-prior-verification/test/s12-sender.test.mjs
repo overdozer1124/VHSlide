@@ -17,6 +17,7 @@ import {
 } from "../tools/s12-revoke.mjs";
 
 const RELAY = "http://127.0.0.1:8799";
+const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 
 // 偽の JWT（署名検証はしない。ペイロードの nonce クレームだけを
@@ -124,6 +125,7 @@ test("失効送信：revokeA の ctx だけで1回だけ送り、再送できな
   const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
   assert.equal(held.nonce, "nonce-1");
   assert.equal(auth.nonce, "nonce-2");
+  sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
   const request = buildS12RevokeRequest({
     idToken: fakeToken("sub-a", auth.nonce),
     subjectHash: HASH_B,
@@ -163,6 +165,7 @@ test("保持トークンの鮮度ゲート：上限超過では失効を送ら�
   const t0 = getClock();
   await sender.issueNonce({ trialId: "t1", slot: "heldB" });
   const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
+  sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
   const request = buildS12RevokeRequest({
     idToken: fakeToken("sub-a", auth.nonce),
     subjectHash: HASH_B,
@@ -187,6 +190,7 @@ test("失効送信：固定値の確認（期待世代・対象・nonce 一致�
     sender.beginTrial("t1");
     await sender.issueNonce({ trialId: "t1", slot: "heldB" });
     const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
+    sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
     const request = buildS12RevokeRequest({
       idToken: fakeToken("sub-a", auth.nonce),
       subjectHash: HASH_B,
@@ -233,6 +237,7 @@ test("失効送信：固定値の確認（期待世代・対象・nonce 一致�
     const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
     setClock(t0 + 130000);
     await sender.issueNonce({ trialId: "t1", slot: "heldB" });
+    sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
     const request = buildS12RevokeRequest({
       idToken: fakeToken("sub-a", auth.nonce),
       subjectHash: HASH_B,
@@ -242,6 +247,76 @@ test("失効送信：固定値の確認（期待世代・対象・nonce 一致�
     await assertRejectsCode(sender.sendRevoke({ trialId: "t1", request }), "s12_nonces_expired");
     assert.equal(calls.revoke.length, 0);
   }
+});
+
+test("対象の結び付け：固定が無ければ失効を送らない", async () => {
+  const { sender, calls } = makeSender();
+  sender.beginTrial("t1");
+  await sender.issueNonce({ trialId: "t1", slot: "heldB" });
+  const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
+  const request = buildS12RevokeRequest({
+    idToken: fakeToken("sub-a", auth.nonce),
+    subjectHash: HASH_B,
+    expectedGeneration: 4,
+  });
+  // freezeRevokeTarget を呼んでいないため、要求の形が正しくても
+  // 送信器の境界で拒否され、1件も送られない。
+  await assertRejectsCode(sender.sendRevoke({ trialId: "t1", request }), "s12_revoke_not_frozen");
+  assert.equal(calls.revoke.length, 0);
+  assert.equal(sender.slotConsumed("t1", "revokeA"), false);
+});
+
+test("対象の結び付け：固定した対象と異なる要求は送らず、スロットも消費しない", async () => {
+  const { sender, calls } = makeSender();
+  sender.beginTrial("t1");
+  await sender.issueNonce({ trialId: "t1", slot: "heldB" });
+  const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
+  sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
+  // 対象だけが異なる要求（A の主体ハッシュ）。nonce・世代は正しい。
+  const wrong = buildS12RevokeRequest({
+    idToken: fakeToken("sub-a", auth.nonce),
+    subjectHash: HASH_A,
+    expectedGeneration: 4,
+  });
+  await assertRejectsCode(sender.sendRevoke({ trialId: "t1", request: wrong }), "s12_revoke_target_mismatch");
+  assert.equal(calls.revoke.length, 0);
+  assert.equal(sender.slotConsumed("t1", "revokeA"), false);
+  // 拒否は送信ではない。固定した対象の要求はそのまま送れる。
+  const right = buildS12RevokeRequest({
+    idToken: fakeToken("sub-a", auth.nonce),
+    subjectHash: HASH_B,
+    expectedGeneration: 4,
+  });
+  const out = await sender.sendRevoke({ trialId: "t1", request: right });
+  assert.equal(out.status, 200);
+  assert.equal(calls.revoke.length, 1);
+  assert.equal(calls.revoke[0].body.subject_hash, HASH_B);
+});
+
+test("対象の固定：同じ値の再登録は冪等、異なる値と形式違いは拒否、固定値は漏れない", async () => {
+  const { sender } = makeSender();
+  sender.beginTrial("t1");
+  // heldB の発行前には固定できない。
+  assert.throws(
+    () => sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B }),
+    (e) => e && e.code === "s12_not_prepared"
+  );
+  await sender.issueNonce({ trialId: "t1", slot: "heldB" });
+  // 形式が違う値は固定できない。
+  assert.throws(
+    () => sender.freezeRevokeTarget({ trialId: "t1", subjectHash: "xyz" }),
+    (e) => e && e.code === "s12_revoke_target_fixed"
+  );
+  assert.equal(sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B }), true);
+  assert.equal(sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B }), true);
+  assert.throws(
+    () => sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_A }),
+    (e) => e && e.code === "s12_revoke_target_mismatch"
+  );
+  // snapshot には固定値そのものは出ない（固定済みかどうかだけ）。
+  const snap = sender.snapshot();
+  assert.equal(snap.revokeTargetFrozen, true);
+  assert.equal(JSON.stringify(snap).includes(HASH_B), false);
 });
 
 test("提示送信：スロットの ctx で1回だけ送り、revokeA は使えない", async () => {
@@ -314,6 +389,7 @@ test("応答の正規化：例外は no_response、3xx は redirect_not_followed
     sender.beginTrial("t1");
     await sender.issueNonce({ trialId: "t1", slot: "heldB" });
     const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
+    sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
     const out = await sender.sendRevoke({
       trialId: "t1",
       request: buildS12RevokeRequest({
@@ -370,6 +446,7 @@ test("Cookie の分離：4スロットはそれぞれ別の ctx を持ち、送�
   const check = await sender.issueNonce({ trialId: "t1", slot: "checkC" });
   const snap = sender.snapshot();
   assert.equal(snap.slots.heldB.ctxLen > 0, true);
+  sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
   await sender.sendRevoke({
     trialId: "t1",
     request: buildS12RevokeRequest({
@@ -413,6 +490,7 @@ test("排他：送信の飛行中は別の送信・発行ができない", async
   sender.beginTrial("t1");
   await sender.issueNonce({ trialId: "t1", slot: "heldB" });
   const auth = await sender.issueNonce({ trialId: "t1", slot: "revokeA" });
+  sender.freezeRevokeTarget({ trialId: "t1", subjectHash: HASH_B });
   const pending = sender.sendRevoke({
     trialId: "t1",
     request: buildS12RevokeRequest({

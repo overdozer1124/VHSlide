@@ -232,7 +232,7 @@ const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
 const S12_SESSION = "REPLACE_WITH_S12_SESSION";
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
-const PATHS = { nonces: "/s12/nonces", sendRevoke: "/s12/send-revoke", sendVerifyOnly: "/s12/send-verify-only" };
+const PATHS = { nonces: "/s12/nonces", freezeRevoke: "/s12/freeze-revoke", sendRevoke: "/s12/send-revoke", sendVerifyOnly: "/s12/send-verify-only" };
 // 送信指示の事前確認で送信器が返す、1件も送信されていないことを示す
 // 理由コード。これらを受けた場合は試行を停止する。それ以外の失敗
 // （通信失敗・5xx）は実施有無が不明なため、状態未確定として扱う。
@@ -245,6 +245,8 @@ const PRE_SEND_ERROR_CODES = new Set([
   "s12_slot_already_issued",
   "s12_nonce_issuance_failed",
   "s12_revoke_target_fixed",
+  "s12_revoke_not_frozen",
+  "s12_revoke_target_mismatch",
   "s12_unexpected_generation",
   "s12_nonces_expired",
   "s12_held_token_stale",
@@ -746,6 +748,35 @@ async function postToSender(path, payload) {
   }
 }
 
+// 凍結した失効対象を、提供サーバー側の送信器にも固定する。
+// 送信器は失効の送信時に、送信されてきた要求の対象をこの固定値
+// と照合し、異なれば1件も送らない（送信器の境界での対象の
+// 結び付け）。結果は次のいずれか。
+// - { ok: true }：固定できた。
+// - { ok: false, code }：送信器が理由コードで拒否した。失効は
+//   まだ1件も送信されていない。
+// - { ok: false, code: null }：通信自体が失敗したか、応答の形が
+//   想定外。固定できたかどうか不明なため、失効は送信しない。
+async function postFreezeTarget(trialId, subjectHash) {
+  try {
+    const res = await fetch(PATHS.freezeRevoke, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-s12-session": S12_SESSION,
+      },
+      credentials: "include",
+      body: JSON.stringify({ trial_id: trialId, subject_hash: subjectHash }),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.ok === true) return { ok: true };
+    if (data && typeof data.error === "string") return { ok: false, code: data.error };
+    return { ok: false, code: null };
+  } catch {
+    return { ok: false, code: null };
+  }
+}
+
 // 事前確認で拒否された場合の共通処理。1件も送信されていないため、
 // 試行を停止して秘密を消去する。
 function handlePreSendError(code) {
@@ -861,10 +892,11 @@ completeABtn.addEventListener("click", () => {
   updateState();
 });
 
-freezeRevokeBtn.addEventListener("click", () => {
-  if (!attempt) return;
+freezeRevokeBtn.addEventListener("click", async () => {
+  if (!attempt || sending) return;
+  let frozen;
   try {
-    const frozen = session.freezeRevokeRequest(attempt.trialId, attempt.generation, Date.now());
+    frozen = session.freezeRevokeRequest(attempt.trialId, attempt.generation, Date.now());
     // 凍結内容は実際の送信に使う値から生成する（入力欄の値は使わない）。
     // 主体ハッシュの表示はこの画面の DOM だけであり、ログには出さない。
     const fresh = currentHeldFreshness();
@@ -886,7 +918,31 @@ freezeRevokeBtn.addEventListener("click", () => {
       eraseAllSecrets("s12-halted");
       attempt = null;
     }
+    updateButtons();
+    updateState();
+    return;
   }
+  // 凍結した対象を送信器側にも固定する。固定が済むまでは送信
+  // できない（sending で全ボタンを無効化する）。固定できなけれ
+  // ば失効は送信せず、試行を停止する。
+  sending = true;
+  updateButtons();
+  const reg = await postFreezeTarget(frozen.trialId, frozen.targetSubjectHash);
+  sending = false;
+  if (!reg.ok) {
+    if (reg.code && PRE_SEND_ERROR_CODES.has(reg.code)) {
+      handlePreSendError(reg.code);
+      return;
+    }
+    log("送信器への対象の固定に失敗しました（通信失敗または想定外の応答）。失効は送信しません。試行を破棄してやり直してください");
+    eraseAllSecrets("s12-halted");
+    if (attempt) session.discard(attempt.trialId, attempt.generation);
+    attempt = null;
+    updateButtons();
+    updateState();
+    return;
+  }
+  log("凍結した対象を送信器にも固定しました", `試験ID=${frozen.trialId}`);
   updateButtons();
   updateState();
 });

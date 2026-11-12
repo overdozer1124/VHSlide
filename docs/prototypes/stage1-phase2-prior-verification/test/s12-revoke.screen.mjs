@@ -15,10 +15,11 @@
 // - JWKS はインターセプターで偽物の公開鍵集合を返す。ID トークン
 //   はその場で生成した RSA 鍵で署名した RS256 JWT で、ページ内の
 //   JWKS 署名検証を通る。A・B・C・X は異なる sub で発行する。
-// - /s12/nonces・/s12/send-revoke・/s12/send-verify-only は
-//   インターセプターで要求を記録し、場面ごとに用意した応答を
-//   返す。送信器と実 Worker へは送らない（送信器の実物確認は
-//   test/s12-sender.test.mjs と test/s12-guard.test.mjs）。
+// - /s12/nonces・/s12/freeze-revoke・/s12/send-revoke・
+//   /s12/send-verify-only はインターセプターで要求を記録し、
+//   場面ごとに用意した応答を返す。送信器と実 Worker へは送ら
+//   ない（送信器の実物確認は test/s12-sender.test.mjs と
+//   test/s12-guard.test.mjs）。
 // - 保持トークンの鮮度の時間切れは、実時間では再現に時間が
 //   かかるため画面試験では扱わない（状態機械と送信器の単体試験
 //   で境界を確認する）。
@@ -204,6 +205,7 @@ try {
         window.__fakeJwks = FAKE_JWKS;
         // 送信器入口の記録と場面ごとの応答。
         window.__nonceCalls = [];
+        window.__freezeCalls = [];
         window.__revokeCalls = [];
         window.__verifyCalls = [];
         window.__revokeQueue = [];
@@ -232,6 +234,22 @@ try {
             });
             window.__senderNonceCounter += 1;
             return new Response(JSON.stringify({ nonce: `sender-nonce-${window.__senderNonceCounter}` }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (url.includes("/s12/freeze-revoke")) {
+            let body = null;
+            try {
+              body = JSON.parse(init.body);
+            } catch { /* 本体が読めなければ null のまま */ }
+            window.__freezeCalls.push({
+              url,
+              method,
+              session: (init.headers || {})["x-s12-session"],
+              body,
+            });
+            return new Response(JSON.stringify({ ok: true }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
             });
@@ -345,6 +363,10 @@ try {
     checkBox(window, "aConfirmed");
     el(window, "completeA").click();
     el(window, "freezeRevoke").click();
+    // 凍結した対象の送信器への固定が済むまで待つ（固定の完了前は
+    // 送信ボタンが有効にならない）。
+    const froze = await waitFor(() => logText(window).includes("送信器にも固定しました"));
+    if (!froze) throw new Error("凍結した対象が送信器に固定されませんでした: " + logText(window).slice(-300));
     return { heldToken, tokenA };
   }
   // 失効の送信まで進める共通の運転。
@@ -395,6 +417,13 @@ try {
       frozenText);
     check("場面1: 凍結表示に保持トークンの鮮度が含まれる",
       frozenText.includes("保持トークンの鮮度"));
+    // 凍結した対象が送信器にも固定される（送信器の境界での
+    // 結び付け）。固定の完了を待ってから次へ進む。
+    await waitFor(() => logText(window).includes("送信器にも固定しました"));
+    check("場面1: 凍結した対象（B のハッシュ）が送信器へ固定として送られる",
+      window.__freezeCalls.length === 1 &&
+      window.__freezeCalls[0].body.trial_id === trialId &&
+      window.__freezeCalls[0].body.subject_hash === HASH_B);
     check("場面1: 読み戻し未確認では失効送信ボタンが無効",
       el(window, "sendRevoke").disabled === true);
     checkBox(window, "preRead");
@@ -537,12 +566,15 @@ try {
   }
 } finally {
   child.kill("SIGTERM");
-  relayClose();
+  await relayClose();
 }
 
-function relayClose() {
-  // Miniflare の終了と永続化ディレクトリーの削除。
-  mf.dispose().catch(() => {});
+async function relayClose() {
+  // Miniflare の終了を await で待ち切ってから永続化ディレクト
+  // リーを削除する。dispose を待たずに削除すると、開いたままの
+  // SQLite ハンドルと競合して Windows で EPERM になり、全項目
+  // PASS でも終了コードが 1 になる（S11 画面試験と同じ順序）。
+  await mf.dispose().catch(() => {});
   rmSync(path.join(ROOT, ".persist-screen-s12"), { recursive: true, force: true });
 }
 
