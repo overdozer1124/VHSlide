@@ -191,6 +191,14 @@ export function WorksheetSidebarEditor({
   return (
     <section className="form-sidebar-editor" aria-label="ワークシートの項目を編集">
       <h3>項目を編集</h3>
+      <div className="worksheet-save form-sidebar-actions">
+        <button type="button" disabled={busy || !dirty} onClick={() => void save()}>
+          保存する
+        </button>
+        <button type="button" disabled={busy || !dirty} onClick={reload}>
+          元に戻す
+        </button>
+      </div>
       <label>
         ワークシート名
         <input
@@ -615,6 +623,14 @@ export function SurveySidebarEditor({
   return (
     <section className="form-sidebar-editor" aria-label="アンケートの項目を編集">
       <h3>項目を編集</h3>
+      <div className="worksheet-save form-sidebar-actions">
+        <button type="button" disabled={busy || !dirty} onClick={() => void save()}>
+          保存する
+        </button>
+        <button type="button" disabled={busy || !dirty} onClick={reload}>
+          元に戻す
+        </button>
+      </div>
       <label>
         質問
         <textarea

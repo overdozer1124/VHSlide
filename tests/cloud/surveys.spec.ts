@@ -687,7 +687,7 @@ test("host edits a survey from the right sidebar", async ({ page }) => {
     "好きな給食は？",
   );
   await sidebar.getByLabel("アンケートの質問").fill("一番好きな給食は？");
-  await sidebar.getByRole("button", { name: "保存する" }).click();
+  await sidebar.getByRole("button", { name: "保存する" }).first().click();
   await expect
     .poll(
       async () =>

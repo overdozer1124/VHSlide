@@ -1781,7 +1781,7 @@ test("host edits worksheet items from the right sidebar", async ({ page }) => {
   await expect(sidebar).toBeVisible();
   await expect(sidebar.getByLabel("項目名1")).toHaveValue("元の項目名");
   await sidebar.getByLabel("項目名1").fill("サイドバーで直した項目名");
-  await sidebar.getByRole("button", { name: "保存する" }).click();
+  await sidebar.getByRole("button", { name: "保存する" }).first().click();
   await expect
     .poll(
       async () =>
