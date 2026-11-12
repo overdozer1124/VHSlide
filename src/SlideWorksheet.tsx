@@ -208,6 +208,7 @@ export function WorksheetInputs({
                             disabled={disabled || !!onEdit}
                             preview={preview}
                             aspect={drawingAspect}
+                            placeholder={f.placeholder || undefined}
                             onChange={(value) => change(f.id, value)}
                           />
                         ) : onEdit && f.kind === "text" ? (

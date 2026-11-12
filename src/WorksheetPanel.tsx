@@ -665,9 +665,11 @@ export function WorksheetPanel({
                                 </option>
                               </select>
                             </label>
-                            {f.kind === "text" && (
+                            {(f.kind === "text" || f.kind === "drawing") && (
                               <label>
-                                入力例
+                                {f.kind === "drawing"
+                                  ? "貼り付け前の案内文"
+                                  : "入力例"}
                                 <input
                                   maxLength={200}
                                   value={f.placeholder}

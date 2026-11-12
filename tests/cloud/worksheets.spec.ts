@@ -1678,3 +1678,67 @@ test("students paste an image, draw, save privately, and the host views their an
     await otherContext.close();
   }
 });
+
+test("drawing field shows its guidance until an image is added", async ({
+  page,
+}) => {
+  await signIn(page, "drawing-guidance-host");
+  const headers = { Origin: "http://127.0.0.1:3187" };
+  const { id } = await (
+    await page.request.post("/api/decks", { headers, data: sample() })
+  ).json();
+  const template = worksheetTemplate("blank");
+  template.title = "染織を調べよう";
+  template.fields[0].kind = "drawing";
+  template.fields[0].label = "調べた染織の画像を貼り付けよう";
+  template.fields[0].placeholder = "あなたが調べた染織の画像を貼り付けよう";
+  const created = await page.request.post(`/api/decks/${id}/worksheets`, {
+    headers,
+    data: template,
+  });
+  expect(created.status()).toBe(200);
+  const sheet = (await created.json()).worksheets[0];
+  expect(
+    (
+      await page.request.post(
+        `/api/decks/${id}/worksheets/${sheet.id}/status`,
+        { headers, data: { status: "open" } },
+      )
+    ).status(),
+  ).toBe(200);
+  await page.goto(`/?room=${id}`);
+  await openWorksheets(page);
+  await modal(page)
+    .getByRole("button", { name: "自分で入力", exact: true })
+    .click();
+  const view = modal(page).getByRole("button", {
+    name: "調べた染織の画像を貼り付けようの画像・手描きを編集",
+  });
+  await expect(view).toContainText("あなたが調べた染織の画像を貼り付けよう");
+  await view.click();
+  const drawing = modal(page).locator(".worksheet-drawing");
+  await drawing.locator('input[type="file"]').setInputFiles({
+    name: "photo.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await expect
+    .poll(
+      async () =>
+        (
+          await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+        ).worksheets[0].own?.values[template.fields[0].id],
+      { timeout: 15000 },
+    )
+    .toMatch(/^data:image\/jpeg;base64,/);
+  await drawing
+    .getByRole("button", { name: "完了", exact: true })
+    .click();
+  await expect(view.locator("img")).toBeVisible();
+  await expect(view).not.toContainText(
+    "あなたが調べた染織の画像を貼り付けよう",
+  );
+});

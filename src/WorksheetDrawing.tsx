@@ -36,12 +36,15 @@ export function WorksheetDrawing({
   preview,
   onChange,
   aspect,
+  placeholder,
 }: {
   label: string;
   value: string;
   disabled: boolean;
   preview: boolean;
   onChange: (value: string) => void;
+  // Guidance shown inside the empty field until an image is added.
+  placeholder?: string;
   // When the field is placed in a frame on a slide, the canvas adopts the
   // frame's aspect so a pasted image fills the frame instead of being
   // composed into a fixed 16:9 picture that only fills part of it.
@@ -298,7 +301,11 @@ export function WorksheetDrawing({
           {value ? (
             <img src={value} alt={`${label}の画像・手描き回答`} />
           ) : (
-            <span>クリックして画像を貼り付け・手描き</span>
+            <span>
+              {placeholder?.trim()
+                ? placeholder
+                : "クリックして画像を貼り付け・手描き"}
+            </span>
           )}
         </button>
         {notice && <p>{notice}</p>}
