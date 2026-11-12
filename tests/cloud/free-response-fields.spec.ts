@@ -631,3 +631,40 @@ test("keeps edit mode open while a picked image is still loading", async ({
     field.getByRole("button", { name: "消去", exact: true }),
   ).toBeEnabled();
 });
+
+test("the drawing canvas adopts the placed frame's aspect", async ({
+  page,
+}) => {
+  await signIn(page, "drawing-aspect-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "枠の形に合わせる", slides: [blank(0, 0)] },
+  });
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page.locator(".thumbnail").first().click();
+  await launcher(page).click();
+  await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
+  const tools = page.getByRole("region", { name: "回答欄の追加", exact: true });
+  await tools
+    .getByRole("textbox", { name: "新しい入力項目名" })
+    .fill("形の確認");
+  await tools.getByRole("button", { name: /^画像・手描き/ }).click();
+  await tools
+    .getByRole("button", { name: "受付を開始してスライドに追加", exact: true })
+    .click();
+  const field = page.locator(".editor-workspace .response-field");
+  await field
+    .getByRole("button", { name: "形の確認の画像・手描きを編集" })
+    .click();
+  const canvas = field.getByLabel("形の確認の手描き欄");
+  await expect(canvas).toBeVisible();
+  const dims = await canvas.evaluate((node) => {
+    const c = node as HTMLCanvasElement;
+    return { width: c.width, height: c.height };
+  });
+  // The default drawing frame is 560x340 slide units; the canvas must
+  // follow it (889x540) instead of the fixed 960x540.
+  expect(Math.abs(dims.width / dims.height - 560 / 340)).toBeLessThan(0.03);
+  expect(dims).not.toEqual({ width: 960, height: 540 });
+});

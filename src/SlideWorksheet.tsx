@@ -33,6 +33,7 @@ export function WorksheetInputs({
   ignoreFieldLayout = false,
   hideScore = false,
   scoreFields,
+  drawingAspect,
 }: {
   sheet: WorksheetDefinition;
   values: WorksheetValues;
@@ -44,6 +45,7 @@ export function WorksheetInputs({
   ignoreFieldLayout?: boolean;
   hideScore?: boolean;
   scoreFields?: WorksheetField[];
+  drawingAspect?: number;
   onFieldChange?: (
     id: string,
     value: WorksheetValues[string],
@@ -205,6 +207,7 @@ export function WorksheetInputs({
                             }
                             disabled={disabled || !!onEdit}
                             preview={preview}
+                            aspect={drawingAspect}
                             onChange={(value) => change(f.id, value)}
                           />
                         ) : onEdit && f.kind === "text" ? (

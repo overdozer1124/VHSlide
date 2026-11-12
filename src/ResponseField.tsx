@@ -106,6 +106,7 @@ export function ResponseField({
         >
           <WorksheetInputs
             ignoreFieldLayout
+            drawingAspect={e.h > 0 ? e.w / e.h : undefined}
             sheet={{
               title: label,
               description: "",

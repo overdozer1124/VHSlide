@@ -35,13 +35,24 @@ export function WorksheetDrawing({
   disabled,
   preview,
   onChange,
+  aspect,
 }: {
   label: string;
   value: string;
   disabled: boolean;
   preview: boolean;
   onChange: (value: string) => void;
+  // When the field is placed in a frame on a slide, the canvas adopts the
+  // frame's aspect so a pasted image fills the frame instead of being
+  // composed into a fixed 16:9 picture that only fills part of it.
+  aspect?: number;
 }) {
+  const ratio =
+    aspect && Number.isFinite(aspect) && aspect > 0
+      ? Math.min(4, Math.max(0.2, aspect))
+      : 16 / 9;
+  const cw = ratio >= 16 / 9 ? W : Math.round(H * ratio);
+  const ch = ratio >= 16 / 9 ? Math.round(W / ratio) : H;
   const canvas = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const pendingFile = useRef<File | null>(null);
@@ -69,7 +80,7 @@ export function WorksheetDrawing({
     if (!node) return;
     const ctx = node.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, cw, ch);
   }
   function restore(data: string) {
     const version = ++generation.current;
@@ -82,7 +93,7 @@ export function WorksheetDrawing({
     const image = new Image();
     image.onload = () => {
       if (version === generation.current && canvas.current) {
-        canvas.current.getContext("2d")!.drawImage(image, 0, 0, W, H);
+        canvas.current.getContext("2d")!.drawImage(image, 0, 0, cw, ch);
         setReady(true);
       }
     };
@@ -108,7 +119,7 @@ export function WorksheetDrawing({
     return () => {
       generation.current++;
     };
-  }, [value, disabled, preview, active]);
+  }, [value, disabled, preview, active, cw, ch]);
   useEffect(() => {
     if (!active) return;
     canvas.current?.focus({ preventScroll: true });
@@ -156,8 +167,8 @@ export function WorksheetDrawing({
   function point(event: PointerEvent<HTMLCanvasElement>) {
     const r = event.currentTarget.getBoundingClientRect();
     return {
-      x: Math.max(0, Math.min(W, ((event.clientX - r.left) * W) / r.width)),
-      y: Math.max(0, Math.min(H, ((event.clientY - r.top) * H) / r.height)),
+      x: Math.max(0, Math.min(cw, ((event.clientX - r.left) * cw) / r.width)),
+      y: Math.max(0, Math.min(ch, ((event.clientY - r.top) * ch) / r.height)),
     };
   }
   function load(file: File) {
@@ -189,21 +200,21 @@ export function WorksheetDrawing({
       // focus changes around it can close the view), so an added image is
       // never silently lost.
       const composed = document.createElement("canvas");
-      composed.width = W;
-      composed.height = H;
+      composed.width = cw;
+      composed.height = ch;
       const off = composed.getContext("2d")!;
       off.fillStyle = "#ffffff";
-      off.fillRect(0, 0, W, H);
-      const ratio = Math.min(W / image.width, H / image.height);
-      const width = image.width * ratio,
-        height = image.height * ratio;
-      off.drawImage(image, (W - width) / 2, (H - height) / 2, width, height);
+      off.fillRect(0, 0, cw, ch);
+      const fit = Math.min(cw / image.width, ch / image.height);
+      const width = image.width * fit,
+        height = image.height * fit;
+      off.drawImage(image, (cw - width) / 2, (ch - height) / 2, width, height);
       const node = canvas.current;
       if (node) {
         remember();
         const ctx = node.getContext("2d")!;
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, W, H);
+        ctx.fillRect(0, 0, cw, ch);
         ctx.drawImage(composed, 0, 0);
       }
       setReady(true);
@@ -334,7 +345,7 @@ export function WorksheetDrawing({
               const image = new Image();
               image.onload = () => {
                 if (!canvas.current || version !== generation.current) return;
-                canvas.current.getContext("2d")!.drawImage(image, 0, 0, W, H);
+                canvas.current.getContext("2d")!.drawImage(image, 0, 0, cw, ch);
                 setReady(true);
                 if (previous.hasContent) save();
                 else {
@@ -397,8 +408,9 @@ export function WorksheetDrawing({
       {notice && <p className="worksheet-drawing-notice">{notice}</p>}
       <canvas
         ref={canvas}
-        width={W}
-        height={H}
+        width={cw}
+        height={ch}
+        style={{ aspectRatio: `${cw} / ${ch}` }}
         tabIndex={0}
         aria-label={`${label}の手描き欄`}
         onPointerDown={(e) => {
