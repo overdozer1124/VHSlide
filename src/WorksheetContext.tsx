@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { WorksheetView } from "./worksheets";
 import { api } from "./cloud";
-import { usePageVisible } from "./usePageVisible";
+import { useDeckPoller } from "./deckPoll";
 export type WorksheetContextValue = {
   deckId?: string;
   userId?: string;
@@ -80,7 +80,7 @@ function WorksheetSession({
   const alive = useRef(true);
   const generation = useRef(0);
   const enabled = !!deckId && !!userId && !blocked;
-  const visible = usePageVisible();
+  const poller = useDeckPoller();
   function update(data: WorksheetView[]) {
     if (alive.current) {
       generation.current++;
@@ -92,6 +92,10 @@ function WorksheetSession({
   sheetsRef.current = sheets;
   async function refresh() {
     if (!enabled) return [];
+    if (poller) {
+      await poller.pollNow();
+      return sheetsRef.current;
+    }
     const version = ++generation.current;
     const known = listVersion.current;
     const data = await api<{
@@ -112,28 +116,32 @@ function WorksheetSession({
   }
   useEffect(() => {
     alive.current = true;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = async () => {
-      const version = generation.current + 1;
-      try {
-        await refresh();
-      } catch (e) {
-        if (alive.current && version === generation.current) {
-          setSheets([]);
-          setError((e as Error).message);
-        }
-      }
-      if (!stopped) timer = setTimeout(tick, pollActive ? 5000 : 30000);
-    };
-    if (enabled && visible) void tick();
+    if (!enabled || !poller) return;
+    const off = poller.register("worksheets", {
+      guard: generation,
+      onData: (p) => {
+        if (!alive.current) return;
+        const list = (p.worksheets ?? []) as WorksheetView[];
+        sheetsRef.current = list;
+        setSheets(list);
+        setError("");
+      },
+      onError: (e) => {
+        if (!alive.current) return;
+        sheetsRef.current = [];
+        setSheets([]);
+        setError(e.message);
+      },
+    });
     return () => {
-      stopped = true;
       alive.current = false;
       generation.current++;
-      clearTimeout(timer);
+      off();
     };
-  }, [enabled, deckId, userId, visible, pollActive]);
+  }, [poller, enabled, deckId, userId]);
+  useEffect(() => {
+    poller?.setWant("worksheets", pollActive ? 5000 : 30000);
+  }, [poller, pollActive]);
   return (
     <WorksheetContext.Provider
       value={{ deckId, userId, host, enabled, error, sheets, refresh, update }}

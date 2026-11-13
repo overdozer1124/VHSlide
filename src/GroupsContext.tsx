@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { DeckGroup } from "./groups";
 import { api } from "./cloud";
-import { usePageVisible } from "./usePageVisible";
+import { useDeckPoller } from "./deckPoll";
 
 /** The deck's shared groups （班） and the signed-in user's membership.
  * Group-aware activities (webbing maps today) read this context; the
@@ -77,7 +77,7 @@ function GroupsSession({
   const alive = useRef(true);
   const generation = useRef(0);
   const enabled = !!deckId && !!userId && !blocked;
-  const visible = usePageVisible();
+  const poller = useDeckPoller();
   function adopt(data: { groups: DeckGroup[]; myGroupId?: string }) {
     if (!alive.current) return;
     generation.current++;
@@ -88,6 +88,10 @@ function GroupsSession({
   const listVersion = useRef<number | null>(null);
   async function refresh() {
     if (!enabled) return;
+    if (poller) {
+      await poller.pollNow();
+      return;
+    }
     const version = ++generation.current;
     const known = listVersion.current;
     const data = await api<{
@@ -121,25 +125,27 @@ function GroupsSession({
   }
   useEffect(() => {
     alive.current = true;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = async () => {
-      try {
-        await refresh();
-      } catch (e) {
-        if (alive.current) setError((e as Error).message);
-      }
-      if (!stopped) timer = setTimeout(tick, pollActive ? 5000 : 30000);
-    };
-    if (enabled && visible) void tick();
+    if (!enabled || !poller) return;
+    const off = poller.register("groups", {
+      guard: generation,
+      onData: (p) => {
+        if (alive.current)
+          adopt({ groups: p.groups ?? [], myGroupId: p.myGroupId });
+      },
+      onError: (e) => {
+        if (alive.current) setError(e.message);
+      },
+    });
     return () => {
-      stopped = true;
       alive.current = false;
       generation.current++;
-      clearTimeout(timer);
+      off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, deckId, userId, visible, pollActive]);
+  }, [poller, enabled, deckId, userId]);
+  useEffect(() => {
+    poller?.setWant("groups", pollActive ? 5000 : 30000);
+  }, [poller, pollActive]);
   return (
     <GroupsContext.Provider
       value={{

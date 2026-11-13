@@ -875,6 +875,39 @@ export class Directory extends DurableObject<Env> {
         );
       });
     }
+    if (extra === "poll") {
+      insist(method === "GET", 405, "この操作には対応していません。");
+      const params = new URL(request.url).searchParams;
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        const out: Record<string, unknown> = {};
+        const wv = params.get("wv");
+        if (wv !== null) {
+          const version = featureVersion(sql, id, "worksheets");
+          if (wv === "" || Number(wv) !== version)
+            out.worksheets = {
+              version,
+              worksheets: worksheetList(sql, id, user.id, host),
+            };
+        }
+        const mv = params.get("mv");
+        if (mv !== null) {
+          const version = featureVersion(sql, id, "webbing");
+          if (mv === "" || Number(mv) !== version)
+            out.webbing = { version, webbing: webbingList(sql, id, host) };
+        }
+        const gv = params.get("gv");
+        if (gv !== null) {
+          const version = featureVersion(sql, id, "groups");
+          if (gv === "" || Number(gv) !== version)
+            out.groups = { version, ...groupList(sql, id, user.id, host) };
+        }
+        return json(out);
+      });
+    }
     if (extra === "worksheets" || extra?.startsWith("worksheets/")) {
       insist(
         ["GET", "POST", "DELETE"].includes(method),

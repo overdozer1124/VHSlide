@@ -18,6 +18,7 @@ import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
 import { WebbingProvider } from "./WebbingContext";
 import { GroupsProvider } from "./GroupsContext";
+import { DeckPollProvider } from "./deckPoll";
 import { WebbingPanel } from "./WebbingPanel";
 import { parseWebbingBinding } from "./webbingBinding";
 import type { WebbingView } from "./webbing";
@@ -3924,7 +3925,14 @@ export default function App() {
     userId: cloud.user?.id,
     enabled: !!cloud.active && !cloud.viewingRevoked && !cloud.recoveryOnly,
     children: createElement(
-      WorksheetProvider,
+      DeckPollProvider,
+      {
+        deckId: cloud.active?.id,
+        userId: cloud.user?.id,
+        blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+      },
+      createElement(
+        WorksheetProvider,
       worksheetProps,
       createElement(
         WebbingProvider,
@@ -3948,6 +3956,7 @@ export default function App() {
           },
           createElement(ActivityPanelProvider, { children: content }),
         ),
+      ),
       ),
     ),
   });

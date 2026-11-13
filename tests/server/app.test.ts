@@ -2,6 +2,7 @@ import { exerciseWorksheets } from "../support/worksheets.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import { exerciseWebbing } from "../support/webbing.ts";
+import { exerciseDeckPoll } from "../support/poll.ts";
 import {
   exerciseHostFollow,
   measureHostFollow40,
@@ -1591,6 +1592,12 @@ test("webbing maps share one map, enforce authorship and edit locks, and persist
     await app.close();
     await start();
   });
+});
+
+test("deck poll returns only the features whose version moved", async () => {
+  const id = await create();
+  await invite(id, bob);
+  await exerciseDeckPoll(request, id, alice, bob, eve);
 });
 
 test("scoped edits survive multi-client field order reconstruction and reconnect, while protected changes stay denied", async () => {

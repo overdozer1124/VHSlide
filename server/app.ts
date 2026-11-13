@@ -990,6 +990,47 @@ export function createApplication(options: Options) {
             throw error;
           }
         }
+        if (extra === "poll") {
+          insist(method === "GET", 405, "この操作には対応していません。");
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            const out: Record<string, unknown> = {};
+            const wv = url.searchParams.get("wv");
+            if (wv !== null) {
+              const version = featureVersion(historySQL, id, "worksheets");
+              if (wv === "" || Number(wv) !== version)
+                out.worksheets = {
+                  version,
+                  worksheets: worksheetList(historySQL, id, u.id, host),
+                };
+            }
+            const mv = url.searchParams.get("mv");
+            if (mv !== null) {
+              const version = featureVersion(historySQL, id, "webbing");
+              if (mv === "" || Number(mv) !== version)
+                out.webbing = {
+                  version,
+                  webbing: webbingList(historySQL, id, host),
+                };
+            }
+            const gv = url.searchParams.get("gv");
+            if (gv !== null) {
+              const version = featureVersion(historySQL, id, "groups");
+              if (gv === "" || Number(gv) !== version)
+                out.groups = {
+                  version,
+                  ...groupList(historySQL, id, u.id, host),
+                };
+            }
+            db.exec("COMMIT");
+            return json(res, 200, out);
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
         if (extra === "worksheets" || extra?.startsWith("worksheets/")) {
           insist(
             ["GET", "POST", "DELETE"].includes(method),

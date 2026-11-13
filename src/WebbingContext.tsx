@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { WebbingView } from "./webbing";
 import { api } from "./cloud";
-import { usePageVisible } from "./usePageVisible";
+import { useDeckPoller } from "./deckPoll";
 export type WebbingContextValue = {
   deckId?: string;
   userId?: string;
@@ -75,7 +75,7 @@ function WebbingSession({
   const alive = useRef(true);
   const generation = useRef(0);
   const enabled = !!deckId && !!userId && !blocked;
-  const visible = usePageVisible();
+  const poller = useDeckPoller();
   function update(data: WebbingView[]) {
     if (alive.current) {
       generation.current++;
@@ -87,6 +87,10 @@ function WebbingSession({
   mapsRef.current = maps;
   async function refresh() {
     if (!enabled) return [];
+    if (poller) {
+      await poller.pollNow();
+      return mapsRef.current;
+    }
     const version = ++generation.current;
     const known = listVersion.current;
     const data = await api<{
@@ -119,28 +123,31 @@ function WebbingSession({
   }
   useEffect(() => {
     alive.current = true;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = async () => {
-      const version = generation.current + 1;
-      try {
-        await refresh();
-      } catch (e) {
-        if (alive.current && version === generation.current)
-          setError((e as Error).message);
-      }
-      // A shared map is a live surface: poll briskly while one is on the
-      // displayed slide, gently otherwise.
-      if (!stopped) timer = setTimeout(tick, pollActive ? 2500 : 20000);
-    };
-    if (enabled && visible) void tick();
+    if (!enabled || !poller) return;
+    const off = poller.register("webbing", {
+      guard: generation,
+      onData: (p) => {
+        if (!alive.current) return;
+        const list = (p.webbing ?? []) as WebbingView[];
+        mapsRef.current = list;
+        setMaps(list);
+        setError("");
+      },
+      onError: (e) => {
+        if (alive.current) setError(e.message);
+      },
+    });
     return () => {
-      stopped = true;
       alive.current = false;
       generation.current++;
-      clearTimeout(timer);
+      off();
     };
-  }, [enabled, deckId, userId, visible, pollActive]);
+  }, [poller, enabled, deckId, userId]);
+  // A shared map is a live surface: poll briskly while one is on the
+  // displayed slide, gently otherwise.
+  useEffect(() => {
+    poller?.setWant("webbing", pollActive ? 2500 : 20000);
+  }, [poller, pollActive]);
   return (
     <WebbingContext.Provider
       value={{
