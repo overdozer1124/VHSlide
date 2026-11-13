@@ -159,6 +159,27 @@ test("grouped webbing maps split writing by the deck's shared groups", async ({
     expect(Math.abs(afterPan!.x - beforePan!.x)).toBeGreaterThan(50);
     await anaMap.getByRole("button", { name: "全体表示に戻す" }).click();
     await expect(anaMap.locator(".webbing-zoom-label")).toHaveText("100%");
+
+    // The host checks every group's answers at once in the teacher
+    // console: one card per group with its writings.
+    await page.getByRole("button", { name: "授業コンソール" }).click();
+    const consoleView = page.getByRole("region", { name: "授業コンソール" });
+    await consoleView
+      .getByRole("tab", { name: "グループ別マップ" })
+      .click();
+    const card1 = consoleView.locator(".console-group-card", {
+      hasText: "1班（参加 1人）",
+    });
+    await expect(card1.locator(".console-webbing-text", { hasText: "1班のアイデア" })).toBeVisible({
+      timeout: 20_000,
+    });
+    const card2 = consoleView.locator(".console-group-card", {
+      hasText: "2班（参加 1人）",
+    });
+    await expect(card2.locator(".console-webbing-text", { hasText: "2班のアイデア" })).toBeVisible();
+    await expect(
+      consoleView.getByText("班で考えよう", { exact: true }).first(),
+    ).toBeVisible();
   } finally {
     await anaContext.close();
     await bobContext.close();

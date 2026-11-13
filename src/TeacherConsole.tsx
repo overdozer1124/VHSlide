@@ -5,6 +5,10 @@ import { usePinch } from "./usePinch";
 import { W, type Deck, type Slide } from "./model";
 import { api, type CloudWorkspace } from "./cloud";
 import { useWorksheets } from "./WorksheetContext";
+import { useWebbing } from "./WebbingContext";
+import { useGroups } from "./GroupsContext";
+import type { WebbingNode } from "./webbing";
+import { WEBBING_W, WEBBING_H } from "./webbing";
 import { usePageVisible } from "./usePageVisible";
 import { WorksheetResults } from "./WorksheetResults";
 import type { WorksheetView } from "./worksheets";
@@ -20,7 +24,7 @@ import {
   fieldAnswered,
 } from "./teacherConsole";
 
-type ConsoleMode = "list" | "fields" | "slides";
+type ConsoleMode = "list" | "fields" | "slides" | "groups";
 
 /**
  * Host-only monitoring view for use in a separate tab while another tab
@@ -53,12 +57,18 @@ export function TeacherConsole({
       ? workbook.slides.find((s) => s.id === follow.target.pageId)
       : undefined;
   const { deckId } = useWorksheets();
+  const webbingCtx = useWebbing();
   const hasForm = (s: Slide) =>
     !!deckId &&
     s.elements.some((e) =>
       [e.responseField, e.worksheet, e.survey].some(
         (b) => !!b && b.deckId === deckId,
       ),
+    );
+  const hasWebbing = (s: Slide) =>
+    !!webbingCtx.deckId &&
+    s.elements.some(
+      (e) => !!e.webbing && e.webbing.deckId === webbingCtx.deckId,
     );
 
   function jumpToProjected() {
@@ -144,6 +154,9 @@ export function TeacherConsole({
                   {rowForm && (
                     <span className="console-form-chip">回答欄</span>
                   )}
+                  {row.slides.some(hasWebbing) && (
+                    <span className="console-form-chip">マップ</span>
+                  )}
                   {rowProjected && (
                     <span className="console-badge">投影中</span>
                   )}
@@ -175,6 +188,9 @@ export function TeacherConsole({
                           {hasForm(s) && (
                             <span className="console-form-chip">回答欄</span>
                           )}
+                          {hasWebbing(s) && (
+                            <span className="console-form-chip">マップ</span>
+                          )}
                           {isProjected && (
                             <span className="console-badge">投影中</span>
                           )}
@@ -201,7 +217,17 @@ function ConsoleMain({
   focus?: Slide;
 }) {
   const ctx = useWorksheets();
+  const webbingCtx = useWebbing();
   const visible = usePageVisible();
+  useEffect(() => {
+    if (!webbingCtx.enabled || !visible) return;
+    void webbingCtx.refresh().catch(() => {});
+    const timer = setInterval(
+      () => void webbingCtx.refresh().catch(() => {}),
+      5000,
+    );
+    return () => clearInterval(timer);
+  }, [webbingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mode, setMode] = useState<ConsoleMode>("list");
   const [worksheetId, setWorksheetId] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -261,8 +287,12 @@ function ConsoleMain({
     { key: "list", label: "回答一覧" },
     { key: "fields", label: "設問ごとの集計" },
     { key: "slides", label: "生徒のスライド" },
+    ...(webbingCtx.maps.length
+      ? [{ key: "groups" as ConsoleMode, label: "グループ別マップ" }]
+      : []),
   ];
-  const showHead = mode !== "slides" && ctx.enabled && !!sheet;
+  const showHead =
+    (mode === "list" || mode === "fields") && ctx.enabled && !!sheet;
   return (
     <main className="console-main">
       <div className="console-toprow">
@@ -309,6 +339,8 @@ function ConsoleMain({
       </div>
       {mode === "slides" ? (
         <ConsoleStudentSlides focus={focus} />
+      ) : mode === "groups" ? (
+        <ConsoleGroups focus={focus} />
       ) : !ctx.enabled ? (
         <p className="console-note">
           クラウドの作品を開くと、ワークシートの回答がここに表示されます。
@@ -574,5 +606,156 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
         </>
       )}
     </div>
+  );
+}
+
+/** Per-group view of the focused slide's webbing maps: a miniature map
+ * plus the group's writings as a tree, so the host can check every
+ * group's answers at once without switching tabs on the slide itself. */
+function ConsoleGroups({ focus }: { focus?: Slide }) {
+  const webbingCtx = useWebbing();
+  const groupsCtx = useGroups();
+  const mapIds = new Set(
+    (focus?.elements ?? [])
+      .map((e) => e.webbing)
+      .filter((b) => !!b && b.deckId === webbingCtx.deckId)
+      .map((b) => b!.mapId),
+  );
+  const maps = webbingCtx.maps.filter((m) => mapIds.has(m.id));
+  if (!webbingCtx.enabled)
+    return (
+      <p className="console-note">
+        クラウドの作品を開くと、ウェビングマップがここに表示されます。
+      </p>
+    );
+  if (!maps.length)
+    return (
+      <p className="console-note">
+        このスライドにはウェビングマップがありません。左の一覧でマップのあるスライドを選んでください。
+      </p>
+    );
+  return (
+    <div className="console-groups">
+      {maps.map((map) => (
+        <section key={map.id} className="console-group-map">
+          <header className="console-group-map-head">
+            <strong>{map.title}</strong>
+            <span>
+              {map.status === "open"
+                ? "書き込み受付中"
+                : map.status === "closed"
+                  ? "受付終了"
+                  : "準備中"}
+              ／ 書き込み{" "}
+              {map.nodes.filter((n) => n.parentId !== null).length}件
+            </span>
+          </header>
+          {map.grouped ? (
+            <div className="console-group-grid">
+              {groupsCtx.groups.map((group) => (
+                <ConsoleGroupCard
+                  key={group.id}
+                  title={`${group.name}（参加 ${group.memberCount}人）`}
+                  nodes={map.nodes.filter((n) => n.groupId === group.id)}
+                />
+              ))}
+              {!groupsCtx.groups.length && (
+                <p className="console-note">
+                  グループがまだ設定されていません。
+                </p>
+              )}
+            </div>
+          ) : (
+            <ConsoleGroupCard title="全員のマップ" nodes={map.nodes} />
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ConsoleGroupCard({
+  title,
+  nodes,
+}: {
+  title: string;
+  nodes: WebbingNode[];
+}) {
+  return (
+    <article className="console-group-card">
+      <header>
+        <strong>{title}</strong>
+        <span>
+          書き込み {nodes.filter((n) => n.parentId !== null).length}件
+        </span>
+      </header>
+      <ConsoleWebbingMini nodes={nodes} />
+      <ConsoleWebbingTree nodes={nodes} parentId={null} />
+      {!nodes.length && <p className="console-note">まだ書き込みがありません。</p>}
+    </article>
+  );
+}
+
+function ConsoleWebbingMini({ nodes }: { nodes: WebbingNode[] }) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  return (
+    <div className="console-webbing-mini" aria-hidden="true">
+      <svg viewBox={`0 0 ${WEBBING_W} ${WEBBING_H}`}>
+        {nodes
+          .filter((n) => n.parentId)
+          .map((n) => {
+            const parent = byId.get(n.parentId!);
+            if (!parent) return null;
+            return (
+              <line
+                key={n.id}
+                x1={parent.x}
+                y1={parent.y}
+                x2={n.x}
+                y2={n.y}
+                stroke="#b9cdbd"
+                strokeWidth={3}
+              />
+            );
+          })}
+      </svg>
+      {nodes.map((n) => (
+        <span
+          key={n.id}
+          className={`console-webbing-dot ${n.parentId === null ? "is-root" : ""}`}
+          style={{
+            left: `${(n.x / WEBBING_W) * 100}%`,
+            top: `${(n.y / WEBBING_H) * 100}%`,
+          }}
+          title={n.text}
+        >
+          {n.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ConsoleWebbingTree({
+  nodes,
+  parentId,
+}: {
+  nodes: WebbingNode[];
+  parentId: string | null;
+}) {
+  const here = nodes.filter((n) => n.parentId === parentId);
+  if (!here.length) return null;
+  return (
+    <ul className="console-webbing-tree">
+      {here.map((n) => (
+        <li key={n.id}>
+          <span className="console-webbing-text">{n.text}</span>
+          {n.parentId !== null && (
+            <span className="console-webbing-author">{n.authorName}</span>
+          )}
+          <ConsoleWebbingTree nodes={nodes} parentId={n.id} />
+        </li>
+      ))}
+    </ul>
   );
 }
