@@ -201,8 +201,8 @@ function chartEl(c, x, y, w, h) {
   return {
     id: nid("c"), type: "chart", x: r(x), y: r(y), w: r(w), h: r(h),
     chart: { kind: c.type ?? "bar", title: c.title ?? "", showValues: c.showValues ?? true, showLegend: c.showLegend ?? (c.type === "pie"),
-      series: c.data.map(([label, value], i) => ({ id: `d${i}`, label: String(label).slice(0, 60), value,
-        color: c.type === "pie" ? T.chart[i % T.chart.length] : hi.size ? (hi.has(i) ? T.accent : T.muted) : T.chart[0] })) },
+      series: c.data.map(([label, value, fixed], i) => ({ id: `d${i}`, label: String(label).slice(0, 60), value,
+        color: fixed ? (fixed.startsWith("#") ? fixed : T[fixed]) : c.type === "pie" ? T.chart[i % T.chart.length] : hi.size ? (hi.has(i) ? T.accent : T.muted) : T.chart[0] })) },
   };
 }
 const source = (t, x, y, w) => text(t, x, y, w, 22, 12, { color: T.sub, min: 12 });
@@ -396,7 +396,8 @@ const kinds = {
     return els;
   },
   /** Free layout (e.g. a paper worksheet rebuilt on one slide). Items are placed at slide coordinates.
-   *  item.type: "field" (worksheet answer field) | "band" (coloured heading strip) | "text" | "mascot".
+   *  item.type: "field" (worksheet answer field) | "band" (coloured heading strip) | "text" | "card" | "chart" | "table" | "image" | "mascot".
+   *  With the normal heading (header not false), keep items below the heading (y ≥ about 100).
    *  Colours may be #rrggbb or a theme key such as "primarySoft". */
   async form(s) {
     const col = c => (c && !c.startsWith("#") ? T[c] : c);
@@ -406,6 +407,10 @@ const kinds = {
       if (t === "field") els.push(field(it.field, it.x, it.y, it.w, it.h, it.fontSize ?? s.fieldFont ?? 14, { stroke: col(it.stroke ?? s.stroke) }));
       else if (t === "band") els.push(rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.primarySoft), text(it.text, it.x + 6, it.y, it.w - 12, it.h, it.fontSize ?? 15, { bold: true, align: it.align ?? "center", valign: "middle", color: col(it.color) ?? T.ink, min: 12 }));
       else if (t === "mascot") els.push(...(await mascotEl(it.pose ?? "idea", it.x, it.y, it.s ?? 48)));
+      else if (t === "chart") els.push(chartEl(it.chart, it.x, it.y, it.w, it.h));
+      else if (t === "table") els.push(...tableEl(it.table, it.x, it.y, it.w, it.h));
+      else if (t === "image") els.push((await figure(it.image, it.x, it.y, it.w, it.h, it.alt)).el);
+      else if (t === "card") els.push(...cardText(it.x, it.y, it.w, it.h, it.text, { tone: it.tone ?? "primary", fs: it.fontSize ?? 18, title: it.title, align: it.align, valign: it.valign ?? "top" }));
       else els.push(text(it.text, it.x, it.y, it.w, it.h, it.fontSize ?? 18, { bold: it.bold, align: it.align, valign: it.valign ?? "middle", color: col(it.color) ?? T.ink }));
     }
     return els;

@@ -180,7 +180,8 @@ try {
     await page.screenshot({ path: f, fullPage: true });
     sheetsOut.push(f);
   }
-  const fitIssues = fitText ? fitText.split("\n").filter(l => /：全文|見切れ|省略/.test(l)) : [];
+  // Keep every line of the fit dialog except its buttons and fixed hints; the wording changes between versions.
+  const fitIssues = fitText ? fitText.split("\n").map(l => l.trim()).filter(l => l && !/^(表示チェック|取り消す|このまま進む|再確認|内容を確認・修正|このまま進む再確認)$/.test(l) && !/自動では変更しません/.test(l)) : [];
   fs.rmSync(asciiCopy, { force: true });
   fs.writeFileSync(path.join(outDir, "report.json"), JSON.stringify({ fitIssues, errors, shots: shots.length, contact: sheetsOut }, null, 1));
   console.log(fitIssues.length ? `表示チェック: 要修正\n${fitIssues.join("\n")}` : "表示チェック: 見切れなし");

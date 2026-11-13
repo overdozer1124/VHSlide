@@ -1,5 +1,16 @@
-// Bundled from VHSlide 0.110.0 (ba80e77): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.117.0 (1db7fff): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
+// src/featureVersions.ts
+var featureVersionSchema = `
+CREATE TABLE IF NOT EXISTS feature_versions(deck TEXT NOT NULL, feature TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(deck,feature));`;
+function versionTriggers(table, feature, deckOf) {
+  const bump = (alias) => `INSERT INTO feature_versions(deck,feature,version) VALUES(${deckOf(alias)},'${feature}',1) ON CONFLICT(deck,feature) DO UPDATE SET version=version+1;`;
+  return `
+CREATE TRIGGER IF NOT EXISTS fv_${table}_ins AFTER INSERT ON ${table} BEGIN ${bump("NEW")} END;
+CREATE TRIGGER IF NOT EXISTS fv_${table}_upd AFTER UPDATE ON ${table} BEGIN ${bump("NEW")} END;
+CREATE TRIGGER IF NOT EXISTS fv_${table}_del AFTER DELETE ON ${table} BEGIN ${bump("OLD")} END;`;
+}
+
 // src/surveys.ts
 var SurveyError = class extends Error {
   status;
@@ -159,6 +170,13 @@ function parseWorksheetBinding(value) {
   );
   return { ...parseWorksheet(v), deckId: v.deckId, worksheetId: v.worksheetId };
 }
+var worksheetSchema = `CREATE TABLE IF NOT EXISTS worksheets(id TEXT PRIMARY KEY,deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,definition TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS worksheets_deck ON worksheets(deck); CREATE TABLE IF NOT EXISTS worksheet_answers(worksheet TEXT NOT NULL REFERENCES worksheets(id) ON DELETE CASCADE,author TEXT NOT NULL,value TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(worksheet,author));` + featureVersionSchema + versionTriggers("worksheets", "worksheets", (a) => `${a}.deck`) + versionTriggers(
+  "worksheet_answers",
+  "worksheets",
+  // On a cascading delete the parent sheet is already gone, so the
+  // lookup yields NULL; bump a throwaway counter instead of failing.
+  (a) => `COALESCE((SELECT deck FROM worksheets WHERE id=${a}.worksheet),'')`
+);
 
 // src/surveyBinding.ts
 function parseSurveyBinding(value) {
