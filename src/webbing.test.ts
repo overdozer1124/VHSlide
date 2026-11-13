@@ -311,6 +311,142 @@ describe("webbing maps", () => {
     ).toBe(true);
   });
 
+  it("works on databases created before groups (0.110 shape) and repairs shifted rows", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT)",
+    );
+    // The exact 0.110.0 webbing schema: no grp/grouped/creator columns.
+    db.exec(`
+CREATE TABLE webbing_maps(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, title TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE TABLE webbing_nodes(id TEXT PRIMARY KEY, map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, parent TEXT, author TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE TABLE webbing_locks(map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, node TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(map,node));`);
+    db.exec(groupSchema);
+    db.prepare("INSERT INTO decks VALUES(?)").run("deck");
+    for (const user of ["host", "ana", "bob"])
+      db.prepare("INSERT INTO users(id,name) VALUES(?,?)").run(user, user);
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...args);
+    // A legacy ungrouped map + root, written the 0.110 way.
+    db.prepare("INSERT INTO webbing_maps VALUES(?,?,?,?,?)").run(
+      "legacy-map",
+      "deck",
+      "昔のテーマ",
+      "open",
+      1000,
+    );
+    db.prepare("INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?)").run(
+      "legacy-root",
+      "legacy-map",
+      "",
+      "host",
+      "昔のテーマ",
+      480,
+      270,
+      1000,
+      1000,
+    );
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    const [g1] = groupList(sql, "deck", "host", true).groups;
+    const created = webbingCommand(
+      sql,
+      "deck",
+      "host",
+      true,
+      "create",
+      undefined,
+      { title: "班で考えよう", grouped: true },
+    );
+    const mapId = created!.createdId!;
+    webbingCommand(sql, "deck", "host", true, "status", mapId, {
+      status: "open",
+    });
+    // Listing repeatedly must not multiply the roots on the upgraded DB.
+    const first = webbingList(sql, "deck", true).find((m) => m.id === mapId)!;
+    const second = webbingList(sql, "deck", true).find((m) => m.id === mapId)!;
+    expect(second.nodes.length).toBe(first.nodes.length);
+    expect(
+      first.nodes.filter((n) => n.parentId === null && n.groupId === g1.id),
+    ).toHaveLength(1);
+    // Writes land in the right fields on the upgraded DB.
+    groupCommand(sql, "deck", "ana", false, "join", undefined, {
+      groupId: g1.id,
+    });
+    const root1 = first.nodes.find(
+      (n) => n.parentId === null && n.groupId === g1.id,
+    )!;
+    const added = webbingCommand(sql, "deck", "ana", false, "node-add", mapId, {
+      parentId: root1.id,
+      text: "正しい位置",
+      x: 200,
+      y: 160,
+    });
+    const afterAdd = webbingList(sql, "deck", true).find(
+      (m) => m.id === mapId,
+    )!;
+    const child = afterAdd.nodes.find((n) => n.id === added!.createdId)!;
+    expect(child.text).toBe("正しい位置");
+    expect(child.authorId).toBe("ana");
+    expect(child.x).toBe(200);
+    expect(child.y).toBe(160);
+    expect(child.groupId).toBe(g1.id);
+    // A row written by the buggy positional insert (values in the new
+    // order landing on the ALTER-upgraded column order) is shifted back,
+    // and a duplicated shifted root collapses into the earliest one.
+    const run = (query: string, ...args: (string | number)[]) =>
+      db.prepare(query).run(...args);
+    run(
+      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+      "bug-child",
+      mapId,
+      g1.id,
+      root1.id,
+      "ana",
+      "ずれた書き込み",
+      300,
+      220,
+      5000,
+      5000,
+    );
+    const later = Date.now() + 60_000;
+    run(
+      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+      "bug-root-dup",
+      mapId,
+      g1.id,
+      "",
+      "host",
+      "班で考えよう",
+      480,
+      270,
+      later,
+      later,
+    );
+    const healed = webbingList(sql, "deck", true).find(
+      (m) => m.id === mapId,
+    )!;
+    const bugChild = healed.nodes.find((n) => n.id === "bug-child")!;
+    expect(bugChild.text).toBe("ずれた書き込み");
+    expect(bugChild.authorId).toBe("ana");
+    expect(bugChild.parentId).toBe(root1.id);
+    expect(bugChild.groupId).toBe(g1.id);
+    expect(bugChild.x).toBe(300);
+    expect(bugChild.y).toBe(220);
+    expect(
+      healed.nodes.filter((n) => n.parentId === null && n.groupId === g1.id),
+    ).toHaveLength(1);
+    expect(healed.nodes.some((n) => n.id === "bug-root-dup")).toBe(false);
+    // The legacy map is untouched apart from the added columns.
+    const legacy = webbingList(sql, "deck", true).find(
+      (m) => m.id === "legacy-map",
+    )!;
+    expect(legacy.grouped).toBe(false);
+    expect(legacy.nodes).toHaveLength(1);
+    expect(legacy.nodes[0].text).toBe("昔のテーマ");
+  });
+
   it("deletes the map with its nodes for the host only", () => {
     const { sql } = fixture();
     const mapId = makeMap(sql);

@@ -117,7 +117,7 @@ export function groupCommand(
     );
     names.forEach((name, index) =>
       sql(
-        "INSERT INTO deck_groups VALUES(?,?,?,?)",
+        "INSERT INTO deck_groups(id,deck,name,sort) VALUES(?,?,?,?)",
         crypto.randomUUID(),
         deck,
         name,
@@ -141,7 +141,7 @@ export function groupCommand(
       "グループ名が重複しています。",
     );
     sql(
-      "INSERT INTO deck_groups VALUES(?,?,?,?)",
+      "INSERT INTO deck_groups(id,deck,name,sort) VALUES(?,?,?,?)",
       crypto.randomUUID(),
       deck,
       name,
@@ -174,7 +174,7 @@ export function groupCommand(
       "参加するグループを選んでください。",
     );
     sql(
-      "INSERT INTO deck_group_members VALUES(?,?,?) ON CONFLICT(deck,user) DO UPDATE SET grp=excluded.grp",
+      "INSERT INTO deck_group_members(deck,user,grp) VALUES(?,?,?) ON CONFLICT(deck,user) DO UPDATE SET grp=excluded.grp",
       deck,
       actor,
       value.groupId as string,

@@ -80,6 +80,26 @@ export function ensureWebbingShape(sql: HistorySQL): void {
     );
   if (mapColumns.length && !mapColumns.includes("creator"))
     sql("ALTER TABLE webbing_maps ADD COLUMN creator TEXT NOT NULL DEFAULT ''");
+  // Rows written while the node INSERT was positional landed shifted by
+  // one column on ALTER-upgraded databases (grp went to parent, the text
+  // into x, ...). They are exactly the rows whose x is text; shift every
+  // field back. SQLite reads pre-update values for every SET expression.
+  sql(
+    "UPDATE webbing_nodes SET grp=parent, parent=author, author=text, text=CAST(x AS TEXT), x=y, y=created, created=updated, updated=CAST(grp AS INTEGER) WHERE typeof(x)='text'",
+  );
+  // The same bug made the root check miss on every read, multiplying
+  // identical theme roots. Keep the earliest root per map+group and drop
+  // later childless duplicates.
+  sql(
+    `DELETE FROM webbing_nodes WHERE parent='' AND EXISTS (
+       SELECT 1 FROM webbing_nodes o
+       WHERE o.map=webbing_nodes.map AND o.grp=webbing_nodes.grp AND o.parent=''
+         AND (o.created < webbing_nodes.created
+              OR (o.created=webbing_nodes.created AND o.id < webbing_nodes.id))
+     ) AND NOT EXISTS (
+       SELECT 1 FROM webbing_nodes c WHERE c.parent=webbing_nodes.id
+     )`,
+  );
 }
 /** A grouped map keeps one theme root per deck group; groups defined or
  * added later get their root on first sight. */
@@ -99,7 +119,7 @@ function ensureGroupedRoots(
   for (const group of deckGroups(sql, deck)) {
     if (roots.has(group.id)) continue;
     sql(
-      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO webbing_nodes(id,map,grp,parent,author,text,x,y,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)",
       crypto.randomUUID(),
       map.id,
       group.id,
@@ -290,7 +310,7 @@ export function webbingCommand(
       grouped: value.grouped === true,
     };
     sql(
-      "INSERT INTO webbing_maps VALUES(?,?,?,?,?,?,?)",
+      "INSERT INTO webbing_maps(id,deck,title,status,created,grouped,creator) VALUES(?,?,?,?,?,?,?)",
       map.id,
       deck,
       map.title,
@@ -302,7 +322,7 @@ export function webbingCommand(
     if (map.grouped) ensureGroupedRoots(sql, deck, map, actor, now);
     else
       sql(
-        "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO webbing_nodes(id,map,grp,parent,author,text,x,y,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)",
         crypto.randomUUID(),
         map.id,
         "",
@@ -356,7 +376,7 @@ export function webbingCommand(
     );
     const nodeId = crypto.randomUUID();
     sql(
-      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO webbing_nodes(id,map,grp,parent,author,text,x,y,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)",
       nodeId,
       map.id,
       parent.grp,
@@ -449,7 +469,7 @@ export function webbingCommand(
     insistNotLockedByOther(sql, map.id, node.id, actor, now);
     const me = [...sql("SELECT name FROM users WHERE id=?", actor)][0];
     sql(
-      "INSERT INTO webbing_locks VALUES(?,?,?,?,?) ON CONFLICT(map,node) DO UPDATE SET user=excluded.user,name=excluded.name,expires=excluded.expires",
+      "INSERT INTO webbing_locks(map,node,user,name,expires) VALUES(?,?,?,?,?) ON CONFLICT(map,node) DO UPDATE SET user=excluded.user,name=excluded.name,expires=excluded.expires",
       map.id,
       node.id,
       actor,
