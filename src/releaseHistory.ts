@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.120.2",
+    date: "2026-11-13",
+    title: "切り抜きの四角が他の要素の下に隠れる問題を修正",
+    changes: [
+      "スライドに要素が多いとき、切り抜きの四角と丸印が他の要素の下に隠れて、枠線をドラッグすると切り抜きが終わってしまう問題を直しました。切り抜きの四角は常に一番手前に表示されます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.120.1",
     date: "2026-11-13",
     title: "切り抜きの四角に丸印とつかめる枠線を表示",

@@ -32,6 +32,19 @@ test("double-clicking a slide image crops it in place by its edges", async ({
     h: 300,
     src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=",
   });
+  // Later elements overlap the photo: element wrappers stack by
+  // layer, and the crop rectangle must stay on top of all of them.
+  for (let i = 0; i < 5; i += 1) {
+    slide.elements.push({
+      id: `filler-${i}`,
+      type: "image",
+      x: i === 4 ? 340 : 620,
+      y: i === 4 ? 60 : 400,
+      w: i === 4 ? 160 : 60,
+      h: i === 4 ? 300 : 60,
+      src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    });
+  }
   const created = await page.request.post("/api/decks", {
     headers,
     data: { version: 1, title: "その場で切り抜き", slides: [slide] },
@@ -56,6 +69,18 @@ test("double-clicking a slide image crops it in place by its edges", async ({
   await expect(page.locator(".crop-ghost")).toBeVisible();
   const frame = page.locator(".crop-frame");
   await expect(frame).toBeVisible();
+  // The round marks are what the pointer actually lands on, even
+  // where a later element overlaps the photo's edge.
+  const hit = await page.evaluate(() => {
+    const p = document.querySelector(".crop-point-e")!;
+    const r = p.getBoundingClientRect();
+    const el = document.elementFromPoint(
+      r.x + r.width / 2,
+      r.y + r.height / 2,
+    );
+    return el?.className ?? "";
+  });
+  expect(hit).toContain("crop-point-e");
   // Drag the right edge's round mark inward.
   const edge = frame.locator(".crop-point-e");
   const edgeBox = await edge.boundingBox();

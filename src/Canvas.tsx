@@ -820,6 +820,7 @@ export function Canvas({
                     top: cropGhostBox.y,
                     width: cropGhostBox.w,
                     height: cropGhostBox.h,
+                    zIndex: layer,
                   }}
                   aria-hidden="true"
                 >
@@ -1117,6 +1118,7 @@ export function Canvas({
               top: cropEdit.y,
               width: cropEdit.w,
               height: cropEdit.h,
+              zIndex: 1000,
             }}
             onPointerDown={(event) => {
               if (event.target === event.currentTarget)
