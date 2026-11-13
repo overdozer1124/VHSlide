@@ -186,7 +186,7 @@ test("both configured Google clients identify the same account and reject other 
 
 test("checks real JWT signatures/audience, session cookies, origin and membership", async () => {
   const config = (await (await request("/api/config")).json()) as any;
-  assert.match(config.notice, /無料プラン/);
+  assert.match(config.notice, /写真は作成者ごと50MB/);
   assert.equal((await request("/api/decks", "GET", undefined, "")).status, 401);
   assert.equal(
     (await request("/api/auth/google", "POST", { credential: "forged" }, ""))

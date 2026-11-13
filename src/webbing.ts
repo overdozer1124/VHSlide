@@ -1,5 +1,6 @@
 import type { HistorySQL } from "./historyStore.ts";
 import { deckGroups, effectiveGroupId } from "./groups.ts";
+import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
 
 /** Shared webbing-map (brainstorming web) activities.
  *
@@ -57,15 +58,34 @@ export const WEBBING_H = 540;
 export const WEBBING_LOCK_MS = 20000;
 const MAX_MAPS = 10;
 const MAX_NODES = 300;
-export const webbingSchema = `
+export const webbingSchema =
+  `
+CREATE TABLE IF NOT EXISTS schema_markers(name TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS webbing_maps(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, title TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS webbing_maps_deck ON webbing_maps(deck);
 CREATE TABLE IF NOT EXISTS webbing_nodes(id TEXT PRIMARY KEY, map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, grp TEXT NOT NULL DEFAULT '', parent TEXT, author TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS webbing_nodes_map ON webbing_nodes(map);
-CREATE TABLE IF NOT EXISTS webbing_locks(map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, node TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(map,node));`;
+CREATE TABLE IF NOT EXISTS webbing_locks(map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, node TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(map,node));` +
+  featureVersionSchema +
+  versionTriggers("webbing_maps", "webbing", (a) => `${a}.deck`) +
+  versionTriggers(
+    "webbing_nodes",
+    "webbing",
+    (a) => `COALESCE((SELECT deck FROM webbing_maps WHERE id=${a}.map),'')`,
+  ) +
+  versionTriggers(
+    "webbing_locks",
+    "webbing",
+    (a) => `COALESCE((SELECT deck FROM webbing_maps WHERE id=${a}.map),'')`,
+  );
 /** Older databases lack the grp column on nodes and the grouped/creator
  * columns on maps. Add whatever is missing; existing maps stay ungrouped. */
 export function ensureWebbingShape(sql: HistorySQL): void {
+  sql("CREATE TABLE IF NOT EXISTS schema_markers(name TEXT PRIMARY KEY)");
+  const done = [
+    ...sql("SELECT name FROM schema_markers WHERE name='webbing-shape-2'"),
+  ][0];
+  if (done) return;
   const nodeColumns = [...sql("PRAGMA table_info(webbing_nodes)")].map(
     (c) => c.name,
   );
@@ -100,6 +120,7 @@ export function ensureWebbingShape(sql: HistorySQL): void {
        SELECT 1 FROM webbing_nodes c WHERE c.parent=webbing_nodes.id
      )`,
   );
+  sql("INSERT OR IGNORE INTO schema_markers VALUES('webbing-shape-2')");
 }
 /** A grouped map keeps one theme root per deck group; groups defined or
  * added later get their root on first sight. */

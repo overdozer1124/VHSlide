@@ -87,17 +87,28 @@ function WorksheetSession({
       setSheets(data);
     }
   }
+  const listVersion = useRef<number | null>(null);
+  const sheetsRef = useRef<WorksheetView[]>([]);
+  sheetsRef.current = sheets;
   async function refresh() {
     if (!enabled) return [];
     const version = ++generation.current;
-    const data = await api<{ worksheets: WorksheetView[] }>(
-      `/api/decks/${deckId}/worksheets`,
+    const known = listVersion.current;
+    const data = await api<{
+      worksheets?: WorksheetView[];
+      version?: number;
+      unchanged?: boolean;
+    }>(
+      `/api/decks/${deckId}/worksheets${known !== null ? `?v=${known}` : ""}`,
     );
+    if (typeof data.version === "number") listVersion.current = data.version;
+    if (data.unchanged) return sheetsRef.current;
+    const list = data.worksheets ?? [];
     if (alive.current && version === generation.current) {
-      setSheets(data.worksheets);
+      setSheets(list);
       setError("");
     }
-    return data.worksheets;
+    return list;
   }
   useEffect(() => {
     alive.current = true;

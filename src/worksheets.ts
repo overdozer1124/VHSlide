@@ -1,4 +1,5 @@
 import type { HistorySQL } from "./historyStore.ts";
+import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
 import { SurveyError } from "./surveys.ts";
 // The template default guidance for text fields. Drawing fields created
 // from templates or switched from text used to inherit it, where it makes
@@ -348,7 +349,17 @@ export function parseWorksheetValues(
   }
   return result;
 }
-export const worksheetSchema = `CREATE TABLE IF NOT EXISTS worksheets(id TEXT PRIMARY KEY,deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,definition TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS worksheets_deck ON worksheets(deck); CREATE TABLE IF NOT EXISTS worksheet_answers(worksheet TEXT NOT NULL REFERENCES worksheets(id) ON DELETE CASCADE,author TEXT NOT NULL,value TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(worksheet,author));`;
+export const worksheetSchema =
+  `CREATE TABLE IF NOT EXISTS worksheets(id TEXT PRIMARY KEY,deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,definition TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS worksheets_deck ON worksheets(deck); CREATE TABLE IF NOT EXISTS worksheet_answers(worksheet TEXT NOT NULL REFERENCES worksheets(id) ON DELETE CASCADE,author TEXT NOT NULL,value TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(worksheet,author));` +
+  featureVersionSchema +
+  versionTriggers("worksheets", "worksheets", (a) => `${a}.deck`) +
+  versionTriggers(
+    "worksheet_answers",
+    "worksheets",
+    // On a cascading delete the parent sheet is already gone, so the
+    // lookup yields NULL; bump a throwaway counter instead of failing.
+    (a) => `COALESCE((SELECT deck FROM worksheets WHERE id=${a}.worksheet),'')`,
+  );
 export function worksheetList(
   sql: HistorySQL,
   deck: string,

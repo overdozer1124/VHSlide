@@ -22,6 +22,7 @@ import {
   groupCommand,
   GroupError,
 } from "../src/groups.ts";
+import { featureVersion } from "../src/featureVersions.ts";
 import {
   expireFollow,
   idleFollow,
@@ -1017,6 +1018,24 @@ export function createApplication(options: Options) {
           try {
             const current = member(id, u);
             const host = current.owner === u.id;
+            if (method === "GET") {
+              const v = url.searchParams.get("v");
+              if (v !== null) {
+                const version = featureVersion(historySQL, id, "worksheets");
+                const worksheets =
+                  String(version) === v
+                    ? undefined
+                    : worksheetList(historySQL, id, u.id, host);
+                db.exec("COMMIT");
+                return json(
+                  res,
+                  200,
+                  worksheets
+                    ? { worksheets, version }
+                    : { unchanged: true, version },
+                );
+              }
+            }
             if (method !== "GET")
               worksheetCommand(
                 historySQL,
@@ -1114,6 +1133,22 @@ export function createApplication(options: Options) {
                 route![2],
                 value,
               );
+            if (method === "GET") {
+              const v = url.searchParams.get("v");
+              if (v !== null) {
+                const version = featureVersion(historySQL, id, "groups");
+                const groups =
+                  String(version) === v
+                    ? undefined
+                    : groupList(historySQL, id, u.id, host);
+                db.exec("COMMIT");
+                return json(
+                  res,
+                  200,
+                  groups ? { ...groups, version } : { unchanged: true, version },
+                );
+              }
+            }
             const groups = groupList(historySQL, id, u.id, host);
             db.exec("COMMIT");
             return json(res, 200, groups);
@@ -1150,6 +1185,24 @@ export function createApplication(options: Options) {
           try {
             const current = member(id, u);
             const host = current.owner === u.id;
+            if (method === "GET") {
+              const v = url.searchParams.get("v");
+              if (v !== null) {
+                const version = featureVersion(historySQL, id, "webbing");
+                const webbing =
+                  String(version) === v
+                    ? undefined
+                    : webbingList(historySQL, id, host);
+                db.exec("COMMIT");
+                return json(
+                  res,
+                  200,
+                  webbing
+                    ? { webbing, version }
+                    : { unchanged: true, version },
+                );
+              }
+            }
             let extraResult: { createdId?: string } | undefined;
             if (method !== "GET")
               extraResult = webbingCommand(

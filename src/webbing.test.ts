@@ -424,6 +424,10 @@ CREATE TABLE webbing_locks(map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELE
       later,
       later,
     );
+    // The repair pass runs once per database (guarded by a marker);
+    // clear it to replay a first-ever read on a database that still
+    // holds rows written by the buggy version.
+    run("DELETE FROM schema_markers");
     const healed = webbingList(sql, "deck", true).find(
       (m) => m.id === mapId,
     )!;

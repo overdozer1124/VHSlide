@@ -85,12 +85,19 @@ function GroupsSession({
     setMyGroupId(data.myGroupId);
     setError("");
   }
+  const listVersion = useRef<number | null>(null);
   async function refresh() {
     if (!enabled) return;
     const version = ++generation.current;
-    const data = await api<{ groups: DeckGroup[]; myGroupId?: string }>(
-      `/api/decks/${deckId}/groups`,
-    );
+    const known = listVersion.current;
+    const data = await api<{
+      groups: DeckGroup[];
+      myGroupId?: string;
+      version?: number;
+      unchanged?: boolean;
+    }>(`/api/decks/${deckId}/groups${known !== null ? `?v=${known}` : ""}`);
+    if (typeof data.version === "number") listVersion.current = data.version;
+    if (data.unchanged) return;
     if (alive.current && version === generation.current) adopt(data);
   }
   async function command(

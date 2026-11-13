@@ -20,6 +20,7 @@ import {
   groupList,
   groupCommand,
 } from "../src/groups.ts";
+import { featureVersion } from "../src/featureVersions.ts";
 import {
   joinSchema,
   requestJoin,
@@ -474,7 +475,7 @@ export class Directory extends DurableObject<Env> {
         enabled: !!this.env.GOOGLE_CLIENT_ID,
         syncIntervalMs: 1000,
         notice:
-          "無料プラン：上限に達するとクラウド機能が停止します。写真は作成者ごと50MB・全体500MBまで。授業の終わりにはJSONも保存してください。",
+          "写真は作成者ごと50MB・全体500MBまで。授業の終わりにはJSONも保存してください。",
       });
     if (path === "/api/session" && method === "GET") {
       try {
@@ -912,6 +913,17 @@ export class Directory extends DurableObject<Env> {
             value,
           );
         }
+        if (method === "GET") {
+          const v = new URL(request.url).searchParams.get("v");
+          if (v !== null) {
+            const version = featureVersion(sql, id, "worksheets");
+            if (String(version) === v) return json({ unchanged: true, version });
+            return json({
+              worksheets: worksheetList(sql, id, user.id, host),
+              version,
+            });
+          }
+        }
         return json({ worksheets: worksheetList(sql, id, user.id, host) });
       });
     }
@@ -989,6 +1001,14 @@ export class Directory extends DurableObject<Env> {
             value,
           );
         }
+        if (method === "GET") {
+          const v = new URL(request.url).searchParams.get("v");
+          if (v !== null) {
+            const version = featureVersion(sql, id, "groups");
+            if (String(version) === v) return json({ unchanged: true, version });
+            return json({ ...groupList(sql, id, user.id, host), version });
+          }
+        }
         return json(groupList(sql, id, user.id, host));
       });
     }
@@ -1030,6 +1050,14 @@ export class Directory extends DurableObject<Env> {
             route![1],
             value,
           );
+        }
+        if (method === "GET") {
+          const v = new URL(request.url).searchParams.get("v");
+          if (v !== null) {
+            const version = featureVersion(sql, id, "webbing");
+            if (String(version) === v) return json({ unchanged: true, version });
+            return json({ webbing: webbingList(sql, id, host), version });
+          }
         }
         return json({
           webbing: webbingList(sql, id, host),

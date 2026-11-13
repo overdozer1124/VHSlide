@@ -1,4 +1,5 @@
 import type { HistorySQL } from "./historyStore.ts";
+import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
 
 /** Deck-wide groups （班）: one shared group set per deck, with membership.
  *
@@ -30,10 +31,14 @@ function insist(
   if (!ok) throw new GroupError(status, message);
 }
 export const MAX_DECK_GROUPS = 12;
-export const groupSchema = `
+export const groupSchema =
+  `
 CREATE TABLE IF NOT EXISTS deck_groups(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, name TEXT NOT NULL, sort INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS deck_groups_deck ON deck_groups(deck);
-CREATE TABLE IF NOT EXISTS deck_group_members(deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user TEXT NOT NULL, grp TEXT NOT NULL, PRIMARY KEY(deck,user));`;
+CREATE TABLE IF NOT EXISTS deck_group_members(deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user TEXT NOT NULL, grp TEXT NOT NULL, PRIMARY KEY(deck,user));` +
+  featureVersionSchema +
+  versionTriggers("deck_groups", "groups", (a) => `${a}.deck`) +
+  versionTriggers("deck_group_members", "groups", (a) => `${a}.deck`);
 export function deckGroups(sql: HistorySQL, deck: string): DeckGroup[] {
   return [
     ...sql(

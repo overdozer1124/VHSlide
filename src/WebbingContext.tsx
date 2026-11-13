@@ -82,17 +82,26 @@ function WebbingSession({
       setMaps(data);
     }
   }
+  const listVersion = useRef<number | null>(null);
+  const mapsRef = useRef<WebbingView[]>([]);
+  mapsRef.current = maps;
   async function refresh() {
     if (!enabled) return [];
     const version = ++generation.current;
-    const data = await api<{ webbing: WebbingView[] }>(
-      `/api/decks/${deckId}/webbing`,
-    );
+    const known = listVersion.current;
+    const data = await api<{
+      webbing?: WebbingView[];
+      version?: number;
+      unchanged?: boolean;
+    }>(`/api/decks/${deckId}/webbing${known !== null ? `?v=${known}` : ""}`);
+    if (typeof data.version === "number") listVersion.current = data.version;
+    if (data.unchanged) return mapsRef.current;
+    const list = data.webbing ?? [];
     if (alive.current && version === generation.current) {
-      setMaps(data.webbing);
+      setMaps(list);
       setError("");
     }
-    return data.webbing;
+    return list;
   }
   async function command(
     mapId: string | undefined,
