@@ -180,6 +180,22 @@ test("grouped webbing maps split writing by the deck's shared groups", async ({
     await expect(
       consoleView.getByText("班で考えよう", { exact: true }).first(),
     ).toBeVisible();
+
+    // A group card opens enlarged: the map at a readable size with its
+    // writings beside it, in a dialog the host can close again.
+    await card1.click();
+    const enlarged = page.getByRole("dialog", { name: /1班.*のマップ/ });
+    await expect(enlarged).toBeVisible();
+    await expect(
+      enlarged.locator(".console-webbing-mini.is-large"),
+    ).toBeVisible();
+    await expect(
+      enlarged.locator(".console-webbing-text", {
+        hasText: "1班のアイデア",
+      }),
+    ).toBeVisible();
+    await enlarged.getByRole("button", { name: "閉じる" }).click();
+    await expect(enlarged).toHaveCount(0);
   } finally {
     await anaContext.close();
     await bobContext.close();

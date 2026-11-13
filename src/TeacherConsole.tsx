@@ -979,6 +979,7 @@ function ConsoleStudentSlides({
 function ConsoleGroups({ focus }: { focus?: Slide }) {
   const webbingCtx = useWebbing();
   const groupsCtx = useGroups();
+  const [enlargedKey, setEnlargedKey] = useState<string>();
   const mapIds = new Set(
     (focus?.elements ?? [])
       .map((e) => e.webbing)
@@ -998,6 +999,26 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
         このスライドにはウェビングマップがありません。左の一覧でマップのあるスライドを選んでください。
       </p>
     );
+  // The enlarged card is derived from live state, so writings that
+  // arrive while it is open show up on the next poll.
+  const enlarged = ((): {
+    title: string;
+    map: (typeof maps)[number];
+    nodes: WebbingNode[];
+  } | undefined => {
+    if (!enlargedKey) return undefined;
+    const [mapId, groupId] = enlargedKey.split(":");
+    const map = maps.find((m) => m.id === mapId);
+    if (!map) return undefined;
+    if (!map.grouped) return { title: "全員のマップ", map, nodes: map.nodes };
+    const group = groupsCtx.groups.find((g) => g.id === groupId);
+    if (!group) return undefined;
+    return {
+      title: `${group.name}（参加 ${group.memberCount}人）`,
+      map,
+      nodes: map.nodes.filter((n) => n.groupId === group.id),
+    };
+  })();
   return (
     <div className="console-groups">
       {maps.map((map) => (
@@ -1021,6 +1042,7 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
                   key={group.id}
                   title={`${group.name}（参加 ${group.memberCount}人）`}
                   nodes={map.nodes.filter((n) => n.groupId === group.id)}
+                  onEnlarge={() => setEnlargedKey(`${map.id}:${group.id}`)}
                 />
               ))}
               {!groupsCtx.groups.length && (
@@ -1030,10 +1052,51 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
               )}
             </div>
           ) : (
-            <ConsoleGroupCard title="全員のマップ" nodes={map.nodes} />
+            <ConsoleGroupCard
+              title="全員のマップ"
+              nodes={map.nodes}
+              onEnlarge={() => setEnlargedKey(`${map.id}:all`)}
+            />
           )}
         </section>
       ))}
+      {enlarged && (
+        <div
+          className="console-enlarged"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${enlarged.title}のマップ`}
+          onClick={() => setEnlargedKey(undefined)}
+        >
+          <div
+            className="console-enlarged-box console-enlarged-map"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header>
+              <strong>
+                {enlarged.map.title} — {enlarged.title}
+              </strong>
+              <button
+                type="button"
+                className="button outline"
+                onClick={() => setEnlargedKey(undefined)}
+              >
+                <X size={15} />
+                閉じる
+              </button>
+            </header>
+            <div className="console-enlarged-map-body">
+              <ConsoleWebbingMini nodes={enlarged.nodes} large />
+              <div className="console-enlarged-map-tree">
+                <ConsoleWebbingTree nodes={enlarged.nodes} parentId={null} />
+                {!enlarged.nodes.length && (
+                  <p className="console-note">まだ書き込みがありません。</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1041,12 +1104,18 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
 function ConsoleGroupCard({
   title,
   nodes,
+  onEnlarge,
 }: {
   title: string;
   nodes: WebbingNode[];
+  onEnlarge?: () => void;
 }) {
   return (
-    <article className="console-group-card">
+    <article
+      className={`console-group-card ${onEnlarge ? "is-clickable" : ""}`}
+      onClick={onEnlarge}
+      title={onEnlarge ? "クリックで拡大" : undefined}
+    >
       <header>
         <strong>{title}</strong>
         <span>
@@ -1060,10 +1129,19 @@ function ConsoleGroupCard({
   );
 }
 
-function ConsoleWebbingMini({ nodes }: { nodes: WebbingNode[] }) {
+function ConsoleWebbingMini({
+  nodes,
+  large,
+}: {
+  nodes: WebbingNode[];
+  large?: boolean;
+}) {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   return (
-    <div className="console-webbing-mini" aria-hidden="true">
+    <div
+      className={`console-webbing-mini ${large ? "is-large" : ""}`}
+      aria-hidden="true"
+    >
       <svg viewBox={`0 0 ${WEBBING_W} ${WEBBING_H}`}>
         {nodes
           .filter((n) => n.parentId)
