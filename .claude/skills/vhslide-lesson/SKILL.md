@@ -30,8 +30,8 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 | 項目 | 選択肢 | 既定 |
 | --- | --- | --- |
 | 配置（layout） | `lesson-rows`：1行＝1単位時間。左から右へ授業が進み、次の時間は下の行<br>`phase-grid`：導入・展開・まとめを縦に並べる2次元配置（複数時間ならシートを時間ごとに分ける） | `lesson-rows` |
-| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`minimal` ミニマル／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
-| キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
+| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`pastel` パステル／`shokutaku` 食卓／`minimal` ミニマル／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
+| キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`hiyoko`（成長・幼児）／`ninjin`（食品・栄養）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
 
 単元が複数時間にわたる場合は「何時間目まで作るか」も確認する。
 
@@ -68,7 +68,7 @@ VHSlide は頻繁に機能が増える。作る前に、その時点の最新版
 - **グラフ**：棒・折れ線・円の1系列は VHSlide のネイティブグラフ（`chart`）を使う（編集できる）。男女比較など複数系列や注釈が要る図は SVG を書いて PNG にする。
 - VHSlide のグラフは、幅が狭いと「グラフが小さい」と表示チェックで指摘される（目安：棒グラフは1ページ2つまで・幅430以上）。円グラフは凡例が場所をとり円が小さくなるので、2つ以上を比べるときは SVG で描く。
 - **SVG の図**：`width`/`height` 属性付きの SVG ファイルを書き、スライドの `image` に `.svg` のパスを指定すれば自動で PNG 化される。フォントは `font-family="IPAPGothic, sans-serif"`。配色はテーマの色に合わせる（[design.md](reference/design.md)）。
-- **キャラクター**：`scripts/mascot.mjs` の図形キャラクターを自動で配置する（問い＝?、解説＝!、表紙＝♪）。新しい種類が必要なら同じ 260×260 の流儀で `bodies` に追加する。既存作品のキャラクターの模倣はしない。
+- **キャラクター**：`scripts/mascot.mjs` の図形キャラクターを自動で配置する（問い＝?、解説＝!、表紙＝♪）。トーンやキャラクターの希望が言葉で来たら（例：「食事が楽しくなる感じ」）、近いものがなければ `themes.mjs`・`mascot.mjs` に新しく作り、`node scripts/prebuild-mascots.mjs` で同梱画像も作り直す。新しい種類が必要なら同じ 260×260 の流儀で `bodies` に追加する。既存作品のキャラクターの模倣はしない。
 
 ## 4. レッスン仕様を書いてビルド
 

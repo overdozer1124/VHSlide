@@ -34,6 +34,13 @@ const bodies = {
 <circle cx="86" cy="138" r="11" fill="${c.cheek}" opacity=".85"/><circle cx="174" cy="138" r="11" fill="${c.cheek}" opacity=".85"/>
 <path d="M118 128 L142 128 L130 146 Z" fill="#f29b38" stroke="${c.outline}" stroke-width="3" stroke-linejoin="round"/>
 <path d="M44 176 L66 162 L88 180 L110 160 L130 180 L150 160 L172 180 L194 162 L216 176 Q220 246 130 248 Q40 246 44 176 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="5" stroke-linejoin="round"/>`,
+  // にんじん: a carrot with leafy top (food and nutrients).
+  ninjin: c => `<path d="M118 62 C104 30 84 22 74 30 C92 40 104 54 112 66 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M126 60 C124 26 132 12 144 14 C144 32 138 48 134 62 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M140 64 C156 36 178 30 188 38 C172 46 160 58 150 70 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M66 92 Q130 50 194 92 Q204 140 156 226 Q130 262 104 226 Q56 140 66 92 Z" fill="${c.body}" stroke="${c.outline}" stroke-width="5" stroke-linejoin="round"/>
+<path d="M88 168 h16 M160 184 h-14 M118 206 h14" stroke="${c.outline}" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+${face(130, 116, c, 0.82)}`,
   blob: c => `<path d="M64 76 C92 30 176 26 206 70 C246 96 248 196 206 226 C168 252 92 252 56 224 C14 192 22 104 64 76 Z" fill="${c.body}" stroke="${c.outline}" stroke-width="5"/>${face(130, 140, c)}`,
 };
 const badge = (fill, mark, size = 40) =>

@@ -147,6 +147,13 @@ function header(tag, title, meta) {
     els.push(text(title, 186, 8, 650, 50, 28, { color: T.header === "band" ? T.onPrimary : T.accent, bold: true, valign: "middle", min: 18 }));
     if (T.header === "chalk") els.push(rect(18, 62, 924, 20, T.line), rect(18, 64, 924, 20, T.bg));
     top = 78;
+  } else if (T.header === "gingham") { // tablecloth: coloured band with a checked edge
+    els.push(rect(0, 0, W, 64, T.primary));
+    els.push({ ...rect(18, 12, 150, 40, T.surface, { shape: "rounded" }) });
+    els.push(text(tag, 18, 14, 150, 36, 16, { color: T.primary, bold: true, align: "center", valign: "middle", min: 12 }));
+    els.push(text(title, 186, 8, 650, 50, 28, { color: T.onPrimary, bold: true, valign: "middle", min: 18 }));
+    for (let i = 0; i < W / 40; i++) els.push(rect(i * 40, 64, 40, 20, i % 2 ? T.surface : T.primarySoft));
+    top = 96;
   } else if (T.header === "tab") {
     els.push(rect(0, 0, W, 72, T.surface));
     els.push(rect(0, 18, 190, 40, T.accent, { shape: "rounded" }), rect(0, 18, 40, 40, T.accent));
@@ -161,7 +168,7 @@ function header(tag, title, meta) {
     else els.push(rect(X0, 82, X1 - X0, 20, T.line), rect(X0, 83, X1 - X0, 20, T.bg));
     top = 98;
   }
-  if (meta) els.push(text(meta, 800, 18, 140, 28, 13, { color: T.header === "band" ? T.onPrimary : T.sub, align: "right", valign: "middle", min: 12 }));
+  if (meta) els.push(text(meta, 800, 18, 140, 28, 13, { color: T.header === "band" || T.header === "gingham" ? T.onPrimary : T.sub, align: "right", valign: "middle", min: 12 }));
   return { els, top };
 }
 

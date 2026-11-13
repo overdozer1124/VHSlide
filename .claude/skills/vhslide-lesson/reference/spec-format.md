@@ -8,7 +8,7 @@
   "course": "教科・単元（表紙の小見出し）",
   "layout": "lesson-rows",          // または "phase-grid"
   "theme": "natural",               // プリセット名、または { "base": "chic", "accent": "#c0392b", ... }
-  "mascot": "onigiri",              // onigiri | drop | book | sprout | kokeshi | blob | none
+  "mascot": "onigiri",              // onigiri | drop | book | sprout | kokeshi | hiyoko | ninjin | blob | none
   "lessons": [                      // 1要素＝1単位時間
     {
       "title": "4　中学生に必要な栄養",   // 表紙の題
@@ -89,4 +89,4 @@
 { "base": "minimal", "label": "学校カラー", "accent": "#c0392b", "accentSoft": "#fbe9e7", "primary": "#1b2a49" }
 ```
 
-使えるキー：`bg` `surface` `ink` `sub` `primary` `onPrimary` `primarySoft` `accent` `onAccent` `accentSoft` `line` `muted` `chart[]` `header`（band/underline/tab/chalk/minimal）`card`（fill/strip/outline）`mascot{body, outline, wrap, cheek, think, idea}`。色は必ず `#rrggbb`。
+使えるキー：`bg` `surface` `ink` `sub` `primary` `onPrimary` `primarySoft` `accent` `onAccent` `accentSoft` `line` `muted` `chart[]` `header`（band/underline/tab/chalk/gingham/minimal）`card`（fill/strip/outline）`mascot{body, outline, wrap, cheek, think, idea}`。色は必ず `#rrggbb`。

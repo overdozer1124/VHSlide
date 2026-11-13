@@ -56,6 +56,15 @@ export const themes = {
     chart: ["#d97a8c", "#5f9e52", "#e6a23c", "#6aa3c8", "#a07cc5", "#e5866a"],
     muted: "#dccfd5", mascot: { body: "#ffe27a", outline: "#4a3f45", wrap: "#ffffff", cheek: "#f7a8b8", think: "#e58a9c", idea: "#7cb46b" },
   },
+  shokutaku: {
+    label: "食卓（トマト・にんじん・菜っ葉の、食事が楽しくなる配色）",
+    bg: "#fffaf0", surface: "#ffffff", ink: "#3b2a20", sub: "#7a6555",
+    primary: "#d94a32", onPrimary: "#ffffff", primarySoft: "#fde8e1",
+    accent: "#3f8f3a", onAccent: "#ffffff", accentSoft: "#e9f5e1",
+    line: "#f4c9bd", header: "gingham", card: "fill",
+    chart: ["#d94a32", "#f28c28", "#3f8f3a", "#f2c14e", "#8b5a3c", "#6aa3c8"],
+    muted: "#e3d6c8", mascot: { body: "#f28c28", outline: "#5a3a22", wrap: "#4f9a3d", cheek: "#ff9e9e", think: "#d94a32", idea: "#3f8f3a" },
+  },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",
     bg: "#ffffff", surface: "#f4f5f7", ink: "#1d1f23", sub: "#6b7079",
