@@ -110,6 +110,9 @@ export class CloudWorkspace {
   follow: PublicFollowState = idleFollow();
   followError = "";
   private followDriver?: string;
+  /** Set by the app: the host is showing the presentation view. Sent
+   * with every follow command so guests can drop their chrome. */
+  followPresenting = false;
   private followHeartbeat?: ReturnType<typeof setInterval>;
   private followWatchdog?: ReturnType<typeof setTimeout>;
   private followReceivedAt = 0;
@@ -203,11 +206,19 @@ export class CloudWorkspace {
           action,
           ...(this.follow.active ? { sessionId: this.follow.sessionId } : {}),
           ...(target ? { target } : {}),
+          presenting: this.followPresenting,
         }),
       );
     });
     this.emit();
     return promise;
+  }
+  /** Re-send the presenting flag (and refresh the lease) without
+   * moving the follow target. */
+  syncFollowPresentation() {
+    return this.drivesFollow && this.follow.active
+      ? this.followCommand("heartbeat")
+      : Promise.resolve();
   }
   startFollow(target: FollowTarget) {
     return this.followCommand("start", target);

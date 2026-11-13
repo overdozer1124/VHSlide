@@ -18,6 +18,9 @@ export type FollowState =
       expiresAt: number;
       target: FollowTarget;
       pinned?: boolean;
+      /** The host is in the presentation view: guests show the slide
+       * alone, without any follow chrome. */
+      presenting?: boolean;
     };
 export const idleFollow = (revision = 0): FollowState => ({
   active: false,
@@ -77,6 +80,7 @@ export function transitionFollow(
     action: string;
     sessionId?: string;
     target?: unknown;
+    presenting?: unknown;
   };
   if (
     !v ||
@@ -102,6 +106,7 @@ export function transitionFollow(
       updatedAt: now,
       expiresAt: now + FOLLOW_LEASE_MS,
       target: followTarget(v.target, book),
+      ...(v.presenting === true ? { presenting: true } : {}),
     };
   }
   if (!current.active || v.sessionId !== current.sessionId)
@@ -131,6 +136,9 @@ export function transitionFollow(
         : v.action === "move" && !current.pinned
           ? followTarget(v.target, book)
           : current.target,
+    ...(typeof v.presenting === "boolean"
+      ? { presenting: v.presenting }
+      : {}),
   };
 }
 export function publicFollow(state: FollowState) {
@@ -161,6 +169,7 @@ export function isPublicFollowState(
     ["map", "page"].includes(v.target.mode) &&
     typeof v.target.sheetId === "string" &&
     (v.pinned === undefined || typeof v.pinned === "boolean") &&
+    (v.presenting === undefined || typeof v.presenting === "boolean") &&
     (v.target.pageId === undefined || typeof v.target.pageId === "string") &&
     Number.isFinite(v.startedAt) &&
     Number.isFinite(v.updatedAt) &&

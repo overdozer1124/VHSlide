@@ -22,9 +22,10 @@ export function HostFollowView({
     const timer = setTimeout(() => setReady(true), 100);
     return () => clearTimeout(timer);
   }, []);
+  const presenting = state.presenting === true;
   return (
     <section
-      className="host-follow-overlay"
+      className={`host-follow-overlay ${presenting ? "is-presenting" : ""}`}
       inert={activity.open}
       aria-hidden={activity.open || undefined}
       tabIndex={-1}
@@ -33,20 +34,24 @@ export function HostFollowView({
       aria-label="ホストの画面"
       data-mode={state.target.mode}
     >
-      <header>
-        <strong>
-          {state.pinned
-            ? "スライドを固定表示中"
-            : `${state.host.name}さんの画面を表示中`}
-        </strong>
-        <span>ページ移動とスライド編集はできません。フォームの回答はできます。</span>
-        <ResponseFieldLauncher />
-      </header>
-      <p className="host-follow-notice" role="status">
-        {state.pinned
-          ? "先生がこのスライドを固定しています。"
-          : "ホストが集合をかけました。編集中の内容はそのまま保持されています。"}
-      </p>
+      {!presenting && (
+        <>
+          <header>
+            <strong>
+              {state.pinned
+                ? "スライドを固定表示中"
+                : `${state.host.name}さんの画面を表示中`}
+            </strong>
+            <span>ページ移動とスライド編集はできません。フォームの回答はできます。</span>
+            <ResponseFieldLauncher />
+          </header>
+          <p className="host-follow-notice" role="status">
+            {state.pinned
+              ? "先生がこのスライドを固定しています。"
+              : "ホストが集合をかけました。編集中の内容はそのまま保持されています。"}
+          </p>
+        </>
+      )}
       {!ready ? (
         <div className="host-follow-wait" role="status">
           ホストの画面へ切り替えます…
@@ -54,29 +59,43 @@ export function HostFollowView({
       ) : state.target.mode === "map" ? (
         <FollowMap book={book} state={state} />
       ) : (
-        <FollowPage page={page} />
+        <FollowPage page={page} presenting={presenting} />
       )}
     </section>
   );
 }
 // Mount the measuring ref with the actual page, after the initial notice and map views.
-function FollowPage({ page }: { page?: Slide }) {
+function FollowPage({
+  page,
+  presenting,
+}: {
+  page?: Slide;
+  presenting?: boolean;
+}) {
   return page ? (
-    <FittedFollowPage page={page} />
+    <FittedFollowPage page={page} presenting={presenting} />
   ) : (
     <div className="host-follow-page">
       <p role="status">ホストのページを読み込んでいます…</p>
     </div>
   );
 }
-function FittedFollowPage({ page }: { page: Slide }) {
+function FittedFollowPage({
+  page,
+  presenting,
+}: {
+  page: Slide;
+  presenting?: boolean;
+}) {
   const frame = useRef<HTMLDivElement>(null),
     zoom = useFitCanvas(frame, 0, 0);
   return (
     <div className="host-follow-page" data-follow-page={page.id}>
-      <p>
-        {page.y + 1}.{page.x + 1}　{page.title}
-      </p>
+      {!presenting && (
+        <p>
+          {page.y + 1}.{page.x + 1}　{page.title}
+        </p>
+      )}
       <div ref={frame} className="host-follow-canvas">
         <Canvas surveyInteractive slide={page} zoom={zoom} />
       </div>

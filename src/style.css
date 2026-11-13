@@ -6402,6 +6402,8 @@ h1 span {
 @media print {.speaker-notes-editor {display:none!important;}}
 
 .host-follow-overlay {position:fixed;inset:0;z-index:20000;background:#f7f8fa;display:flex;flex-direction:column;}
+.host-follow-overlay.is-presenting[data-mode="page"] {background:#17211e;}
+.host-follow-overlay.is-presenting .host-follow-page {padding:0;gap:0;}
 .host-follow-overlay > header {min-height:64px;display:flex;align-items:center;gap:18px;padding:14px 22px;background:#365d50;color:white;flex-wrap:wrap;}
 .host-follow-overlay > header strong {font-size:20px;}
 .host-follow-page {position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:10px;overflow:hidden;}

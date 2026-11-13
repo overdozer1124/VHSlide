@@ -2368,6 +2368,12 @@ export default function App() {
     cloud.follow.active && cloud.follow.pinned,
     cloud.drivesFollow,
   ]);
+  const followPresenting = view === "present";
+  useEffect(() => {
+    cloud.followPresenting = followPresenting;
+    if (cloud.drivesFollow && cloud.follow.active)
+      void cloud.syncFollowPresentation().catch(() => {});
+  }, [followPresenting, cloud.follow.active, cloud.drivesFollow]);
   const iconSize = 17;
   const followControls = (
     <>

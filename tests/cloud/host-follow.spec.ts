@@ -670,3 +670,91 @@ test("40 connections include rendered guest page latency under one second", asyn
     await context.close();
   }
 });
+
+test("step 7 presenting strips the guest follow view down to the slide", async ({
+  page,
+  browser,
+}, info) => {
+  const id = await scopeFixture(page, `${info.project.name}-present-host`),
+    name = `${info.project.name}-present-guest`;
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/recipients`, {
+        headers: { Origin: scopeOrigin },
+        data: {
+          recipients: [
+            {
+              email: `${name}@example.test`,
+              access: {
+                mode: "all",
+                comment: true,
+                rows: [],
+                columns: [],
+                slides: [],
+              },
+            },
+          ],
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const guest = await context.newPage();
+  try {
+    await scopeLogin(guest, name);
+    await guest.goto(`/?room=${id}`);
+    await expect(guest.locator(".cloud-presence")).toContainText(
+      "クラウドに保存済み",
+    );
+    const toggle = page.getByRole("button", {
+      name: "全員の画面を同期",
+      exact: true,
+    });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await page.locator(".thumbnail").nth(4).click();
+    await expect(guest.locator(".host-follow-page")).toHaveAttribute(
+      "data-follow-page",
+      "p11",
+    );
+    // Follow chrome is there while the host is not presenting.
+    await expect(guest.locator(".host-follow-overlay > header")).toBeVisible();
+    await expect(guest.locator(".host-follow-page > p")).toBeVisible();
+    await page.getByRole("button", { name: "発表する", exact: true }).click();
+    await expect(page.locator(".present-mode")).toBeVisible();
+    // While the host presents, the guest sees the slide alone, filling
+    // the window: no header, no notice, no page label.
+    await expect(
+      guest.locator(".host-follow-overlay.is-presenting"),
+    ).toBeVisible();
+    await expect(guest.locator(".host-follow-overlay > header")).toHaveCount(0);
+    await expect(guest.locator(".host-follow-notice")).toHaveCount(0);
+    await expect(guest.locator(".host-follow-page > p")).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        const canvas = await guest
+          .locator(".host-follow-page .slide-canvas")
+          .boundingBox();
+        const viewport = guest.viewportSize()!;
+        if (!canvas) return false;
+        return (
+          Math.abs(
+            canvas.width - Math.min(viewport.width, (viewport.height * 16) / 9),
+          ) < 2 &&
+          canvas.x >= -1 &&
+          canvas.y >= -1 &&
+          canvas.x + canvas.width <= viewport.width + 1 &&
+          canvas.y + canvas.height <= viewport.height + 1
+        );
+      })
+      .toBe(true);
+    // Leaving the presentation brings the follow chrome back.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".present-mode")).toHaveCount(0);
+    await expect(guest.locator(".host-follow-overlay > header")).toBeVisible();
+    await toggle.click();
+    await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});

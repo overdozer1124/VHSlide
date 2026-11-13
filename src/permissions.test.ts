@@ -401,6 +401,38 @@ it("follow control state rejects guests and stale sessions while retaining stabl
   );
   expect(resumed.active && resumed.pinned).toBe(false);
   expect(resumed.active && resumed.target.pageId).toBe(other.id);
+  // The presenting flag rides along: set at start, updated by any
+  // later command that carries it, kept when a command omits it.
+  const presenting = transitionFollow(
+    idleFollow(),
+    { id: "b", action: "start", target, presenting: true },
+    actor,
+    b,
+    200,
+    "session-b",
+  );
+  expect(presenting.active && presenting.presenting).toBe(true);
+  const kept = transitionFollow(
+    presenting,
+    { id: "c", action: "heartbeat", sessionId: "session-b" },
+    actor,
+    b,
+    201,
+  );
+  expect(kept.active && kept.presenting).toBe(true);
+  const cleared = transitionFollow(
+    kept,
+    {
+      id: "d",
+      action: "heartbeat",
+      sessionId: "session-b",
+      presenting: false,
+    },
+    actor,
+    b,
+    202,
+  );
+  expect(cleared.active && cleared.presenting).toBe(false);
   expect(() =>
     transitionFollow(
       running,
