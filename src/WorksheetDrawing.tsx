@@ -78,6 +78,19 @@ export function WorksheetDrawing({
   // Until the learner clicks into the field, only the pasted/drawn image is
   // shown: no toolbar, heading note or hint text competes with it for space.
   const [active, setActive] = useState(false);
+  // Crop mode: a rectangle over the flattened picture; applying it
+  // zooms the chosen region to fill the whole field.
+  const [cropping, setCropping] = useState(false);
+  const [rect, setRect] = useState({ x: 0, y: 0, w: 1, h: 1 });
+  const cropDrag = useRef<
+    | {
+        mode: string;
+        startX: number;
+        startY: number;
+        rect: { x: number; y: number; w: number; h: number };
+      }
+    | undefined
+  >(undefined);
   function paintBlank() {
     const node = canvas.current;
     if (!node) return;
@@ -138,8 +151,10 @@ export function WorksheetDrawing({
         container.current &&
         event.target instanceof Node &&
         !container.current.contains(event.target)
-      )
+      ) {
+        setCropping(false);
         setActive(false);
+      }
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () =>
@@ -157,6 +172,45 @@ export function WorksheetDrawing({
     } catch (e) {
       setError((e as Error).message);
     }
+  }
+  function cropPoint(event: PointerEvent<HTMLDivElement>) {
+    const r = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - r.left) / r.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - r.top) / r.height)),
+    };
+  }
+  function applyCrop() {
+    const node = canvas.current;
+    if (!node || (rect.w >= 0.999 && rect.h >= 0.999)) {
+      setCropping(false);
+      return;
+    }
+    remember();
+    ++generation.current;
+    const off = document.createElement("canvas");
+    off.width = cw;
+    off.height = ch;
+    const octx = off.getContext("2d")!;
+    octx.fillStyle = "#ffffff";
+    octx.fillRect(0, 0, cw, ch);
+    octx.drawImage(
+      node,
+      rect.x * cw,
+      rect.y * ch,
+      rect.w * cw,
+      rect.h * ch,
+      0,
+      0,
+      cw,
+      ch,
+    );
+    const ctx = node.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(off, 0, 0);
+    setCropping(false);
+    save();
   }
   function remember() {
     if (!canvas.current) return;
@@ -321,11 +375,32 @@ export function WorksheetDrawing({
       onDrop={drop}
       onBlur={blur}
       onKeyDown={(event) => {
-        if (event.key === "Escape") setActive(false);
+        if (event.key === "Escape") {
+          if (cropping) setCropping(false);
+          else setActive(false);
+        }
       }}
       aria-busy={!ready}
     >
       <div className="worksheet-drawing-toolbar">
+        {cropping ? (
+          <>
+            <span className="worksheet-drawing-crop-note">
+              枠をドラッグして切り抜く範囲を選んでください
+            </span>
+            <button type="button" onClick={() => setCropping(false)}>
+              切り抜きをやめる
+            </button>
+            <button
+              type="button"
+              className="worksheet-drawing-done"
+              onClick={applyCrop}
+            >
+              切り抜く
+            </button>
+          </>
+        ) : (
+          <>
         <button
           type="button"
           aria-pressed={tool === "pen"}
@@ -406,13 +481,26 @@ export function WorksheetDrawing({
         </button>
         <button
           type="button"
+          disabled={!hasContent || !ready}
+          onClick={() => {
+            setRect({ x: 0, y: 0, w: 1, h: 1 });
+            setCropping(true);
+          }}
+        >
+          切り抜き
+        </button>
+        <button
+          type="button"
           className="worksheet-drawing-done"
           onClick={() => setActive(false)}
         >
           完了
         </button>
+          </>
+        )}
       </div>
       {notice && <p className="worksheet-drawing-notice">{notice}</p>}
+      <div className="worksheet-drawing-stage">
       <canvas
         ref={canvas}
         width={cw}
@@ -464,6 +552,103 @@ export function WorksheetDrawing({
           }
         }}
       />
+      {cropping && (
+        <div
+          className="drawing-crop"
+          role="application"
+          aria-label={`${label}の切り抜き範囲`}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            const p = cropPoint(e);
+            const handle = (
+              e.target as HTMLElement
+            ).dataset.handle as string | undefined;
+            const inside =
+              p.x >= rect.x &&
+              p.x <= rect.x + rect.w &&
+              p.y >= rect.y &&
+              p.y <= rect.y + rect.h;
+            // While the frame covers the whole picture a drag draws a
+            // new selection; a smaller frame can be moved by dragging
+            // inside it, resized by its corners, or redrawn outside.
+            const whole = rect.w >= 0.999 && rect.h >= 0.999;
+            cropDrag.current = {
+              mode: handle ?? (inside && !whole ? "move" : "new"),
+              startX: p.x,
+              startY: p.y,
+              rect: { ...rect },
+            };
+            if (!handle && !inside) setRect({ x: p.x, y: p.y, w: 0, h: 0 });
+          }}
+          onPointerMove={(e) => {
+            const d = cropDrag.current;
+            if (!d) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const p = cropPoint(e);
+            const dx = p.x - d.startX,
+              dy = p.y - d.startY,
+              r = { ...d.rect },
+              MIN = 0.08;
+            if (d.mode === "move") {
+              r.x = Math.max(0, Math.min(1 - r.w, r.x + dx));
+              r.y = Math.max(0, Math.min(1 - r.h, r.y + dy));
+            } else if (d.mode === "new") {
+              r.x = Math.min(d.startX, p.x);
+              r.y = Math.min(d.startY, p.y);
+              r.w = Math.abs(p.x - d.startX);
+              r.h = Math.abs(p.y - d.startY);
+            } else {
+              if (d.mode.includes("w")) {
+                const right = r.x + r.w;
+                r.x = Math.max(0, Math.min(right - MIN, r.x + dx));
+                r.w = right - r.x;
+              }
+              if (d.mode.includes("e")) {
+                r.w = Math.max(MIN, Math.min(1 - r.x, r.w + dx));
+              }
+              if (d.mode.includes("n")) {
+                const bottom = r.y + r.h;
+                r.y = Math.max(0, Math.min(bottom - MIN, r.y + dy));
+                r.h = bottom - r.y;
+              }
+              if (d.mode.includes("s")) {
+                r.h = Math.max(MIN, Math.min(1 - r.y, r.h + dy));
+              }
+            }
+            setRect(r);
+          }}
+          onPointerUp={() => {
+            const d = cropDrag.current;
+            cropDrag.current = undefined;
+            if (d?.mode === "new")
+              setRect((r) =>
+                r.w < 0.08 || r.h < 0.08 ? { x: 0, y: 0, w: 1, h: 1 } : r,
+              );
+          }}
+          onPointerCancel={() => {
+            cropDrag.current = undefined;
+          }}
+        >
+          <div
+            className="drawing-crop-rect"
+            style={{
+              left: `${rect.x * 100}%`,
+              top: `${rect.y * 100}%`,
+              width: `${rect.w * 100}%`,
+              height: `${rect.h * 100}%`,
+            }}
+          >
+            <span className="drawing-crop-handle is-nw" data-handle="nw" />
+            <span className="drawing-crop-handle is-ne" data-handle="ne" />
+            <span className="drawing-crop-handle is-sw" data-handle="sw" />
+            <span className="drawing-crop-handle is-se" data-handle="se" />
+          </div>
+        </div>
+      )}
+      </div>
       {error && <p role="alert">{error}</p>}
     </div>
   );

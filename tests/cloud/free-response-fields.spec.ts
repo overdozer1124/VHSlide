@@ -833,3 +833,91 @@ test("worksheet copy and merge from the settings view", async ({ page }) => {
   );
   await expect(settings).toContainText("入力項目：4項目");
 });
+
+test("crops the picture in an image and drawing response field", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await signIn(page, "drawing-crop-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "切り抜き", slides: [blank(0, 0)] },
+  });
+  const { id } = await created.json();
+  await page.goto(`/?room=${id}`);
+  await page.locator(".thumbnail").first().click();
+  await launcher(page).click();
+  await page.getByRole("tab", { name: "回答欄を追加", exact: true }).click();
+  const tools = page.getByRole("region", {
+    name: "回答欄の追加",
+    exact: true,
+  });
+  await tools
+    .getByRole("textbox", { name: "新しい入力項目名" })
+    .fill("写真を切り抜く");
+  await tools.getByRole("button", { name: /^画像・手描き/ }).click();
+  await tools
+    .getByRole("button", { name: "受付を開始してスライドに追加", exact: true })
+    .click();
+  const field = page.locator(".editor-workspace .response-field");
+  await field
+    .getByRole("button", { name: "写真を切り抜くの画像・手描きを編集" })
+    .click();
+  await expect(field.getByLabel("写真を切り抜くの手描き欄")).toBeVisible();
+  // Add a two-tone picture through the file input.
+  await field.evaluate(async (section) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 600;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#20406e";
+    ctx.fillRect(0, 0, 400, 600);
+    ctx.fillStyle = "#d84a35";
+    ctx.fillRect(400, 0, 400, 600);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png"),
+    );
+    const input = section.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    )!;
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([blob!], "photo.png", { type: "image/png" }));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  const savedValue = async () => {
+    const list = (
+      await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
+    ).worksheets;
+    const sheet = list[0];
+    return sheet?.results?.responses?.[0]?.values?.[sheet.fields[0].id] ?? "";
+  };
+  await expect
+    .poll(savedValue, { timeout: 20_000 })
+    .toMatch(/^data:image\/jpeg/);
+  const before = await savedValue();
+  // Crop mode: drag a region over the picture, then apply it — the
+  // chosen region is zoomed to fill the field and saved as the answer.
+  await field.getByRole("button", { name: "切り抜き", exact: true }).click();
+  const crop = field.locator(".drawing-crop");
+  await expect(crop).toBeVisible();
+  const box = await crop.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width * 0.55, box!.y + box!.height * 0.1);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width * 0.95, box!.y + box!.height * 0.9, {
+    steps: 6,
+  });
+  await page.mouse.up();
+  await field.getByRole("button", { name: "切り抜く", exact: true }).click();
+  await expect(crop).toHaveCount(0);
+  await expect
+    .poll(
+      async () => {
+        const value = await savedValue();
+        return value && value !== before ? "changed" : "same";
+      },
+      { timeout: 20_000 },
+    )
+    .toBe("changed");
+});

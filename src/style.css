@@ -6971,6 +6971,15 @@ h1 span {
 .worksheet-panel input:not([type=checkbox]):not([type=radio]) { width:100%;box-sizing:border-box;border:1px solid #b8cabe;border-radius:7px;padding:9px;font:inherit; }
 .worksheet-field-editor label { display:block;margin:8px 0; }
 .worksheet-drawing { display:grid; gap:6px; min-width:0; }
+.worksheet-drawing-stage { position:relative; }
+.drawing-crop { position:absolute; inset:0; touch-action:none; cursor:crosshair; }
+.drawing-crop-rect { position:absolute; border:2px solid #fff; box-shadow:0 0 0 9999px rgba(20,32,26,.5); box-sizing:border-box; }
+.drawing-crop-handle { position:absolute; width:20px; height:20px; margin:-10px 0 0 -10px; background:#fff; border:2px solid #2f6a45; border-radius:50%; box-sizing:border-box; }
+.drawing-crop-handle.is-nw { left:0; top:0; cursor:nwse-resize; }
+.drawing-crop-handle.is-ne { left:100%; top:0; cursor:nesw-resize; }
+.drawing-crop-handle.is-sw { left:0; top:100%; cursor:nesw-resize; }
+.drawing-crop-handle.is-se { left:100%; top:100%; cursor:nwse-resize; }
+.worksheet-drawing-crop-note { font-size:13px; color:#633811; }
 .worksheet-drawing canvas { display:block; width:100%; height:auto; aspect-ratio:16/9; border:1px solid #dfaa7f; border-radius:7px; background:#fff; touch-action:none; cursor:crosshair; }
 .worksheet-drawing-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
 .worksheet-drawing-toolbar button, .worksheet-drawing-upload { border:1px solid #c08a5f; border-radius:6px; padding:6px 9px; background:#fffaf4; color:#633811; font:inherit; font-size:13px; cursor:pointer; }
