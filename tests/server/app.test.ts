@@ -1,4 +1,5 @@
 import { exerciseWorksheets } from "../support/worksheets.ts";
+import { exerciseWorksheetMerge } from "../support/worksheetMerge.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import { exerciseWebbing } from "../support/webbing.ts";
@@ -1618,6 +1619,16 @@ test("worksheets isolate accounts, enforce membership, validate fields and persi
   await invite(id, bob);
   const other = await create();
   await exerciseWorksheets(request, id, other, alice, bob, eve, async () => {
+    await app.close();
+    await start();
+  });
+});
+
+test("worksheet copy and merge move fields and answers between sheets", async () => {
+  const id = await create();
+  await invite(id, bob);
+  const other = await create();
+  await exerciseWorksheetMerge(request, id, other, alice, bob, eve, async () => {
     await app.close();
     await start();
   });

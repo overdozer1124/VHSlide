@@ -7100,6 +7100,9 @@ h1 span {
 .worksheet-empty h4 { margin-top:0; }
 .worksheet-settings>h4 { margin-top:0; }
 .worksheet-delete { margin-top:24px;padding:16px;border:1px solid #e4c9bc;border-radius:8px; }
+.worksheet-pick-source {display:flex;flex-direction:column;gap:4px;margin:8px 0;}
+.worksheet-pick-list {display:flex;flex-direction:column;gap:4px;margin:8px 0;}
+.worksheet-pick-list label {display:flex;gap:6px;align-items:center;}
 .worksheet-delete summary { cursor:pointer;color:#8b432c; }
 @media(max-width:1050px) { .worksheet-person-layout { grid-template-columns:minmax(0,1fr); } .worksheet-people { max-height:180px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:760px) { .worksheet-panel { padding:16px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px); } .worksheet-panel .survey-layout { grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:12px; } .worksheet-panel .survey-layout>aside { max-height:140px; } .worksheet-person-layout { grid-template-columns:minmax(0,1fr); } .worksheet-search { width:100%; } .worksheet-people { max-height:160px; } .worksheet-section-tabs button { flex:1;padding:8px;font-size:13px; } }

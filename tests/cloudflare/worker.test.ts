@@ -1,4 +1,5 @@
 import { exerciseWorksheets } from "../support/worksheets.ts";
+import { exerciseWorksheetMerge } from "../support/worksheetMerge.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import { exerciseWebbing } from "../support/webbing.ts";
@@ -1611,6 +1612,52 @@ test("worksheets isolate accounts, enforce membership, validate fields and persi
     other,
     owner,
     friend,
+    stranger,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+  );
+});
+
+test("worksheet copy and merge move fields and answers between sheets", async () => {
+  // Fresh identities: the shared owner/friend worksheet rate budget
+  // (120 actions per minute in the Directory DO) is largely consumed
+  // by the worksheet exercises running just before this one.
+  const mergeOwner = await login("merge-owner");
+  const mergeGuest = await login("merge-guest");
+  const id = await create(sample(), mergeOwner);
+  const inviteResponse = await request(
+    `/api/decks/${id}/invite`,
+    "POST",
+    undefined,
+    mergeOwner,
+  );
+  assert.equal(inviteResponse.status, 200);
+  const token = new URL(((await inviteResponse.json()) as { url: string }).url)
+    .searchParams.get("join");
+  await acceptAndApprove(request, id, token, mergeGuest, mergeOwner);
+  const { user } = (await (
+    await request("/api/session", "GET", undefined, mergeGuest)
+  ).json()) as { user: { id: string } };
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/members/${encodeURIComponent(user.id)}`,
+        "PATCH",
+        { mode: "all", comment: true, rows: [], columns: [], slides: [] },
+        mergeOwner,
+      )
+    ).status,
+    200,
+  );
+  const other = await create(sample(), mergeOwner);
+  await exerciseWorksheetMerge(
+    request,
+    id,
+    other,
+    mergeOwner,
+    mergeGuest,
     stranger,
     async () => {
       await mf.dispose();

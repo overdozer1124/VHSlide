@@ -737,3 +737,99 @@ test("sidebar shows only the selected response field's item", async ({
     )
     .toEqual(expect.arrayContaining(["1つ目の項目", "直した2つ目の項目"]));
 });
+
+test("worksheet copy and merge from the settings view", async ({ page }) => {
+  await signIn(page, "merge-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "統合テスト", slides: [blank(0, 0)] },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+  const targetDef = {
+    title: "まとめシート",
+    description: "d",
+    fields: [
+      {
+        id: "t1",
+        label: "導入の考え",
+        kind: "text",
+        options: [],
+        placeholder: "",
+        section: "導入",
+        wide: true,
+      },
+    ],
+  };
+  const sourceDef = {
+    title: "前半シート",
+    description: "d",
+    sections: [{ id: "seca", title: "考えよう" }],
+    fields: [
+      {
+        id: "s1",
+        label: "理由",
+        kind: "text",
+        options: [],
+        placeholder: "",
+        section: "考えよう",
+        sectionId: "seca",
+        wide: true,
+      },
+      {
+        id: "s3",
+        label: "感想",
+        kind: "text",
+        options: [],
+        placeholder: "",
+        section: "考えよう",
+        sectionId: "seca",
+        wide: true,
+      },
+    ],
+  };
+  for (const def of [targetDef, sourceDef]) {
+    const r = await page.request.post(`/api/decks/${id}/worksheets`, {
+      headers,
+      data: def,
+    });
+    expect(r.status()).toBe(200);
+  }
+  await page.goto(`/?room=${id}`);
+  await expect(page.locator(".slide-card")).toHaveCount(1);
+  await launcher(page).click();
+  await page
+    .getByRole("tab", { name: "ワークシート", exact: true })
+    .click();
+  const panel = page.locator(".activity-panel");
+  await panel.getByRole("button", { name: /まとめシート/ }).click();
+  await panel.getByRole("button", { name: "設定・内容の確認" }).click();
+  const settings = panel.locator(".worksheet-settings");
+  await expect(settings).toContainText("入力項目：1項目");
+  // Copy one field from the other worksheet.
+  await panel.locator("details.worksheet-copy > summary").click();
+  await panel
+    .getByLabel(/追加元のワークシート/)
+    .selectOption({ label: "前半シート" });
+  await panel
+    .locator(".worksheet-pick-list label", { hasText: "感想" })
+    .locator("input")
+    .check();
+  await panel
+    .getByRole("button", { name: "選択した項目をこのワークシートに追加" })
+    .click();
+  await expect(settings).toContainText("入力項目：2項目");
+  // Merge the other worksheet in; it disappears from the list.
+  await panel.locator("details.worksheet-merge > summary").click();
+  await panel
+    .getByLabel(/統合するワークシート/)
+    .selectOption({ label: "前半シート" });
+  page.once("dialog", (d) => void d.accept());
+  await panel
+    .getByRole("button", { name: "選んだワークシートを統合" })
+    .click();
+  await expect(panel.getByRole("button", { name: /前半シート/ })).toHaveCount(
+    0,
+  );
+  await expect(settings).toContainText("入力項目：4項目");
+});

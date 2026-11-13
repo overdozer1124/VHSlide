@@ -915,7 +915,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer|field|edit))?)?$/.exec(
+        /^worksheets(?:\/([a-f0-9-]{36})(?:\/(status|answer|field|edit|copy|merge))?)?$/.exec(
           extra,
         );
       insist(

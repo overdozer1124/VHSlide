@@ -438,6 +438,103 @@ export function worksheetList(
       return sheet;
     });
 }
+/** Fields of a source definition selected for copying: everything
+ * when no selection is given, otherwise the listed fields plus every
+ * field in the listed sections (keyed by section id, or by section
+ * title for worksheets that predate the sections list). */
+export function pickCopiedFields(
+  source: WorksheetDefinition,
+  value: Record<string, unknown>,
+): WorksheetField[] {
+  const strings = (v: unknown) =>
+    Array.isArray(v)
+      ? v.filter((x): x is string => typeof x === "string")
+      : [];
+  const fieldIds = strings(value.fieldIds),
+    sectionKeys = strings(value.sectionKeys);
+  if (!fieldIds.length && !sectionKeys.length) return [...source.fields];
+  const picked = new Set(fieldIds);
+  for (const f of source.fields)
+    if (sectionKeys.includes(f.sectionId ?? f.section)) picked.add(f.id);
+  return source.fields.filter((f) => picked.has(f.id));
+}
+
+/** Append fields taken from another worksheet to a definition.
+ * Sections unite by title (a section list is adopted when either side
+ * has one, converting section-less fields by their title). Field ids
+ * are preserved only when asked and free; collisions always remap to
+ * fresh ids. Returns the id mapping for answer carry-over. */
+export function appendWorksheetFields(
+  target: WorksheetDefinition,
+  source: WorksheetDefinition,
+  fields: WorksheetField[],
+  preserveIds: boolean,
+): { definition: WorksheetDefinition; idMap: Map<string, string> } {
+  const used = new Set(target.fields.map((f) => f.id));
+  const fresh = () => {
+    let id = crypto.randomUUID();
+    while (used.has(id)) id = crypto.randomUUID();
+    used.add(id);
+    return id;
+  };
+  const sectioned = !!target.sections || !!source.sections;
+  let sections: { id: string; title: string }[] | undefined;
+  const byTitle = new Map<string, { id: string; title: string }>();
+  if (sectioned) {
+    sections = [...(target.sections ?? [])];
+    for (const s of sections) byTitle.set(s.title, s);
+  }
+  const ensureSection = (title: string, sourceId?: string) => {
+    const existing = byTitle.get(title);
+    if (existing) return existing;
+    const section = {
+      id:
+        sourceId && !sections!.some((s) => s.id === sourceId)
+          ? sourceId
+          : crypto.randomUUID(),
+      title,
+    };
+    sections!.push(section);
+    byTitle.set(title, section);
+    return section;
+  };
+  const targetFields = target.fields.map((f) =>
+    sectioned && !target.sections
+      ? { ...f, sectionId: ensureSection(f.section).id }
+      : f,
+  );
+  const idMap = new Map<string, string>();
+  const appended = fields.map((f) => {
+    const id =
+      preserveIds && !used.has(f.id) ? (used.add(f.id), f.id) : fresh();
+    idMap.set(f.id, id);
+    const copy: WorksheetField = {
+      ...f,
+      options: [...f.options],
+      ...(f.radar
+        ? {
+            radar: {
+              ...f.radar,
+              axes: [...f.radar.axes],
+              series: [...f.radar.series],
+            },
+          }
+        : {}),
+      id,
+    };
+    if (sectioned) copy.sectionId = ensureSection(f.section, f.sectionId).id;
+    else delete copy.sectionId;
+    return copy;
+  });
+  return {
+    definition: parseWorksheet({
+      ...target,
+      ...(sections ? { sections } : {}),
+      fields: [...targetFields, ...appended],
+    }),
+    idMap,
+  };
+}
 export function worksheetCommand(
   sql: HistorySQL,
   deck: string,
@@ -586,6 +683,110 @@ export function worksheetCommand(
       JSON.stringify(next),
       row.id,
     );
+  } else if (action === "copy" || action === "merge") {
+    const sourceRow = [
+      ...sql(
+        "SELECT * FROM worksheets WHERE deck=? AND id=?",
+        deck,
+        typeof value.sourceId === "string" ? value.sourceId : "",
+      ),
+    ][0];
+    check(sourceRow, "元のワークシートが見つかりません。", 404);
+    check(
+      sourceRow.id !== row.id,
+      action === "merge"
+        ? "同じワークシートは統合できません。"
+        : "同じワークシートからは追加できません。",
+    );
+    const target = parseWorksheet(JSON.parse(row.definition));
+    const source = parseWorksheet(JSON.parse(sourceRow.definition));
+    const picked =
+      action === "merge"
+        ? [...source.fields]
+        : pickCopiedFields(source, value);
+    check(picked.length, "追加する項目を選んでください。");
+    const { definition, idMap } = appendWorksheetFields(
+      target,
+      source,
+      picked,
+      action === "merge",
+    );
+    if (action === "copy") {
+      sql(
+        "UPDATE worksheets SET definition=? WHERE id=?",
+        JSON.stringify(definition),
+        row.id,
+      );
+      return;
+    }
+    // Merge: carry every source answer into the target (field ids
+    // remapped where they collided), then remove the source sheet.
+    const sourceAnswers = [
+      ...sql(
+        "SELECT author,value,updated FROM worksheet_answers WHERE worksheet=?",
+        sourceRow.id,
+      ),
+    ];
+    const targetAnswers = new Map(
+      [
+        ...sql(
+          "SELECT author,value,updated FROM worksheet_answers WHERE worksheet=?",
+          row.id,
+        ),
+      ].map((a) => [a.author as string, a]),
+    );
+    check(
+      new Set([...targetAnswers.keys(), ...sourceAnswers.map((a) => a.author)])
+        .size <= 500,
+      "回答は500人までです。",
+      413,
+    );
+    sql(
+      "UPDATE worksheets SET definition=? WHERE id=?",
+      JSON.stringify(definition),
+      row.id,
+    );
+    const remap = (values: WorksheetValues): WorksheetValues => {
+      const out: WorksheetValues = {};
+      for (const [key, v] of Object.entries(values)) {
+        const reason = key.endsWith(":reason");
+        const base = reason ? key.slice(0, -7) : key;
+        const mapped = idMap.get(base);
+        out[mapped ? (reason ? `${mapped}:reason` : mapped) : key] = v;
+      }
+      return out;
+    };
+    for (const a of sourceAnswers) {
+      const carried = remap(JSON.parse(a.value as string));
+      const existing = targetAnswers.get(a.author as string);
+      if (existing) {
+        const merged = {
+          ...(JSON.parse(existing.value as string) as WorksheetValues),
+          ...carried,
+        };
+        check(
+          JSON.stringify(merged).length <= 1_500_000,
+          "ワークシートの回答容量が上限を超えています。",
+          413,
+        );
+        sql(
+          "UPDATE worksheet_answers SET value=?,updated=? WHERE worksheet=? AND author=?",
+          JSON.stringify(merged),
+          Math.max(existing.updated as number, a.updated as number),
+          row.id,
+          a.author,
+        );
+      } else {
+        sql(
+          "INSERT INTO worksheet_answers VALUES(?,?,?,?)",
+          row.id,
+          a.author,
+          JSON.stringify(carried),
+          a.updated,
+        );
+      }
+    }
+    sql("DELETE FROM worksheets WHERE id=?", sourceRow.id);
   } else if (action === "status") {
     check(
       ["open", "closed"].includes(String(value.status)),

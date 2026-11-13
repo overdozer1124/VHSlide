@@ -1184,12 +1184,15 @@ test("survey and worksheet share one wide dialog, select defaults and preserve d
   });
   await surveyTab.focus();
   await page.keyboard.press("End");
+  // The host dialog no longer carries a 回答スライド tab (0.114.0 moved
+  // answer-slide sharing into the teacher console), so the last tab is
+  // 回答欄を追加 and one more ArrowLeft lands on ウェブマップ.
   await expect(
-    window.getByRole("tab", { name: "回答スライド", exact: true }),
+    window.getByRole("tab", { name: "回答欄を追加", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");
   await expect(
-    window.getByRole("tab", { name: "回答欄を追加", exact: true }),
+    window.getByRole("tab", { name: "ウェブマップ", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");
   await expect(

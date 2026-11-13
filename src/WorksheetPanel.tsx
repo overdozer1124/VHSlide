@@ -65,10 +65,18 @@ export function WorksheetPanel({
   const [selectedId, setSelectedId] = useState("");
   const [movingFieldId, setMovingFieldId] = useState<string>();
   const [mergingSectionId, setMergingSectionId] = useState<string>();
+  const [copySourceId, setCopySourceId] = useState("");
+  const [copyFieldIds, setCopyFieldIds] = useState<string[]>([]);
+  const [copySectionKeys, setCopySectionKeys] = useState<string[]>([]);
+  const [mergeSourceId, setMergeSourceId] = useState("");
   useEffect(() => {
     content.current?.scrollTo({ top: 0 });
     setMovingFieldId(undefined);
     setMergingSectionId(undefined);
+    setCopySourceId("");
+    setCopyFieldIds([]);
+    setCopySectionKeys([]);
+    setMergeSourceId("");
   }, [selectedId, creating, hostView]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -140,6 +148,31 @@ export function WorksheetPanel({
     }
   }
   const selected = ctx.sheets.find((s) => s.id === selectedId);
+  const copySource = ctx.sheets.find((s) => s.id === copySourceId);
+  const copyGroups = copySource
+    ? copySource.sections
+      ? copySource.sections
+          .map((s) => ({
+            key: s.id,
+            title: s.title,
+            count: copySource.fields.filter((f) => f.sectionId === s.id)
+              .length,
+          }))
+          .filter((g) => g.count > 0)
+      : [...new Set(copySource.fields.map((f) => f.section))]
+          .filter((title) => title !== "")
+          .map((title) => ({
+            key: title,
+            title,
+            count: copySource.fields.filter((f) => f.section === title)
+              .length,
+          }))
+    : [];
+  const togglePick = (
+    list: string[],
+    set: (v: string[]) => void,
+    key: string,
+  ) => set(list.includes(key) ? list.filter((x) => x !== key) : [...list, key]);
   async function command(path: string, value?: unknown, method = "POST") {
     if (busy || !ctx.enabled) return;
     setBusy(true);
@@ -1357,6 +1390,149 @@ export function WorksheetPanel({
                         >
                           ワークシートを削除
                         </button>
+                      </details>
+                      <details className="worksheet-copy">
+                        <summary>ほかのワークシートから項目を追加</summary>
+                        {ctx.sheets.length > 1 ? (
+                          <>
+                            <label className="worksheet-pick-source">
+                              追加元のワークシート
+                              <select
+                                value={copySourceId}
+                                onChange={(e) => {
+                                  setCopySourceId(e.target.value);
+                                  setCopyFieldIds([]);
+                                  setCopySectionKeys([]);
+                                }}
+                              >
+                                <option value="">選んでください</option>
+                                {ctx.sheets
+                                  .filter((s) => s.id !== selected.id)
+                                  .map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.title}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            {copySource && (
+                              <>
+                                <div className="worksheet-pick-list">
+                                  {copyGroups.map((g) => (
+                                    <label key={g.key}>
+                                      <input
+                                        type="checkbox"
+                                        checked={copySectionKeys.includes(
+                                          g.key,
+                                        )}
+                                        onChange={() =>
+                                          togglePick(
+                                            copySectionKeys,
+                                            setCopySectionKeys,
+                                            g.key,
+                                          )
+                                        }
+                                      />
+                                      セクション「{g.title}」を丸ごと（{g.count}
+                                      項目）
+                                    </label>
+                                  ))}
+                                  {copySource.fields.map((f) => (
+                                    <label key={f.id}>
+                                      <input
+                                        type="checkbox"
+                                        checked={copyFieldIds.includes(f.id)}
+                                        onChange={() =>
+                                          togglePick(
+                                            copyFieldIds,
+                                            setCopyFieldIds,
+                                            f.id,
+                                          )
+                                        }
+                                      />
+                                      {f.label}
+                                      {f.section ? `（${f.section}）` : ""}
+                                    </label>
+                                  ))}
+                                </div>
+                                <button
+                                  className="button outline"
+                                  disabled={
+                                    busy ||
+                                    (!copyFieldIds.length &&
+                                      !copySectionKeys.length)
+                                  }
+                                  onClick={() =>
+                                    void command(`/${selected.id}/copy`, {
+                                      sourceId: copySource.id,
+                                      fieldIds: copyFieldIds,
+                                      sectionKeys: copySectionKeys,
+                                    })
+                                  }
+                                >
+                                  選択した項目をこのワークシートに追加
+                                </button>
+                                <p>
+                                  項目の設定だけが追加され、追加元の回答は移りません。追加された項目は新しい項目として扱われます。
+                                </p>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <p>追加できるワークシートがありません。</p>
+                        )}
+                      </details>
+                      <details className="worksheet-merge">
+                        <summary>別のワークシートと統合</summary>
+                        <p>
+                          選んだワークシートのセクション・入力欄と、全員の回答がこのワークシートに移ります。元のワークシートは削除され、元に戻せません。スライドに配置した元のワークシートの回答欄は、表示されなくなることがあります。
+                        </p>
+                        {ctx.sheets.length > 1 ? (
+                          <>
+                            <label className="worksheet-pick-source">
+                              統合するワークシート
+                              <select
+                                value={mergeSourceId}
+                                onChange={(e) =>
+                                  setMergeSourceId(e.target.value)
+                                }
+                              >
+                                <option value="">選んでください</option>
+                                {ctx.sheets
+                                  .filter((s) => s.id !== selected.id)
+                                  .map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.title}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            <button
+                              className="button outline"
+                              disabled={busy || !mergeSourceId}
+                              onClick={() => {
+                                const source = ctx.sheets.find(
+                                  (s) => s.id === mergeSourceId,
+                                );
+                                if (
+                                  source &&
+                                  window.confirm(
+                                    `「${source.title}」の項目と全員の回答を「${selected.title}」に移し、元のワークシートを削除します。元に戻せません。`,
+                                  )
+                                ) {
+                                  void command(`/${selected.id}/merge`, {
+                                    sourceId: source.id,
+                                  });
+                                  setMergeSourceId("");
+                                }
+                              }}
+                            >
+                              選んだワークシートを統合
+                            </button>
+                          </>
+                        ) : (
+                          <p>統合できるワークシートがありません。</p>
+                        )}
                       </details>
                     </section>
                   )}
