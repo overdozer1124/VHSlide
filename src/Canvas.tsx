@@ -1123,10 +1123,65 @@ export function Canvas({
                 startCropDrag(event, "move");
             }}
           >
-            <ResizeFrame
-              noun="切り抜き範囲"
-              onStart={(event, direction) => startCropDrag(event, direction)}
-            />
+            {(
+              [
+                ["n", "上"],
+                ["e", "右"],
+                ["s", "下"],
+                ["w", "左"],
+              ] as const
+            ).map(([dir, label]) => (
+              <span
+                key={dir}
+                className={`crop-edge crop-edge-${dir}`}
+                style={
+                  dir === "n" || dir === "s"
+                    ? {
+                        left: 0,
+                        right: 0,
+                        top: dir === "n" ? -8 : undefined,
+                        bottom: dir === "s" ? -8 : undefined,
+                        height: 16,
+                        cursor: "ns-resize",
+                      }
+                    : {
+                        top: 0,
+                        bottom: 0,
+                        left: dir === "w" ? -8 : undefined,
+                        right: dir === "e" ? -8 : undefined,
+                        width: 16,
+                        cursor: "ew-resize",
+                      }
+                }
+                title={`${label}の枠線をドラッグして切り抜き範囲を変更`}
+                onPointerDown={(event) => startCropDrag(event, dir)}
+              />
+            ))}
+            {(
+              [
+                ["nw", 0, 0, "nwse-resize", "左上"],
+                ["n", "50%", 0, "ns-resize", "上"],
+                ["ne", "100%", 0, "nesw-resize", "右上"],
+                ["e", "100%", "50%", "ew-resize", "右"],
+                ["se", "100%", "100%", "nwse-resize", "右下"],
+                ["s", "50%", "100%", "ns-resize", "下"],
+                ["sw", 0, "100%", "nesw-resize", "左下"],
+                ["w", 0, "50%", "ew-resize", "左"],
+              ] as const
+            ).map(([dir, left, top, cursor, label]) => (
+              <span
+                key={dir}
+                className={`crop-point crop-point-${dir}`}
+                style={{
+                  left,
+                  top,
+                  transform: "translate(-50%, -50%)",
+                  cursor,
+                }}
+                title={`${label}の丸をドラッグして切り抜き範囲を変更`}
+                onPointerDown={(event) => startCropDrag(event, dir)}
+              />
+            ))}
           </div>
         )}
         {groupBox && (
@@ -1176,7 +1231,7 @@ export function Canvas({
       </div>
       {cropEdit && (
         <div className="crop-mode-bar" role="toolbar" aria-label="切り抜き">
-          <span>切り抜き中：枠線をドラッグして範囲を調整</span>
+          <span>切り抜き中：四角の枠線や丸印をドラッグして範囲を調整</span>
           <button type="button" onClick={() => finishCrop(false)}>
             キャンセル
           </button>

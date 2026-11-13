@@ -56,8 +56,8 @@ test("double-clicking a slide image crops it in place by its edges", async ({
   await expect(page.locator(".crop-ghost")).toBeVisible();
   const frame = page.locator(".crop-frame");
   await expect(frame).toBeVisible();
-  // Drag the right edge inward.
-  const edge = frame.locator(".resize-e");
+  // Drag the right edge's round mark inward.
+  const edge = frame.locator(".crop-point-e");
   const edgeBox = await edge.boundingBox();
   expect(edgeBox).not.toBeNull();
   const cx = edgeBox!.x + edgeBox!.width / 2,
@@ -83,7 +83,7 @@ test("double-clicking a slide image crops it in place by its edges", async ({
   // A second crop round cancelled with Escape changes nothing.
   await photo.dblclick();
   await expect(frame).toBeVisible();
-  const south = frame.locator(".resize-s");
+  const south = frame.locator(".crop-edge-s");
   const southBox = await south.boundingBox();
   const sx = southBox!.x + southBox!.width / 2,
     sy = southBox!.y + southBox!.height / 2;

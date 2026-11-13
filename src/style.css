@@ -7673,8 +7673,9 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-group-card.is-clickable { cursor:pointer; }
 .crop-ghost { position:absolute;pointer-events:none; }
 .crop-ghost img { display:block;width:100%;height:100%;opacity:.45; }
-.crop-frame { position:absolute;border:2px solid #2f6a45;box-shadow:0 0 0 1px #ffffff inset;cursor:move;touch-action:none; }
-.crop-frame .resize-handle { border-color:#2f6a45;background:#e8f5ec; }
+.crop-frame { position:absolute;border:3px solid #2f6a45;box-shadow:0 0 0 1px #ffffff inset;cursor:move;touch-action:none; }
+.crop-edge { position:absolute;touch-action:none;z-index:3; }
+.crop-point { position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #2f6a45;box-shadow:0 1px 4px rgba(10,30,18,.4);touch-action:none;z-index:4; }
 .crop-mode-bar { position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:8px;background:#173d38;color:#fff;padding:6px 8px 6px 14px;border-radius:999px;font-size:13px;box-shadow:0 4px 16px rgba(20,35,28,.35);white-space:nowrap; }
 .crop-mode-bar button { border:1px solid #ffffff66;border-radius:999px;background:transparent;color:#fff;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer; }
 .crop-mode-bar button.crop-done { background:#fff;color:#173d38;border-color:#fff;font-weight:700; }
