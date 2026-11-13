@@ -3133,6 +3133,7 @@ export default function App() {
             workbook={workbook}
             cloud={cloud}
             onClose={() => setView("map")}
+            onOpenGallery={() => setResponseGalleryOpen(true)}
           />
         )}
         {view !== "present" && view !== "console" && (

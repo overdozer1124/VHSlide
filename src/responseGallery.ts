@@ -29,17 +29,20 @@ type Config = {
 function check(v: unknown, status: number, message: string): asserts v {
   if (!v) throw new SurveyError(status, message);
 }
-export function galleryBuild(
-  sql: HistorySQL,
+type BindingLike = Pick<
+  import("./model.ts").Element,
+  "responseField" | "worksheet" | "survey"
+>;
+/** The worksheet fields and survey questions a slide collects answers
+ * for, from its form bindings. Shared by the gallery builder and the
+ * per-slide answer counts. */
+export function collectBindings(
   deck: string,
-  actor: string,
-  slide: Slide,
-  config: Config,
-  privatePreview = false,
-): ResponseGallery {
+  elements: BindingLike[],
+): { fields: Map<string, Set<string>>; questions: Set<string> } {
   const fields = new Map<string, Set<string>>(),
     questions = new Set<string>();
-  for (const e of slide.elements) {
+  for (const e of elements) {
     const b = e.responseField;
     if (b?.deckId === deck) {
       if (b.source === "worksheet") {
@@ -54,6 +57,17 @@ export function galleryBuild(
       );
     if (e.survey?.deckId === deck) questions.add(e.survey.surveyId);
   }
+  return { fields, questions };
+}
+export function galleryBuild(
+  sql: HistorySQL,
+  deck: string,
+  actor: string,
+  slide: Slide,
+  config: Config,
+  privatePreview = false,
+): ResponseGallery {
+  const { fields, questions } = collectBindings(deck, slide.elements);
   check(
     fields.size || questions.size,
     400,
@@ -173,7 +187,11 @@ export function galleryCommand(
   host: boolean,
   action: string,
   value: Record<string, unknown>,
-): { gallery: ResponseGallery | null; galleries?: ResponseGallery[] } {
+): {
+  gallery: ResponseGallery | null;
+  galleries?: ResponseGallery[];
+  counts?: Record<string, number>;
+} {
   sql(
     "CREATE TABLE IF NOT EXISTS response_gallery(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE,slide TEXT NOT NULL,config TEXT NOT NULL,snapshot TEXT NOT NULL)",
   );
@@ -238,6 +256,42 @@ export function galleryCommand(
       save(data);
     }
     return { gallery: data.snapshots[0] ?? null, galleries: data.snapshots };
+  }
+  if (action === "counts") {
+    const list = (value as { slides?: unknown })?.slides;
+    check(
+      Array.isArray(list) && list.length <= 200,
+      400,
+      "スライドを確認してください。",
+    );
+    const sheets = worksheetList(sql, deck, actor, true);
+    const surveys = surveyList(sql, deck, actor, true);
+    const counts: Record<string, number> = {};
+    for (const item of list as {
+      id?: unknown;
+      elements?: unknown;
+    }[]) {
+      if (
+        !item ||
+        typeof item.id !== "string" ||
+        !Array.isArray(item.elements)
+      )
+        continue;
+      const { fields, questions } = collectBindings(
+        deck,
+        item.elements as BindingLike[],
+      );
+      if (!fields.size && !questions.size) continue;
+      const people = new Set<string>();
+      for (const s of sheets)
+        if (fields.has(s.id))
+          for (const r of s.results?.responses ?? []) people.add(r.respondentId);
+      for (const s of surveys)
+        if (questions.has(s.id))
+          for (const r of s.results?.responses ?? []) people.add(r.respondentId);
+      if (people.size) counts[item.id] = people.size;
+    }
+    return { gallery: null, counts };
   }
   check(
     action === "preview" || action === "publish",

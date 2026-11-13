@@ -3,6 +3,7 @@ import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import { exerciseWebbing } from "../support/webbing.ts";
 import { exerciseDeckPoll } from "../support/poll.ts";
+import { exerciseGalleryCounts } from "../support/gallery.ts";
 import {
   exerciseHostFollow,
   measureHostFollow40,
@@ -1598,6 +1599,12 @@ test("deck poll returns only the features whose version moved", async () => {
   const id = await create();
   await invite(id, bob);
   await exerciseDeckPoll(request, id, alice, bob, eve);
+});
+
+test("gallery counts report per-slide answer numbers for the host", async () => {
+  const id = await create();
+  await invite(id, bob);
+  await exerciseGalleryCounts(request, id, alice, bob, eve);
 });
 
 test("scoped edits survive multi-client field order reconstruction and reconnect, while protected changes stay denied", async () => {

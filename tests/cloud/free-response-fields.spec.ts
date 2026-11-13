@@ -253,37 +253,38 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(guest.getByLabel("回答の保存状態")).toHaveText(
       "回答は保存済みです",
     );
-    // Open the gallery from a different, empty page.
+    // Answer slides are managed from the teacher console now. Open it
+    // from a different, empty page (the console is independent of the
+    // page being edited).
     await page.locator(".rail-trigger").nth(1).click();
     await expect(page.locator(".rail-trigger").nth(1)).toHaveClass(
       /rail-active/,
     );
-    await launcher(page).click();
-    await page.getByRole("tab", { name: "回答スライド", exact: true }).click();
-    await expect(page.locator(".gallery-slide-choice")).toHaveCount(1);
-    await page.locator(".gallery-slide-choice").first().click();
-    await expect(page.locator(".gallery-card")).toHaveCount(1);
-    await expect(page.locator(".gallery-card textarea")).toHaveValue(
+    await page.getByRole("button", { name: "授業コンソール" }).click();
+    const consoleView = page.getByRole("region", { name: "授業コンソール" });
+    await consoleView.getByRole("tab", { name: "生徒のスライド" }).click();
+    // The rail filter leaves only the slide that has an answer, and the
+    // thumbnail is highlighted with its answer count.
+    await consoleView
+      .getByRole("button", { name: "回答があるスライドだけ" })
+      .click();
+    const formSlideThumb = consoleView.locator(
+      ".console-rail-slide.has-answers",
+    );
+    await expect(formSlideThumb).toHaveCount(1, { timeout: 20_000 });
+    await expect(formSlideThumb).toContainText("回答1人");
+    await expect(consoleView.locator(".console-rail-slide")).toHaveCount(1);
+    await expect(consoleView.locator(".console-card")).toHaveCount(1);
+    await expect(consoleView.locator(".console-card textarea")).toHaveValue(
       "通信復帰後の回答",
     );
-    await expect(page.locator(".gallery-card textarea")).toBeDisabled();
-    const galleryPane = page.getByRole("tabpanel", { name: "回答スライド" });
-    const paneBox = (await galleryPane.boundingBox())!;
-    await page.mouse.move(
-      paneBox.x + paneBox.width - 20,
-      paneBox.y + paneBox.height / 2,
-    );
-    await page.mouse.wheel(0, 600);
-    await expect
-      .poll(() => galleryPane.evaluate((el) => el.scrollTop))
-      .toBeGreaterThan(0);
-    await page.locator(".gallery-card footer").first().scrollIntoViewIfNeeded();
+    await expect(consoleView.locator(".console-card textarea")).toBeDisabled();
     expect(
       (await (await guest.request.get(`/api/decks/${id}/gallery`)).json())
         .gallery,
     ).toBe(null);
-    await page
-      .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
+    await consoleView
+      .getByRole("button", { name: "このスライドの回答を全員に共有" })
       .click();
     // A second published slide is independently selectable in the read-only workspace.
     const publicGallery = (
@@ -340,11 +341,11 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
       path: info.outputPath("shared-response-detail.png"),
     });
     await workspace.getByRole("button", { name: "回答一覧へ" }).click();
-    await page
+    await consoleView
       .getByRole("checkbox", { name: "保存された回答を自動更新" })
       .check();
-    await page
-      .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
+    await consoleView
+      .getByRole("button", { name: "このスライドの回答を全員に共有" })
       .click();
     await workspace.getByRole("button", { name: "作品に戻る" }).click();
     await input.fill("みんなへの最新の回答");
@@ -357,7 +358,7 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
     await expect(
       workspace.locator(".response-workspace-card textarea"),
     ).toHaveValue("みんなへの最新の回答");
-    await page
+    await consoleView
       .getByRole("button", { name: "すべての共有を停止", exact: true })
       .click();
     await expect(workspace.locator(".response-workspace-card")).toHaveCount(0);
@@ -383,33 +384,27 @@ test("free input creation, blur/idle autosave, pending recovery, read-only anony
         )
       ).status(),
     ).toBe(200);
-    await page.locator(".gallery-slide-choice").first().click();
-    await expect(page.locator(".gallery-card")).toHaveCount(2);
-    const comparisons = page.getByRole("checkbox", {
+    await expect(consoleView.locator(".console-card")).toHaveCount(2, {
+      timeout: 20_000,
+    });
+    const comparisons = consoleView.getByRole("checkbox", {
       name: "比較",
       exact: true,
     });
     await comparisons.nth(0).check();
     await comparisons.nth(1).check();
-    await page.getByRole("button", { name: "選択した回答を比較" }).click();
-    await expect(page.locator(".gallery-card")).toHaveCount(2);
-    await page
-      .getByRole("button", { name: "拡大", exact: true })
-      .first()
+    await consoleView
+      .getByRole("button", { name: "選択した回答を比較" })
       .click();
-    const enlarged = page.getByRole("dialog", {
-      name: "回答スライドの拡大",
-      exact: true,
-    });
+    await expect(consoleView.locator(".console-card")).toHaveCount(2);
+    await consoleView.locator(".console-card-name").first().click();
+    const enlarged = page.getByRole("dialog", { name: /の回答$/ });
     await expect(enlarged.getByRole("textbox")).toBeDisabled();
-    await page.keyboard.press("Escape");
+    await enlarged.getByRole("button", { name: "閉じる" }).click();
     await expect(enlarged).toHaveCount(0);
-    await expect(
-      page.getByRole("dialog", { name: "回答スライド", exact: true }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "比較を解除" }).click();
-    await page.getByRole("button", { name: "回答スライドを閉じる" }).click();
-    await page.getByRole("button", { name: "全体マップへ" }).click();
+    await expect(consoleView).toBeVisible();
+    await consoleView.getByRole("button", { name: "比較を解除" }).click();
+    await page.getByRole("button", { name: "コンソールを閉じる" }).click();
     await page.locator(".thumbnail").first().click();
     await page
       .locator(".editor-workspace .element-drag-border.border-left")

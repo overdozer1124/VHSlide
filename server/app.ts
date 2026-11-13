@@ -962,7 +962,7 @@ export function createApplication(options: Options) {
           insist(
             (method === "GET" && extra === "gallery") ||
               (method === "POST" &&
-                ["gallery/preview", "gallery/publish", "gallery/stop"].includes(
+                ["gallery/preview", "gallery/publish", "gallery/stop", "gallery/counts"].includes(
                   extra,
                 )),
             405,

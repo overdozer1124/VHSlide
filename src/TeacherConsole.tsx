@@ -36,10 +36,12 @@ export function TeacherConsole({
   workbook,
   cloud,
   onClose,
+  onOpenGallery,
 }: {
   workbook: Deck;
   cloud: CloudWorkspace;
   onClose: () => void;
+  onOpenGallery?: () => void;
 }) {
   const follow = cloud.follow;
   const sheets = consoleSheets(workbook);
@@ -58,6 +60,54 @@ export function TeacherConsole({
       : undefined;
   const { deckId } = useWorksheets();
   const webbingCtx = useWebbing();
+  const visible = usePageVisible();
+  const [mode, setMode] = useState<ConsoleMode>("list");
+  const [onlyRelevant, setOnlyRelevant] = useState(false);
+  const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
+  // Per-slide answer counts (same aggregation as the gallery preview),
+  // polled only while the student-slides mode is on screen: they drive
+  // the rail highlights and the "only slides with answers" filter.
+  useEffect(() => {
+    if (mode !== "slides" || !deckId || !visible) return;
+    let stopped = false;
+    const load = async () => {
+      const payload = workbook.slides
+        .filter((s) =>
+          s.elements.some((e) =>
+            [e.responseField, e.worksheet, e.survey].some(
+              (b) => !!b && b.deckId === deckId,
+            ),
+          ),
+        )
+        .map((s) => ({
+          id: s.id,
+          elements: s.elements.map((e) => ({
+            responseField: e.responseField ?? null,
+            worksheet: e.worksheet ?? null,
+            survey: e.survey ?? null,
+          })),
+        }));
+      if (!payload.length) {
+        if (!stopped) setAnswerCounts({});
+        return;
+      }
+      try {
+        const data = await api<{ counts?: Record<string, number> }>(
+          `/api/decks/${deckId}/gallery/counts`,
+          { method: "POST", body: JSON.stringify({ slides: payload }) },
+        );
+        if (!stopped) setAnswerCounts(data.counts ?? {});
+      } catch {
+        /* The highlight is best-effort; the main views surface errors. */
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 10000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [mode, deckId, visible, workbook]);
   const hasForm = (s: Slide) =>
     !!deckId &&
     s.elements.some((e) =>
@@ -71,6 +121,41 @@ export function TeacherConsole({
       (e) => !!e.webbing && e.webbing.deckId === webbingCtx.deckId,
     );
 
+  /** Writings on the slide's maps, not counting the theme roots. */
+  const slideWrites = (s: Slide) => {
+    let total = 0;
+    for (const e of s.elements) {
+      if (!e.webbing || e.webbing.deckId !== webbingCtx.deckId) continue;
+      const map = webbingCtx.maps.find((m) => m.id === e.webbing!.mapId);
+      if (map) total += map.nodes.filter((n) => n.parentId !== null).length;
+    }
+    return total;
+  };
+  /** How much student content a slide has in the current mode: saved
+   * answers in student-slides mode, map writings in group-map mode. */
+  const relevance = (s: Slide) =>
+    mode === "slides"
+      ? (answerCounts[s.id] ?? 0)
+      : mode === "groups"
+        ? slideWrites(s)
+        : 0;
+  const relevantMode = mode === "slides" || mode === "groups";
+  const filterActive = onlyRelevant && relevantMode;
+  const toggleFilter = () => {
+    if (filterActive) {
+      setOnlyRelevant(false);
+      return;
+    }
+    setOnlyRelevant(true);
+    if (focus && relevance(focus) === 0) {
+      const first = slides.find((s) => relevance(s) > 0);
+      if (first) {
+        setFocusId(first.id);
+        setExpandedRow(first.y);
+      }
+    }
+  };
+
   function jumpToProjected() {
     if (!projected) return;
     setSheetId(projected.sheetId ?? "main");
@@ -83,7 +168,7 @@ export function TeacherConsole({
       <header className="console-bar">
         <strong>授業コンソール</strong>
         <span className="console-safe">
-          この画面の操作は、生徒の画面に影響しません
+          この画面の操作は、生徒の画面に影響しません（回答の共有を除く）
         </span>
         {follow.active ? (
           <button
@@ -125,8 +210,26 @@ export function TeacherConsole({
               ))}
             </select>
           )}
+          {relevantMode && (
+            <button
+              type="button"
+              className={`console-filter ${filterActive ? "active" : ""}`}
+              aria-pressed={filterActive}
+              onClick={toggleFilter}
+            >
+              {mode === "slides"
+                ? "回答があるスライドだけ"
+                : "書き込みがあるスライドだけ"}
+            </button>
+          )}
           {consoleRows(slides).map((row) => {
-            const expanded = expandedRow === row.y;
+            const shownSlides = filterActive
+              ? row.slides.filter((s) => relevance(s) > 0)
+              : row.slides;
+            if (filterActive && !shownSlides.length) return null;
+            const rowRelevant =
+              relevantMode && row.slides.some((s) => relevance(s) > 0);
+            const expanded = filterActive || expandedRow === row.y;
             const rowForm = row.slides.some(hasForm);
             const rowProjected = projected
               ? row.slides.some((s) => s.id === projected.id)
@@ -137,7 +240,7 @@ export function TeacherConsole({
             return (
               <div
                 key={row.y}
-                className={`console-rail-item ${rowForm ? "has-form" : ""}`}
+                className={`console-rail-item ${rowForm ? "has-form" : ""} ${rowRelevant ? "has-answers" : ""}`}
               >
                 <button
                   type="button"
@@ -157,6 +260,11 @@ export function TeacherConsole({
                   {row.slides.some(hasWebbing) && (
                     <span className="console-form-chip">マップ</span>
                   )}
+                  {rowRelevant && (
+                    <span className="console-count-chip">
+                      {mode === "slides" ? "回答あり" : "書き込みあり"}
+                    </span>
+                  )}
                   {rowProjected && (
                     <span className="console-badge">投影中</span>
                   )}
@@ -167,14 +275,14 @@ export function TeacherConsole({
                   )}
                 </button>
                 {expanded &&
-                  row.slides.map((s) => {
+                  shownSlides.map((s) => {
                     const isProjected = projected?.id === s.id;
                     const isFocus = focus?.id === s.id;
                     return (
                       <button
                         key={s.id}
                         type="button"
-                        className={`console-rail-slide ${isFocus ? "is-focus" : ""} ${hasForm(s) ? "has-form" : ""}`}
+                        className={`console-rail-slide ${isFocus ? "is-focus" : ""} ${hasForm(s) ? "has-form" : ""} ${relevantMode && relevance(s) > 0 ? "has-answers" : ""}`}
                         onClick={() => setFocusId(s.id)}
                         aria-pressed={isFocus}
                       >
@@ -191,6 +299,13 @@ export function TeacherConsole({
                           {hasWebbing(s) && (
                             <span className="console-form-chip">マップ</span>
                           )}
+                          {relevantMode && relevance(s) > 0 && (
+                            <span className="console-count-chip">
+                              {mode === "slides"
+                                ? `回答${relevance(s)}人`
+                                : `書き込み${relevance(s)}件`}
+                            </span>
+                          )}
                           {isProjected && (
                             <span className="console-badge">投影中</span>
                           )}
@@ -202,8 +317,21 @@ export function TeacherConsole({
             );
           })}
           {!slides.length && <p>このシートにはスライドがありません。</p>}
+          {filterActive && !slides.some((s) => relevance(s) > 0) && (
+            <p>
+              {mode === "slides"
+                ? "回答があるスライドはまだありません。"
+                : "書き込みがあるスライドはまだありません。"}
+            </p>
+          )}
         </aside>
-        <ConsoleMain cloud={cloud} focus={focus} />
+        <ConsoleMain
+          cloud={cloud}
+          focus={focus}
+          mode={mode}
+          setMode={setMode}
+          onOpenGallery={onOpenGallery}
+        />
       </div>
     </section>
   );
@@ -212,9 +340,15 @@ export function TeacherConsole({
 function ConsoleMain({
   cloud,
   focus,
+  mode,
+  setMode,
+  onOpenGallery,
 }: {
   cloud: CloudWorkspace;
   focus?: Slide;
+  mode: ConsoleMode;
+  setMode: (mode: ConsoleMode) => void;
+  onOpenGallery?: () => void;
 }) {
   const ctx = useWorksheets();
   const webbingCtx = useWebbing();
@@ -228,7 +362,6 @@ function ConsoleMain({
     );
     return () => clearInterval(timer);
   }, [webbingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [mode, setMode] = useState<ConsoleMode>("list");
   const [worksheetId, setWorksheetId] = useState("");
   const [downloading, setDownloading] = useState(false);
   const alive = useRef(true);
@@ -338,7 +471,7 @@ function ConsoleMain({
         )}
       </div>
       {mode === "slides" ? (
-        <ConsoleStudentSlides focus={focus} />
+        <ConsoleStudentSlides focus={focus} onOpenGallery={onOpenGallery} />
       ) : mode === "groups" ? (
         <ConsoleGroups focus={focus} />
       ) : !ctx.enabled ? (
@@ -415,13 +548,31 @@ function ConsoleFields({
   );
 }
 
-/** Per-student renderings of the focused slide, via the gallery preview API. */
-function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
+/** Per-student renderings of the focused slide, via the gallery preview
+ * API. This is also where the host shares answer slides with the class:
+ * the sharing workflow that used to live in the form dialog's
+ * 回答スライド tab was consolidated here (0.114.0). */
+function ConsoleStudentSlides({
+  focus,
+  onOpenGallery,
+}: {
+  focus?: Slide;
+  onOpenGallery?: () => void;
+}) {
   const ctx = useWorksheets();
   const visible = usePageVisible();
   const [gallery, setGallery] = useState<ResponseGallery | null>(null);
   const [error, setError] = useState("");
   const [enlargedId, setEnlargedId] = useState<string>();
+  const [names, setNames] = useState(false);
+  const [live, setLive] = useState(false);
+  const [all, setAll] = useState(true);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [compare, setCompare] = useState<string[]>([]);
+  const [compareOnly, setCompareOnly] = useState(false);
+  const [publishedList, setPublishedList] = useState<ResponseGallery[]>([]);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState("");
   const ZOOM_KEY = "vhslide-console-card-zoom";
   const [zoomPct, setZoomPct] = useState(() => {
     try {
@@ -468,8 +619,69 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
     )
   );
   useEffect(() => {
+    if (!deckId || !visible) return;
+    let stopped = false;
+    const load = async () => {
+      try {
+        const data = await api<{
+          gallery: ResponseGallery | null;
+          galleries?: ResponseGallery[];
+        }>(`/api/decks/${deckId}/gallery`);
+        if (!stopped)
+          setPublishedList(
+            data.galleries ?? (data.gallery ? [data.gallery] : []),
+          );
+      } catch {
+        /* The published state just stays as it was. */
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [deckId, visible]);
+  async function share(
+    command: "publish" | "stop",
+    targetSlideId?: string,
+  ) {
+    if (!deckId || shareBusy) return;
+    setShareBusy(true);
+    setShareError("");
+    try {
+      const data = await api<{
+        gallery: ResponseGallery | null;
+        galleries?: ResponseGallery[];
+      }>(`/api/decks/${deckId}/gallery/${command}`, {
+        method: "POST",
+        body: JSON.stringify(
+          command === "publish"
+            ? {
+                slide: slideRef.current,
+                append: true,
+                participants: all ? null : selected,
+                names,
+                live,
+              }
+            : targetSlideId
+              ? { slideId: targetSlideId }
+              : {},
+        ),
+      });
+      setPublishedList(data.galleries ?? (data.gallery ? [data.gallery] : []));
+    } catch (e) {
+      setShareError((e as Error).message);
+    } finally {
+      setShareBusy(false);
+    }
+  }
+  useEffect(() => {
     setGallery(null);
     setEnlargedId(undefined);
+    setSelected([]);
+    setCompare([]);
+    setCompareOnly(false);
     setError("");
     if (!focus || !deckId || !hasForm || !visible) return;
     let stopped = false;
@@ -504,6 +716,10 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
   }, [focus?.id, deckId, hasForm, visible]);
 
   const cards = gallery?.cards ?? [];
+  const shownCards =
+    compareOnly && compare.length
+      ? cards.filter((c) => compare.includes(c.id))
+      : cards;
   const enlarged = cards.find((c) => c.id === enlargedId);
   return (
     <div className="console-students" ref={areaRef}>
@@ -552,6 +768,116 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
               </button>
             </div>
           </div>
+          <div className="console-share">
+            <div className="console-share-row">
+              <strong>回答の共有</strong>
+              <span className="console-share-note">
+                共有すると生徒の画面にも表示されます。メールアドレスは共有されません。
+              </span>
+            </div>
+            <div className="console-share-row">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={names}
+                  onChange={(e) => setNames(e.target.checked)}
+                />
+                氏名を表示（未選択なら匿名）
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={live}
+                  onChange={(e) => setLive(e.target.checked)}
+                />
+                保存された回答を自動更新
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={all}
+                  onChange={(e) => setAll(e.target.checked)}
+                />
+                全員を共有{live ? "（今後の回答も含む）" : ""}
+              </label>
+            </div>
+            <div className="console-share-row">
+              <button
+                type="button"
+                className="button primary"
+                disabled={
+                  shareBusy ||
+                  !gallery ||
+                  !cards.length ||
+                  (!all && !selected.length)
+                }
+                onClick={() => void share("publish")}
+              >
+                このスライドの回答を全員に共有
+              </button>
+              <button
+                type="button"
+                className="button outline"
+                disabled={shareBusy || !publishedList.length}
+                onClick={() => void share("stop")}
+              >
+                すべての共有を停止
+              </button>
+              {publishedList.length > 0 && onOpenGallery && (
+                <button
+                  type="button"
+                  className="button outline"
+                  onClick={onOpenGallery}
+                >
+                  共有された回答を開く
+                </button>
+              )}
+              <span role="status">
+                {publishedList.length
+                  ? `共有中：${publishedList.length}枚`
+                  : "現在、参加者には公開していません。"}
+              </span>
+            </div>
+            {publishedList.length > 0 && (
+              <div className="console-published-list" aria-label="共有中のスライド">
+                {publishedList.map((item) => (
+                  <div key={item.slide.id} className="console-share-row">
+                    <span>
+                      {item.slide.title || "無題"}（{item.cards.length}人・
+                      {item.names ? "氏名あり" : "匿名"}・
+                      {item.live ? "自動更新" : "共有時点の回答"}）
+                    </span>
+                    <button
+                      type="button"
+                      className="button outline"
+                      disabled={shareBusy}
+                      onClick={() => void share("stop", item.slide.id)}
+                    >
+                      このスライドの共有を停止
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {shareError && <p role="alert">{shareError}</p>}
+            {compare.length > 0 && (
+              <div className="console-share-row">
+                <span>比較する回答を最大4件選べます。</span>
+                <button type="button" onClick={() => setCompareOnly(true)}>
+                  選択した回答を比較
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompare([]);
+                    setCompareOnly(false);
+                  }}
+                >
+                  比較を解除
+                </button>
+              </div>
+            )}
+          </div>
           {error && <p className="console-waiting">{error}</p>}
           {!error && !cards.length && (
             <p className="console-note">まだ回答がありません。</p>
@@ -564,7 +890,7 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
               } as CSSProperties
             }
           >
-        {cards.map((card) => (
+        {shownCards.map((card) => (
           <article
             className="console-card"
             key={card.id}
@@ -573,6 +899,44 @@ function ConsoleStudentSlides({ focus }: { focus?: Slide }) {
           >
             <span className="console-card-name">{card.name}</span>
             <ResponseGalleryCard card={card} slide={focus} />
+            <footer
+              className="console-card-foot"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {!all && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(card.id)}
+                    onChange={(e) =>
+                      setSelected((ids) =>
+                        e.target.checked
+                          ? [...ids, card.id]
+                          : ids.filter((id) => id !== card.id),
+                      )
+                    }
+                  />
+                  この回答を共有
+                </label>
+              )}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={compare.includes(card.id)}
+                  disabled={
+                    !compare.includes(card.id) && compare.length >= 4
+                  }
+                  onChange={(e) =>
+                    setCompare((ids) =>
+                      e.target.checked
+                        ? [...ids, card.id]
+                        : ids.filter((id) => id !== card.id),
+                    )
+                  }
+                />
+                比較
+              </label>
+            </footer>
           </article>
         ))}
       </div>

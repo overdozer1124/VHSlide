@@ -120,14 +120,18 @@ test("a choice and its reason save independently and appear together in CSV", as
     for await (const chunk of stream) csv += chunk.toString();
     expect(csv).toContain("選んだ理由です");
     expect(csv).toContain("どれを選びますか？：理由");
-    await page.getByRole("tab", { name: "回答スライド", exact: true }).click();
-    await expect(page.locator(".gallery-slide-choice")).toHaveCount(1);
-    await page.locator(".gallery-slide-choice").first().click();
-    await expect(page.locator(".gallery-card textarea")).toHaveValue(
+    // Answer-slide sharing lives in the teacher console now.
+    await page.locator(".activity-panel header button").click();
+    await expect(page.locator(".activity-panel")).toBeHidden();
+    await page.getByRole("button", { name: "授業コンソール" }).click();
+    const consoleView = page.getByRole("region", { name: "授業コンソール" });
+    await consoleView.getByRole("tab", { name: "生徒のスライド" }).click();
+    await expect(consoleView.locator(".console-card textarea")).toHaveValue(
       "選んだ理由です",
+      { timeout: 20_000 },
     );
-    await page
-      .getByRole("button", { name: "選択したスライドの回答を全員に共有" })
+    await consoleView
+      .getByRole("button", { name: "このスライドの回答を全員に共有" })
       .click();
     const shared = (
       await (await guest.request.get(`/api/decks/${id}/gallery`)).json()

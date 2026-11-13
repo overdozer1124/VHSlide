@@ -80,10 +80,13 @@ export function ActivitiesPanel({
   const { open, active, close, busy, select } = useActivityPanel();
   const modal = useRef<HTMLElement>(null);
   const id = useId();
+  // The host manages answer-slide sharing from the teacher console
+  // (生徒のスライド mode); the gallery tab remains for participants,
+  // whose only action there is opening the shared slides.
   const kinds: Kind[] =
     ctx.enabled && !ctx.host
       ? ["survey", "worksheet", "webbing", "gallery"]
-      : ["survey", "worksheet", "webbing", "fields", "gallery"];
+      : ["survey", "worksheet", "webbing", "fields"];
   const labels: Record<Kind, string> = {
     survey: "アンケート",
     worksheet: "ワークシート",
