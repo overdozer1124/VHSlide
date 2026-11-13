@@ -103,6 +103,14 @@ const ARTIFACTS = [
   "test/s12-guard.test.mjs",
   "test/s12-revoke.screen.mjs",
   "test/serve-real-s12.test.mjs",
+  "public/s13-revoke.html",
+  "tools/s13-revoke.mjs",
+  "tools/s13-sender.mjs",
+  "test/s13-revoke.test.mjs",
+  "test/s13-sender.test.mjs",
+  "test/s13-guard.test.mjs",
+  "test/s13-revoke.screen.mjs",
+  "test/serve-real-s13.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
@@ -164,6 +172,11 @@ const s12ModuleLines = readRel("tools/s12-revoke.mjs").split("\n");
 const s12SenderLines = readRel("tools/s12-sender.mjs").split("\n");
 const s12GuardLines = readRel("test/s12-guard.test.mjs").split("\n");
 const s12ScreenLines = readRel("test/s12-revoke.screen.mjs").split("\n");
+const s13RevokeLines = readRel("public/s13-revoke.html").split("\n");
+const s13ModuleLines = readRel("tools/s13-revoke.mjs").split("\n");
+const s13SenderLines = readRel("tools/s13-sender.mjs").split("\n");
+const s13GuardLines = readRel("test/s13-guard.test.mjs").split("\n");
+const s13ScreenLines = readRel("test/s13-revoke.screen.mjs").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
 const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
@@ -802,6 +815,111 @@ const checks = {
     found: findLines(s12ScreenLines, /jsdom/),
     expect: "present",
   },
+  // S13 失効専用モジュール・送信器・画面：2つの失効要求が手順
+  // ごとに凍結できること（freezeRevokeCRequest /
+  // freezeRevokeARequest）。手順2の期待が 409 last_operator で
+  // あること（EXPECTED_LAST_OPERATOR_RESPONSE。この拒否が合格）。
+  // 手順2の記録が状態機械の段階で手順1の後段に限られること
+  // （recordRevokeASend）。認可者・手順間主体の機械確認
+  // （wrong_authorizer）。送信器がスロットごとに Cookie を分け、
+  // 対象の結び付け（s13_revoke_not_frozen /
+  // s13_revoke_target_mismatch）とスロット固定の期待世代
+  // （REVOKE_EXPECTED_GENERATION_BY_SLOT）と送信窓と
+  // redirect: "manual" を持つこと。画面にテキスト入力欄がなく、
+  // セッションのプレースホルダを持つこと。提供サーバーが S13 の
+  // 経路を返すこと。ガード試験が実際の送信器で本手順を通すこと。
+  s13_module_freeze_revokec: {
+    found: findLines(s13ModuleLines, /freezeRevokeCRequest/),
+    expect: "present",
+  },
+  s13_module_freeze_revokea: {
+    found: findLines(s13ModuleLines, /freezeRevokeARequest/),
+    expect: "present",
+  },
+  s13_module_last_operator_expectation: {
+    found: findLines(s13ModuleLines, /EXPECTED_LAST_OPERATOR_RESPONSE/),
+    expect: "present",
+  },
+  s13_module_revokea_order: {
+    found: findLines(s13ModuleLines, /recordRevokeASend/),
+    expect: "present",
+  },
+  s13_module_wrong_authorizer: {
+    found: findLines(s13ModuleLines, /wrong_authorizer/),
+    expect: "present",
+  },
+  s13_module_one_capture_claim: {
+    found: findLines(s13ModuleLines, /claimCallbackCapture/),
+    expect: "present",
+  },
+  s13_module_revoke_path: {
+    found: findLines(s13ModuleLines, /\/admin\/registry\/revoke/),
+    expect: "present",
+  },
+  s13_sender_per_slot_cookie: {
+    found: findLines(s13SenderLines, /op2_nonce_ctx=\$\{slotState\.ctx\}/),
+    expect: "present",
+  },
+  s13_sender_target_not_frozen: {
+    found: findLines(s13SenderLines, /s13_revoke_not_frozen/),
+    expect: "present",
+  },
+  s13_sender_target_mismatch: {
+    found: findLines(s13SenderLines, /s13_revoke_target_mismatch/),
+    expect: "present",
+  },
+  s13_sender_fixed_generation: {
+    found: findLines(s13SenderLines, /REVOKE_EXPECTED_GENERATION_BY_SLOT/),
+    expect: "present",
+  },
+  s13_sender_redirect_manual: {
+    found: findLines(s13SenderLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s13_sender_window: {
+    found: findLines(s13SenderLines, /s13_nonces_expired/),
+    expect: "present",
+  },
+  s13_page_no_text_input: {
+    found: findLines(s13RevokeLines, /type="text"/),
+    expect: "absent",
+  },
+  s13_page_session_placeholder: {
+    found: findLines(s13RevokeLines, /REPLACE_WITH_S13_SESSION/),
+    expect: "present",
+  },
+  s13_page_sends_session: {
+    found: findLines(s13RevokeLines, /x-s13-session/),
+    expect: "present",
+  },
+  s13_serve_route: {
+    found: findLines(serveRealLines, /s13-revoke/),
+    expect: "present",
+  },
+  s13_serve_nonces_route: {
+    found: findLines(serveRealLines, /\/s13\/nonces/),
+    expect: "present",
+  },
+  s13_serve_freeze_route: {
+    found: findLines(serveRealLines, /\/s13\/freeze-revoke/),
+    expect: "present",
+  },
+  s13_serve_send_route: {
+    found: findLines(serveRealLines, /\/s13\/send-revoke/),
+    expect: "present",
+  },
+  s13_guard_uses_sender: {
+    found: findLines(s13GuardLines, /createS13Sender/),
+    expect: "present",
+  },
+  s13_screen_fake_gis: {
+    found: findLines(s13ScreenLines, /__gis/),
+    expect: "present",
+  },
+  s13_screen_jsdom: {
+    found: findLines(s13ScreenLines, /jsdom/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -982,6 +1100,7 @@ const manifest = {
     s5_apply_page: "public/s5-apply.html（tools/serve-real.mjs が /s5-apply で配信。GOOGLE_CLIENT_ID をメモリ上で差し込む。6件の実トークンを集めて凍結した要求を作り、送信直前に6件の条件が等しいことと nonce が異なることを表示して、その同じ6件の要求を送信指示として送信器へ渡す。送信する JSON の全文表示はしない。検証モジュール tools/s5-apply.mjs は Node 試験 test/s5-apply.test.mjs と共用する。並行送信は提供サーバー側の tools/s5-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、6件を Promise.all で並行送信する。送信器の試験は test/s5-sender.test.mjs、画面の実画面試験は test/s5-apply.screen.mjs）",
     s11_parallel_page: "public/s11-parallel.html（tools/serve-real.mjs が /s11-parallel で配信。GOOGLE_CLIENT_ID と S11 セッションをメモリ上で差し込む。項目6 手順3・手順4の専用画面。C の主体ハッシュと A の実トークンを集めて凍結した要求を作り、送信直前に表示して、その送信指示を送信器へ渡す。送信はブラウザーから直接行わない。検証モジュール tools/s11-parallel.mjs は Node 試験 test/s11-parallel.test.mjs と共用する。並行送信は提供サーバー側の tools/s11-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、手順4の2件を Promise.allSettled で並行送信する。手順3の単発送信も送信器経由とする。送信器の試験は test/s11-sender.test.mjs、実 Worker との結線は test/s11-guard.test.mjs、画面の実画面試験は test/s11-parallel.screen.mjs）",
     s12_revoke_page: "public/s12-revoke.html（tools/serve-real.mjs が /s12-revoke で配信。GOOGLE_CLIENT_ID と S12 セッションをメモリ上で差し込む。項目6 手順5（運営者 B の失効）の専用画面。B のトークンを未使用のまま保持し、A の認可で失効を送り、新しい B と保持した失効前トークンの提示拒否（not_operator）と C の提示成功を確認する。送信はブラウザーから直接行わない。検証モジュール tools/s12-revoke.mjs は Node 試験 test/s12-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s12-sender.mjs（Node）が行う。名前付きスロット（heldB / revokeA / freshB / checkC）ごとに Cookie jar を分け、保持トークンの鮮度を失効の送信前に機械確認する。送信器の試験は test/s12-sender.test.mjs、実 Worker との結線は test/s12-guard.test.mjs、画面の実画面試験は test/s12-revoke.screen.mjs）",
+    s13_revoke_page: "public/s13-revoke.html（tools/serve-real.mjs が /s13-revoke で配信。GOOGLE_CLIENT_ID と S13 セッションをメモリ上で差し込む。項目6 手順6（最後の運営者の保護）の専用画面。対象 C の主体ハッシュを取得し、A の認可で C の失効を送り（generation 5→6・登録簿 {A}）、A 自身の失効試行が 409 last_operator で拒否されること（この拒否が合格。状態は変わらない）と A の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s13-revoke.mjs は Node 試験 test/s13-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s13-sender.mjs（Node）が行う。名前付きスロット（revokeC / revokeA / checkA）ごとに Cookie jar を分け、失効の対象は手順ごとに送信器の境界でも結び付け、期待世代はスロットごとに固定する（revokeC = 5、revokeA = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s13-sender.test.mjs、実 Worker との結線は test/s13-guard.test.mjs、画面の実画面試験は test/s13-revoke.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,

@@ -104,6 +104,40 @@
 //   を受け取り、送信器がそのスロットの Cookie で1件を送信し、
 //   応答を返す。ID トークン・Cookie・nonce の値はログ・応答に
 //   出さない。
+// - GET /s13-revoke → public/s13-revoke.html を返す（S13 失効専用
+//   画面。同じくクライアント ID をメモリ上で差し込む）。このページは
+//   対象 C の主体ハッシュを取得し、A の認可で C の失効を送り
+//   （generation 5→6）、A 自身の失効試行が 409 last_operator で
+//   拒否されること（この拒否が合格）と A の提示成功を確認する。
+//   送信はブラウザーから直接行わない（Cookie 文脈の分離のため）。
+//   検証モジュール tools/s13-revoke.mjs と
+//   tools/subject-hash-verify.mjs を import する。
+// - GET /s13-revoke.mjs → tools/s13-revoke.mjs をそのまま返す
+//   （s13-revoke 画面が import する純粋モジュール）。
+// - GET /s13/nonces → 送信器が中継先の /nonce をスロット
+//   （revokeC / revokeA / checkA）ごとに1回呼び、そのスロットの
+//   nonce context Cookie を保持し、nonce だけを返す（ctx は
+//   返さない）。対象取得（targetC）の nonce は画面が /nonce から
+//   直接取得するため、ここには含まれない。スロットごとに発行
+//   から4分以内に送信しなければ送信器が拒否する。呼び出し元の
+//   境界は S12 と同じ型（試験単位セッション・Host・Origin）で
+//   あり、発行は試験 ID とスロットに結び付ける。
+// - POST /s13/freeze-revoke → 画面が各失効要求を凍結した時点で、
+//   凍結済み要求の対象（手順1は C、手順2は A 自身の主体ハッシュ）
+//   をスロット名とともに送信器に固定する。送信器は以後の失効
+//   送信で、送信されてきた要求の対象をそのスロットの固定値と
+//   照合し、異なれば1件も送らない（送信器の境界での対象の
+//   結び付け）。応答は固定できたか（ok）または理由コードだけを
+//   返し、固定値は返さない。
+// - POST /s13/send-revoke → 画面からの失効要求とスロット名を
+//   受け取り、送信器がそのスロットの Cookie で1件を送信し、
+//   応答（状態と理由コード・返された世代だけ）を返す。期待世代
+//   はスロットごとに固定であり（revokeC = 5、revokeA = 6）、
+//   送信器が照合する。
+// - POST /s13/send-verify-only → 画面からの提示要求とスロット名
+//   （checkA）を受け取り、送信器がそのスロットの Cookie で1件
+//   を送信し、応答を返す。ID トークン・Cookie・nonce の値は
+//   ログ・応答に出さない。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -151,6 +185,7 @@ import { fileURLToPath } from "node:url";
 import { createS5Sender } from "./s5-sender.mjs";
 import { createS11Sender } from "./s11-sender.mjs";
 import { createS12Sender } from "./s12-sender.mjs";
+import { createS13Sender } from "./s13-sender.mjs";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
@@ -417,6 +452,63 @@ async function readS12SendBody(req) {
   return { body: Buffer.concat(chunks) };
 }
 
+// S13 失効の送信器（1プロセスに1つ）。スロットごとの nonce・ctx・
+// 要求の保持はメモリー内だけである。
+const s13Sender = createS13Sender({ relayUrl: RELAY });
+
+// S13 入口の試験単位セッション。S12 と同じ型であり、起動ごとに不可
+// 推測の値を新規発行し、/s13-revoke 画面へメモリ上で差し込む
+// （ファイルは書き換えない）。画面は /s13/nonces・/s13/send-* の
+// 呼び出し時にこの値をヘッダーで示す。
+const S13_SESSION = randomUUID();
+const S13_SESSION_PLACEHOLDER = "REPLACE_WITH_S13_SESSION";
+// /s13/send-* の本体サイズ上限。要求1件（ID トークンを含む）は
+// 数 KiB であり、64 KiB で十分に足りる。超過は 413 で拒否する。
+const S13_MAX_BODY_BYTES = 64 * 1024;
+
+// S13 入口（/s13/nonces・/s13/send-*）の呼び出し元境界。S12 入口と
+// 同じ型であり、次をすべて満たさなければ、状態を変更せず理由コード
+// だけを返す。
+function checkS13Entry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "s13_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "s13_bad_origin" };
+    }
+  }
+  if (req.headers["x-s13-session"] !== S13_SESSION) {
+    return { ok: false, status: 403, error: "s13_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /s13/send-* の本体をサイズ上限付きで読む（S12 と同じ型）。
+async function readS13SendBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > S13_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -518,6 +610,23 @@ const s12RevokeHtml = rawS12RevokeHtml
   .split(S12_SESSION_PLACEHOLDER).join(S12_SESSION);
 const s12RevokeJs = await readFile(path.join(root, "tools", "s12-revoke.mjs"), "utf8");
 
+// S13 失効専用画面も同じく、起動時に読み込み、クライアント ID と
+// S13 セッションをメモリ上で差し込む（ファイルは書き換えない）。検証
+// モジュールはそのまま返す。
+const rawS13RevokeHtml = await readFile(path.join(root, "public", "s13-revoke.html"), "utf8");
+if (!rawS13RevokeHtml.includes(PLACEHOLDER)) {
+  console.error("error: s13-revoke.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+if (!rawS13RevokeHtml.includes(S13_SESSION_PLACEHOLDER)) {
+  console.error("error: s13-revoke.html に S13 セッションのプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s13RevokeHtml = rawS13RevokeHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(S13_SESSION_PLACEHOLDER).join(S13_SESSION);
+const s13RevokeJs = await readFile(path.join(root, "tools", "s13-revoke.mjs"), "utf8");
+
 const FORWARD_PATHS = new Set([
   "/nonce",
   "/platform/apply",
@@ -618,6 +727,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s12-revoke.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s12RevokeJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s13-revoke") {
+      console.log(`GET /s13-revoke -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s13RevokeHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s13-revoke.mjs") {
+      console.log(`GET /s13-revoke.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s13RevokeJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
@@ -976,6 +1097,185 @@ const server = http.createServer(async (req, res) => {
         console.log(`POST ${pathname} -> ${status}`);
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s12_send_failed" }));
+      }
+      return;
+    }
+    // S13 失効の送信器への入口。S12 入口と同じ型である。要求・応答の
+    // 本体、トークン・Cookie・nonce の値はログに出さない。送信器の
+    // 局所エラーは理由コードだけを返す。呼び出し元の境界（Host・
+    // Origin・試験単位セッション）を先に確認し、通らなければ状態を
+    // 変更しない。
+    if (req.method === "GET" && pathname === "/s13/nonces") {
+      const entry = checkS13Entry(req);
+      if (!entry.ok) {
+        console.log(`GET /s13/nonces -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const trialId = params.get("trial_id");
+      const slot = params.get("slot");
+      const S13_SLOT_NAMES = ["revokeC", "revokeA", "checkA"];
+      if (!trialId || !S13_SLOT_NAMES.includes(slot)) {
+        console.log(`GET /s13/nonces -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は画面の試行に追随する。画面が新しい試行を
+        // 始めたら、送信器もその試行で開始する（旧試行のスロットは
+        // 破棄される）。
+        const snap = s13Sender.snapshot();
+        if (!snap || snap.trialId !== trialId) {
+          s13Sender.beginTrial(trialId);
+        }
+        const issued = await s13Sender.issueNonce({ trialId, slot });
+        console.log(`GET /s13/nonces -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ nonce: issued.nonce }));
+      } catch (e) {
+        console.log(`GET /s13/nonces -> 502`);
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s13_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (req.method === "POST" && pathname === "/s13/freeze-revoke") {
+      const entry = checkS13Entry(req);
+      if (!entry.ok) {
+        console.log(`POST /s13/freeze-revoke -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST /s13/freeze-revoke -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS13SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST /s13/freeze-revoke -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (
+        !parsed || typeof parsed !== "object" ||
+        typeof parsed.trial_id !== "string" || parsed.trial_id.length === 0 ||
+        (parsed.slot !== "revokeC" && parsed.slot !== "revokeA") ||
+        typeof parsed.subject_hash !== "string"
+      ) {
+        console.log(`POST /s13/freeze-revoke -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は画面の試行に追随する（/s13/nonces と同じ）。
+        const snap = s13Sender.snapshot();
+        if (!snap || snap.trialId !== parsed.trial_id) {
+          s13Sender.beginTrial(parsed.trial_id);
+        }
+        s13Sender.freezeRevokeTarget({
+          trialId: parsed.trial_id,
+          slot: parsed.slot,
+          subjectHash: parsed.subject_hash,
+        });
+        console.log(`POST /s13/freeze-revoke -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        // 固定できなかった場合は理由コードだけを返す。固定値は
+        // 応答・ログに出さない。
+        console.log(`POST /s13/freeze-revoke -> 409`);
+        res.writeHead(409, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s13_freeze_failed" }));
+      }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (pathname === "/s13/send-revoke" || pathname === "/s13/send-verify-only")
+    ) {
+      const entry = checkS13Entry(req);
+      if (!entry.ok) {
+        console.log(`POST ${pathname} -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST ${pathname} -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS13SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST ${pathname} -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        // 読み残した本体がソケットに残るため、応答の送信後に破棄する。
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        console.log(`POST ${pathname} -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        const out =
+          pathname === "/s13/send-revoke"
+            ? await s13Sender.sendRevoke({
+                trialId: parsed.trial_id,
+                slot: parsed.slot,
+                request: parsed.request,
+              })
+            : await s13Sender.sendVerifyOnly({
+                trialId: parsed.trial_id,
+                slot: parsed.slot,
+                request: parsed.request,
+              });
+        console.log(`POST ${pathname} -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(out));
+      } catch (e) {
+        // 送信前の確認に失敗した場合は1件も送っていない。理由コード
+        // だけを返し、値は返さない。期限切れは 410、その他は 409 と
+        // する。
+        const status = e.code === "s13_nonces_expired" ? 410 : 409;
+        console.log(`POST ${pathname} -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s13_send_failed" }));
       }
       return;
     }
