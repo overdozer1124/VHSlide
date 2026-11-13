@@ -1110,6 +1110,34 @@ export function Canvas({
             </Fragment>
           );
         })}
+        {cropEdit &&
+          (() => {
+            const full = cropFull(cropEdit);
+            return (
+              <div
+                className="crop-dim"
+                style={{
+                  left: full.x,
+                  top: full.y,
+                  width: full.w,
+                  height: full.h,
+                  zIndex: 999,
+                }}
+                aria-hidden="true"
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    left: cropEdit.x - full.x,
+                    top: cropEdit.y - full.y,
+                    width: cropEdit.w,
+                    height: cropEdit.h,
+                    boxShadow: "0 0 0 9999px rgba(18, 28, 22, 0.52)",
+                  }}
+                />
+              </div>
+            );
+          })()}
         {cropEdit && (
           <div
             className="crop-frame"

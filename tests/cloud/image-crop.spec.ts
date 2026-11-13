@@ -81,6 +81,23 @@ test("double-clicking a slide image crops it in place by its edges", async ({
     return el?.className ?? "";
   });
   expect(hit).toContain("crop-point-e");
+  // The area that will be cut away is dimmed; the hole in the dim
+  // layer matches the crop rectangle exactly.
+  const dimBoxes = await page.evaluate(() => {
+    const dim = document.querySelector(".crop-dim")!;
+    const hole = dim.firstElementChild!;
+    const f = document.querySelector(".crop-frame")!;
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    };
+    return { dim: box(dim), hole: box(hole), frame: box(f) };
+  });
+  expect(Math.abs(dimBoxes.hole.x - dimBoxes.frame.x)).toBeLessThan(2);
+  expect(Math.abs(dimBoxes.hole.y - dimBoxes.frame.y)).toBeLessThan(2);
+  expect(Math.abs(dimBoxes.hole.w - dimBoxes.frame.w)).toBeLessThan(2);
+  expect(Math.abs(dimBoxes.hole.h - dimBoxes.frame.h)).toBeLessThan(2);
+  expect(dimBoxes.dim.w).toBeGreaterThanOrEqual(dimBoxes.frame.w);
   // Drag the right edge's round mark inward.
   const edge = frame.locator(".crop-point-e");
   const edgeBox = await edge.boundingBox();

@@ -7672,6 +7672,7 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-webbing-dot.is-root { background:#2f5aa8;border-color:#2f5aa8;color:#fff; }
 .console-group-card.is-clickable { cursor:pointer; }
 .crop-ghost { position:absolute;pointer-events:none; }
+.crop-dim { position:absolute;overflow:hidden;pointer-events:none; }
 .crop-ghost img { display:block;width:100%;height:100%;opacity:.45; }
 .crop-frame { position:absolute;border:3px solid #2f6a45;box-shadow:0 0 0 1px #ffffff inset;cursor:move;touch-action:none; }
 .crop-edge { position:absolute;touch-action:none;z-index:3; }

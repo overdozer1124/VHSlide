@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.120.3",
+    date: "2026-11-13",
+    title: "切り抜きで消える部分を半透明に表示",
+    changes: [
+      "スライド画像の切り抜き中、残る部分はそのままの色で、切り取られて消える部分は暗い半透明で覆われるようになりました。残る範囲と消える範囲が一目で分かります。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.120.2",
     date: "2026-11-13",
     title: "切り抜きの四角が他の要素の下に隠れる問題を修正",
