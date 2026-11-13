@@ -125,6 +125,40 @@ test("grouped webbing maps split writing by the deck's shared groups", async ({
     await expect(nodeOn(ana, "2班のアイデア")).toBeVisible({
       timeout: 20_000,
     });
+
+    // Zoom is per-viewer: the map grows for Ana, and resets to fit.
+    const rootBox = await nodeOn(ana, "班で考えよう").boundingBox();
+    expect(rootBox).not.toBeNull();
+    await anaMap.getByRole("button", { name: "拡大" }).click();
+    await anaMap.getByRole("button", { name: "拡大" }).click();
+    await expect(anaMap.locator(".webbing-zoom-label")).toHaveText("169%");
+    await expect
+      .poll(
+        async () =>
+          (await nodeOn(ana, "班で考えよう").boundingBox())?.width ?? 0,
+      )
+      .toBeGreaterThan(rootBox!.width * 1.5);
+    // Panning by dragging the background moves the map.
+    const wrapBox = await anaMap
+      .locator(".webbing-stage-wrap")
+      .boundingBox();
+    expect(wrapBox).not.toBeNull();
+    const beforePan = await nodeOn(ana, "班で考えよう").boundingBox();
+    await ana.mouse.move(
+      wrapBox!.x + wrapBox!.width * 0.25,
+      wrapBox!.y + wrapBox!.height * 0.8,
+    );
+    await ana.mouse.down();
+    await ana.mouse.move(
+      wrapBox!.x + wrapBox!.width * 0.25 + 90,
+      wrapBox!.y + wrapBox!.height * 0.8 + 40,
+      { steps: 8 },
+    );
+    await ana.mouse.up();
+    const afterPan = await nodeOn(ana, "班で考えよう").boundingBox();
+    expect(Math.abs(afterPan!.x - beforePan!.x)).toBeGreaterThan(50);
+    await anaMap.getByRole("button", { name: "全体表示に戻す" }).click();
+    await expect(anaMap.locator(".webbing-zoom-label")).toHaveText("100%");
   } finally {
     await anaContext.close();
     await bobContext.close();

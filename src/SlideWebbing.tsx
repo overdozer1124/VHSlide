@@ -99,6 +99,74 @@ function WebbingStage({ mapId }: { mapId: string }) {
   const [activeGroupId, setActiveGroupId] = useState<string>();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
+  const [wrapSize, setWrapSize] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [panning, setPanning] = useState(false);
+  const panRef = useRef<
+    | { startX: number; startY: number; origX: number; origY: number }
+    | undefined
+  >(undefined);
+  // View-only magnification on top of the fit scale; every viewer zooms
+  // their own view, the shared map data does not change.
+  const effScale = scale * zoom;
+  const clampPan = (p: { x: number; y: number }, z: number) => ({
+    x: Math.max(
+      -(WEBBING_W * scale * z) / 2 - wrapSize.w / 2 + 40,
+      Math.min((WEBBING_W * scale * z) / 2 + wrapSize.w / 2 - 40, p.x),
+    ),
+    y: Math.max(
+      -(WEBBING_H * scale * z) / 2 - wrapSize.h / 2 + 40,
+      Math.min((WEBBING_H * scale * z) / 2 + wrapSize.h / 2 - 40, p.y),
+    ),
+  });
+  const viewRef = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
+  const applyZoom = (next: number, cx = 0, cy = 0) => {
+    const prev = viewRef.current;
+    const z = Math.max(1, Math.min(3.5, next));
+    const ratio = z / prev.zoom;
+    const p =
+      z === 1
+        ? { x: 0, y: 0 }
+        : clampPan(
+            {
+              x: cx - (cx - prev.pan.x) * ratio,
+              y: cy - (cy - prev.pan.y) * ratio,
+            },
+            z,
+          );
+    viewRef.current = { zoom: z, pan: p };
+    setZoom(z);
+    setPan(p);
+  };
+  const applyPan = (p: { x: number; y: number }) => {
+    const clamped = clampPan(p, viewRef.current.zoom);
+    viewRef.current = { zoom: viewRef.current.zoom, pan: clamped };
+    setPan(clamped);
+  };
+
+  // Ctrl+wheel zooms toward the pointer. A native non-passive listener,
+  // because React's root wheel listener cannot preventDefault the
+  // browser's own page zoom.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      const cx = e.clientX - (rect.left + rect.width / 2);
+      const cy = e.clientY - (rect.top + rect.height / 2);
+      applyZoom(
+        viewRef.current.zoom * Math.exp(-e.deltaY * 0.0018),
+        cx,
+        cy,
+      );
+    };
+    wrap.addEventListener("wheel", onWheel, { passive: false });
+    return () => wrap.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, wrapSize]);
   const [selected, setSelected] = useState<string>();
   const [editing, setEditing] = useState<{ id: string; text: string }>();
   const [draft, setDraft] = useState<{
@@ -135,8 +203,10 @@ function WebbingStage({ mapId }: { mapId: string }) {
     if (!wrap) return;
     const observer = new ResizeObserver(() => {
       const rect = wrap.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0)
+      if (rect.width > 0 && rect.height > 0) {
         setScale(Math.min(rect.width / WEBBING_W, rect.height / WEBBING_H));
+        setWrapSize({ w: rect.width, h: rect.height });
+      }
     });
     observer.observe(wrap);
     return () => observer.disconnect();
@@ -314,8 +384,8 @@ function WebbingStage({ mapId }: { mapId: string }) {
   function nodePointerMove(e: ReactPointerEvent, node: WebbingNode) {
     const drag = dragRef.current;
     if (!drag || drag.id !== node.id) return;
-    const dx = (e.clientX - drag.startX) / scale;
-    const dy = (e.clientY - drag.startY) / scale;
+    const dx = (e.clientX - drag.startX) / effScale;
+    const dy = (e.clientY - drag.startY) / effScale;
     if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
     if (drag.moved)
       setDragPos((prev) => ({
@@ -371,15 +441,40 @@ function WebbingStage({ mapId }: { mapId: string }) {
         ))}
     <div className="webbing-stage-wrap" ref={wrapRef}>
       <div
-        className="webbing-stage"
+        className={`webbing-stage ${zoom > 1 ? "is-zoomed" : ""} ${panning ? "is-panning" : ""}`}
         style={{
           width: WEBBING_W,
           height: WEBBING_H,
-          transform: `translate(-50%, -50%) scale(${scale})`,
+          transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${effScale})`,
         }}
-        onPointerDown={() => {
+        onPointerDown={(e) => {
           setSelected(undefined);
           setConfirmDelete(undefined);
+          if (e.button !== 0 || zoom <= 1) return;
+          panRef.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            origX: viewRef.current.pan.x,
+            origY: viewRef.current.pan.y,
+          };
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          setPanning(true);
+        }}
+        onPointerMove={(e) => {
+          const start = panRef.current;
+          if (!start) return;
+          applyPan({
+            x: start.origX + (e.clientX - start.startX),
+            y: start.origY + (e.clientY - start.startY),
+          });
+        }}
+        onPointerUp={() => {
+          panRef.current = undefined;
+          setPanning(false);
+        }}
+        onPointerCancel={() => {
+          panRef.current = undefined;
+          setPanning(false);
         }}
       >
         <svg className="webbing-edges" width={WEBBING_W} height={WEBBING_H}>
@@ -577,6 +672,37 @@ function WebbingStage({ mapId }: { mapId: string }) {
               : "先生が受付を開始すると書き込めます"}
           </p>
         )}
+      </div>
+      <div
+        className="webbing-zoom"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-label="縮小"
+          disabled={zoom <= 1}
+          onClick={() => applyZoom(viewRef.current.zoom / 1.3)}
+        >
+          −
+        </button>
+        <span className="webbing-zoom-label">{Math.round(zoom * 100)}%</span>
+        <button
+          type="button"
+          aria-label="拡大"
+          disabled={zoom >= 3.5}
+          onClick={() => applyZoom(viewRef.current.zoom * 1.3)}
+        >
+          ＋
+        </button>
+        <button
+          type="button"
+          className="webbing-zoom-reset"
+          aria-label="全体表示に戻す"
+          disabled={zoom === 1}
+          onClick={() => applyZoom(1)}
+        >
+          全体
+        </button>
       </div>
       {error && (
         <p className="webbing-error" role="alert">

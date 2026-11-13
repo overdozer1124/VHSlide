@@ -7614,3 +7614,12 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .webbing-group-setup { display:flex;flex-direction:column;gap:8px;width:100%; }
 .webbing-group-setup label { display:flex;flex-direction:column;gap:5px;font-weight:600; }
 .webbing-group-setup textarea { padding:8px 10px;border:1px solid #b9cdbd;border-radius:8px;font:inherit; }
+/* Webbing map zoom (per-viewer; the shared map data is unchanged) */
+.webbing-stage.is-zoomed { cursor:grab; }
+.webbing-stage.is-panning { cursor:grabbing; }
+.webbing-zoom { position:absolute;right:8px;bottom:8px;z-index:6;display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.94);border:1px solid #b9cdbd;border-radius:999px;padding:3px;box-shadow:0 2px 8px rgba(31,58,42,.16); }
+.webbing-zoom button { min-width:28px;height:28px;border:none;border-radius:999px;background:transparent;font-size:15px;font-weight:700;color:#31543c;cursor:pointer;padding:0 6px; }
+.webbing-zoom button:hover:not(:disabled) { background:#e7efe7; }
+.webbing-zoom button:disabled { opacity:.35;cursor:default; }
+.webbing-zoom-reset { font-size:12px !important; }
+.webbing-zoom-label { min-width:44px;text-align:center;font-size:12px;font-weight:700;color:#31543c; }
