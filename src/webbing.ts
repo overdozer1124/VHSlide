@@ -1,8 +1,12 @@
 import type { HistorySQL } from "./historyStore.ts";
+import { deckGroups, effectiveGroupId } from "./groups.ts";
 
 /** Shared webbing-map (brainstorming web) activities.
  *
  * One map lives on one slide; every participant writes into the same map.
+ * A map can be split into groups: each group webs on its own copy of the
+ * map inside the same slide, participants join one group, write only in
+ * their own group, and can view the other groups' maps read-only.
  * A node can only be edited or deleted by its author — or by the host, who
  * can edit and delete everything. While a participant edits a node, a
  * short-lived server lock keeps everyone else out of that node.
@@ -13,9 +17,12 @@ export type WebbingMap = {
   title: string;
   status: WebbingStatus;
   created: number;
+  /** True when the map is split by the deck's shared groups. */
+  grouped: boolean;
 };
 export type WebbingNode = {
   id: string;
+  groupId: string;
   parentId: string | null;
   text: string;
   x: number;
@@ -49,26 +56,81 @@ export const WEBBING_W = 960;
 export const WEBBING_H = 540;
 export const WEBBING_LOCK_MS = 20000;
 const MAX_MAPS = 10;
-const MAX_NODES = 200;
+const MAX_NODES = 300;
 export const webbingSchema = `
 CREATE TABLE IF NOT EXISTS webbing_maps(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, title TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS webbing_maps_deck ON webbing_maps(deck);
-CREATE TABLE IF NOT EXISTS webbing_nodes(id TEXT PRIMARY KEY, map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, parent TEXT, author TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS webbing_nodes(id TEXT PRIMARY KEY, map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, grp TEXT NOT NULL DEFAULT '', parent TEXT, author TEXT NOT NULL, text TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS webbing_nodes_map ON webbing_nodes(map);
 CREATE TABLE IF NOT EXISTS webbing_locks(map TEXT NOT NULL REFERENCES webbing_maps(id) ON DELETE CASCADE, node TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(map,node));`;
+/** Older databases lack the grp column on nodes and the grouped/creator
+ * columns on maps. Add whatever is missing; existing maps stay ungrouped. */
+export function ensureWebbingShape(sql: HistorySQL): void {
+  const nodeColumns = [...sql("PRAGMA table_info(webbing_nodes)")].map(
+    (c) => c.name,
+  );
+  if (nodeColumns.length && !nodeColumns.includes("grp"))
+    sql("ALTER TABLE webbing_nodes ADD COLUMN grp TEXT NOT NULL DEFAULT ''");
+  const mapColumns = [...sql("PRAGMA table_info(webbing_maps)")].map(
+    (c) => c.name,
+  );
+  if (mapColumns.length && !mapColumns.includes("grouped"))
+    sql(
+      "ALTER TABLE webbing_maps ADD COLUMN grouped INTEGER NOT NULL DEFAULT 0",
+    );
+  if (mapColumns.length && !mapColumns.includes("creator"))
+    sql("ALTER TABLE webbing_maps ADD COLUMN creator TEXT NOT NULL DEFAULT ''");
+}
+/** A grouped map keeps one theme root per deck group; groups defined or
+ * added later get their root on first sight. */
+function ensureGroupedRoots(
+  sql: HistorySQL,
+  deck: string,
+  map: WebbingMap,
+  creator: string,
+  now: number,
+): void {
+  if (!map.grouped) return;
+  const roots = new Set(
+    [...sql("SELECT grp FROM webbing_nodes WHERE map=? AND parent=''", map.id)].map(
+      (r) => r.grp as string,
+    ),
+  );
+  for (const group of deckGroups(sql, deck)) {
+    if (roots.has(group.id)) continue;
+    sql(
+      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+      crypto.randomUUID(),
+      map.id,
+      group.id,
+      "",
+      creator,
+      map.title,
+      WEBBING_W / 2,
+      WEBBING_H / 2,
+      now,
+      now,
+    );
+  }
+}
 function readMap(row: Record<string, any>): WebbingMap {
   return {
     id: row.id,
     title: row.title,
     status: row.status,
     created: row.created,
+    grouped: row.grouped === 1 || row.grouped === true,
   };
 }
-function cleanText(value: unknown, label: string): string {
+function cleanText(
+  value: unknown,
+  label: string,
+  max = 100,
+): string {
   insist(
-    typeof value === "string" && value.trim().length > 0 && value.length <= 100,
+    typeof value === "string" && value.trim().length > 0 && value.length <= max,
     400,
-    `${label}は1〜100文字で入力してください。`,
+    `${label}は1〜${max}文字で入力してください。`,
   );
   return (value as string).trim().replace(/\s+/g, " ");
 }
@@ -85,6 +147,7 @@ export function webbingList(
   deck: string,
   host: boolean,
 ): WebbingView[] {
+  ensureWebbingShape(sql);
   const now = Date.now();
   return [
     ...sql(
@@ -95,6 +158,7 @@ export function webbingList(
     .filter((row) => host || row.status !== "draft")
     .map((row) => {
       const map = readMap(row);
+      ensureGroupedRoots(sql, deck, map, (row.creator as string) ?? "", now);
       const nodes = [
         ...sql(
           "SELECT n.*,u.name AS author_name FROM webbing_nodes n LEFT JOIN users u ON u.id=n.author WHERE n.map=? ORDER BY n.created,n.id",
@@ -103,6 +167,7 @@ export function webbingList(
       ].map(
         (n): WebbingNode => ({
           id: n.id,
+          groupId: n.grp,
           parentId: n.parent ? n.parent : null,
           text: n.text,
           x: n.x,
@@ -195,6 +260,7 @@ export function webbingCommand(
   id: string | undefined,
   input: unknown,
 ): { createdId?: string } | undefined {
+  ensureWebbingShape(sql);
   const value = input as Record<string, unknown>;
   insist(
     value && typeof value === "object" && !Array.isArray(value),
@@ -211,32 +277,43 @@ export function webbingCommand(
       `ウェビングマップは作品ごとに${MAX_MAPS}件までです。`,
     );
     const title = cleanText(value.title, "中心のテーマ");
+    insist(
+      value.grouped === undefined || typeof value.grouped === "boolean",
+      400,
+      "グループ分けの指定を確認してください。",
+    );
     const map: WebbingMap = {
       id: crypto.randomUUID(),
       title,
       status: "draft",
       created: now,
+      grouped: value.grouped === true,
     };
     sql(
-      "INSERT INTO webbing_maps VALUES(?,?,?,?,?)",
+      "INSERT INTO webbing_maps VALUES(?,?,?,?,?,?,?)",
       map.id,
       deck,
       map.title,
       map.status,
       map.created,
-    );
-    sql(
-      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?)",
-      crypto.randomUUID(),
-      map.id,
-      "",
+      map.grouped ? 1 : 0,
       actor,
-      title,
-      WEBBING_W / 2,
-      WEBBING_H / 2,
-      now,
-      now,
     );
+    if (map.grouped) ensureGroupedRoots(sql, deck, map, actor, now);
+    else
+      sql(
+        "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
+        crypto.randomUUID(),
+        map.id,
+        "",
+        "",
+        actor,
+        title,
+        WEBBING_W / 2,
+        WEBBING_H / 2,
+        now,
+        now,
+      );
     return { createdId: map.id };
   }
   const map = loadMap(sql, deck, id);
@@ -261,6 +338,13 @@ export function webbingCommand(
   } else if (action === "node-add") {
     insistCanWrite(map, host);
     const parent = loadNode(sql, map.id, value.parentId);
+    insist(
+      host ||
+        !map.grouped ||
+        effectiveGroupId(sql, deck, actor) === parent.grp,
+      403,
+      "書き込めるのは、自分のグループのマップだけです。まず自分のグループに参加してください。",
+    );
     const text = cleanText(value.text, "書き込み");
     const count = [
       ...sql("SELECT COUNT(*) AS n FROM webbing_nodes WHERE map=?", map.id),
@@ -272,9 +356,10 @@ export function webbingCommand(
     );
     const nodeId = crypto.randomUUID();
     sql(
-      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO webbing_nodes VALUES(?,?,?,?,?,?,?,?,?,?)",
       nodeId,
       map.id,
+      parent.grp,
       parent.id,
       actor,
       text,
@@ -306,13 +391,21 @@ export function webbingCommand(
       node.id,
       map.id,
     );
-    if (!node.parent && text !== map.title)
+    if (!node.parent && text !== map.title) {
+      // The theme is shared by every group: keep all roots and the title in sync.
+      sql(
+        "UPDATE webbing_nodes SET text=?,updated=? WHERE map=? AND parent=''",
+        text,
+        now,
+        map.id,
+      );
       sql(
         "UPDATE webbing_maps SET title=? WHERE id=? AND deck=?",
         text,
         map.id,
         deck,
       );
+    }
   } else if (action === "node-delete") {
     const node = loadNode(sql, map.id, value.nodeId);
     insist(
@@ -347,6 +440,11 @@ export function webbingCommand(
     }
   } else if (action === "lock") {
     const node = loadNode(sql, map.id, value.nodeId);
+    insist(
+      host || node.author === actor,
+      403,
+      "編集できるのは、書いた本人とホストだけです。",
+    );
     insistCanWrite(map, host);
     insistNotLockedByOther(sql, map.id, node.id, actor, now);
     const me = [...sql("SELECT name FROM users WHERE id=?", actor)][0];

@@ -122,4 +122,63 @@ export async function exerciseWebbing(
   await write(`/${mapId}`, {}, guest, 403, "DELETE");
   await write(`/${mapId}`, {}, owner, 200, "DELETE");
   assert.deepEqual(await list(), []);
+
+  // ---- Shared deck groups + a grouped map ----
+  const groupsBase = `/api/decks/${id}/groups`;
+  const groupCall = async (
+    path: string,
+    value: unknown,
+    who = owner,
+    status = 200,
+  ) => {
+    const r = await call(groupsBase + path, "POST", value, who);
+    assert.equal(r.status, status, await r.clone().text());
+    return r;
+  };
+  await groupCall("", { names: ["1班", "2班"] }, guest, 403);
+  await groupCall("", { names: ["1班", "2班"] });
+  const groupView = await (
+    await call(groupsBase, "GET", undefined, guest)
+  ).json();
+  assert.equal(groupView.groups.length, 2);
+  assert.equal(groupView.myGroupId, undefined);
+  const [g1, g2] = groupView.groups;
+  const grouped = await (
+    await write("", { title: "班で考えよう", grouped: true })
+  ).json();
+  const groupedId: string = grouped.createdId;
+  await write(`/${groupedId}/status`, { status: "open" });
+  const groupedView = (await list())[0];
+  assert.equal(groupedView.grouped, true);
+  const roots = groupedView.nodes.filter((n) => n.parentId === null);
+  assert.equal(roots.length, 2);
+  const root1 = roots.find((n) => n.groupId === g1.id)!;
+  const root2 = roots.find((n) => n.groupId === g2.id)!;
+  // Before joining, the guest writes nowhere in a grouped map.
+  await write(
+    `/${groupedId}/node-add`,
+    { parentId: root1.id, text: "まだ参加していない", x: 100, y: 100 },
+    guest,
+    403,
+  );
+  await groupCall("/join", { groupId: g1.id }, guest);
+  const joinedView = await (
+    await call(groupsBase, "GET", undefined, guest)
+  ).json();
+  assert.equal(joinedView.myGroupId, g1.id);
+  await write(
+    `/${groupedId}/node-add`,
+    { parentId: root1.id, text: "1班のアイデア", x: 200, y: 160 },
+    guest,
+  );
+  await write(
+    `/${groupedId}/node-add`,
+    { parentId: root2.id, text: "よその班へ", x: 100, y: 100 },
+    guest,
+    403,
+  );
+  // The other group's board stays visible (read-only data).
+  const finalView = (await list(guest))[0];
+  assert.ok(finalView.nodes.some((n) => n.text === "1班のアイデア"));
+  await write(`/${groupedId}`, {}, owner, 200, "DELETE");
 }

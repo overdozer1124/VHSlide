@@ -7,6 +7,7 @@ import {
   webbingCommand,
   WebbingError,
 } from "./webbing";
+import { groupSchema, groupList, groupCommand } from "./groups";
 
 function fixture() {
   const db = new DatabaseSync(":memory:");
@@ -14,6 +15,7 @@ function fixture() {
     "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT)",
   );
   db.exec(webbingSchema);
+  db.exec(groupSchema);
   db.prepare("INSERT INTO decks VALUES(?)").run("deck");
   for (const [id, name] of [
     ["host", "先生"],
@@ -162,9 +164,10 @@ describe("webbing maps", () => {
       409,
       "編集中",
     );
+    // Only the author or the host may take the edit lock at all.
     fails(
       () => webbingCommand(sql, "deck", "bob", false, "lock", mapId, { nodeId }),
-      409,
+      403,
     );
     // The lock holder can save, and the list shows the lock with her name.
     const locked = webbingList(sql, "deck", false)[0];
@@ -234,6 +237,78 @@ describe("webbing maps", () => {
       text: "10年後の自分",
     });
     expect(webbingList(sql, "deck", true)[0].title).toBe("10年後の自分");
+  });
+
+  it("splits a grouped map by the deck's shared groups", () => {
+    const { sql } = fixture();
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    const [g1, g2] = groupList(sql, "deck", "host", true).groups;
+    const created = webbingCommand(sql, "deck", "host", true, "create", undefined, {
+      title: "班で考えよう",
+      grouped: true,
+    });
+    const mapId = created!.createdId!;
+    webbingCommand(sql, "deck", "host", true, "status", mapId, {
+      status: "open",
+    });
+    const view = webbingList(sql, "deck", true)[0];
+    expect(view.grouped).toBe(true);
+    // One theme root per group.
+    const roots = view.nodes.filter((n) => n.parentId === null);
+    expect(roots.map((r) => r.groupId).sort()).toEqual([g1.id, g2.id].sort());
+    const root1 = roots.find((r) => r.groupId === g1.id)!;
+    const root2 = roots.find((r) => r.groupId === g2.id)!;
+    // Ana cannot write anywhere before joining a group.
+    fails(
+      () =>
+        webbingCommand(sql, "deck", "ana", false, "node-add", mapId, {
+          parentId: root1.id,
+          text: "まだ",
+          x: 100,
+          y: 100,
+        }),
+      403,
+    );
+    groupCommand(sql, "deck", "ana", false, "join", undefined, {
+      groupId: g1.id,
+    });
+    // She writes in her own group, never in the other group.
+    const added = webbingCommand(sql, "deck", "ana", false, "node-add", mapId, {
+      parentId: root1.id,
+      text: "1班のアイデア",
+      x: 200,
+      y: 160,
+    });
+    expect(added!.createdId).toBeTruthy();
+    fails(
+      () =>
+        webbingCommand(sql, "deck", "ana", false, "node-add", mapId, {
+          parentId: root2.id,
+          text: "よその班へ",
+          x: 100,
+          y: 100,
+        }),
+      403,
+    );
+    // Everyone still SEES all groups' nodes (view-only for other groups).
+    const guestView = webbingList(sql, "deck", false)[0];
+    expect(
+      guestView.nodes.some((n) => n.text === "1班のアイデア"),
+    ).toBe(true);
+    // Editing the theme on one root renames it for every group.
+    webbingCommand(sql, "deck", "host", true, "node-edit", mapId, {
+      nodeId: root2.id,
+      text: "みんなで考えよう",
+    });
+    const renamed = webbingList(sql, "deck", true)[0];
+    expect(renamed.title).toBe("みんなで考えよう");
+    expect(
+      renamed.nodes
+        .filter((n) => n.parentId === null)
+        .every((n) => n.text === "みんなで考えよう"),
+    ).toBe(true);
   });
 
   it("deletes the map with its nodes for the host only", () => {

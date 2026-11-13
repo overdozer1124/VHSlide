@@ -17,6 +17,7 @@ import {
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
 import { WebbingProvider } from "./WebbingContext";
+import { GroupsProvider } from "./GroupsContext";
 import { WebbingPanel } from "./WebbingPanel";
 import { parseWebbingBinding } from "./webbingBinding";
 import type { WebbingView } from "./webbing";
@@ -3934,7 +3935,19 @@ export default function App() {
           blocked: cloud.viewingRevoked || cloud.recoveryOnly,
           pollActive: !!displayedFormSlide?.elements.some((e) => e.webbing),
         },
-        createElement(ActivityPanelProvider, { children: content }),
+        createElement(
+          GroupsProvider,
+          {
+            deckId: cloud.active?.id,
+            userId: cloud.user?.id,
+            host: cloud.isHost,
+            blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+            pollActive: !!displayedFormSlide?.elements.some(
+              (e) => e.webbing,
+            ),
+          },
+          createElement(ActivityPanelProvider, { children: content }),
+        ),
       ),
     ),
   });

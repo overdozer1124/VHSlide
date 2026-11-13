@@ -1,5 +1,6 @@
 import { SurveyError } from "../src/surveys.ts";
 import { WebbingError } from "../src/webbing.ts";
+import { GroupError } from "../src/groups.ts";
 import { JoinRequestError } from "../src/joinRequests.ts";
 export interface Env {
   ASSETS: Fetcher;
@@ -59,7 +60,8 @@ export function failure(error: unknown) {
     error instanceof HttpError ||
     error instanceof JoinRequestError ||
     error instanceof SurveyError ||
-    error instanceof WebbingError
+    error instanceof WebbingError ||
+    error instanceof GroupError
       ? error.status
       : error instanceof SyntaxError
         ? 400

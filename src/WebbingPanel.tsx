@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useActivityPanel } from "./ActivitiesPanel";
 import { useWebbing } from "./WebbingContext";
+import { useGroups } from "./GroupsContext";
 import type { WebbingView } from "./webbing";
 import { usePageVisible } from "./usePageVisible";
 
@@ -12,10 +13,15 @@ export function WebbingPanel({
   onEmbed?: (map: WebbingView) => void;
 }) {
   const ctx = useWebbing();
+  const groupsCtx = useGroups();
   const activity = useActivityPanel();
   const open = activity.open && activity.active === "webbing";
   const visible = usePageVisible();
   const [title, setTitle] = useState("");
+  const [grouped, setGrouped] = useState(false);
+  const [groupNames, setGroupNames] = useState(
+    "グループ1\nグループ2\nグループ3\nグループ4",
+  );
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,6 +64,24 @@ export function WebbingPanel({
           {ctx.error}
         </p>
       )}
+      {host && groupsCtx.enabled && (
+        <div className="webbing-groups-summary">
+          {groupsCtx.groups.length ? (
+            <p>
+              この作品のグループ：
+              {groupsCtx.groups
+                .map((g) => `${g.name}（${g.memberCount}人）`)
+                .join("、")}
+              <br />
+              グループは作品全体で共通です。グループ分けを使う活動（ウェビングマップなど）すべてで、同じグループ・同じ参加者が使われます。
+            </p>
+          ) : (
+            <p>
+              この作品にはまだグループがありません。グループ分けのマップを作るときに設定できます。
+            </p>
+          )}
+        </div>
+      )}
       {host && (
         <form
           className="webbing-create"
@@ -68,6 +92,7 @@ export function WebbingPanel({
               async () => {
                 await ctx.command(undefined, undefined, {
                   title: title.trim(),
+                  grouped,
                 });
                 setTitle("");
               },
@@ -84,7 +109,53 @@ export function WebbingPanel({
               onChange={(e) => setTitle(e.target.value)}
             />
           </label>
-          <button className="button" type="submit" disabled={busy || !title.trim()}>
+          <label className="webbing-grouped-toggle">
+            <input
+              type="checkbox"
+              checked={grouped}
+              onChange={(e) => setGrouped(e.target.checked)}
+            />
+            グループごとに分ける（自分のグループだけで書き込み、他のグループは見るだけ）
+          </label>
+          {grouped && !groupsCtx.groups.length && (
+            <div className="webbing-group-setup">
+              <label>
+                グループ名（1行に1つ）
+                <textarea
+                  value={groupNames}
+                  rows={4}
+                  onChange={(e) => setGroupNames(e.target.value)}
+                />
+              </label>
+              <button
+                className="button outline"
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void run(
+                    () =>
+                      groupsCtx.command("create", {
+                        names: groupNames
+                          .split("\n")
+                          .map((n) => n.trim())
+                          .filter(Boolean),
+                      }),
+                    "グループを作成しました。",
+                  )
+                }
+              >
+                この内容でグループを作成
+              </button>
+              <p className="webbing-map-meta">
+                グループを作成してから、マップを作成してください。
+              </p>
+            </div>
+          )}
+          <button
+            className="button"
+            type="submit"
+            disabled={busy || !title.trim() || (grouped && !groupsCtx.groups.length)}
+          >
             マップを作成
           </button>
         </form>
@@ -113,6 +184,7 @@ export function WebbingPanel({
                     ? "受付終了"
                     : "準備中"}
               </span>
+              {map.grouped && <span className="webbing-chip">グループ別</span>}
             </header>
             <p className="webbing-map-meta">
               書き込み{map.nodes.length}件（中心のテーマを含む）

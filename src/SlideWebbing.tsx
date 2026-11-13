@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Element } from "./model";
 import { useWebbing } from "./WebbingContext";
+import { useGroups } from "./GroupsContext";
+import { GroupBar } from "./GroupBar";
 import type { WebbingNode } from "./webbing";
 import { WEBBING_H, WEBBING_W } from "./webbing";
 import { canDragForm } from "./formDrag";
@@ -92,7 +94,9 @@ export function SlideWebbing(props: {
 
 function WebbingStage({ mapId }: { mapId: string }) {
   const ctx = useWebbing();
+  const groupsCtx = useGroups();
   const map = ctx.maps.find((m) => m.id === mapId);
+  const [activeGroupId, setActiveGroupId] = useState<string>();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [selected, setSelected] = useState<string>();
@@ -162,7 +166,21 @@ function WebbingStage({ mapId }: { mapId: string }) {
   );
 
   if (!map) return <div className="webbing-unavailable" />;
+  const groups = map.grouped ? groupsCtx.groups : [];
+  const activeId: string | undefined = !map.grouped
+    ? undefined
+    : groups.some((g) => g.id === activeGroupId)
+      ? activeGroupId
+      : (groupsCtx.myGroupId ?? groups[0]?.id);
+  const viewNodes = map.grouped
+    ? map.nodes.filter((n) => n.groupId === activeId)
+    : map.nodes;
   const canWrite = !!ctx.host || map.status === "open";
+  // In a grouped map, writing happens only in your own group; the other
+  // groups' boards are view-only. The host can write anywhere.
+  const canWriteHere =
+    canWrite && (!map.grouped || !!ctx.host || activeId === groupsCtx.myGroupId);
+  const activeGroup = groups.find((g) => g.id === activeId);
   const pos = (node: WebbingNode) =>
     dragPos[node.id] ?? { x: node.x, y: node.y };
   const lockOf = (node: WebbingNode) =>
@@ -184,7 +202,7 @@ function WebbingStage({ mapId }: { mapId: string }) {
   };
 
   async function startEdit(node: WebbingNode) {
-    if (!map || !canWrite || !canModify(node)) return;
+    if (!map || !canWriteHere || !canModify(node)) return;
     const lock = lockOf(node);
     if (lock) {
       setError(`${lock.name}さんが編集中です。`);
@@ -225,7 +243,7 @@ function WebbingStage({ mapId }: { mapId: string }) {
     setEditing(undefined);
   }
   function addChild(parent: WebbingNode) {
-    if (!canWrite) return;
+    if (!canWriteHere) return;
     const siblings = map!.nodes.filter((n) => n.parentId === parent.id).length;
     const angle = -Math.PI / 2 + siblings * 0.85;
     setDraft({
@@ -282,7 +300,7 @@ function WebbingStage({ mapId }: { mapId: string }) {
     }
     setSelected(node.id);
     setConfirmDelete(undefined);
-    if (!canWrite || !canModify(node) || lockOf(node)) return;
+    if (!canWriteHere || !canModify(node) || lockOf(node)) return;
     dragRef.current = {
       id: node.id,
       startX: e.clientX,
@@ -325,9 +343,32 @@ function WebbingStage({ mapId }: { mapId: string }) {
   }
 
   const draftParent = draft
-    ? map.nodes.find((n) => n.id === draft.parentId)
+    ? viewNodes.find((n) => n.id === draft.parentId)
     : undefined;
   return (
+    <>
+      {map.grouped &&
+        (groups.length ? (
+          <GroupBar
+            groups={groups}
+            myGroupId={groupsCtx.myGroupId}
+            host={!!ctx.host}
+            activeGroupId={activeId}
+            onSelect={(groupId) => {
+              setActiveGroupId(groupId);
+              setSelected(undefined);
+              setConfirmDelete(undefined);
+              setDraft(undefined);
+            }}
+            onJoin={(groupId) => groupsCtx.command("join", { groupId })}
+          />
+        ) : (
+          <p className="group-bar-note">
+            {ctx.host
+              ? "グループがまだ設定されていません。フォーム画面の「ウェブマップ」タブで、この作品のグループを作成してください。"
+              : "先生がグループを設定すると始まります。"}
+          </p>
+        ))}
     <div className="webbing-stage-wrap" ref={wrapRef}>
       <div
         className="webbing-stage"
@@ -342,10 +383,10 @@ function WebbingStage({ mapId }: { mapId: string }) {
         }}
       >
         <svg className="webbing-edges" width={WEBBING_W} height={WEBBING_H}>
-          {map.nodes
+          {viewNodes
             .filter((n) => n.parentId)
             .map((n) => {
-              const parent = map.nodes.find((p) => p.id === n.parentId);
+              const parent = viewNodes.find((p) => p.id === n.parentId);
               if (!parent) return null;
               const a = pos(parent);
               const b = pos(n);
@@ -373,7 +414,7 @@ function WebbingStage({ mapId }: { mapId: string }) {
             />
           )}
         </svg>
-        {map.nodes.map((node) => {
+        {viewNodes.map((node) => {
           const p = pos(node);
           const lock = lockOf(node);
           const isRoot = node.parentId === null;
@@ -461,12 +502,12 @@ function WebbingStage({ mapId }: { mapId: string }) {
                     </>
                   ) : (
                     <>
-                      {canWrite && (
+                      {canWriteHere && (
                         <button type="button" onClick={() => addChild(node)}>
                           子を追加
                         </button>
                       )}
-                      {canModify(node) && !lock && canWrite && (
+                      {canModify(node) && !lock && canWriteHere && (
                         <button
                           type="button"
                           onClick={() => void startEdit(node)}
@@ -476,7 +517,7 @@ function WebbingStage({ mapId }: { mapId: string }) {
                       )}
                       {canModify(node) &&
                         !lock &&
-                        canWrite &&
+                        canWriteHere &&
                         node.parentId !== null && (
                           <button
                             type="button"
@@ -519,9 +560,14 @@ function WebbingStage({ mapId }: { mapId: string }) {
             </span>
           </div>
         )}
-        {map.status === "open" && map.nodes.length === 1 && !draft && (
+        {map.status === "open" && viewNodes.length === 1 && !draft && canWriteHere && (
           <p className="webbing-hint">
             中心のテーマを選んで「子を追加」から、思いついたことを書き足していこう
+          </p>
+        )}
+        {map.grouped && !ctx.host && groupsCtx.myGroupId && activeId !== groupsCtx.myGroupId && (
+          <p className="webbing-hint">
+            {activeGroup?.name ?? "他のグループ"}のマップを表示しています（書き込みは自分のグループだけ）
           </p>
         )}
         {map.status !== "open" && (
@@ -538,5 +584,6 @@ function WebbingStage({ mapId }: { mapId: string }) {
         </p>
       )}
     </div>
+    </>
   );
 }

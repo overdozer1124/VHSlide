@@ -16,6 +16,11 @@ import {
   webbingCommand,
 } from "../src/webbing.ts";
 import {
+  groupSchema,
+  groupList,
+  groupCommand,
+} from "../src/groups.ts";
+import {
   joinSchema,
   requestJoin,
   joinState,
@@ -118,6 +123,7 @@ export class Directory extends DurableObject<Env> {
     this.sql.exec(surveySchema);
     this.sql.exec(worksheetSchema);
     this.sql.exec(webbingSchema);
+    this.sql.exec(groupSchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
     this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
@@ -948,6 +954,42 @@ export class Directory extends DurableObject<Env> {
           );
         }
         return json({ surveys: surveyList(sql, id, user.id, host) });
+      });
+    }
+    if (extra === "groups" || extra?.startsWith("groups/")) {
+      insist(
+        ["GET", "POST"].includes(method),
+        405,
+        "この操作には対応していません。",
+      );
+      const route =
+        /^groups(?:\/(add|join|leave)|\/([a-f0-9-]{36})\/rename)?$/.exec(
+          extra,
+        );
+      insist(
+        route && (method === "GET" ? extra === "groups" : true),
+        404,
+        "グループの操作が見つかりません。",
+      );
+      const value = method === "POST" ? await input(request, 12000) : {};
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        if (method !== "GET") {
+          this.rate(`groups:${user.id}`, 120);
+          groupCommand(
+            sql,
+            id,
+            user.id,
+            host,
+            route![1] ?? (route![2] ? "rename" : "create"),
+            route![2],
+            value,
+          );
+        }
+        return json(groupList(sql, id, user.id, host));
       });
     }
     if (extra === "webbing" || extra?.startsWith("webbing/")) {

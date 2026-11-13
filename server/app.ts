@@ -17,6 +17,12 @@ import {
   WebbingError,
 } from "../src/webbing.ts";
 import {
+  groupSchema,
+  groupList,
+  groupCommand,
+  GroupError,
+} from "../src/groups.ts";
+import {
   expireFollow,
   idleFollow,
   publicFollow,
@@ -323,6 +329,7 @@ export function createApplication(options: Options) {
   db.exec(surveySchema);
   db.exec(worksheetSchema);
   db.exec(webbingSchema);
+  db.exec(groupSchema);
   db.exec(
     "CREATE TABLE IF NOT EXISTS work_trash(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE, created INTEGER NOT NULL, purging INTEGER NOT NULL DEFAULT 0)",
   );
@@ -1069,6 +1076,47 @@ export function createApplication(options: Options) {
             const surveys = surveyList(historySQL, id, u.id, host);
             db.exec("COMMIT");
             return json(res, 200, { surveys });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        if (extra === "groups" || extra?.startsWith("groups/")) {
+          insist(
+            ["GET", "POST"].includes(method),
+            405,
+            "この操作には対応していません。",
+          );
+          const route =
+            /^groups(?:\/(add|join|leave)|\/([a-f0-9-]{36})\/rename)?$/.exec(
+              extra,
+            );
+          insist(
+            route && (method === "GET" ? extra === "groups" : true),
+            404,
+            "グループの操作が見つかりません。",
+          );
+          const value =
+            method === "POST"
+              ? JSON.parse((await body(req, 12000)).toString())
+              : {};
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            if (method !== "GET")
+              groupCommand(
+                historySQL,
+                id,
+                u.id,
+                host,
+                route![1] ?? (route![2] ? "rename" : "create"),
+                route![2],
+                value,
+              );
+            const groups = groupList(historySQL, id, u.id, host);
+            db.exec("COMMIT");
+            return json(res, 200, groups);
           } catch (error) {
             db.exec("ROLLBACK");
             throw error;
@@ -1887,7 +1935,8 @@ export function createApplication(options: Options) {
         error instanceof HttpError ||
         error instanceof JoinRequestError ||
         error instanceof SurveyError ||
-        error instanceof WebbingError
+        error instanceof WebbingError ||
+        error instanceof GroupError
           ? error.status
           : error instanceof SyntaxError
             ? 400

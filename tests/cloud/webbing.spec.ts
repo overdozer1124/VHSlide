@@ -2,6 +2,135 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { sample } from "../../src/model";
 
+test("grouped webbing maps split writing by the deck's shared groups", async ({
+  page,
+  browser,
+}, info) => {
+  const anaContext = await browser.newContext(info.project.use);
+  const bobContext = await browser.newContext(info.project.use);
+  const ana = await anaContext.newPage();
+  const bob = await bobContext.newPage();
+  try {
+    await signIn(page, "group-host");
+    await signIn(ana, "group-ana");
+    await signIn(bob, "group-bob");
+    const origin = { Origin: "http://127.0.0.1:3187" };
+    const created = await page.request.post("/api/decks", {
+      headers: origin,
+      data: sample(),
+    });
+    expect(created.status()).toBe(201);
+    const { id } = await created.json();
+    const invite = await page.request.post(`/api/decks/${id}/invite`, {
+      headers: origin,
+    });
+    const token = new URL((await invite.json()).url).searchParams.get("join");
+    for (const guest of [ana, bob]) {
+      const pending = await guest.request.post(
+        `/api/invites/${token}/accept`,
+        { headers: origin },
+      );
+      const request = await pending.json();
+      if (request.status === "pending") {
+        expect(
+          (
+            await page.request.post(
+              `/api/decks/${id}/join-requests/approve`,
+              {
+                headers: origin,
+                data: { requestIds: [request.requestId] },
+              },
+            )
+          ).status(),
+        ).toBe(200);
+      }
+    }
+    await page.goto(`/?room=${id}`);
+    // The host defines the deck's groups inside the webbing panel, then
+    // creates a grouped map from them.
+    await launch(page).click();
+    const dialog = page.getByRole("dialog", {
+      name: "アンケート",
+      exact: true,
+    });
+    await dialog.getByRole("tab", { name: "ウェブマップ" }).click();
+    const webDialog = page.getByRole("dialog", {
+      name: "ウェブマップ",
+      exact: true,
+    });
+    await webDialog.getByText(/グループごとに分ける/).click();
+    await webDialog.locator(".webbing-group-setup textarea").fill("1班\n2班");
+    await webDialog
+      .getByRole("button", { name: "この内容でグループを作成" })
+      .click();
+    await expect(webDialog.getByText(/この作品のグループ：/)).toBeVisible({
+      timeout: 20_000,
+    });
+    await webDialog.getByLabel("中心のテーマ").fill("班で考えよう");
+    await webDialog.getByRole("button", { name: "マップを作成" }).click();
+    await expect(webDialog.getByText("グループ別")).toBeVisible();
+    await webDialog.getByRole("button", { name: "受付を開始" }).click();
+    await webDialog
+      .getByRole("button", { name: "このマップをスライドに配置" })
+      .click();
+    await expect(mapOn(page)).toBeVisible();
+
+    // Guests open the same slide.
+    for (const guest of [ana, bob]) {
+      await guest.goto(`/?room=${id}`);
+      await guest.locator(".slide-card").first().click();
+      await expect(mapOn(guest)).toBeVisible();
+    }
+    const anaMap = mapOn(ana);
+    const bobMap = mapOn(bob);
+
+    // Ana joins 1班 and writes in it.
+    await anaMap.getByRole("button", { name: "1班に参加" }).click();
+    await expect(nodeOn(ana, "班で考えよう")).toBeVisible({
+      timeout: 20_000,
+    });
+    await nodeOn(ana, "班で考えよう").click();
+    await anaMap.getByRole("button", { name: "子を追加" }).click();
+    await anaMap.getByLabel("新しい書き込み").fill("1班のアイデア");
+    await anaMap.getByRole("button", { name: "追加する" }).click();
+    await expect(nodeOn(ana, "1班のアイデア")).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // Bob joins 2班, views 1班 read-only, then writes in his own group.
+    await bobMap.getByRole("button", { name: "2班に参加" }).click();
+    await bobMap.getByRole("tab", { name: /1班/ }).click();
+    await expect(nodeOn(bob, "1班のアイデア")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      bobMap.getByText(/1班のマップを表示しています/),
+    ).toBeVisible();
+    await nodeOn(bob, "1班のアイデア").click();
+    await expect(bobMap.getByRole("button", { name: "子を追加" })).toHaveCount(
+      0,
+    );
+    await expect(bobMap.getByRole("button", { name: "編集" })).toHaveCount(0);
+    await bobMap.getByRole("tab", { name: /2班/ }).click();
+    await nodeOn(bob, "班で考えよう").click();
+    await bobMap.getByRole("button", { name: "子を追加" }).click();
+    await bobMap.getByLabel("新しい書き込み").fill("2班のアイデア");
+    await bobMap.getByRole("button", { name: "追加する" }).click();
+    await expect(nodeOn(bob, "2班のアイデア")).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // Ana can view Bob's group too.
+    await anaMap.getByRole("tab", { name: /2班/ }).click();
+    await expect(nodeOn(ana, "2班のアイデア")).toBeVisible({
+      timeout: 20_000,
+    });
+  } finally {
+    await anaContext.close();
+    await bobContext.close();
+  }
+});
+
 async function signIn(page: Page, name: string) {
   const credential =
     process.env.VHSLIDE_TEST_BACKEND === "cloudflare"

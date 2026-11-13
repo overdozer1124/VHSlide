@@ -7598,3 +7598,19 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .form-sidebar-section { margin:10px 0 2px; font-size:13px; color:#47614f; }
 .form-sidebar-target { margin:0; color:#47614f; font-size:12px; font-weight:600; line-height:1.5; }
 .form-sidebar-highlight { border-color:#d97706 !important; background:#fff8ec; }
+/* Shared deck groups (GroupBar + panel summary) */
+.group-bar { flex-shrink:0;display:flex;flex-direction:column;gap:4px; }
+.group-bar-chips { display:flex;gap:6px;flex-wrap:wrap;align-items:center; }
+.group-chip { display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;border:1px solid #b9cdbd;background:#fff;color:#31543c;cursor:pointer; }
+.group-chip.is-active { background:#315d4e;border-color:#315d4e;color:#fff; }
+.group-chip.is-join { border-style:dashed; }
+.group-chip.is-change { border-color:#d8c58f;background:#fdf8ea;color:#7a5b12; }
+.group-chip-count { font-size:10px;font-weight:600;opacity:.75; }
+.group-chip-mine { font-size:10px;background:#f2b04a;color:#4a3200;border-radius:999px;padding:0 6px; }
+.group-bar-note { margin:0;font-size:11px;color:#5c7263;line-height:1.5; }
+.webbing-groups-summary { border:1px solid #d4dfd7;border-radius:10px;background:#f3f7f1;padding:10px 12px; }
+.webbing-groups-summary p { margin:0;line-height:1.6; }
+.webbing-grouped-toggle { flex-direction:row !important;align-items:center;gap:8px;font-weight:600; }
+.webbing-group-setup { display:flex;flex-direction:column;gap:8px;width:100%; }
+.webbing-group-setup label { display:flex;flex-direction:column;gap:5px;font-weight:600; }
+.webbing-group-setup textarea { padding:8px 10px;border:1px solid #b9cdbd;border-radius:8px;font:inherit; }
