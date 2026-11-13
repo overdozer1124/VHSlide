@@ -433,6 +433,51 @@ it("follow control state rejects guests and stale sessions while retaining stabl
     202,
   );
   expect(cleared.active && cleared.presenting).toBe(false);
+  // A group target shows one webbing map of one group: it needs a
+  // real page plus the map id (the group id may be empty = whole map).
+  const grouped = transitionFollow(
+    idleFollow(),
+    {
+      id: "g",
+      action: "start",
+      target: {
+        mode: "group",
+        sheetId: "main",
+        pageId: b.slides[0].id,
+        mapId: "map-1",
+        groupId: "grp-1",
+      },
+    },
+    actor,
+    b,
+    300,
+    "session-g",
+  );
+  expect(grouped.active && grouped.target).toEqual({
+    mode: "group",
+    sheetId: "main",
+    pageId: b.slides[0].id,
+    mapId: "map-1",
+    groupId: "grp-1",
+  });
+  expect(publicFollow(grouped).active).toBe(true);
+  expect(() =>
+    transitionFollow(
+      idleFollow(),
+      {
+        id: "g2",
+        action: "start",
+        target: {
+          mode: "group",
+          sheetId: "main",
+          pageId: b.slides[0].id,
+          groupId: "",
+        },
+      },
+      actor,
+      b,
+    ),
+  ).toThrow();
   expect(() =>
     transitionFollow(
       running,

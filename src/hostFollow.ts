@@ -1,9 +1,13 @@
 import type { Deck } from "./model.ts";
 export const FOLLOW_LEASE_MS = 45_000;
 export type FollowTarget = {
-  mode: "map" | "page";
+  mode: "map" | "page" | "group";
   sheetId: string;
   pageId?: string;
+  /** Group mode only: the webbing map to show, and the deck group
+   * whose writings fill it ("" shows the whole map). */
+  mapId?: string;
+  groupId?: string;
 };
 export type FollowState =
   | { active: false; revision: number }
@@ -37,7 +41,7 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
   const v = value as FollowTarget;
   if (
     !v ||
-    !["map", "page"].includes(v.mode) ||
+    !["map", "page", "group"].includes(v.mode) ||
     typeof v.sheetId !== "string" ||
     !v.sheetId ||
     v.sheetId.length > 100 ||
@@ -53,8 +57,25 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
       ))
   )
     throw new FollowError(400, "追従先のページが見つかりません。");
-  if (v.mode === "page" && !v.pageId)
+  if ((v.mode === "page" || v.mode === "group") && !v.pageId)
     throw new FollowError(400, "追従先のページを指定してください。");
+  if (v.mode === "group") {
+    if (
+      typeof v.mapId !== "string" ||
+      !v.mapId ||
+      v.mapId.length > 100 ||
+      typeof v.groupId !== "string" ||
+      v.groupId.length > 100
+    )
+      throw new FollowError(400, "追従先のマップが正しくありません。");
+    return {
+      mode: v.mode,
+      sheetId: v.sheetId,
+      pageId: v.pageId,
+      mapId: v.mapId,
+      groupId: v.groupId,
+    };
+  }
   return {
     mode: v.mode,
     sheetId: v.sheetId,
@@ -166,11 +187,13 @@ export function isPublicFollowState(
     typeof v.host.id === "string" &&
     typeof v.host.name === "string" &&
     !!v.target &&
-    ["map", "page"].includes(v.target.mode) &&
+    ["map", "page", "group"].includes(v.target.mode) &&
     typeof v.target.sheetId === "string" &&
     (v.pinned === undefined || typeof v.pinned === "boolean") &&
     (v.presenting === undefined || typeof v.presenting === "boolean") &&
     (v.target.pageId === undefined || typeof v.target.pageId === "string") &&
+    (v.target.mapId === undefined || typeof v.target.mapId === "string") &&
+    (v.target.groupId === undefined || typeof v.target.groupId === "string") &&
     Number.isFinite(v.startedAt) &&
     Number.isFinite(v.updatedAt) &&
     Number.isFinite(v.expiresAt)

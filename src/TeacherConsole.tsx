@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ChevronDown, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
 import { W, type Deck, type Slide } from "./model";
 import { api, type CloudWorkspace } from "./cloud";
+import type { FollowTarget } from "./hostFollow";
 import { useWorksheets } from "./WorksheetContext";
 import { useWebbing } from "./WebbingContext";
 import { useGroups } from "./GroupsContext";
 import type { WebbingNode } from "./webbing";
-import { WEBBING_W, WEBBING_H } from "./webbing";
+import { WebbingMini } from "./WebbingMini";
 import { usePageVisible } from "./usePageVisible";
 import { WorksheetResults } from "./WorksheetResults";
 import type { WorksheetView } from "./worksheets";
@@ -37,11 +38,15 @@ export function TeacherConsole({
   cloud,
   onClose,
   onOpenGallery,
+  groupShow,
+  onGroupShow,
 }: {
   workbook: Deck;
   cloud: CloudWorkspace;
   onClose: () => void;
   onOpenGallery?: () => void;
+  groupShow?: FollowTarget;
+  onGroupShow?: (target?: FollowTarget) => void;
 }) {
   const follow = cloud.follow;
   const sheets = consoleSheets(workbook);
@@ -331,6 +336,8 @@ export function TeacherConsole({
           mode={mode}
           setMode={setMode}
           onOpenGallery={onOpenGallery}
+          groupShow={groupShow}
+          onGroupShow={onGroupShow}
         />
       </div>
     </section>
@@ -343,12 +350,16 @@ function ConsoleMain({
   mode,
   setMode,
   onOpenGallery,
+  groupShow,
+  onGroupShow,
 }: {
   cloud: CloudWorkspace;
   focus?: Slide;
   mode: ConsoleMode;
   setMode: (mode: ConsoleMode) => void;
   onOpenGallery?: () => void;
+  groupShow?: FollowTarget;
+  onGroupShow?: (target?: FollowTarget) => void;
 }) {
   const ctx = useWorksheets();
   const webbingCtx = useWebbing();
@@ -473,7 +484,11 @@ function ConsoleMain({
       {mode === "slides" ? (
         <ConsoleStudentSlides focus={focus} onOpenGallery={onOpenGallery} />
       ) : mode === "groups" ? (
-        <ConsoleGroups focus={focus} />
+        <ConsoleGroups
+          focus={focus}
+          groupShow={groupShow}
+          onGroupShow={onGroupShow}
+        />
       ) : !ctx.enabled ? (
         <p className="console-note">
           クラウドの作品を開くと、ワークシートの回答がここに表示されます。
@@ -975,11 +990,23 @@ function ConsoleStudentSlides({
 
 /** Per-group view of the focused slide's webbing maps: a miniature map
  * plus the group's writings as a tree, so the host can check every
- * group's answers at once without switching tabs on the slide itself. */
-function ConsoleGroups({ focus }: { focus?: Slide }) {
+ * group's answers at once without switching tabs on the slide itself.
+ * A card opens enlarged — as a dialog or a full view — with arrow-key
+ * navigation across the slide's cards, and can be shown to the whole
+ * class through follow mode. */
+function ConsoleGroups({
+  focus,
+  groupShow,
+  onGroupShow,
+}: {
+  focus?: Slide;
+  groupShow?: FollowTarget;
+  onGroupShow?: (target?: FollowTarget) => void;
+}) {
   const webbingCtx = useWebbing();
   const groupsCtx = useGroups();
   const [enlargedKey, setEnlargedKey] = useState<string>();
+  const [full, setFull] = useState(false);
   const mapIds = new Set(
     (focus?.elements ?? [])
       .map((e) => e.webbing)
@@ -987,6 +1014,87 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
       .map((b) => b!.mapId),
   );
   const maps = webbingCtx.maps.filter((m) => mapIds.has(m.id));
+  // The cards in display order: arrow keys and the prev/next buttons
+  // walk this list, across every map placed on the focused slide.
+  type Card = {
+    key: string;
+    map: (typeof maps)[number];
+    groupId: string;
+    title: string;
+    nodes: WebbingNode[];
+  };
+  const cards: Card[] = maps.flatMap((map) =>
+    map.grouped
+      ? groupsCtx.groups.map((group) => ({
+          key: `${map.id}:${group.id}`,
+          map,
+          groupId: group.id,
+          title: `${group.name}（参加 ${group.memberCount}人）`,
+          nodes: map.nodes.filter((n) => n.groupId === group.id),
+        }))
+      : [
+          {
+            key: `${map.id}:all`,
+            map,
+            groupId: "",
+            title: "全員のマップ",
+            nodes: map.nodes,
+          },
+        ],
+  );
+  const enlargedIndex = cards.findIndex((c) => c.key === enlargedKey);
+  const enlarged = enlargedIndex >= 0 ? cards[enlargedIndex] : undefined;
+  const targetFor = (card: Card): FollowTarget => ({
+    mode: "group",
+    sheetId: focus?.sheetId ?? "main",
+    pageId: focus?.id,
+    mapId: card.map.id,
+    groupId: card.groupId,
+  });
+  const showing = (card: Card) =>
+    !!groupShow &&
+    groupShow.mode === "group" &&
+    groupShow.mapId === card.map.id &&
+    (groupShow.groupId ?? "") === card.groupId &&
+    !!focus &&
+    groupShow.pageId === focus.id;
+  const navigate = (dir: number) => {
+    if (enlargedIndex < 0) return;
+    const next = cards[enlargedIndex + dir];
+    if (!next) return;
+    const wasShowing = showing(cards[enlargedIndex]);
+    setEnlargedKey(next.key);
+    if (wasShowing && onGroupShow) onGroupShow(targetFor(next));
+  };
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  useEffect(() => {
+    if (!enlargedKey) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      )
+        return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigateRef.current(-1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigateRef.current(1);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setEnlargedKey(undefined);
+        setFull(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [enlargedKey]);
   if (!webbingCtx.enabled)
     return (
       <p className="console-note">
@@ -999,26 +1107,83 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
         このスライドにはウェビングマップがありません。左の一覧でマップのあるスライドを選んでください。
       </p>
     );
-  // The enlarged card is derived from live state, so writings that
-  // arrive while it is open show up on the next poll.
-  const enlarged = ((): {
-    title: string;
-    map: (typeof maps)[number];
-    nodes: WebbingNode[];
-  } | undefined => {
-    if (!enlargedKey) return undefined;
-    const [mapId, groupId] = enlargedKey.split(":");
-    const map = maps.find((m) => m.id === mapId);
-    if (!map) return undefined;
-    if (!map.grouped) return { title: "全員のマップ", map, nodes: map.nodes };
-    const group = groupsCtx.groups.find((g) => g.id === groupId);
-    if (!group) return undefined;
-    return {
-      title: `${group.name}（参加 ${group.memberCount}人）`,
-      map,
-      nodes: map.nodes.filter((n) => n.groupId === group.id),
-    };
-  })();
+  const closeEnlarged = () => {
+    setEnlargedKey(undefined);
+    setFull(false);
+  };
+  const enlargedBody = enlarged && (
+    <>
+      <header className="console-group-bar">
+        <strong>
+          {enlarged.map.title} — {enlarged.title}
+        </strong>
+        <span className="console-group-pos">
+          {enlargedIndex + 1} / {cards.length}
+        </span>
+        <div className="console-group-actions">
+          <button
+            type="button"
+            className="button outline"
+            disabled={enlargedIndex <= 0}
+            onClick={() => navigate(-1)}
+          >
+            <ChevronLeft size={15} />
+            前のグループ
+          </button>
+          <button
+            type="button"
+            className="button outline"
+            disabled={enlargedIndex >= cards.length - 1}
+            onClick={() => navigate(1)}
+          >
+            次のグループ
+            <ChevronRight size={15} />
+          </button>
+          {onGroupShow && (
+            <button
+              type="button"
+              className="button outline"
+              aria-pressed={showing(enlarged)}
+              onClick={() =>
+                onGroupShow(showing(enlarged) ? undefined : targetFor(enlarged))
+              }
+            >
+              {showing(enlarged) ? "見せるのをやめる" : "集合で見せる"}
+            </button>
+          )}
+          <button
+            type="button"
+            className="button outline"
+            aria-pressed={full}
+            onClick={() => setFull((f) => !f)}
+          >
+            {full ? "もどす" : "全体表示"}
+          </button>
+          <button
+            type="button"
+            className="button outline"
+            onClick={closeEnlarged}
+          >
+            <X size={15} />
+            閉じる
+          </button>
+        </div>
+      </header>
+      <div
+        className={
+          full ? "console-group-full-body" : "console-enlarged-map-body"
+        }
+      >
+        <WebbingMini nodes={enlarged.nodes} large />
+        <div className="console-enlarged-map-tree">
+          <ConsoleWebbingTree nodes={enlarged.nodes} parentId={null} />
+          {!enlarged.nodes.length && (
+            <p className="console-note">まだ書き込みがありません。</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
   return (
     <div className="console-groups">
       {maps.map((map) => (
@@ -1060,43 +1225,32 @@ function ConsoleGroups({ focus }: { focus?: Slide }) {
           )}
         </section>
       ))}
-      {enlarged && (
-        <div
-          className="console-enlarged"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${enlarged.title}のマップ`}
-          onClick={() => setEnlargedKey(undefined)}
-        >
+      {enlarged &&
+        (full ? (
           <div
-            className="console-enlarged-box console-enlarged-map"
-            onClick={(e) => e.stopPropagation()}
+            className="console-group-full"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${enlarged.title}のマップ`}
           >
-            <header>
-              <strong>
-                {enlarged.map.title} — {enlarged.title}
-              </strong>
-              <button
-                type="button"
-                className="button outline"
-                onClick={() => setEnlargedKey(undefined)}
-              >
-                <X size={15} />
-                閉じる
-              </button>
-            </header>
-            <div className="console-enlarged-map-body">
-              <ConsoleWebbingMini nodes={enlarged.nodes} large />
-              <div className="console-enlarged-map-tree">
-                <ConsoleWebbingTree nodes={enlarged.nodes} parentId={null} />
-                {!enlarged.nodes.length && (
-                  <p className="console-note">まだ書き込みがありません。</p>
-                )}
-              </div>
+            {enlargedBody}
+          </div>
+        ) : (
+          <div
+            className="console-enlarged"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${enlarged.title}のマップ`}
+            onClick={closeEnlarged}
+          >
+            <div
+              className="console-enlarged-box console-enlarged-map"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {enlargedBody}
             </div>
           </div>
-        </div>
-      )}
+        ))}
     </div>
   );
 }
@@ -1122,59 +1276,10 @@ function ConsoleGroupCard({
           書き込み {nodes.filter((n) => n.parentId !== null).length}件
         </span>
       </header>
-      <ConsoleWebbingMini nodes={nodes} />
+      <WebbingMini nodes={nodes} />
       <ConsoleWebbingTree nodes={nodes} parentId={null} />
       {!nodes.length && <p className="console-note">まだ書き込みがありません。</p>}
     </article>
-  );
-}
-
-function ConsoleWebbingMini({
-  nodes,
-  large,
-}: {
-  nodes: WebbingNode[];
-  large?: boolean;
-}) {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  return (
-    <div
-      className={`console-webbing-mini ${large ? "is-large" : ""}`}
-      aria-hidden="true"
-    >
-      <svg viewBox={`0 0 ${WEBBING_W} ${WEBBING_H}`}>
-        {nodes
-          .filter((n) => n.parentId)
-          .map((n) => {
-            const parent = byId.get(n.parentId!);
-            if (!parent) return null;
-            return (
-              <line
-                key={n.id}
-                x1={parent.x}
-                y1={parent.y}
-                x2={n.x}
-                y2={n.y}
-                stroke="#b9cdbd"
-                strokeWidth={3}
-              />
-            );
-          })}
-      </svg>
-      {nodes.map((n) => (
-        <span
-          key={n.id}
-          className={`console-webbing-dot ${n.parentId === null ? "is-root" : ""}`}
-          style={{
-            left: `${(n.x / WEBBING_W) * 100}%`,
-            top: `${(n.y / WEBBING_H) * 100}%`,
-          }}
-          title={n.text}
-        >
-          {n.text}
-        </span>
-      ))}
-    </div>
   );
 }
 

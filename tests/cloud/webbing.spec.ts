@@ -196,6 +196,43 @@ test("grouped webbing maps split writing by the deck's shared groups", async ({
     ).toBeVisible();
     await enlarged.getByRole("button", { name: "閉じる" }).click();
     await expect(enlarged).toHaveCount(0);
+
+    // Reopen group 1: arrow keys walk between groups, the view can
+    // switch to a full display, and the host can show the enlarged
+    // group map to the whole class through follow mode.
+    await card1.click();
+    const enlarged1 = page.getByRole("dialog", { name: /1班.*のマップ/ });
+    await expect(enlarged1).toBeVisible();
+    await page.keyboard.press("ArrowRight");
+    const enlarged2 = page.getByRole("dialog", { name: /2班.*のマップ/ });
+    await expect(enlarged2).toBeVisible();
+    await page.keyboard.press("ArrowLeft");
+    await expect(enlarged1).toBeVisible();
+    await enlarged1.getByRole("button", { name: "全体表示" }).click();
+    await expect(page.locator(".console-group-full")).toBeVisible();
+    await page.getByRole("button", { name: "もどす" }).click();
+    await expect(page.locator(".console-group-full")).toHaveCount(0);
+    await enlarged1.getByRole("button", { name: "集合で見せる" }).click();
+    const anaFollow = ana.locator(".host-follow-overlay");
+    await expect(anaFollow.locator(".host-follow-group")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(anaFollow.getByText("1班のアイデア")).toBeVisible();
+    await expect(anaFollow.getByText("2班のアイデア")).toHaveCount(0);
+    // Walking to group 2 on the host moves the class view along.
+    await page.keyboard.press("ArrowRight");
+    await expect(anaFollow.getByText("2班のアイデア")).toBeVisible({
+      timeout: 20_000,
+    });
+    // Stopping the show ends the follow it started.
+    await page.getByRole("button", { name: "見せるのをやめる" }).click();
+    await expect(ana.locator(".host-follow-overlay")).toHaveCount(0, {
+      timeout: 20_000,
+    });
+    await page
+      .getByRole("dialog", { name: /2班.*のマップ/ })
+      .getByRole("button", { name: "閉じる" })
+      .click();
   } finally {
     await anaContext.close();
     await bobContext.close();

@@ -2334,7 +2334,49 @@ export default function App() {
     );
   }
   const followPage = view === "present" ? presenting?.slide : slide;
-  const followTarget: FollowTarget =
+  // While the teacher shows a group's webbing map from the console,
+  // that target overrides the view-derived one until they stop.
+  const [groupShow, setGroupShow] = useState<FollowTarget | undefined>();
+  const groupShowStartedFollow = useRef(false);
+  const handleGroupShow = (target?: FollowTarget) => {
+    if (!target) {
+      setGroupShow(undefined);
+      if (groupShowStartedFollow.current) {
+        groupShowStartedFollow.current = false;
+        if (cloud.follow.active)
+          void cloud
+            .stopFollow()
+            .catch((error) => notify((error as Error).message));
+      }
+      return;
+    }
+    const wasActive = cloud.follow.active;
+    setGroupShow(target);
+    if (!wasActive) {
+      groupShowStartedFollow.current = true;
+      void cloud.startFollow(target).catch((error) => {
+        groupShowStartedFollow.current = false;
+        setGroupShow(undefined);
+        notify((error as Error).message);
+      });
+    } else if (cloud.follow.pinned) {
+      void cloud
+        .resumeFollow(target)
+        .catch((error) => notify((error as Error).message));
+    }
+    // Active and unpinned: the move effect below carries the target.
+  };
+  const followWasActive = useRef(false);
+  useEffect(() => {
+    // Clear the show override when follow ends by any other route —
+    // but not while a start from the console is still in flight.
+    if (followWasActive.current && !cloud.follow.active && groupShow) {
+      setGroupShow(undefined);
+      groupShowStartedFollow.current = false;
+    }
+    followWasActive.current = cloud.follow.active;
+  }, [cloud.follow.active, groupShow]);
+  const viewFollowTarget: FollowTarget =
     view === "map"
       ? {
           mode: "map",
@@ -2348,6 +2390,7 @@ export default function App() {
           sheetId: followPage?.sheetId ?? currentSheetId,
           pageId: followPage?.id,
         };
+  const followTarget: FollowTarget = groupShow ?? viewFollowTarget;
   const followTargetKey = JSON.stringify(followTarget),
     lastFollowTarget = useRef("");
   useEffect(() => {
@@ -3140,6 +3183,8 @@ export default function App() {
             cloud={cloud}
             onClose={() => setView("map")}
             onOpenGallery={() => setResponseGalleryOpen(true)}
+            groupShow={groupShow}
+            onGroupShow={handleGroupShow}
           />
         )}
         {view !== "present" && view !== "console" && (

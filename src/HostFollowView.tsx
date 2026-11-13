@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { Deck, Slide } from "./model";
 import type { PublicFollowState } from "./hostFollow";
 import { Canvas } from "./Canvas";
+import { useWebbing } from "./WebbingContext";
+import { useGroups } from "./GroupsContext";
+import { WebbingMini } from "./WebbingMini";
+import type { FollowTarget } from "./hostFollow";
 import { useFitCanvas } from "./useFitCanvas";
 export function HostFollowView({
   book,
@@ -58,6 +62,8 @@ export function HostFollowView({
         </div>
       ) : state.target.mode === "map" ? (
         <FollowMap book={book} state={state} />
+      ) : state.target.mode === "group" ? (
+        <FollowGroupMap target={state.target} presenting={presenting} />
       ) : (
         <FollowPage page={page} presenting={presenting} />
       )}
@@ -98,6 +104,44 @@ function FittedFollowPage({
       )}
       <div ref={frame} className="host-follow-canvas">
         <Canvas surveyInteractive slide={page} zoom={zoom} />
+      </div>
+    </div>
+  );
+}
+/** The host is showing one group's webbing map to the whole class:
+ * the map large, as a viewing screen (writing stays on the slide). */
+function FollowGroupMap({
+  target,
+  presenting,
+}: {
+  target: FollowTarget;
+  presenting?: boolean;
+}) {
+  const webbing = useWebbing();
+  const groups = useGroups();
+  const map = webbing.maps.find((m) => m.id === target.mapId);
+  if (!map)
+    return (
+      <div className="host-follow-wait" role="status">
+        マップを読み込んでいます…
+      </div>
+    );
+  const group = target.groupId
+    ? groups.groups.find((g) => g.id === target.groupId)
+    : undefined;
+  const nodes = target.groupId
+    ? map.nodes.filter((n) => n.groupId === target.groupId)
+    : map.nodes;
+  return (
+    <div className="host-follow-group">
+      {!presenting && (
+        <p>
+          {map.title}
+          {group ? ` — ${group.name}` : ""}
+        </p>
+      )}
+      <div className="host-follow-group-stage">
+        <WebbingMini nodes={nodes} large />
       </div>
     </div>
   );
