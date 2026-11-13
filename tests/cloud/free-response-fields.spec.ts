@@ -920,4 +920,30 @@ test("crops the picture in an image and drawing response field", async ({
       { timeout: 20_000 },
     )
     .toBe("changed");
+  // The frame's edge handles adjust one side at a time: the field is
+  // still in edit mode after applying, so crop again by dragging the
+  // right edge handle inward.
+  const cropped = await savedValue();
+  await field.getByRole("button", { name: "切り抜き", exact: true }).click();
+  const handle = field.locator(".drawing-crop-handle.is-e");
+  await expect(handle).toBeVisible();
+  const handleBox = await handle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  await page.mouse.move(
+    handleBox!.x + handleBox!.width / 2,
+    handleBox!.y + handleBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(handleBox!.x - 70, handleBox!.y, { steps: 5 });
+  await page.mouse.up();
+  await field.getByRole("button", { name: "切り抜く", exact: true }).click();
+  await expect
+    .poll(
+      async () => {
+        const value = await savedValue();
+        return value && value !== cropped ? "changed" : "same";
+      },
+      { timeout: 20_000 },
+    )
+    .toBe("changed");
 });

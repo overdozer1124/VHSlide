@@ -82,6 +82,7 @@ export function WorksheetDrawing({
   // zooms the chosen region to fill the whole field.
   const [cropping, setCropping] = useState(false);
   const [rect, setRect] = useState({ x: 0, y: 0, w: 1, h: 1 });
+  const cropOnOpen = useRef(false);
   const cropDrag = useRef<
     | {
         mode: string;
@@ -136,6 +137,13 @@ export function WorksheetDrawing({
       generation.current++;
     };
   }, [value, disabled, preview, active, cw, ch]);
+  useEffect(() => {
+    if (active && ready && cropOnOpen.current && hasContent) {
+      cropOnOpen.current = false;
+      setRect({ x: 0, y: 0, w: 1, h: 1 });
+      setCropping(true);
+    }
+  }, [active, ready, hasContent]);
   useEffect(() => {
     if (!active) return;
     canvas.current?.focus({ preventScroll: true });
@@ -348,6 +356,9 @@ export function WorksheetDrawing({
           className="worksheet-drawing-view"
           aria-label={`${label}の画像・手描きを編集`}
           onClick={() => setActive(true)}
+          onDoubleClick={() => {
+            if (value) cropOnOpen.current = true;
+          }}
           onPaste={paste}
           onDragOver={(event) => event.preventDefault()}
           onDrop={drop}
@@ -645,6 +656,10 @@ export function WorksheetDrawing({
             <span className="drawing-crop-handle is-ne" data-handle="ne" />
             <span className="drawing-crop-handle is-sw" data-handle="sw" />
             <span className="drawing-crop-handle is-se" data-handle="se" />
+            <span className="drawing-crop-handle is-n" data-handle="n" />
+            <span className="drawing-crop-handle is-e" data-handle="e" />
+            <span className="drawing-crop-handle is-s" data-handle="s" />
+            <span className="drawing-crop-handle is-w" data-handle="w" />
           </div>
         </div>
       )}

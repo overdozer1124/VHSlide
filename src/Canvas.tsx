@@ -31,7 +31,7 @@ import {
   objectsInSelection,
 } from "./objectEditing";
 import { SlideTable } from "./SlideTable";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { Element, Slide } from "./model";
 import { W, H } from "./model";
 import { InlineText } from "./InlineText";
@@ -121,6 +121,7 @@ export function Canvas({
   formDraft,
   onFormDraftChange,
   onDragExitToMap,
+  onCropModeChange,
 }: {
   slide: Slide;
   formDraft?: FormDraft;
@@ -150,9 +151,137 @@ export function Canvas({
     elements: Element[],
     point: { x: number; y: number },
   ) => void;
+  onCropModeChange?: (active: boolean) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [drafts, setDrafts] = useState<Element[]>([]);
+  // In-place image cropping: a working copy of the image element while
+  // the teacher drags the crop window's edges over the full picture.
+  // The full picture's place on the slide never moves; the element box
+  // (the window) and its crop fractions are two views of one geometry.
+  const [cropEdit, setCropEdit] = useState<Element | undefined>();
+  const cropFull = (el: Element) => {
+    const c = el.crop ?? { x: 0, y: 0, w: 1, h: 1 };
+    const fw = el.w / c.w,
+      fh = el.h / c.h;
+    return { x: el.x - c.x * fw, y: el.y - c.y * fh, w: fw, h: fh };
+  };
+  function finishCrop(commit: boolean) {
+    if (!cropEdit) return;
+    if (commit) {
+      const orig = slide.elements.find((e) => e.id === cropEdit.id);
+      if (orig && JSON.stringify(orig) !== JSON.stringify(cropEdit))
+        onChange?.(cropEdit);
+    }
+    setCropEdit(undefined);
+    onCropModeChange?.(false);
+  }
+  useEffect(() => {
+    if (
+      cropEdit &&
+      (!editable || !slide.elements.some((e) => e.id === cropEdit.id))
+    ) {
+      setCropEdit(undefined);
+      onCropModeChange?.(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropEdit, editable, slide.id]);
+  useEffect(() => {
+    if (!cropEdit) return;
+    const key = (event: KeyboardEvent) => {
+      const t = event.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
+      )
+        return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        finishCrop(true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        finishCrop(false);
+      }
+    };
+    window.addEventListener("keydown", key, true);
+    return () => window.removeEventListener("keydown", key, true);
+  });
+  function startCropDrag(
+    event: React.PointerEvent,
+    mode: ResizeDirection | "move",
+  ) {
+    if (!cropEdit || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const F = cropFull(cropEdit),
+      B0 = { x: cropEdit.x, y: cropEdit.y, w: cropEdit.w, h: cropEdit.h },
+      origin = cropEdit;
+    const toSlide = (ev: PointerEvent) => {
+      const r = ref.current!.getBoundingClientRect();
+      return {
+        x: ((ev.clientX - r.left) * W) / r.width,
+        y: ((ev.clientY - r.top) * H) / r.height,
+      };
+    };
+    const startPt = toSlide(event.nativeEvent),
+      MIN = 16,
+      clamp = (v: number, lo: number, hi: number) =>
+        Math.max(lo, Math.min(hi, v));
+    const apply = (p: { x: number; y: number }) => {
+      let x = B0.x,
+        y = B0.y,
+        w = B0.w,
+        h = B0.h;
+      if (mode === "move") {
+        x = clamp(B0.x + p.x - startPt.x, F.x, F.x + F.w - B0.w);
+        y = clamp(B0.y + p.y - startPt.y, F.y, F.y + F.h - B0.h);
+      } else {
+        let left = B0.x,
+          right = B0.x + B0.w,
+          top = B0.y,
+          bottom = B0.y + B0.h;
+        if (mode.includes("w")) left = clamp(p.x, F.x, right - MIN);
+        if (mode.includes("e")) right = clamp(p.x, left + MIN, F.x + F.w);
+        if (mode.includes("n")) top = clamp(p.y, F.y, bottom - MIN);
+        if (mode.includes("s")) bottom = clamp(p.y, top + MIN, F.y + F.h);
+        x = left;
+        y = top;
+        w = right - left;
+        h = bottom - top;
+      }
+      const coversAll =
+        x <= F.x + 0.01 &&
+        y <= F.y + 0.01 &&
+        x + w >= F.x + F.w - 0.01 &&
+        y + h >= F.y + F.h - 0.01;
+      setCropEdit({
+        ...origin,
+        x,
+        y,
+        w,
+        h,
+        crop: coversAll
+          ? undefined
+          : {
+              x: (x - F.x) / F.w,
+              y: (y - F.y) / F.h,
+              w: w / F.w,
+              h: h / F.h,
+            },
+      });
+    };
+    const move = (ev: PointerEvent) => apply(toSlide(ev));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }
   const activeIds = selectedIds ?? (selected ? [selected] : []);
   const [editingId, setEditingId] = useState<string>();
   const previousSelection = useRef(selected);
@@ -329,6 +458,7 @@ export function Canvas({
     direction: ResizeDirection = "se",
   ) {
     if (!editable || event.button !== 0) return;
+    if (cropEdit) return;
     event.stopPropagation();
     event.preventDefault();
     touchTap.current = null;
@@ -513,7 +643,11 @@ export function Canvas({
     setGhostPoint(null);
   }
   const rendered = resolveConnections(
-    slide.elements.map((e) => drafts.find((d) => d.id === e.id) ?? e),
+    slide.elements.map((e) =>
+      cropEdit?.id === e.id
+        ? cropEdit
+        : (drafts.find((d) => d.id === e.id) ?? e),
+    ),
   );
   const grouped = rendered.filter((e) => activeIds.includes(e.id));
   const groupBox =
@@ -540,6 +674,18 @@ export function Canvas({
         }
         onPointerDownCapture={(event) => {
           if (!editable) return;
+          if (cropEdit) {
+            if (
+              (event.target as HTMLElement).closest(
+                ".crop-frame, .crop-mode-bar",
+              )
+            )
+              return;
+            finishCrop(true);
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           // Touch browsers can retarget a thin frame to a nearby textarea.
           // Use the physical hit point before that input handles the event.
           const hit = document.elementFromPoint(event.clientX, event.clientY);
@@ -661,10 +807,26 @@ export function Canvas({
           const quarter = (e.rotation ?? 0) % 180 !== 0,
             vw = quarter ? e.h : e.w,
             vh = quarter ? e.w : e.h;
+          const croppingThis = cropEdit?.id === e.id,
+            cropGhostBox = croppingThis ? cropFull(e) : undefined;
           // Contain controls within their object, using the saved array order.
           return (
+            <Fragment key={e.id}>
+              {cropGhostBox && (
+                <div
+                  className="crop-ghost"
+                  style={{
+                    left: cropGhostBox.x,
+                    top: cropGhostBox.y,
+                    width: cropGhostBox.w,
+                    height: cropGhostBox.h,
+                  }}
+                  aria-hidden="true"
+                >
+                  <img src={e.src} alt="" draggable={false} />
+                </div>
+              )}
             <div
-              key={e.id}
               data-element-id={e.id}
               data-object-link={!!e.link}
               className={`element ${editable && activeIds.includes(e.id) ? "selected-element" : ""} ${editingId === e.id ? "editing-element" : ""}`}
@@ -683,6 +845,20 @@ export function Canvas({
               onDoubleClick={(event) => {
                 if (e.survey || e.worksheet || e.responseField) return;
                 if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+                if (
+                  editable &&
+                  e.type === "image" &&
+                  !e.drawing &&
+                  !e.flipX &&
+                  !e.flipY &&
+                  (((e.rotation ?? 0) % 360) + 360) % 360 === 0
+                ) {
+                  event.stopPropagation();
+                  selectElement(e.id, false, true);
+                  setCropEdit(e);
+                  onCropModeChange?.(true);
+                  return;
+                }
                 if (
                   editable &&
                   !e.survey &&
@@ -913,7 +1089,8 @@ export function Canvas({
               {editable &&
                 selected === e.id &&
                 activeIds.length <= 1 &&
-                e.type !== "line" && (
+                e.type !== "line" &&
+                !croppingThis && (
                   <ResizeFrame
                     onStart={(event, direction) =>
                       start(
@@ -929,8 +1106,29 @@ export function Canvas({
                   />
                 )}
             </div>
+            </Fragment>
           );
         })}
+        {cropEdit && (
+          <div
+            className="crop-frame"
+            style={{
+              left: cropEdit.x,
+              top: cropEdit.y,
+              width: cropEdit.w,
+              height: cropEdit.h,
+            }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget)
+                startCropDrag(event, "move");
+            }}
+          >
+            <ResizeFrame
+              noun="切り抜き範囲"
+              onStart={(event, direction) => startCropDrag(event, direction)}
+            />
+          </div>
+        )}
         {groupBox && (
           <div
             className="group-selection-box"
@@ -976,6 +1174,21 @@ export function Canvas({
         {guides.x && <div className="guide vertical" />}
         {guides.y && <div className="guide horizontal" />}
       </div>
+      {cropEdit && (
+        <div className="crop-mode-bar" role="toolbar" aria-label="切り抜き">
+          <span>切り抜き中：枠線をドラッグして範囲を調整</span>
+          <button type="button" onClick={() => finishCrop(false)}>
+            キャンセル
+          </button>
+          <button
+            type="button"
+            className="crop-done"
+            onClick={() => finishCrop(true)}
+          >
+            切り抜きを完了
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -992,9 +1205,11 @@ const resizeDirections: { direction: ResizeDirection; label: string }[] = [
 ];
 function ResizeFrame({
   group = false,
+  noun = "要素",
   onStart,
 }: {
   group?: boolean;
+  noun?: string;
   onStart: (event: React.PointerEvent, direction: ResizeDirection) => void;
 }) {
   return (
@@ -1011,8 +1226,8 @@ function ResizeFrame({
             direction === "se"
               ? group
                 ? "選択全体のサイズを変更"
-                : "要素のサイズを変更"
-              : `${group ? "選択全体" : "要素"}の${label}の枠でサイズを変更`
+                : `${noun}のサイズを変更`
+              : `${group ? "選択全体" : noun}の${label}の枠でサイズを変更`
           }
           title={`${label}の枠をドラッグしてサイズ変更（Altキーで移動）`}
           onPointerDown={(event) => onStart(event, direction)}

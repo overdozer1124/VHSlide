@@ -232,6 +232,7 @@ export function Editor({
 }: EditorProps) {
   const worksheets = useWorksheets();
   const surveyContext = useContext(SurveySlideContext);
+  const [imageCropping, setImageCropping] = useState(false);
   const [formDraft, setFormDraft] = useState<FormDraft>();
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -997,6 +998,7 @@ export function Editor({
               cellSelection={cellSelection}
               onCellSelection={setCellSelection}
               cellRangeMode={cellRangeMode}
+              onCropModeChange={setImageCropping}
               onChangeMany={(values) =>
                 updateSlide({
                   elements: slide.elements.map(
@@ -1469,7 +1471,7 @@ export function Editor({
                       <ImageControls
                         key={`image-${element.id}`}
                         element={element}
-                        disabled={!editable}
+                        disabled={!editable || imageCropping}
                         onChange={updateElement}
                         onReplace={onReplaceImage}
                       />
