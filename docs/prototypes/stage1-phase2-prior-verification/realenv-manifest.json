@@ -48,8 +48,8 @@
     },
     {
       "path": "tools/serve-real.mjs",
-      "sha256": "125c34b8b18f7fb507def98550d0986a5a21a72bdb72ee708891c7347ade2d66",
-      "bytes": 96647
+      "sha256": "5fabb9983cc7e8ec550724feb363693c573c19a4cca1302c35d4704b4c77775e",
+      "bytes": 98571
     },
     {
       "path": "test/subject-hash-verify.test.mjs",
@@ -328,38 +328,38 @@
     },
     {
       "path": "public/s15-apply.html",
-      "sha256": "f51608cd2add4b45eb804bbf6f0c538cdd84acd0ac58c2c4ca63929a94dcf84b",
-      "bytes": 57605
+      "sha256": "a5579472468505e54138abffceb0b192c42eb3695408568c684ed72ddda7b4ea",
+      "bytes": 63985
     },
     {
       "path": "tools/s15-apply.mjs",
-      "sha256": "7589510d0055e83f57d4a19f5ec0acb520d0a079017ce24655d641f189ce0ca4",
-      "bytes": 38320
+      "sha256": "e495de06ebf0b1c78b8321bd28643b3a3c711a19e7a858643c52cdf4e084188d",
+      "bytes": 40474
     },
     {
       "path": "tools/s15-sender.mjs",
-      "sha256": "5a53d7085344612c08b4943e865f7a6da23df30cbb6aabae590a9b315959b222",
-      "bytes": 27185
+      "sha256": "b58e4b3371bec18423525fc9bb9171b38cff3e8410960303a865a3485daa537f",
+      "bytes": 28218
     },
     {
       "path": "tools/s15-driver.mjs",
-      "sha256": "dccb2b1cc6a9b68bce122b0e24eb4e5d2a92a0488e5565f8212c4f6955c8416e",
-      "bytes": 7433
+      "sha256": "a9dbd02f589f1bbf51ab6ca2449657bca6776c92c638b03b7f5a0850e05021c5",
+      "bytes": 7725
     },
     {
       "path": "tools/s15-run.mjs",
-      "sha256": "0119aa343816c1744d010579c69b8383dffe55342a285163db019abf6ad4b154",
-      "bytes": 6432
+      "sha256": "514aff0d0781cd14db1c53533931afd78de0853e85b4459c6a991b3b3d24aba4",
+      "bytes": 7592
     },
     {
       "path": "test/s15-apply.test.mjs",
-      "sha256": "88d5a18d64c75c535f0588c14097574f48f27408841fd07cb7d94d9319b4504b",
-      "bytes": 29419
+      "sha256": "9d37054ed57d111074286e5443b3ebebff4f240a4bb6bd6cec40939f0ce1927b",
+      "bytes": 36396
     },
     {
       "path": "test/s15-sender.test.mjs",
-      "sha256": "fd4311a44c802bc25b2f393a985f9844ab83e32a3b89235567ae6831057be74b",
-      "bytes": 31537
+      "sha256": "f34ec7ad0a41444bdadbb91275987090d1d0e1d66bc6f221d6301943b142524b",
+      "bytes": 33282
     },
     {
       "path": "test/s15-guard.test.mjs",
@@ -368,13 +368,13 @@
     },
     {
       "path": "test/s15-apply.screen.mjs",
-      "sha256": "bce88fe9dc4ca15f8956e7375dc2f8af73e14b760c5a3ef9c69043dcd41dbe5f",
-      "bytes": 27447
+      "sha256": "4708aac82cb3247ae80e1af64c79d9abb7ed7be5381c8e3ca06d170b73fbbebb",
+      "bytes": 38391
     },
     {
       "path": "test/serve-real-s15.test.mjs",
-      "sha256": "438c0a6dc4e3626fde264073f3451db22bcf5b58e5eed370dd4809499fd8b178",
-      "bytes": 33076
+      "sha256": "7026ea5d7dd79b7d10ed905e1747486714895cf1ca4de22886cdf1cb59067649",
+      "bytes": 36683
     },
     {
       "path": "test/clean-boot.test.mjs",
@@ -656,7 +656,7 @@
     "s14_rotate_page": "public/s14-rotate.html（tools/serve-real.mjs が /s14-rotate で配信。GOOGLE_CLIENT_ID と S14 セッションをメモリ上で差し込む。項目6 手順7（ローテーション A→B）の専用画面。対象 A・B の主体ハッシュを取得し、A の認可でローテーションを送り（generation 6→7・登録簿 {A}→{B}。削除と追加は同一トランザクション）、A の次回操作が 403 not_operator で拒否されること（この拒否が合格。状態は変わらない）と B の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s14-rotate.mjs は Node 試験 test/s14-rotate.test.mjs と共用する。送信は提供サーバー側の tools/s14-sender.mjs（Node）が行う。名前付きスロット（rotateAB / checkA / checkB）ごとに Cookie jar を分け、ローテーションの対象は旧主体・新主体の組で送信器の境界でも結び付け、期待世代は固定する（rotateAB = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s14-sender.test.mjs、実 Worker との結線は test/s14-guard.test.mjs、画面の実画面試験は test/s14-rotate.screen.mjs）",
     "serve": "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
     "s15_driver": "tools/s15-driver.mjs（S15 の PC 側運転コード。createS15Driver は提供サーバー（tools/serve-real.mjs）を同一プロセスで生成して待ち受け、attachS15Driver は生成済みの提供サーバーへ結び付ける。S15 入口の試験単位セッションを createRealServer の戻り値としてメモリー内だけで受け取り、x-s15-session ヘッダーで示す。値はログ・URL・応答・ファイルに出ない）",
-    "s15_run": "tools/s15-run.mjs（S15 運転ランチャー。提供サーバーを同一プロセスで生成し、S15 専用画面の配信と復旧操作の運転ハンドル（attachS15Driver）を同じプロセスで保持する。画面の送信指示の結果が不明になった場合は、独立した読み戻しの後に、標準入力の judge 操作で判定を画面と同じ送信器へ記録する。セッション値はメモリー内だけで受け渡し、標準入出力・URL・ファイルに出ない）"
+    "s15_run": "tools/s15-run.mjs（S15 運転ランチャー。提供サーバーを同一プロセスで生成し、S15 専用画面の配信と復旧操作の運転ハンドル（attachS15Driver）を同じプロセスで保持する。判定の記録は画面の復旧手順が優先であり、judge 操作は画面が使えない場合の代替である（担い手ルール：同じ区分の二重記録は already_recorded として受け付けられ、異なる区分は s15_judgment_conflict で拒否される）。セッション値はメモリー内だけで受け渡し、標準入出力・URL・ファイルに出ない）"
   },
   "source_checks": {
     "gitattributes_pins_lf": {
@@ -882,19 +882,19 @@
           "text": "//   tools/s14-rotate.mjs と tools/subject-hash-verify.mjs を"
         },
         {
-          "line": 880,
+          "line": 884,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash\") {"
         },
         {
-          "line": 881,
+          "line": 885,
           "text": "console.log(`GET /subject-hash -> 200`);"
         },
         {
-          "line": 886,
+          "line": 890,
           "text": "if (req.method === \"GET\" && pathname === \"/subject-hash-verify.mjs\") {"
         },
         {
-          "line": 887,
+          "line": 891,
           "text": "console.log(`GET /subject-hash-verify.mjs -> 200`);"
         }
       ],
@@ -1303,19 +1303,19 @@
           "text": "//   tools/trial-apply.mjs・tools/subject-hash-verify.mjs を import する。"
         },
         {
-          "line": 892,
+          "line": 896,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply\") {"
         },
         {
-          "line": 893,
+          "line": 897,
           "text": "console.log(`GET /trial-apply -> 200`);"
         },
         {
-          "line": 898,
+          "line": 902,
           "text": "if (req.method === \"GET\" && pathname === \"/trial-apply.mjs\") {"
         },
         {
-          "line": 899,
+          "line": 903,
           "text": "console.log(`GET /trial-apply.mjs -> 200`);"
         }
       ],
@@ -1640,11 +1640,11 @@
     "serve_real_s5_session_guard": {
       "found": [
         {
-          "line": 391,
+          "line": 395,
           "text": "// - 試験単位のセッション（x-s5-session ヘッダー）が起動時に発行した"
         },
         {
-          "line": 414,
+          "line": 418,
           "text": "if (req.headers[\"x-s5-session\"] !== S5_SESSION) {"
         }
       ],
@@ -1653,7 +1653,7 @@
     "serve_real_s5_session_placeholder": {
       "found": [
         {
-          "line": 377,
+          "line": 381,
           "text": "const S5_SESSION_PLACEHOLDER = \"REPLACE_WITH_S5_SESSION\";"
         }
       ],
@@ -1662,11 +1662,11 @@
     "serve_real_s5_origin_guard": {
       "found": [
         {
-          "line": 402,
+          "line": 406,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         },
         {
-          "line": 411,
+          "line": 415,
           "text": "return { ok: false, status: 403, error: \"s5_bad_origin\" };"
         }
       ],
@@ -1675,11 +1675,11 @@
     "serve_real_s5_body_limit": {
       "found": [
         {
-          "line": 380,
+          "line": 384,
           "text": "const S5_MAX_BODY_BYTES = 64 * 1024;"
         },
         {
-          "line": 429,
+          "line": 433,
           "text": "if (size > S5_MAX_BODY_BYTES) {"
         }
       ],
@@ -1731,27 +1731,27 @@
           "text": "// - GET /s5-apply.mjs → tools/s5-apply.mjs をそのまま返す"
         },
         {
-          "line": 215,
+          "line": 219,
           "text": "//   /s5-apply 画面へメモリ上で差し込む）と、発行に結び付ける試験 ID"
         },
         {
-          "line": 369,
+          "line": 373,
           "text": "// /s5-apply 画面へメモリ上で差し込む（ファイルは書き換えない）。画面"
         },
         {
-          "line": 904,
+          "line": 908,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply\") {"
         },
         {
-          "line": 905,
+          "line": 909,
           "text": "console.log(`GET /s5-apply -> 200`);"
         },
         {
-          "line": 910,
+          "line": 914,
           "text": "if (req.method === \"GET\" && pathname === \"/s5-apply.mjs\") {"
         },
         {
-          "line": 911,
+          "line": 915,
           "text": "console.log(`GET /s5-apply.mjs -> 200`);"
         }
       ],
@@ -1760,39 +1760,39 @@
     "serve_real_s5_nonces_route": {
       "found": [
         {
-          "line": 211,
+          "line": 215,
           "text": "// - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと"
         },
         {
-          "line": 221,
+          "line": 225,
           "text": "//   を破棄する。呼び出し元の境界は /s5/nonces と同じ（セッション・"
         },
         {
-          "line": 370,
+          "line": 374,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 382,
+          "line": 386,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 1005,
+          "line": 1009,
           "text": "if (req.method === \"GET\" && pathname === \"/s5/nonces\") {"
         },
         {
-          "line": 1008,
+          "line": 1012,
           "text": "console.log(`GET /s5/nonces -> ${entry.status}`);"
         },
         {
-          "line": 1015,
+          "line": 1019,
           "text": "console.log(`GET /s5/nonces -> 400`);"
         },
         {
-          "line": 1022,
+          "line": 1026,
           "text": "console.log(`GET /s5/nonces -> 200`);"
         },
         {
-          "line": 1026,
+          "line": 1030,
           "text": "console.log(`GET /s5/nonces -> 502`);"
         }
       ],
@@ -1801,51 +1801,51 @@
     "serve_real_s5_send_route": {
       "found": [
         {
-          "line": 217,
+          "line": 221,
           "text": "// - POST /s5/send → 画面からの6件の要求を受け取り、送信器がスロット"
         },
         {
-          "line": 370,
+          "line": 374,
           "text": "// は /s5/nonces・/s5/send の呼び出し時にこの値をヘッダーで示す。"
         },
         {
-          "line": 378,
+          "line": 382,
           "text": "// /s5/send の本体サイズ上限。6件の要求（ID トークン各1件を含む）は"
         },
         {
-          "line": 382,
+          "line": 386,
           "text": "// S5 入口（/s5/nonces・/s5/send）の呼び出し元境界。次をすべて満たさ"
         },
         {
-          "line": 420,
+          "line": 424,
           "text": "// /s5/send の本体をサイズ上限付きで読む。上限を超えれば"
         },
         {
-          "line": 1032,
+          "line": 1036,
           "text": "if (req.method === \"POST\" && pathname === \"/s5/send\") {"
         },
         {
-          "line": 1035,
+          "line": 1039,
           "text": "console.log(`POST /s5/send -> ${entry.status}`);"
         },
         {
-          "line": 1042,
+          "line": 1046,
           "text": "console.log(`POST /s5/send -> 415`);"
         },
         {
-          "line": 1049,
+          "line": 1053,
           "text": "console.log(`POST /s5/send -> 413`);"
         },
         {
-          "line": 1067,
+          "line": 1071,
           "text": "console.log(`POST /s5/send -> 400`);"
         },
         {
-          "line": 1077,
+          "line": 1081,
           "text": "console.log(`POST /s5/send -> 200`);"
         },
         {
-          "line": 1084,
+          "line": 1088,
           "text": "console.log(`POST /s5/send -> ${status}`);"
         }
       ],
@@ -2167,19 +2167,19 @@
           "text": "//   （s10-add-operator 画面が import する純粋モジュール）。"
         },
         {
-          "line": 780,
+          "line": 784,
           "text": "const rawS10AddHtml = await readFile(path.join(root, \"public\", \"s10-add-operator.html\"), \"utf8\");"
         },
         {
-          "line": 782,
+          "line": 786,
           "text": "throw new Error(\"error: s10-add-operator.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 928,
+          "line": 932,
           "text": "if (req.method === \"GET\" && pathname === \"/s10-add-operator\") {"
         },
         {
-          "line": 929,
+          "line": 933,
           "text": "console.log(`GET /s10-add-operator -> 200`);"
         }
       ],
@@ -2491,39 +2491,39 @@
           "text": "//   （s11-parallel 画面が import する純粋モジュール）。"
         },
         {
-          "line": 442,
+          "line": 446,
           "text": "// 推測の値を新規発行し、/s11-parallel 画面へメモリ上で差し込む"
         },
         {
-          "line": 790,
+          "line": 794,
           "text": "const rawS11ParallelHtml = await readFile(path.join(root, \"public\", \"s11-parallel.html\"), \"utf8\");"
         },
         {
-          "line": 792,
+          "line": 796,
           "text": "throw new Error(\"error: s11-parallel.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 795,
+          "line": 799,
           "text": "throw new Error(\"error: s11-parallel.html に S11 セッションのプレースホルダが見つかりません\");"
         },
         {
-          "line": 800,
+          "line": 804,
           "text": "const s11ParallelJs = await readFile(path.join(root, \"tools\", \"s11-parallel.mjs\"), \"utf8\");"
         },
         {
-          "line": 940,
+          "line": 944,
           "text": "if (req.method === \"GET\" && pathname === \"/s11-parallel\") {"
         },
         {
-          "line": 941,
+          "line": 945,
           "text": "console.log(`GET /s11-parallel -> 200`);"
         },
         {
-          "line": 946,
+          "line": 950,
           "text": "if (req.method === \"GET\" && pathname === \"/s11-parallel.mjs\") {"
         },
         {
-          "line": 947,
+          "line": 951,
           "text": "console.log(`GET /s11-parallel.mjs -> 200`);"
         }
       ],
@@ -2536,31 +2536,31 @@
           "text": "// - GET /s11/nonces → 送信器が中継先の /nonce を手順に応じた件数"
         },
         {
-          "line": 443,
+          "line": 447,
           "text": "// （ファイルは書き換えない）。画面は /s11/nonces・/s11/send-* の"
         },
         {
-          "line": 452,
+          "line": 456,
           "text": "// S11 入口（/s11/nonces・/s11/send-*）の呼び出し元境界。S5 入口と"
         },
         {
-          "line": 1095,
+          "line": 1099,
           "text": "if (req.method === \"GET\" && pathname === \"/s11/nonces\") {"
         },
         {
-          "line": 1098,
+          "line": 1102,
           "text": "console.log(`GET /s11/nonces -> ${entry.status}`);"
         },
         {
-          "line": 1107,
+          "line": 1111,
           "text": "console.log(`GET /s11/nonces -> 400`);"
         },
         {
-          "line": 1114,
+          "line": 1118,
           "text": "console.log(`GET /s11/nonces -> 200`);"
         },
         {
-          "line": 1118,
+          "line": 1122,
           "text": "console.log(`GET /s11/nonces -> 502`);"
         }
       ],
@@ -2573,7 +2573,7 @@
           "text": "// - POST /s11/send-concurrent → 画面からの手順4の要求2件を受け取り、"
         },
         {
-          "line": 1126,
+          "line": 1130,
           "text": "(pathname === \"/s11/send-stale\" || pathname === \"/s11/send-concurrent\")"
         }
       ],
@@ -2918,39 +2918,39 @@
           "text": "//   （s12-revoke 画面が import する純粋モジュール）。"
         },
         {
-          "line": 500,
+          "line": 504,
           "text": "// 推測の値を新規発行し、/s12-revoke 画面へメモリ上で差し込む"
         },
         {
-          "line": 805,
+          "line": 809,
           "text": "const rawS12RevokeHtml = await readFile(path.join(root, \"public\", \"s12-revoke.html\"), \"utf8\");"
         },
         {
-          "line": 807,
+          "line": 811,
           "text": "throw new Error(\"error: s12-revoke.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 810,
+          "line": 814,
           "text": "throw new Error(\"error: s12-revoke.html に S12 セッションのプレースホルダが見つかりません\");"
         },
         {
-          "line": 815,
+          "line": 819,
           "text": "const s12RevokeJs = await readFile(path.join(root, \"tools\", \"s12-revoke.mjs\"), \"utf8\");"
         },
         {
-          "line": 952,
+          "line": 956,
           "text": "if (req.method === \"GET\" && pathname === \"/s12-revoke\") {"
         },
         {
-          "line": 953,
+          "line": 957,
           "text": "console.log(`GET /s12-revoke -> 200`);"
         },
         {
-          "line": 958,
+          "line": 962,
           "text": "if (req.method === \"GET\" && pathname === \"/s12-revoke.mjs\") {"
         },
         {
-          "line": 959,
+          "line": 963,
           "text": "console.log(`GET /s12-revoke.mjs -> 200`);"
         }
       ],
@@ -2963,35 +2963,35 @@
           "text": "// - GET /s12/nonces → 送信器が中継先の /nonce をスロット"
         },
         {
-          "line": 501,
+          "line": 505,
           "text": "// （ファイルは書き換えない）。画面は /s12/nonces・/s12/send-* の"
         },
         {
-          "line": 509,
+          "line": 513,
           "text": "// S12 入口（/s12/nonces・/s12/send-*）の呼び出し元境界。S11 入口と"
         },
         {
-          "line": 1190,
+          "line": 1194,
           "text": "if (req.method === \"GET\" && pathname === \"/s12/nonces\") {"
         },
         {
-          "line": 1193,
+          "line": 1197,
           "text": "console.log(`GET /s12/nonces -> ${entry.status}`);"
         },
         {
-          "line": 1203,
+          "line": 1207,
           "text": "console.log(`GET /s12/nonces -> 400`);"
         },
         {
-          "line": 1217,
+          "line": 1221,
           "text": "console.log(`GET /s12/nonces -> 200`);"
         },
         {
-          "line": 1221,
+          "line": 1225,
           "text": "console.log(`GET /s12/nonces -> 502`);"
         },
         {
-          "line": 1271,
+          "line": 1275,
           "text": "// 送信器の試行は画面の試行に追随する（/s12/nonces と同じ）。"
         }
       ],
@@ -3004,11 +3004,11 @@
           "text": "// - POST /s12/send-revoke → 画面からの失効要求を受け取り、送信器"
         },
         {
-          "line": 1294,
+          "line": 1298,
           "text": "(pathname === \"/s12/send-revoke\" || pathname === \"/s12/send-verify-only\")"
         },
         {
-          "line": 1337,
+          "line": 1341,
           "text": "pathname === \"/s12/send-revoke\""
         }
       ],
@@ -3355,39 +3355,39 @@
           "text": "//   （s13-revoke 画面が import する純粋モジュール）。"
         },
         {
-          "line": 557,
+          "line": 561,
           "text": "// 推測の値を新規発行し、/s13-revoke 画面へメモリ上で差し込む"
         },
         {
-          "line": 820,
+          "line": 824,
           "text": "const rawS13RevokeHtml = await readFile(path.join(root, \"public\", \"s13-revoke.html\"), \"utf8\");"
         },
         {
-          "line": 822,
+          "line": 826,
           "text": "throw new Error(\"error: s13-revoke.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 825,
+          "line": 829,
           "text": "throw new Error(\"error: s13-revoke.html に S13 セッションのプレースホルダが見つかりません\");"
         },
         {
-          "line": 830,
+          "line": 834,
           "text": "const s13RevokeJs = await readFile(path.join(root, \"tools\", \"s13-revoke.mjs\"), \"utf8\");"
         },
         {
-          "line": 964,
+          "line": 968,
           "text": "if (req.method === \"GET\" && pathname === \"/s13-revoke\") {"
         },
         {
-          "line": 965,
+          "line": 969,
           "text": "console.log(`GET /s13-revoke -> 200`);"
         },
         {
-          "line": 970,
+          "line": 974,
           "text": "if (req.method === \"GET\" && pathname === \"/s13-revoke.mjs\") {"
         },
         {
-          "line": 971,
+          "line": 975,
           "text": "console.log(`GET /s13-revoke.mjs -> 200`);"
         }
       ],
@@ -3400,35 +3400,35 @@
           "text": "// - GET /s13/nonces → 送信器が中継先の /nonce をスロット"
         },
         {
-          "line": 558,
+          "line": 562,
           "text": "// （ファイルは書き換えない）。画面は /s13/nonces・/s13/send-* の"
         },
         {
-          "line": 566,
+          "line": 570,
           "text": "// S13 入口（/s13/nonces・/s13/send-*）の呼び出し元境界。S12 入口と"
         },
         {
-          "line": 1364,
+          "line": 1368,
           "text": "if (req.method === \"GET\" && pathname === \"/s13/nonces\") {"
         },
         {
-          "line": 1367,
+          "line": 1371,
           "text": "console.log(`GET /s13/nonces -> ${entry.status}`);"
         },
         {
-          "line": 1377,
+          "line": 1381,
           "text": "console.log(`GET /s13/nonces -> 400`);"
         },
         {
-          "line": 1391,
+          "line": 1395,
           "text": "console.log(`GET /s13/nonces -> 200`);"
         },
         {
-          "line": 1395,
+          "line": 1399,
           "text": "console.log(`GET /s13/nonces -> 502`);"
         },
         {
-          "line": 1446,
+          "line": 1450,
           "text": "// 送信器の試行は画面の試行に追随する（/s13/nonces と同じ）。"
         }
       ],
@@ -3441,31 +3441,31 @@
           "text": "// - POST /s13/freeze-revoke → 画面が各失効要求を凍結した時点で、"
         },
         {
-          "line": 1401,
+          "line": 1405,
           "text": "if (req.method === \"POST\" && pathname === \"/s13/freeze-revoke\") {"
         },
         {
-          "line": 1404,
+          "line": 1408,
           "text": "console.log(`POST /s13/freeze-revoke -> ${entry.status}`);"
         },
         {
-          "line": 1411,
+          "line": 1415,
           "text": "console.log(`POST /s13/freeze-revoke -> 415`);"
         },
         {
-          "line": 1418,
+          "line": 1422,
           "text": "console.log(`POST /s13/freeze-revoke -> 413`);"
         },
         {
-          "line": 1440,
+          "line": 1444,
           "text": "console.log(`POST /s13/freeze-revoke -> 400`);"
         },
         {
-          "line": 1456,
+          "line": 1460,
           "text": "console.log(`POST /s13/freeze-revoke -> 200`);"
         },
         {
-          "line": 1462,
+          "line": 1466,
           "text": "console.log(`POST /s13/freeze-revoke -> 409`);"
         }
       ],
@@ -3478,11 +3478,11 @@
           "text": "// - POST /s13/send-revoke → 画面からの失効要求とスロット名を"
         },
         {
-          "line": 1470,
+          "line": 1474,
           "text": "(pathname === \"/s13/send-revoke\" || pathname === \"/s13/send-verify-only\")"
         },
         {
-          "line": 1513,
+          "line": 1517,
           "text": "pathname === \"/s13/send-revoke\""
         }
       ],
@@ -3862,39 +3862,39 @@
           "text": "//   （s14-rotate 画面が import する純粋モジュール）。"
         },
         {
-          "line": 614,
+          "line": 618,
           "text": "// 推測の値を新規発行し、/s14-rotate 画面へメモリ上で差し込む"
         },
         {
-          "line": 835,
+          "line": 839,
           "text": "const rawS14RotateHtml = await readFile(path.join(root, \"public\", \"s14-rotate.html\"), \"utf8\");"
         },
         {
-          "line": 837,
+          "line": 841,
           "text": "throw new Error(\"error: s14-rotate.html にクライアント ID のプレースホルダが見つかりません\");"
         },
         {
-          "line": 840,
+          "line": 844,
           "text": "throw new Error(\"error: s14-rotate.html に S14 セッションのプレースホルダが見つかりません\");"
         },
         {
-          "line": 845,
+          "line": 849,
           "text": "const s14RotateJs = await readFile(path.join(root, \"tools\", \"s14-rotate.mjs\"), \"utf8\");"
         },
         {
-          "line": 976,
+          "line": 980,
           "text": "if (req.method === \"GET\" && pathname === \"/s14-rotate\") {"
         },
         {
-          "line": 977,
+          "line": 981,
           "text": "console.log(`GET /s14-rotate -> 200`);"
         },
         {
-          "line": 982,
+          "line": 986,
           "text": "if (req.method === \"GET\" && pathname === \"/s14-rotate.mjs\") {"
         },
         {
-          "line": 983,
+          "line": 987,
           "text": "console.log(`GET /s14-rotate.mjs -> 200`);"
         }
       ],
@@ -3907,35 +3907,35 @@
           "text": "// - GET /s14/nonces → 送信器が中継先の /nonce をスロット"
         },
         {
-          "line": 615,
+          "line": 619,
           "text": "// （ファイルは書き換えない）。画面は /s14/nonces・/s14/send-* の"
         },
         {
-          "line": 623,
+          "line": 627,
           "text": "// S14 入口（/s14/nonces・/s14/send-*）の呼び出し元境界。S13 入口と"
         },
         {
-          "line": 1543,
+          "line": 1547,
           "text": "if (req.method === \"GET\" && pathname === \"/s14/nonces\") {"
         },
         {
-          "line": 1546,
+          "line": 1550,
           "text": "console.log(`GET /s14/nonces -> ${entry.status}`);"
         },
         {
-          "line": 1556,
+          "line": 1560,
           "text": "console.log(`GET /s14/nonces -> 400`);"
         },
         {
-          "line": 1570,
+          "line": 1574,
           "text": "console.log(`GET /s14/nonces -> 200`);"
         },
         {
-          "line": 1574,
+          "line": 1578,
           "text": "console.log(`GET /s14/nonces -> 502`);"
         },
         {
-          "line": 1625,
+          "line": 1629,
           "text": "// 送信器の試行は画面の試行に追随する（/s14/nonces と同じ）。"
         }
       ],
@@ -3948,31 +3948,31 @@
           "text": "// - POST /s14/freeze-rotate → 画面がローテーション要求を凍結した"
         },
         {
-          "line": 1580,
+          "line": 1584,
           "text": "if (req.method === \"POST\" && pathname === \"/s14/freeze-rotate\") {"
         },
         {
-          "line": 1583,
+          "line": 1587,
           "text": "console.log(`POST /s14/freeze-rotate -> ${entry.status}`);"
         },
         {
-          "line": 1590,
+          "line": 1594,
           "text": "console.log(`POST /s14/freeze-rotate -> 415`);"
         },
         {
-          "line": 1597,
+          "line": 1601,
           "text": "console.log(`POST /s14/freeze-rotate -> 413`);"
         },
         {
-          "line": 1619,
+          "line": 1623,
           "text": "console.log(`POST /s14/freeze-rotate -> 400`);"
         },
         {
-          "line": 1635,
+          "line": 1639,
           "text": "console.log(`POST /s14/freeze-rotate -> 200`);"
         },
         {
-          "line": 1641,
+          "line": 1645,
           "text": "console.log(`POST /s14/freeze-rotate -> 409`);"
         }
       ],
@@ -3985,11 +3985,11 @@
           "text": "// - POST /s14/send-rotate → 画面からのローテーション要求と"
         },
         {
-          "line": 1649,
+          "line": 1653,
           "text": "(pathname === \"/s14/send-rotate\" || pathname === \"/s14/send-verify-only\")"
         },
         {
-          "line": 1692,
+          "line": 1696,
           "text": "pathname === \"/s14/send-rotate\""
         }
       ],
@@ -4089,7 +4089,7 @@
     "s15_module_freeze": {
       "found": [
         {
-          "line": 542,
+          "line": 544,
           "text": "freezeApproval(trialId, gen) {"
         }
       ],
@@ -4102,15 +4102,15 @@
           "text": "// 判定（judgeS15ReadBack）を提供する。表示・ログ・Issue・チャット"
         },
         {
-          "line": 274,
+          "line": 275,
           "text": "export function judgeS15ReadBack({ snapshot, operationId, targetSubjectHash, startConsumedOperationIds }) {"
         },
         {
-          "line": 642,
+          "line": 679,
           "text": "// （または正規形）であり、正規化してから judgeS15ReadBack"
         },
         {
-          "line": 657,
+          "line": 694,
           "text": "const outcome = judgeS15ReadBack({"
         }
       ],
@@ -4136,7 +4136,7 @@
           "text": "//   状態機械では、判定確定後に recordNormalRestored（版確認・"
         },
         {
-          "line": 692,
+          "line": 729,
           "text": "recordNormalRestored(trialId, gen, { versionVerified, bindingsVerified } = {}) {"
         }
       ],
@@ -4145,15 +4145,19 @@
     "s15_module_already_committed": {
       "found": [
         {
-          "line": 358,
+          "line": 359,
           "text": "if (cur.phase === \"committed\") return \"s15_already_committed\";"
         },
         {
-          "line": 459,
+          "line": 461,
           "text": "// s15_already_committed で拒否する。startedAtMs は発行を"
         },
         {
-          "line": 614,
+          "line": 616,
+          "text": "fail(\"s15_already_committed\", \"committed の判定の後に送信はできません\");"
+        },
+        {
+          "line": 658,
           "text": "fail(\"s15_already_committed\", \"committed の判定の後に送信はできません\");"
         }
       ],
@@ -4162,15 +4166,15 @@
     "s15_module_attempts_exhausted": {
       "found": [
         {
-          "line": 360,
+          "line": 361,
           "text": "return \"s15_attempts_exhausted\";"
         },
         {
-          "line": 458,
+          "line": 460,
           "text": "// s15_attempts_exhausted、committed 確定後の取得は"
         },
         {
-          "line": 468,
+          "line": 470,
           "text": "fail(\"s15_attempts_exhausted\", \"送信は合計3回までです\");"
         }
       ],
@@ -4183,39 +4187,51 @@
           "text": "//   beginTrial は、送信済みの現行試行を sent-undetermined の"
         },
         {
-          "line": 397,
+          "line": 398,
           "text": "if (current.phase === \"sent-undetermined\") {"
         },
         {
-          "line": 609,
+          "line": 611,
           "text": "// 記録後は sent-undetermined となり、判定が記録される"
         },
         {
-          "line": 632,
+          "line": 634,
           "text": "cur.phase = \"sent-undetermined\";"
         },
         {
-          "line": 637,
+          "line": 639,
           "text": "state: \"sent-undetermined\","
         },
         {
-          "line": 640,
+          "line": 647,
+          "text": "// 済み・結果不明」として記録し、sent-undetermined へ進"
+        },
+        {
+          "line": 668,
+          "text": "cur.phase = \"sent-undetermined\";"
+        },
+        {
+          "line": 673,
+          "text": "state: \"sent-undetermined\","
+        },
+        {
+          "line": 677,
           "text": "// 読み戻しによる判定の記録。sent-undetermined のときに"
         },
         {
-          "line": 653,
+          "line": 690,
           "text": "if (cur.phase !== \"sent-undetermined\") {"
         },
         {
-          "line": 707,
+          "line": 744,
           "text": "// 判定前（sent-undetermined）の試行は s15_trial_unjudged"
         },
         {
-          "line": 713,
+          "line": 750,
           "text": "if (current.phase === \"sent-undetermined\") {"
         },
         {
-          "line": 735,
+          "line": 773,
           "text": "undetermined: cur.phase === \"sent-undetermined\","
         }
       ],
@@ -4232,12 +4248,12 @@
           "text": "export const S15_DISCARDED_OUTCOME = \"discarded\";"
         },
         {
-          "line": 623,
+          "line": 625,
           "text": "sendRecord.outcome !== S15_DISCARDED_OUTCOME ||"
         },
         {
-          "line": 785,
-          "text": "outcome: step === \"send-discarded\" ? S15_DISCARDED_OUTCOME : null,"
+          "line": 826,
+          "text": "? S15_DISCARDED_OUTCOME"
         }
       ],
       "expect": "present"
@@ -4318,11 +4334,11 @@
           "text": "// - GET /s15-apply.mjs → tools/s15-apply.mjs をそのまま返す"
         },
         {
-          "line": 994,
+          "line": 998,
           "text": "if (req.method === \"GET\" && pathname === \"/s15-apply.mjs\") {"
         },
         {
-          "line": 995,
+          "line": 999,
           "text": "console.log(`GET /s15-apply.mjs -> 200`);"
         }
       ],
@@ -4335,31 +4351,31 @@
           "text": "// - GET /s15/nonces → 送信器が中継先の /nonce を試行枠"
         },
         {
-          "line": 684,
+          "line": 688,
           "text": "// S15 入口（/s15/nonces・/s15/freeze-approval・/s15/send-discard・"
         },
         {
-          "line": 1723,
+          "line": 1727,
           "text": "if (req.method === \"GET\" && pathname === \"/s15/nonces\") {"
         },
         {
-          "line": 1726,
+          "line": 1730,
           "text": "console.log(`GET /s15/nonces -> ${entry.status}`);"
         },
         {
-          "line": 1736,
+          "line": 1740,
           "text": "console.log(`GET /s15/nonces -> 400`);"
         },
         {
-          "line": 1748,
+          "line": 1752,
           "text": "console.log(`GET /s15/nonces -> 200`);"
         },
         {
-          "line": 1753,
+          "line": 1757,
           "text": "console.log(`GET /s15/nonces -> ${status}`);"
         },
         {
-          "line": 1808,
+          "line": 1812,
           "text": "// 送信器の試行は運転側の試行に追随する（/s15/nonces と同じ）。"
         }
       ],
@@ -4372,15 +4388,15 @@
           "text": "// - POST /s15/send-discard → 画面からの全面復旧の要求と試行"
         },
         {
-          "line": 684,
+          "line": 688,
           "text": "// S15 入口（/s15/nonces・/s15/freeze-approval・/s15/send-discard・"
         },
         {
-          "line": 1762,
+          "line": 1766,
           "text": "pathname === \"/s15/send-discard\" ||"
         },
         {
-          "line": 1857,
+          "line": 1893,
           "text": "// /s15/send-discard：要求の形を確認してから送信器へ渡す。"
         }
       ],
@@ -4439,19 +4455,19 @@
           "text": "//   試行については s15_trial_unjudged で拒否する（関門の"
         },
         {
-          "line": 372,
+          "line": 373,
           "text": "// 送信済み・判定前は s15_trial_unjudged、判定済みでも"
         },
         {
-          "line": 399,
+          "line": 400,
           "text": "\"s15_trial_unjudged\","
         },
         {
-          "line": 707,
+          "line": 744,
           "text": "// 判定前（sent-undetermined）の試行は s15_trial_unjudged"
         },
         {
-          "line": 715,
+          "line": 752,
           "text": "\"s15_trial_unjudged\","
         }
       ],
@@ -4464,11 +4480,11 @@
           "text": "//   s15_trial_not_closed で拒否する。discrepancy で停止した"
         },
         {
-          "line": 373,
+          "line": 374,
           "text": "// 締まっていなければ s15_trial_not_closed で拒否する。"
         },
         {
-          "line": 405,
+          "line": 406,
           "text": "\"s15_trial_not_closed\","
         }
       ],
@@ -4493,11 +4509,11 @@
           "text": "\"s15_trial_unjudged\","
         },
         {
-          "line": 511,
+          "line": 526,
           "text": "// 試行は s15_trial_unjudged で拒否し、飛行中（busy）も"
         },
         {
-          "line": 521,
+          "line": 536,
           "text": "\"s15_trial_unjudged\","
         }
       ],
@@ -4523,23 +4539,23 @@
     "s15_serve_factory": {
       "found": [
         {
-          "line": 250,
+          "line": 254,
           "text": "// createRealServer(options) が { server, s15Session, port,"
         },
         {
-          "line": 273,
+          "line": 277,
           "text": "// を、createRealServer(options) の内側へ移した。options は"
         },
         {
-          "line": 288,
+          "line": 292,
           "text": "export async function createRealServer(options = {}) {"
         },
         {
-          "line": 675,
+          "line": 679,
           "text": "// createRealServer の戻り値（s15Session）として、同一 PC の運転"
         },
         {
-          "line": 1955,
+          "line": 1991,
           "text": "const created = await createRealServer();"
         }
       ],
@@ -4548,27 +4564,27 @@
     "s15_serve_factory_returns_session": {
       "found": [
         {
-          "line": 250,
+          "line": 254,
           "text": "// createRealServer(options) が { server, s15Session, port,"
         },
         {
-          "line": 251,
+          "line": 255,
           "text": "// relay } を返す。s15Session（S15 入口の試験単位セッション）は"
         },
         {
-          "line": 281,
+          "line": 285,
           "text": "// ある。戻り値は { server, s15Session, port, relay } であり、"
         },
         {
-          "line": 283,
+          "line": 287,
           "text": "// う）。s15Session は S15 入口の試験単位セッション値そのもの"
         },
         {
-          "line": 675,
+          "line": 679,
           "text": "// createRealServer の戻り値（s15Session）として、同一 PC の運転"
         },
         {
-          "line": 1944,
+          "line": 1980,
           "text": "return { server, s15Session: S15_SESSION, port: PORT, relay: RELAY };"
         }
       ],
@@ -4589,15 +4605,15 @@
           "text": "import { createRealServer } from \"./serve-real.mjs\";"
         },
         {
-          "line": 119,
+          "line": 123,
           "text": "// 生成済みの提供サーバー（createRealServer の戻り値）へ結び"
         },
         {
-          "line": 145,
+          "line": 149,
           "text": "// options は { clientId, relayUrl, port } であり、createRealServer"
         },
         {
-          "line": 150,
+          "line": 154,
           "text": "const created = await createRealServer(options);"
         }
       ],
@@ -4644,7 +4660,7 @@
     "s15_serve_screen_route": {
       "found": [
         {
-          "line": 988,
+          "line": 992,
           "text": "if (req.method === \"GET\" && pathname === \"/s15-apply\") {"
         }
       ],
@@ -4653,7 +4669,7 @@
     "s15_serve_screen_session_injection": {
       "found": [
         {
-          "line": 681,
+          "line": 685,
           "text": "const S15_SESSION_PLACEHOLDER = \"REPLACE_WITH_S15_SESSION\";"
         }
       ],
@@ -4666,7 +4682,7 @@
           "text": "POST /s15/send-discard から受け取るのは、提供層自身の"
         },
         {
-          "line": 278,
+          "line": 294,
           "text": "sendDiscard: \"/s15/send-discard\","
         }
       ],
@@ -4687,11 +4703,11 @@
           "text": "// ハンドルを組み立てる。createS15Driver と attachS15Driver で"
         },
         {
-          "line": 124,
+          "line": 128,
           "text": "export async function attachS15Driver(created) {"
         },
         {
-          "line": 151,
+          "line": 155,
           "text": "return attachS15Driver(created);"
         }
       ],
@@ -4700,19 +4716,19 @@
     "s15_run_creates_server": {
       "found": [
         {
-          "line": 36,
+          "line": 47,
           "text": "// セッションの受け渡しはメモリー内だけである（createRealServer"
         },
         {
-          "line": 44,
+          "line": 55,
           "text": "import { createRealServer } from \"./serve-real.mjs\";"
         },
         {
-          "line": 96,
+          "line": 113,
           "text": "// て返す。options は createRealServer へそのまま渡す（指定が"
         },
         {
-          "line": 100,
+          "line": 117,
           "text": "const created = await createRealServer(options);"
         }
       ],
@@ -4725,15 +4741,15 @@
           "text": "// の attachS15Driver）を同一プロセスで保持する。これにより、"
         },
         {
-          "line": 37,
+          "line": 48,
           "text": "// の戻り値を attachS15Driver へ JS の値として渡す）。セッ"
         },
         {
-          "line": 45,
+          "line": 56,
           "text": "import { attachS15Driver } from \"./s15-driver.mjs\";"
         },
         {
-          "line": 101,
+          "line": 118,
           "text": "const driver = await attachS15Driver(created);"
         }
       ],
@@ -4742,11 +4758,11 @@
     "s15_run_judge_command": {
       "found": [
         {
-          "line": 54,
+          "line": 65,
           "text": "export function parseJudgeCommand(line) {"
         },
         {
-          "line": 75,
+          "line": 86,
           "text": "const parsed = parseJudgeCommand(trimmed);"
         }
       ],
@@ -4759,12 +4775,8 @@
           "text": "S15 の運転では、運転ランチャー（tools/s15-run.mjs）から"
         },
         {
-          "line": 89,
-          "text": "ランチャー（tools/s15-run.mjs）の復旧操作で行って"
-        },
-        {
-          "line": 1020,
-          "text": "// ランチャー（tools/s15-run.mjs）の復旧操作（judge）から"
+          "line": 97,
+          "text": "（tools/s15-run.mjs）の復旧操作でも判定を記録できます。"
         }
       ],
       "expect": "present"
@@ -4772,15 +4784,15 @@
     "s15_recovery_test_present": {
       "found": [
         {
-          "line": 54,
+          "line": 61,
           "text": "startS15Run,"
         },
         {
-          "line": 567,
+          "line": 582,
           "text": "// 運転ランチャーと同じ構成（startS15Run）：提供サーバーを"
         },
         {
-          "line": 572,
+          "line": 587,
           "text": "const run = await startS15Run({"
         }
       ],
@@ -4812,6 +4824,100 @@
         {
           "line": 1655,
           "text": "armForcedExit();"
+        }
+      ],
+      "expect": "present"
+    },
+    "s15_module_outcome_unknown_transition": {
+      "found": [
+        {
+          "line": 655,
+          "text": "recordSendOutcomeUnknown(trialId, gen) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s15_sender_judgment_query": {
+      "found": [
+        {
+          "line": 504,
+          "text": "judgmentFor(trialId, attempt) {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s15_serve_already_recorded": {
+      "found": [
+        {
+          "line": 212,
+          "text": "//   の場合は { ok: true, already_recorded: true } を返し、異"
+        },
+        {
+          "line": 1855,
+          "text": "// 場合は失敗にせず「記録済み（already_recorded）」として"
+        },
+        {
+          "line": 1888,
+          "text": "alreadyRecorded ? { ok: true, already_recorded: true } : { ok: true }"
+        }
+      ],
+      "expect": "present"
+    },
+    "s15_serve_judgment_conflict": {
+      "found": [
+        {
+          "line": 213,
+          "text": "//   なる区分が記録済みの場合は s15_judgment_conflict で拒否"
+        },
+        {
+          "line": 1857,
+          "text": "// s15_judgment_conflict で拒否し、呼び出し側は不一致と"
+        },
+        {
+          "line": 1875,
+          "text": "res.end(JSON.stringify({ error: \"s15_judgment_conflict\" }));"
+        }
+      ],
+      "expect": "present"
+    },
+    "s15_screen_recovery_button": {
+      "found": [
+        {
+          "line": 241,
+          "text": "<p><button id=\"recoverUnknownSend\" type=\"button\">送信を結果不明として記録する（復旧：何も送信しません）</button></p>"
+        },
+        {
+          "line": 356,
+          "text": "const recoverUnknownSendBtn = document.getElementById(\"recoverUnknownSend\");"
+        },
+        {
+          "line": 540,
+          "text": "recoverUnknownSendBtn.disabled = !("
+        },
+        {
+          "line": 1103,
+          "text": "recoverUnknownSendBtn.addEventListener(\"click\", () => {"
+        }
+      ],
+      "expect": "present"
+    },
+    "s15_screen_recovery_test_present": {
+      "found": [
+        {
+          "line": 707,
+          "text": "el(wA, \"recoverUnknownSend\").disabled === false &&"
+        },
+        {
+          "line": 729,
+          "text": "dispatchClick(wA, \"recoverUnknownSend\");"
+        },
+        {
+          "line": 737,
+          "text": "el(wA, \"recoverUnknownSend\").disabled === true &&"
+        },
+        {
+          "line": 802,
+          "text": "dispatchClick(wB, \"recoverUnknownSend\");"
         }
       ],
       "expect": "present"

@@ -607,11 +607,14 @@ test("送信の入口は sendDiscard だけであり、試行枠の再発行は�
   const { res } = recordingResponse();
   const { fetchImpl } = makeRelayFetch({ applyImpl: async () => res });
   const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  // 公開面はこの一覧だけ。judgmentFor は読み取り専用の照会で
+  // あり、送信の入口ではない（送信の入口は sendDiscard だけ）。
   assert.deepEqual(Object.keys(sender).sort(), [
     "beginTrial",
     "discard",
     "freezeApproval",
     "issueNonce",
+    "judgmentFor",
     "recordJudgment",
     "sendDiscard",
     "slotConsumed",
@@ -751,4 +754,35 @@ test("試行切替関門：送信していない試行は切り替えられ、�
   // 送信が終わっても、判定が記録されるまでは未判定として
   // 関門にかかる。
   assertCode(() => sender2.beginTrial("u2"), "s15_trial_unjudged");
+});
+
+test("判定の照会（judgmentFor）：記録済みの区分だけを返し、二重記録の拒否は変えない", async () => {
+  const { res } = recordingResponse();
+  const { calls, fetchImpl } = makeRelayFetch({ applyImpl: async () => res });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  // 試行がなければ null。
+  assert.equal(sender.judgmentFor("t-jf", 1), null);
+  sender.beginTrial("t-jf");
+  // 記録前・試行違い・試行番号違いは null。
+  assert.equal(sender.judgmentFor("t-jf", 1), null);
+  assert.equal(sender.judgmentFor("t-other", 1), null);
+  assert.equal(sender.judgmentFor("t-jf", 2), null);
+  await preparedAttempt(sender, { trialId: "t-jf", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  await sender.sendDiscard({
+    trialId: "t-jf",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  // 送信済みでも判定が未記録なら null。
+  assert.equal(sender.judgmentFor("t-jf", 1), null);
+  sender.recordJudgment({ trialId: "t-jf", attempt: 1, outcome: "uncommitted" });
+  assert.equal(sender.judgmentFor("t-jf", 1), "uncommitted");
+  assert.equal(sender.judgmentFor("t-jf", 2), null);
+  // 照会は読み取り専用であり、二重の記録は従来どおり
+  // s15_judgment_order で拒否される（担い手ルールは提供層が扱う）。
+  assertCode(
+    () => sender.recordJudgment({ trialId: "t-jf", attempt: 1, outcome: "uncommitted" }),
+    "s15_judgment_order"
+  );
+  assert.equal(applyCallsOf(calls).length, 1);
 });

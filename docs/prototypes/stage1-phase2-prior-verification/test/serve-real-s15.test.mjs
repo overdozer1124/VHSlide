@@ -39,6 +39,13 @@
 //   試行の再実施が開いて完走すること。別に新規生成した運転
 //   コードの判定記録では、元の送信器の関門は開かないこと
 //   （反証）。復旧操作の行解釈と委譲は単体でも確認する。
+// - 担い手ルール（Codex 再レビュー 6880300681）：判定の記録は
+//   画面が優先・ランチャーの judge が代替であり、同じ試行・
+//   試行番号に同じ区分が記録済みの場合は入口が
+//   already_recorded で受け付け、異なる区分は
+//   s15_judgment_conflict で拒否し、記録のない順序違反は
+//   s15_judgment_order のままであること。ランチャーの表示は
+//   記録済みを失敗と区別すること。
 // 秘密の値は使わない。
 //
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
@@ -546,6 +553,14 @@ test("S15 復旧操作：judge 行の解釈と、判定記録の委譲（運転�
   assert.equal(okOut.quit, false);
   assert.match(okOut.text, /判定を記録しました/);
   assert.deepEqual(seenArgs, [{ trialId: "t1", attempt: 1, outcome: "uncommitted" }]);
+  // 記録済み（同じ区分）の応答は、記録済みとして表示される
+  // （担い手ルール。失敗ではない）。
+  const stubAlready = {
+    recordJudgment: async () => ({ status: 200, ok: true, already_recorded: true }),
+  };
+  const alreadyOut = await handleRecoveryLine(stubAlready, "judge t1 1 committed");
+  assert.equal(alreadyOut.quit, false);
+  assert.match(alreadyOut.text, /判定は記録済みでした/);
   const stubRefuse = {
     recordJudgment: async () => ({ status: 409, error: "s15_send_in_flight" }),
   };
@@ -802,6 +817,81 @@ test("S15 競合：送信中（飛行中）の判定記録は 409 s15_send_in_fl
     assert.equal(rt.calls.nonce, 2);
   } finally {
     rt.releaseApply();
+    await driver.close();
+    rt.close();
+  }
+});
+
+const DRIVER_PORT_D = 8916;
+
+test("S15 担い手ルール：同じ区分の二重記録は already_recorded で受け付け、異なる区分は競合で拒否する", async () => {
+  const rt = makeRoundTripRelay();
+  const rtPort = await rt.listen();
+  const driver = await createS15Driver({
+    clientId: CLIENT_ID,
+    relayUrl: `http://127.0.0.1:${rtPort}`,
+    port: DRIVER_PORT_D,
+  });
+  try {
+    const issued = await driver.issueNonce({ trialId: "ar1", attempt: 1 });
+    assert.equal(issued.status, 200);
+    const frozen = await driver.freezeApproval({
+      trialId: "ar1",
+      attempt: 1,
+      operationId: OP5,
+      purpose: "full-replace",
+      subjectHash: HASH_B,
+      envId: ENV_ID,
+      oneTimeValue: ONE_TIME_A1,
+    });
+    assert.equal(frozen.status, 200);
+    const sent = await driver.sendDiscard({
+      trialId: "ar1",
+      attempt: 1,
+      request: requestFor({ nonce: issued.nonce, oneTimeValue: ONE_TIME_A1 }),
+    });
+    assert.equal(sent.status, 200);
+    assert.equal(rt.calls.apply, 1);
+    // 先に記録する担い手（ここではランチャー側の記録を想定）。
+    const first = await driver.recordJudgment({
+      trialId: "ar1",
+      attempt: 1,
+      outcome: "committed",
+    });
+    assert.equal(first.status, 200);
+    assert.equal(first.ok, true);
+    assert.equal(first.already_recorded, undefined);
+    // もう一方（画面の鏡像）が同じ区分を記録しようとした場合：
+    // 失敗にせず、記録済みとして受け付ける。
+    const mirror = await driver.recordJudgment({
+      trialId: "ar1",
+      attempt: 1,
+      outcome: "committed",
+    });
+    assert.equal(mirror.status, 200);
+    assert.equal(mirror.ok, true);
+    assert.equal(mirror.already_recorded, true);
+    // 異なる区分が記録済みの場合は競合として拒否する。
+    const conflict = await driver.recordJudgment({
+      trialId: "ar1",
+      attempt: 1,
+      outcome: "uncommitted",
+    });
+    assert.equal(conflict.status, 409);
+    assert.equal(conflict.error, "s15_judgment_conflict");
+    // 記録が何もない試行番号への順序違反は、従来どおり
+    // s15_judgment_order のままである。
+    const order = await driver.recordJudgment({
+      trialId: "ar1",
+      attempt: 2,
+      outcome: "uncommitted",
+    });
+    assert.equal(order.status, 409);
+    assert.equal(order.error, "s15_judgment_order");
+    // 判定の記録は送信を伴わない（中継への送信は当初の1件だけ）。
+    assert.equal(rt.calls.apply, 1);
+    assert.equal(rt.calls.nonce, 1);
+  } finally {
     await driver.close();
     rt.close();
   }

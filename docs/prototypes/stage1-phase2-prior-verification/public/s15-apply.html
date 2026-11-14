@@ -84,14 +84,28 @@
     が返る場合）は、1件も送信されていません。画面はその旨を
     ログに出し、試行を停止します。送信指示自体の通信が失敗
     した場合や応答の形が破棄記録でない場合は、実施有無が
-    不明なため状態未確定として扱い、再送しません。その場合
-    は読み戻しで状態を確かめ、送信器側の判定の記録は運転
-    ランチャー（tools/s15-run.mjs）の復旧操作で行って
-    ください。ランチャーの標準入力へ
-    「judge <試行ID> <試行番号> <区分>」と入力すると、判定が
-    この画面と同じ送信器へ記録されます。別プロセスで新規に
-    生成した運転コード（tools/s15-driver.mjs）では別の送信器
-    へ記録されるため、復旧には使えません。
+    不明なため状態未確定として扱い、再送しません（修正4、
+    Codex 再レビュー 6880300681）。その場合は、まず独立した
+    読み戻しで状態を確かめ、この画面の復旧手順（⑤の「送信を
+    結果不明として記録する」）で画面の状態機械を
+    sent-undetermined へ進めてから、通常どおり読み戻しの
+    4項目で判定を記録してください。復旧手順自体は何も送信
+    しません。送信器側の判定は、その判定の記録で鏡像します。
+    未成立なら同じ試行の再実施がこの画面で開き、実測なら
+    通常版復帰の記録で締められます。
+  - 画面が使えない場合の代替として、運転ランチャー
+    （tools/s15-run.mjs）の復旧操作でも判定を記録できます。
+    ランチャーの標準入力へ「judge <試行ID> <試行番号> <区分>」
+    と入力すると、判定がこの画面と同じ送信器へ記録されます。
+    担い手ルール：判定の記録は画面が優先であり、ランチャーの
+    judge は代替です。ランチャーが先に記録していた場合でも、
+    画面の判定の鏡像は、同じ区分であれば記録済み
+    （already_recorded）として受け付けられ、復旧は失敗し
+    ません。異なる区分が記録済みの場合は
+    s15_judgment_conflict で拒否され、不一致として停止
+    します。別プロセスで新規に生成した運転コード
+    （tools/s15-driver.mjs）では別の送信器へ記録されるため、
+    復旧には使えません。
   - nonce の取得が失敗した試行は使わず、破棄してページを
     再読み込みしてからやり直します（状態機械の取得中状態が
     残るため、そのままでは破棄もできません）。送信器側に
@@ -223,6 +237,8 @@ Origin の境界：Origin はページ自身の生成元であり、画面から
 
 <fieldset>
   <legend>⑤ 読み戻し判定（独立した読み戻しの4項目を入力します）</legend>
+  <p>送信指示の結果を確認できなかった場合（状態未確定で停止した場合）は、先に独立した読み戻しで状態を確かめ、下の復旧ボタンで送信を「結果不明」として記録してください。復旧自体は何も送信しません。その後に通常どおり判定を記録します。</p>
+  <p><button id="recoverUnknownSend" type="button">送信を結果不明として記録する（復旧：何も送信しません）</button></p>
   <label>世代（generation）<br>
     <input type="number" id="judgeGeneration" min="0" step="1"></label>
   <label>完了記録の件数<br>
@@ -296,6 +312,11 @@ let currentOneTime = null;
 // 承認内容が送信器にも固定済みの試行番号。固定が完了するまで送信
 // ボタンは有効にならない。
 let senderFrozenAttempt = null;
+// 送信指示の応答を喪失した試行番号（修正4）。この分岐でのみ
+// 非 null になり、画面の復旧手順（recordSendOutcomeUnknown）
+// が使えるようになる。復旧が済むまで試行の切り替え・破棄は
+// できない（画面と送信器の状態がずれるため）。
+let sendUnknownAttempt = null;
 
 const logEl = document.getElementById("log");
 const stateEl = document.getElementById("state");
@@ -332,6 +353,7 @@ const judgeCompletionInput = document.getElementById("judgeCompletion");
 const judgeConsumedInput = document.getElementById("judgeConsumed");
 const judgeOperatorsInput = document.getElementById("judgeOperators");
 const recordJudgmentBtn = document.getElementById("recordJudgment");
+const recoverUnknownSendBtn = document.getElementById("recoverUnknownSend");
 const judgmentResultEl = document.getElementById("judgmentResult");
 const versionVerifiedCheck = document.getElementById("versionVerified");
 const bindingsVerifiedCheck = document.getElementById("bindingsVerified");
@@ -492,8 +514,11 @@ function updateButtons() {
   const fetching = isAnyNonceFetchPending();
   const role = currentRole();
   const canAct = !sending && !fetching && !haltedPage && trial !== null && phase !== null;
-  newTrialBtn.disabled = sending || fetching;
-  discardBtn.disabled = sending || fetching || trial === null;
+  // 送信指示の結果が不明な間は、試行の切り替え・破棄を無効に
+  // する（画面と送信器の状態がずれるため。復旧が先）。
+  newTrialBtn.disabled = sending || fetching || sendUnknownAttempt !== null;
+  discardBtn.disabled =
+    sending || fetching || trial === null || sendUnknownAttempt !== null;
   prepTargetBtn.disabled = !canAct || phase !== "start";
   completeTargetBtn.disabled =
     !canAct || phase !== "start" || tokens.target === null || !targetConfirmCheck.checked;
@@ -510,6 +535,12 @@ function updateButtons() {
     !canAct || phase !== "attempt-captured" || tokens[role] === null ||
     senderFrozenAttempt !== currentAttempt() || senderWindowExpired(role);
   recordJudgmentBtn.disabled = !canAct || phase !== "sent-undetermined";
+  // 復旧ボタンは、送信指示の応答を喪失した停止分岐でのみ有効
+  // にする（haltedPage の間でも押せる唯一の前進操作）。
+  recoverUnknownSendBtn.disabled = !(
+    sendUnknownAttempt !== null && trial !== null && phase === "attempt-captured" &&
+    !sending && !fetching
+  );
   recordRestoreBtn.disabled =
     sending || fetching || trial === null ||
     !(phase === "committed" || phase === "uncommitted-final" || phase === "halted") ||
@@ -747,6 +778,10 @@ newTrialBtn.addEventListener("click", () => {
     log("新しい試行は、送信中・nonce取得中は開始できません");
     return;
   }
+  if (sendUnknownAttempt !== null) {
+    log("送信指示の結果が不明な試行があります。先に⑤の復旧手順で判定まで進めてください（試行の切り替えはできません）");
+    return;
+  }
   let begun;
   try {
     begun = session.beginTrial({
@@ -787,6 +822,10 @@ newTrialBtn.addEventListener("click", () => {
 discardBtn.addEventListener("click", () => {
   if (sending) {
     log("送信中は試行を破棄できません");
+    return;
+  }
+  if (sendUnknownAttempt !== null) {
+    log("送信指示の結果が不明な試行は破棄できません。先に⑤の復旧手順で判定まで進めてください");
     return;
   }
   if (trial === null) return;
@@ -1016,12 +1055,17 @@ sendDiscardBtn.addEventListener("click", async () => {
   ) {
     // 指示の到達確認ができない、または応答の形が破棄記録では
     // ない。実施有無が不明なため、状態未確定として扱い、再送
-    // しない。読み戻しで確かめ、送信器側の判定の記録は運転
-    // ランチャー（tools/s15-run.mjs）の復旧操作（judge）から
-    // 行うこと。ランチャーはこの画面と同じ送信器を同一
-    // プロセスで保持している。
-    log(`試行${attempt} の送信指示の結果を確認できませんでした（状態未確定）。再送はしません。読み戻しで状態を確かめ、送信器側の判定の記録は運転ランチャーの復旧操作（judge）で行ってください`);
-    eraseAllSecrets("s15-halted");
+    // しない。画面はこの分岐でのみ復旧可能になる（修正4）：
+    // 独立した読み戻しを行った上で、⑤の復旧ボタンで送信を
+    // 「結果不明」として記録し、sent-undetermined へ進めて
+    // から判定を記録する。復旧自体は何も送信しない。この
+    // 分岐では試行の秘密だけを消去し、試行は継続する（対象
+    // の主体ハッシュは再実施の同一性表示のために保持する。
+    // 状態機械の同一性強制は対象ハッシュを内部に保持してお
+    // り、表示用の変数には依存しない）。
+    log(`試行${attempt} の送信指示の結果を確認できませんでした（状態未確定）。再送はしません。独立した読み戻しで状態を確かめたら、⑤の復旧手順（送信を結果不明として記録する）で進めてください。画面が使えない場合は運転ランチャーの復旧操作（judge）でも判定を記録できます`);
+    sendUnknownAttempt = attempt;
+    eraseAttemptSecrets(role, "send-discarded");
     haltedPage = true;
     updateState();
     updateButtons();
@@ -1044,6 +1088,48 @@ sendDiscardBtn.addEventListener("click", async () => {
   log(`試行${attempt} の破棄送信を記録しました（応答は破棄されました）`, `試験ID=${entry.trial_id}`);
   eraseAttemptSecrets(role, "send-discarded");
   log(`続いて読み戻し判定を行ってください（試行${attempt} の成否は読み戻しだけで判定します）`);
+  updateState();
+  updateButtons();
+});
+
+// 送信指示の応答を喪失した場合の復旧（修正4、Codex 再レビュー
+// 6880300681）。送信指示の応答喪失の分岐でのみ有効になる。
+// この操作自体は何も送信しない：独立した読み戻しを行った上で、
+// 画面の状態機械へ送信を「送信済み・結果不明」として記録し、
+// sent-undetermined へ進めるだけである。その後は通常どおり
+// 読み戻しの4項目で判定を記録し、区分は送信器へ鏡像する
+// （ランチャーの judge が先に記録していた場合は、同じ区分で
+// あれば記録済みとして受け付けられる＝担い手ルール）。
+recoverUnknownSendBtn.addEventListener("click", () => {
+  if (sendUnknownAttempt === null || trial === null) {
+    log("復旧できる送信はありません（送信指示の結果が不明な停止状態ではありません）");
+    return;
+  }
+  if (sending || isAnyNonceFetchPending()) {
+    log("復旧は、送信中・nonce取得中は行えません");
+    return;
+  }
+  let rec;
+  try {
+    rec = session.recordSendOutcomeUnknown(trial.trialId, trial.generation);
+  } catch (e) {
+    log("復旧できませんでした： " + e.message);
+    updateState();
+    updateButtons();
+    return;
+  }
+  sendUnknownAttempt = null;
+  haltedPage = false;
+  const entry = makeS15LogEntry({
+    trialId: trial.trialId,
+    step: "send-outcome-unknown",
+    attempt: rec.attempt,
+  });
+  log(
+    `試行${rec.attempt} の送信を「送信済み・結果不明」として記録しました（復旧では何も送信していません）`,
+    `試験ID=${entry.trial_id}`
+  );
+  log("続いて独立した読み戻しの4項目を入力し、判定を記録してください。送信器側の判定は判定の記録で鏡像します（ランチャーの judge で記録済みの場合は、同じ区分であれば記録済みとして受け付けます）");
   updateState();
   updateButtons();
 });
@@ -1093,14 +1179,27 @@ recordJudgmentBtn.addEventListener("click", async () => {
   sending = false;
   if (outcome.kind !== "ok" || outcome.data.ok !== true) {
     const code = outcome.kind === "ok" ? "unexpected_response" : outcome.code;
-    log(
-      `判定 ${result.outcome} の送信器への記録が完了しませんでした。理由コード： ${code}。` +
-      "状態機械と送信器の判定がずれているため、この試行は停止します（所有者へ報告してください）"
-    );
+    if (code === "s15_judgment_conflict") {
+      log(
+        `判定 ${result.outcome} を送信器へ記録できませんでした： 送信器側には別の区分が記録済みです（s15_judgment_conflict）。` +
+        "担い手の記録と読み戻し判定がずれているため、不一致としてこの試行は停止します（所有者へ報告してください）"
+      );
+    } else {
+      log(
+        `判定 ${result.outcome} の送信器への記録が完了しませんでした。理由コード： ${code}。` +
+        "状態機械と送信器の判定がずれているため、この試行は停止します（所有者へ報告してください）"
+      );
+    }
     haltedPage = true;
     updateState();
     updateButtons();
     return;
+  }
+  if (outcome.data.already_recorded === true) {
+    // 担い手ルール：ランチャーの judge が同じ区分を先に記録
+    // していた。鏡像は記録済みとして受け付けられたため、復旧
+    // は失敗ではない。
+    log(`試行${result.attempt} の判定は送信器側に記録済みでした（ランチャーの復旧操作による記録）。同じ区分のため、記録済みとして受け付けました`);
   }
   const entry = makeS15LogEntry({
     trialId: trial.trialId,

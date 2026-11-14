@@ -219,6 +219,7 @@ const s15SenderLines = readRel("tools/s15-sender.mjs").split("\n");
 const s15DriverLines = readRel("tools/s15-driver.mjs").split("\n");
 const s15RunLines = readRel("tools/s15-run.mjs").split("\n");
 const s15ServeTestLines = readRel("test/serve-real-s15.test.mjs").split("\n");
+const s15ScreenTestLines = readRel("test/s15-apply.screen.mjs").split("\n");
 const coreRunLines = readRel("test/run.mjs").split("\n");
 const s15GuardLines = readRel("test/s15-guard.test.mjs").split("\n");
 const s15ScreenLines = readRel("public/s15-apply.html").split("\n");
@@ -1276,6 +1277,38 @@ const checks = {
     found: findLines(coreRunLines, /armForcedExit/),
     expect: "present",
   },
+  // S15 修正4（Codex 再レビュー 6880300681）：送信指示の応答
+  // 喪失からの復旧は実画面から行えること。状態機械は結果不明
+  // の送信を記録する専用遷移（recordSendOutcomeUnknown）を
+  // 持ち、画面には復旧ボタンがあること。担い手ルールは提供
+  // 層が扱い、送信器は記録済み判定の照会（judgmentFor）を
+  // 提供すること。入口は already_recorded の受け付けと
+  // s15_judgment_conflict の拒否を持つこと。実画面試験に
+  // 復旧場面が存在すること。
+  s15_module_outcome_unknown_transition: {
+    found: findLines(s15ModuleLines, /recordSendOutcomeUnknown/),
+    expect: "present",
+  },
+  s15_sender_judgment_query: {
+    found: findLines(s15SenderLines, /judgmentFor/),
+    expect: "present",
+  },
+  s15_serve_already_recorded: {
+    found: findLines(serveRealLines, /already_recorded/),
+    expect: "present",
+  },
+  s15_serve_judgment_conflict: {
+    found: findLines(serveRealLines, /s15_judgment_conflict/),
+    expect: "present",
+  },
+  s15_screen_recovery_button: {
+    found: findLines(s15ScreenLines, /recoverUnknownSend/),
+    expect: "present",
+  },
+  s15_screen_recovery_test_present: {
+    found: findLines(s15ScreenTestLines, /recoverUnknownSend/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -1460,7 +1493,7 @@ const manifest = {
     s14_rotate_page: "public/s14-rotate.html（tools/serve-real.mjs が /s14-rotate で配信。GOOGLE_CLIENT_ID と S14 セッションをメモリ上で差し込む。項目6 手順7（ローテーション A→B）の専用画面。対象 A・B の主体ハッシュを取得し、A の認可でローテーションを送り（generation 6→7・登録簿 {A}→{B}。削除と追加は同一トランザクション）、A の次回操作が 403 not_operator で拒否されること（この拒否が合格。状態は変わらない）と B の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s14-rotate.mjs は Node 試験 test/s14-rotate.test.mjs と共用する。送信は提供サーバー側の tools/s14-sender.mjs（Node）が行う。名前付きスロット（rotateAB / checkA / checkB）ごとに Cookie jar を分け、ローテーションの対象は旧主体・新主体の組で送信器の境界でも結び付け、期待世代は固定する（rotateAB = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s14-sender.test.mjs、実 Worker との結線は test/s14-guard.test.mjs、画面の実画面試験は test/s14-rotate.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
     s15_driver: "tools/s15-driver.mjs（S15 の PC 側運転コード。createS15Driver は提供サーバー（tools/serve-real.mjs）を同一プロセスで生成して待ち受け、attachS15Driver は生成済みの提供サーバーへ結び付ける。S15 入口の試験単位セッションを createRealServer の戻り値としてメモリー内だけで受け取り、x-s15-session ヘッダーで示す。値はログ・URL・応答・ファイルに出ない）",
-    s15_run: "tools/s15-run.mjs（S15 運転ランチャー。提供サーバーを同一プロセスで生成し、S15 専用画面の配信と復旧操作の運転ハンドル（attachS15Driver）を同じプロセスで保持する。画面の送信指示の結果が不明になった場合は、独立した読み戻しの後に、標準入力の judge 操作で判定を画面と同じ送信器へ記録する。セッション値はメモリー内だけで受け渡し、標準入出力・URL・ファイルに出ない）",
+    s15_run: "tools/s15-run.mjs（S15 運転ランチャー。提供サーバーを同一プロセスで生成し、S15 専用画面の配信と復旧操作の運転ハンドル（attachS15Driver）を同じプロセスで保持する。判定の記録は画面の復旧手順が優先であり、judge 操作は画面が使えない場合の代替である（担い手ルール：同じ区分の二重記録は already_recorded として受け付けられ、異なる区分は s15_judgment_conflict で拒否される）。セッション値はメモリー内だけで受け渡し、標準入出力・URL・ファイルに出ない）",
   },
   source_checks: checks,
 };

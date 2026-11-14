@@ -647,3 +647,162 @@ test("試行切替関門：送信していない試行は新しい試行で切�
   assert.equal(session.isCurrent(trialId, generation), false);
   assert.equal(session.snapshot().sendCount, 0);
 });
+
+test("結果不明の復旧遷移：attempt-captured からのみ記録でき、判定・再実施・締めへ進める", () => {
+  const { session, trialId, generation } = beginSession();
+  freeze(session, trialId, generation);
+  captureAttempt(session, trialId, generation, 1);
+  const rec = session.recordSendOutcomeUnknown(trialId, generation);
+  assert.equal(rec.attempt, 1);
+  assert.equal(rec.sendCount, 1);
+  assert.equal(rec.state, "sent-undetermined");
+  assert.equal(rec.outcome, "unknown");
+  const snap = session.snapshot();
+  assert.equal(snap.phase, "sent-undetermined");
+  assert.equal(snap.sendCount, 1);
+  assert.equal(snap.outcomeUnknownSends, 1);
+  assert.equal(snap.undetermined, true);
+  // 判定が記録されるまで、開始でも破棄でも切り替えられない
+  // （通常の破棄記録と同じ関門）。
+  assertCode(
+    () =>
+      session.beginTrial({
+        operationId: OP5,
+        envId: ENV_ID,
+        startConsumedOperationIds: [OP1, OP3],
+      }),
+    "s15_trial_unjudged"
+  );
+  assertCode(() => session.discard(trialId, generation), "s15_trial_unjudged");
+  // 判定（未成立）→ 再実施が開く。再実施は通常の破棄記録で進める。
+  const judged = session.recordReadBackJudgment(trialId, generation, readBack());
+  assert.equal(judged.outcome, "uncommitted");
+  assert.equal(judged.state, "reattempt-ready");
+  captureAttempt(session, trialId, generation, 2);
+  session.recordSendDiscard(trialId, generation, { ...DISCARDED });
+  const judged2 = session.recordReadBackJudgment(trialId, generation, COMMITTED_RB());
+  assert.equal(judged2.outcome, "committed");
+  const restored = session.recordNormalRestored(trialId, generation, {
+    versionVerified: true,
+    bindingsVerified: true,
+  });
+  assert.equal(restored.state, "closed");
+});
+
+test("結果不明の復旧遷移：committed を直接判定でき、discrepancy は停止して復帰記録を受け付ける", () => {
+  const a = beginSession();
+  freeze(a.session, a.trialId, a.generation);
+  captureAttempt(a.session, a.trialId, a.generation, 1);
+  a.session.recordSendOutcomeUnknown(a.trialId, a.generation);
+  const judged = a.session.recordReadBackJudgment(a.trialId, a.generation, COMMITTED_RB());
+  assert.equal(judged.outcome, "committed");
+  assert.equal(
+    a.session.recordNormalRestored(a.trialId, a.generation, {
+      versionVerified: true,
+      bindingsVerified: true,
+    }).state,
+    "closed"
+  );
+
+  const b = beginSession();
+  freeze(b.session, b.trialId, b.generation);
+  captureAttempt(b.session, b.trialId, b.generation, 1);
+  b.session.recordSendOutcomeUnknown(b.trialId, b.generation);
+  const judgedB = b.session.recordReadBackJudgment(
+    b.trialId,
+    b.generation,
+    readBack({ generation: 9 })
+  );
+  assert.equal(judgedB.outcome, "discrepancy");
+  assert.equal(judgedB.state, "halted");
+  const restoredB = b.session.recordNormalRestored(b.trialId, b.generation, {
+    versionVerified: true,
+    bindingsVerified: true,
+  });
+  assert.equal(restoredB.state, "halted");
+  assert.equal(restoredB.normalRestored, true);
+});
+
+test("結果不明の復旧遷移：3回目の送信でも数え方は通常と一致する（未成立で uncommitted-final）", () => {
+  const { session, trialId, generation } = beginSession();
+  freeze(session, trialId, generation);
+  captureAttempt(session, trialId, generation, 1);
+  session.recordSendDiscard(trialId, generation, { ...DISCARDED });
+  session.recordReadBackJudgment(trialId, generation, readBack());
+  captureAttempt(session, trialId, generation, 2);
+  session.recordSendOutcomeUnknown(trialId, generation);
+  session.recordReadBackJudgment(trialId, generation, readBack());
+  captureAttempt(session, trialId, generation, 3);
+  session.recordSendOutcomeUnknown(trialId, generation);
+  const judged = session.recordReadBackJudgment(trialId, generation, readBack());
+  assert.equal(judged.outcome, "uncommitted");
+  assert.equal(judged.state, "uncommitted-final");
+  assert.equal(session.snapshot().outcomeUnknownSends, 2);
+  assert.equal(
+    session.recordNormalRestored(trialId, generation, {
+      versionVerified: true,
+      bindingsVerified: true,
+    }).state,
+    "closed"
+  );
+});
+
+test("結果不明の復旧遷移：attempt-captured 以外の状態からは拒否する", () => {
+  // start（対象未取得）
+  const s1 = beginSession();
+  assertCode(() => s1.session.recordSendOutcomeUnknown(s1.trialId, s1.generation), "trial_order");
+  // target-captured（凍結前）
+  captureTarget(s1.session, s1.trialId, s1.generation);
+  assertCode(() => s1.session.recordSendOutcomeUnknown(s1.trialId, s1.generation), "trial_order");
+  // approval-frozen（試行の取得前）
+  s1.session.freezeApproval(s1.trialId, s1.generation);
+  assertCode(() => s1.session.recordSendOutcomeUnknown(s1.trialId, s1.generation), "trial_order");
+  // sent-undetermined（通常の破棄記録の後：二重の送信記録はできない）
+  const s2 = throughSent();
+  assertCode(() => s2.session.recordSendOutcomeUnknown(s2.trialId, s2.generation), "trial_order");
+  // reattempt-ready（未成立の判定の後）
+  s2.session.recordReadBackJudgment(s2.trialId, s2.generation, readBack());
+  assertCode(() => s2.session.recordSendOutcomeUnknown(s2.trialId, s2.generation), "trial_order");
+  // committed（実測の後）
+  captureAttempt(s2.session, s2.trialId, s2.generation, 2);
+  s2.session.recordSendDiscard(s2.trialId, s2.generation, { ...DISCARDED });
+  s2.session.recordReadBackJudgment(s2.trialId, s2.generation, COMMITTED_RB());
+  assertCode(
+    () => s2.session.recordSendOutcomeUnknown(s2.trialId, s2.generation),
+    "s15_already_committed"
+  );
+  // closed（締めの後）
+  s2.session.recordNormalRestored(s2.trialId, s2.generation, {
+    versionVerified: true,
+    bindingsVerified: true,
+  });
+  assertCode(() => s2.session.recordSendOutcomeUnknown(s2.trialId, s2.generation), "trial_order");
+  // halted（主体不一致で停止）
+  const s3 = beginSession();
+  freeze(s3.session, s3.trialId, s3.generation);
+  assertCode(
+    () => captureAttempt(s3.session, s3.trialId, s3.generation, 1, 3000, HASH_C),
+    "wrong_subject"
+  );
+  assertCode(() => s3.session.recordSendOutcomeUnknown(s3.trialId, s3.generation), "trial_order");
+  // 別の試行に対する呼び出しは stale_attempt。
+  assertCode(
+    () => s3.session.recordSendOutcomeUnknown("trial-nope", s3.generation),
+    "stale_attempt"
+  );
+});
+
+test("ログ記録：結果不明の送信は outcome が \"unknown\" で、秘密は含まれない", () => {
+  const entry = makeS15LogEntry({
+    trialId: "trial-fixture",
+    step: "send-outcome-unknown",
+    attempt: 2,
+  });
+  assert.equal(entry.step, "send-outcome-unknown");
+  assert.equal(entry.attempt, 2);
+  assert.equal(entry.outcome, "unknown");
+  assert.throws(
+    () => makeS15LogEntry({ trialId: "trial-fixture", step: "send-outcome-unknown" }),
+    (e) => e && e.code === "bad_trial_input"
+  );
+});

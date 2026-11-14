@@ -20,6 +20,18 @@
 //   /s15/nonces と /s15/freeze-approval と /s15/send-discard
 //   を経て送信器へ渡ること（引数の一致で確認する）。
 //
+// あわせて、Codex 再レビュー 6880300681（修正4）の復旧手順を、
+// 実画面の停止状態から確認する。
+// - 送信指示の応答喪失（/s15/send-discard の応答を場面制御で
+//   落とす）で画面が attempt-captured のまま停止し、復旧ボタン
+//   だけが有効になること。復旧前の判定は拒否されること。
+// - 復旧（送信を結果不明として記録）は何も送信せず、判定 →
+//   未成立なら同じ画面から再実施 → 実測 → 復帰記録 → closed
+//   まで進めること（場面A）。実測を直接判定しても締められる
+//   こと（場面B）。鏡像が記録済み（already_recorded）を返す
+//   場合（ランチャーの judge が先に記録した担い手ルール）も
+//   復旧は失敗しないこと（場面B）。
+//
 // 実行環境の制約：この VM では実ブラウザーの起動ができないため
 // jsdom でページを実行する（s14-rotate.screen.mjs と同じ方式）。
 // - GIS は偽物（beforeParse で window.google を差し替え、本物の
@@ -233,6 +245,14 @@ try {
         window.__applyCalls = [];
         window.__senderNonceCounter = 0;
         window.__directNonceCounter = 0;
+        // 復旧場面（修正4）の制御：__dropSendResponses が正の間、
+        // /s15/send-discard の呼び出しは記録だけして応答を失わせる
+        // （送信器側の送信は完了したのに、画面が破棄記録を受け取れ
+        // なかった状態の再現）。__judgeAlreadyRecorded が真の間、
+        // /s15/record-judgment は記録済み（already_recorded）を返す
+        // （ランチャーの judge が先に記録した担い手ルールの再現）。
+        window.__dropSendResponses = 0;
+        window.__judgeAlreadyRecorded = false;
         const nodeFetch = fetch;
         window.fetch = async (input, init = {}) => {
           const rawUrl = typeof input === "string" ? input : input.url;
@@ -301,6 +321,12 @@ try {
             }
             if (pathname === "/s15/send-discard") {
               window.__sendCalls.push(record);
+              if (window.__dropSendResponses > 0) {
+                window.__dropSendResponses -= 1;
+                // 送信器側の送信は完了しているが、画面への応答が
+                // 失われた状態を再現する（fetch が例外になる）。
+                throw new TypeError("応答喪失（試験用の再現）");
+              }
               // 提供層が返すのは破棄記録だけである。
               return new Response(JSON.stringify({ sent: true, outcome: "discarded" }), {
                 status: 200,
@@ -308,6 +334,12 @@ try {
               });
             }
             window.__judgeCalls.push(record);
+            if (window.__judgeAlreadyRecorded) {
+              return new Response(JSON.stringify({ ok: true, already_recorded: true }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
             return new Response(JSON.stringify({ ok: true }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -609,6 +641,196 @@ try {
     "実画面: 最後まで画面から送信先への直接要求は0件である",
     window.__applyCalls.length === 0 && relayHits.apply === 0
   );
+
+  // ---- 復旧場面（修正4、Codex 再レビュー 6880300681） ----
+  // 送信指示の応答が失われた場合に、実画面の復旧手順で
+  // attempt-captured の停止から再実施・締めまで進めることを、
+  // 新しい DOM で確認する。補助関数は試行1の送信器固定までを
+  // 駆動する（場面ごとに新しい DOM を使うため、カウンタは
+  // その DOM 内で 0 から始まる）。
+  async function driveToFrozenAttempt1(w) {
+    setValue(w, "operationId", OP5);
+    setValue(w, "envId", ENV_ID);
+    setValue(w, "startConsumed1", OP1);
+    setValue(w, "startConsumed2", OP3);
+    dispatchClick(w, "newTrial");
+    await waitFor(() => phase(w) === "start");
+    dispatchClick(w, "prepTarget");
+    await waitFor(() => w.__gis.callbacks.length === 1);
+    w.__gis.callbacks[0]({ credential: mintToken("direct-nonce-1", SUB_B) });
+    await waitFor(() => el(w, "targetHash").textContent === HASH_B);
+    setChecked(w, "targetConfirmed");
+    dispatchClick(w, "completeTarget");
+    await waitFor(() => phase(w) === "target-captured");
+    dispatchClick(w, "freezeApproval");
+    await waitFor(() => phase(w) === "approval-frozen");
+    dispatchClick(w, "prepAttempt");
+    await waitFor(() => w.__gis.callbacks.length === 2);
+    w.__gis.callbacks[1]({ credential: mintToken("sender-nonce-1", SUB_B) });
+    await waitFor(() => el(w, "attemptHash").textContent === HASH_B);
+    setChecked(w, "attemptConfirmed");
+    dispatchClick(w, "completeAttempt");
+    await waitFor(() => phase(w) === "attempt-captured");
+    setValue(w, "oneTimeValue", ONE_TIME_1, "input");
+    dispatchClick(w, "freezeSender");
+    await waitFor(
+      () => w.__freezeCalls.length === 1 && el(w, "sendDiscard").disabled === false
+    );
+    return el(w, "trialId").textContent;
+  }
+  function setJudgmentInputs(w, { generation, completion, consumed, operators }) {
+    setValue(w, "judgeGeneration", String(generation));
+    setValue(w, "judgeCompletion", String(completion));
+    setValue(w, "judgeConsumed", consumed);
+    setValue(w, "judgeOperators", operators);
+  }
+
+  // 場面A：応答喪失 → 停止 → 復旧 → 未成立 → 同じ画面から
+  // 再実施 → 実測 → 復帰記録 → closed。
+  {
+    const { window: wA } = await makeDom();
+    await driveToFrozenAttempt1(wA);
+    wA.__dropSendResponses = 1;
+    dispatchClick(wA, "sendDiscard");
+    await waitFor(
+      () => logText(wA).includes("状態未確定") && phase(wA) === "attempt-captured"
+    );
+    check(
+      "復旧A: 送信指示の応答喪失で画面は attempt-captured のまま停止し、送信は1件だけ記録される",
+      phase(wA) === "attempt-captured" &&
+        wA.__sendCalls.length === 1 &&
+        logText(wA).includes("再送はしません"),
+      `phase=${phase(wA)} sends=${wA.__sendCalls.length}`
+    );
+    check(
+      "復旧A: 停止中は復旧ボタンだけが有効で、判定・新規試行・破棄・送信は無効である",
+      el(wA, "recoverUnknownSend").disabled === false &&
+        el(wA, "recordJudgment").disabled === true &&
+        el(wA, "newTrial").disabled === true &&
+        el(wA, "discardTrial").disabled === true &&
+        el(wA, "sendDiscard").disabled === true
+    );
+    // 復旧前に判定を押しても、状態機械が拒否し送信器へは何も
+    // 記録されない（判定は sent-undetermined でのみ可能）。
+    setJudgmentInputs(wA, {
+      generation: 7,
+      completion: 2,
+      consumed: `${OP1}, ${OP3}`,
+      operators: HASH_B,
+    });
+    dispatchClick(wA, "recordJudgment");
+    await sleep(500);
+    check(
+      "復旧A: 復旧前の判定は拒否され、送信器への判定記録は0件のままである",
+      phase(wA) === "attempt-captured" && wA.__judgeCalls.length === 0,
+      `phase=${phase(wA)} judge=${wA.__judgeCalls.length}`
+    );
+    // 復旧：何も送信せず、画面の状態だけが sent-undetermined へ進む。
+    dispatchClick(wA, "recoverUnknownSend");
+    await waitFor(() => phase(wA) === "sent-undetermined");
+    check(
+      "復旧A: 復旧で phase=sent-undetermined になり、送信・発行・固定の件数は増えない",
+      phase(wA) === "sent-undetermined" &&
+        wA.__sendCalls.length === 1 &&
+        wA.__nonceCalls.length === 1 &&
+        wA.__freezeCalls.length === 1 &&
+        el(wA, "recoverUnknownSend").disabled === true &&
+        el(wA, "recordJudgment").disabled === false
+    );
+    // 判定（未成立）→ 同じ試行の再実施が画面で開く。
+    dispatchClick(wA, "recordJudgment");
+    await waitFor(() => phase(wA) === "reattempt-ready" && wA.__judgeCalls.length === 1);
+    check(
+      "復旧A: 未成立の判定が送信器へ鏡像され（attempt=1・uncommitted）、再実施が開く",
+      wA.__judgeCalls.length === 1 &&
+        wA.__judgeCalls[0].body.attempt === 1 &&
+        wA.__judgeCalls[0].body.outcome === "uncommitted" &&
+        phase(wA) === "reattempt-ready"
+    );
+    // 試行2を同じ画面から通常どおり実施する。
+    dispatchClick(wA, "prepAttempt");
+    await waitFor(() => wA.__gis.callbacks.length === 3);
+    wA.__gis.callbacks[2]({ credential: mintToken("sender-nonce-2", SUB_B) });
+    await waitFor(() => el(wA, "attemptHash").textContent === HASH_B);
+    check(
+      "復旧A: 再実施でも試行の主体が対象 B と同一であることが表示される（対象ハッシュは保持されている）",
+      el(wA, "attemptFacts").textContent.includes("確認済み")
+    );
+    setChecked(wA, "attemptConfirmed");
+    dispatchClick(wA, "completeAttempt");
+    await waitFor(() => phase(wA) === "attempt-captured");
+    setValue(wA, "oneTimeValue", ONE_TIME_2, "input");
+    dispatchClick(wA, "freezeSender");
+    await waitFor(
+      () => wA.__freezeCalls.length === 2 && el(wA, "sendDiscard").disabled === false
+    );
+    dispatchClick(wA, "sendDiscard");
+    await waitFor(() => phase(wA) === "sent-undetermined" && wA.__sendCalls.length === 2);
+    setJudgmentInputs(wA, {
+      generation: 8,
+      completion: 3,
+      consumed: `${OP1}, ${OP3}, ${OP5}`,
+      operators: HASH_B,
+    });
+    dispatchClick(wA, "recordJudgment");
+    await waitFor(() => phase(wA) === "committed" && wA.__judgeCalls.length === 2);
+    setChecked(wA, "versionVerified");
+    setChecked(wA, "bindingsVerified");
+    dispatchClick(wA, "recordRestore");
+    await waitFor(() => phase(wA) === "closed");
+    check(
+      "復旧A: 再実施→実測→復帰記録で closed になり、送信は計画どおり合計2件・直接要求は0件である",
+      phase(wA) === "closed" &&
+        wA.__sendCalls.length === 2 &&
+        wA.__applyCalls.length === 0,
+      `phase=${phase(wA)} sends=${wA.__sendCalls.length} apply=${wA.__applyCalls.length}`
+    );
+  }
+
+  // 場面B：応答喪失 → 復旧 → 実測を直接判定して締める。
+  // あわせて担い手ルール：ランチャーの judge が先に同じ区分を
+  // 記録していた場合（鏡像が already_recorded を返す場合）も、
+  // 画面の復旧は失敗せずに進む。
+  {
+    const { window: wB } = await makeDom();
+    await driveToFrozenAttempt1(wB);
+    wB.__dropSendResponses = 1;
+    dispatchClick(wB, "sendDiscard");
+    await waitFor(
+      () => logText(wB).includes("状態未確定") && phase(wB) === "attempt-captured"
+    );
+    dispatchClick(wB, "recoverUnknownSend");
+    await waitFor(() => phase(wB) === "sent-undetermined");
+    wB.__judgeAlreadyRecorded = true;
+    setJudgmentInputs(wB, {
+      generation: 8,
+      completion: 3,
+      consumed: `${OP1}, ${OP3}, ${OP5}`,
+      operators: HASH_B,
+    });
+    dispatchClick(wB, "recordJudgment");
+    await waitFor(() => phase(wB) === "committed" && wB.__judgeCalls.length === 1);
+    check(
+      "復旧B: 実測の判定が記録され、鏡像の already_recorded は記録済みとして受け付けられる（復旧は失敗しない）",
+      phase(wB) === "committed" &&
+        wB.__judgeCalls.length === 1 &&
+        wB.__judgeCalls[0].body.attempt === 1 &&
+        wB.__judgeCalls[0].body.outcome === "committed" &&
+        logText(wB).includes("記録済みとして受け付けました"),
+      `phase=${phase(wB)} judge=${wB.__judgeCalls.length}`
+    );
+    setChecked(wB, "versionVerified");
+    setChecked(wB, "bindingsVerified");
+    dispatchClick(wB, "recordRestore");
+    await waitFor(() => phase(wB) === "closed");
+    check(
+      "復旧B: 復帰記録で closed になり、送信は当初の1件だけ・直接要求は0件である",
+      phase(wB) === "closed" &&
+        wB.__sendCalls.length === 1 &&
+        wB.__applyCalls.length === 0,
+      `phase=${phase(wB)} sends=${wB.__sendCalls.length} apply=${wB.__applyCalls.length}`
+    );
+  }
 } catch (e) {
   check(`実画面: 実行が完走する（例外: ${e.message}）`, false, String(e.stack || e).slice(0, 400));
 } finally {

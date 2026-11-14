@@ -25,12 +25,23 @@
 //   2. 送信指示の結果が不明になった場合（画面が状態未確定で
 //      停止した場合）は、再送しない。独立した読み戻し（検証用
 //      Worker の Data Studio 等）で状態を確かめる。
-//   3. 読み戻しの区分が確定したら、このランチャーの標準入力へ
-//      次の1行を入力する（復旧操作）。
+//   3. 判定の記録は画面が優先である（修正4、Codex 再レビュー
+//      6880300681）：画面の復旧手順（⑤の「送信を結果不明とし
+//      て記録する」）で画面の状態を sent-undetermined へ進め、
+//      画面から判定を記録する。送信器側の判定はその鏡像で記録
+//      されるため、ランチャーの操作は不要である。
+//   4. 画面が使えない場合の代替として、このランチャーの標準
+//      入力へ次の1行を入力する（復旧操作）。
 //        judge <試行ID> <試行番号> <committed|uncommitted|discrepancy>
 //      判定は同一プロセスの送信器へ記録され、結果（記録できた
-//      こと、または拒否の理由コードだけ）が表示される。
-//   4. 判定の記録後、画面側で再実施または締めへ進む。終了は
+//      こと、または拒否の理由コードだけ）が表示される。担い手
+//      ルール：judge が先に記録していた場合でも、後から画面が
+//      同じ区分を鏡像すると「記録済み（already_recorded）」と
+//      して受け付けられ、復旧は失敗しない。異なる区分は競合
+//      （s15_judgment_conflict）として拒否され、画面は不一致
+//      として停止する（担い手の記録と読み戻し判定がずれて
+//      いるため、扱いは所有者が判断する）。
+//   5. 判定の記録後、画面側で再実施または締めへ進む。終了は
 //      quit と入力するか、標準入力を閉じる。
 //
 // セッションの受け渡しはメモリー内だけである（createRealServer
@@ -76,6 +87,12 @@ export async function handleRecoveryLine(driver, line) {
     if (!parsed) return { text: USAGE, quit: false };
     const result = await driver.recordJudgment(parsed);
     if (result && result.status === 200 && result.ok === true) {
+      if (result.already_recorded === true) {
+        return {
+          text: `判定は記録済みでした（同じ区分）: trial=${parsed.trialId} attempt=${parsed.attempt} outcome=${parsed.outcome}`,
+          quit: false,
+        };
+      }
       return {
         text: `判定を記録しました: trial=${parsed.trialId} attempt=${parsed.attempt} outcome=${parsed.outcome}`,
         quit: false,

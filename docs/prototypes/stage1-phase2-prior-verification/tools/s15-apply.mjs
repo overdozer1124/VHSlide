@@ -103,6 +103,7 @@ export const MAX_SENDS = MAX_REATTEMPTS + 1;
 // { sent: true, outcome: S15_DISCARDED_OUTCOME } だけであり、
 // HTTP 状態・応答本文・理由コード・世代は含まない。
 export const S15_DISCARDED_OUTCOME = "discarded";
+export const S15_UNKNOWN_OUTCOME = "unknown";
 
 // 判定の区分。
 export const S15_JUDGMENT_COMMITTED = "committed";
@@ -423,6 +424,7 @@ export function createS15Session() {
         claimed: { target: false, attempt1: false, attempt2: false, attempt3: false },
         nonces: { target: null, attempt1: null, attempt2: null, attempt3: null },
         sendCount: 0,
+        outcomeUnknownSends: [],
         uncommittedJudgments: 0,
         judgments: [], // { attempt, outcome }
         discrepancy: false,
@@ -637,6 +639,41 @@ export function createS15Session() {
         state: "sent-undetermined",
       });
     },
+    // 送信指示の応答を喪失した場合の復旧遷移（修正4、Codex
+    // 再レビュー 6880300681）。画面が破棄記録を受け取れな
+    // かった場合、画面の状態機械は attempt-captured のまま
+    // 停止する。独立した読み戻しを行った上で、操作者が画面
+    // の復旧手順を選んだときに限り、この遷移で送信を「送信
+    // 済み・結果不明」として記録し、sent-undetermined へ進
+    // める。この遷移自体は何も送らない（再送ではない）。
+    // attempt-captured 以外の状態からは拒否する。破棄記録が
+    // 得られた通常の送信には recordSendDiscard を使い、この
+    // 遷移は使わない（通常の記録の後に呼ぶと拒否される）。
+    // 送信器側の送信は記録の時点で完了している前提である
+    // （送信器の recordJudgment が飛行中の判定記録を拒否する
+    // ため、判定の送信器への鏡像は送信の確定を保証する）。
+    recordSendOutcomeUnknown(trialId, gen) {
+      const cur = requireCurrent(trialId, gen);
+      if (cur.phase === "committed") {
+        fail("s15_already_committed", "committed の判定の後に送信はできません");
+      }
+      if (cur.phase !== "attempt-captured") {
+        fail(
+          "trial_order",
+          "結果不明の復旧は、送信指示の応答を喪失した停止状態（attempt-captured）からのみ可能です"
+        );
+      }
+      cur.sendCount += 1;
+      cur.outcomeUnknownSends.push(cur.sendCount);
+      cur.phase = "sent-undetermined";
+      return deepFreeze({
+        trialId,
+        attempt: cur.sendCount,
+        sendCount: cur.sendCount,
+        state: "sent-undetermined",
+        outcome: S15_UNKNOWN_OUTCOME,
+      });
+    },
     // 読み戻しによる判定の記録。sent-undetermined のときに
     // だけ呼べる。rawSnapshot は RegistryDO の snapshot の形
     // （または正規形）であり、正規化してから judgeS15ReadBack
@@ -732,6 +769,7 @@ export function createS15Session() {
         reattemptsUsed: Math.max(0, cur.sendCount - 1),
         uncommittedJudgments: cur.uncommittedJudgments,
         judgmentsRecorded: cur.judgments.length,
+        outcomeUnknownSends: cur.outcomeUnknownSends.length,
         undetermined: cur.phase === "sent-undetermined",
         discrepancy: cur.discrepancy,
         normalRestored: cur.normalRestored,
@@ -756,6 +794,7 @@ export function makeS15LogEntry({ trialId, step, attempt = null, judgment = null
     "approval-frozen",
     "attempt-captured",
     "send-discarded",
+    "send-outcome-unknown",
     "judged-committed",
     "judged-uncommitted",
     "judged-discrepancy",
@@ -765,7 +804,7 @@ export function makeS15LogEntry({ trialId, step, attempt = null, judgment = null
   if (!steps.includes(step)) {
     fail("bad_trial_input", "ステップが S15 のステップではありません");
   }
-  const needsAttempt = step === "attempt-captured" || step === "send-discarded" || step.startsWith("judged-");
+  const needsAttempt = step === "attempt-captured" || step === "send-discarded" || step === "send-outcome-unknown" || step.startsWith("judged-");
   if (needsAttempt && (!Number.isInteger(attempt) || attempt < 1 || attempt > MAX_SENDS)) {
     fail("bad_trial_input", "ステップに試行番号（1〜3）が必要です");
   }
@@ -782,6 +821,11 @@ export function makeS15LogEntry({ trialId, step, attempt = null, judgment = null
     step,
     attempt: needsAttempt ? attempt : null,
     judgment: step.startsWith("judged-") ? judgment : null,
-    outcome: step === "send-discarded" ? S15_DISCARDED_OUTCOME : null,
+    outcome:
+      step === "send-discarded"
+        ? S15_DISCARDED_OUTCOME
+        : step === "send-outcome-unknown"
+          ? S15_UNKNOWN_OUTCOME
+          : null,
   });
 }

@@ -207,7 +207,11 @@
 //   値はログ・応答に出さない。
 // - POST /s15/record-judgment → 独立した読み戻しによる判定
 //   （committed / uncommitted / discrepancy）を送信器へ記録
-//   する。未成立の判定の記録だけが次の試行枠を開く。
+//   する。未成立の判定の記録だけが次の試行枠を開く。担い手
+//   ルール（修正4）：同じ試行・試行番号に同じ区分が記録済み
+//   の場合は { ok: true, already_recorded: true } を返し、異
+//   なる区分が記録済みの場合は s15_judgment_conflict で拒否
+//   する（判定の記録は画面が優先、ランチャーの judge は代替）。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -1844,14 +1848,46 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ error: "bad_body" }));
             return;
           }
-          s15Sender.recordJudgment({
-            trialId: parsed.trial_id,
-            attempt: parsed.attempt,
-            outcome: parsed.outcome,
-          });
+          // 担い手ルール（修正4、Codex 再レビュー 6880300681）：
+          // 判定の記録は、画面の復旧・判定が優先であり、ランチャー
+          // の judge は画面が使えない場合の代替である。どちらが
+          // 先に記録しても、もう一方が同じ区分を記録しようとした
+          // 場合は失敗にせず「記録済み（already_recorded）」として
+          // 受け付ける。異なる区分が記録済みの場合は
+          // s15_judgment_conflict で拒否し、呼び出し側は不一致と
+          // して停止する。記録が何もない順序違反は、従来どおり
+          // s15_judgment_order をそのまま返す。
+          let alreadyRecorded = false;
+          try {
+            s15Sender.recordJudgment({
+              trialId: parsed.trial_id,
+              attempt: parsed.attempt,
+              outcome: parsed.outcome,
+            });
+          } catch (e) {
+            if (e && e.code === "s15_judgment_order") {
+              const existing = s15Sender.judgmentFor(parsed.trial_id, parsed.attempt);
+              if (existing === parsed.outcome) {
+                alreadyRecorded = true;
+              } else if (existing !== null) {
+                console.log(`POST ${pathname} -> 409`);
+                res.writeHead(409, { "content-type": "application/json" });
+                res.end(JSON.stringify({ error: "s15_judgment_conflict" }));
+                return;
+              } else {
+                throw e;
+              }
+            } else {
+              throw e;
+            }
+          }
           console.log(`POST ${pathname} -> 200`);
           res.writeHead(200, { "content-type": "application/json" });
-          res.end(JSON.stringify({ ok: true }));
+          res.end(
+            JSON.stringify(
+              alreadyRecorded ? { ok: true, already_recorded: true } : { ok: true }
+            )
+          );
           return;
         }
         // /s15/send-discard：要求の形を確認してから送信器へ渡す。

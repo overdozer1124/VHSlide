@@ -492,6 +492,21 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
       if (outcome !== S15_JUDGMENT_UNCOMMITTED) cur.settledOutcome = outcome;
       return true;
     },
+    // 記録済みの判定の照会（修正4、Codex 再レビュー
+    // 6880300681）。現行の試行・試行番号に記録された判定区分
+    // を返し、記録がなければ null を返す。読み取り専用であり、
+    // recordJudgment の意味は変えない（二重の記録は従来どおり
+    // s15_judgment_order で拒否する）。提供層はこの照会で担い
+    // 手ルールを扱う：ランチャーの judge が先に判定を記録して
+    // いた場合、画面側の鏡像が同じ区分なら「記録済み」として
+    // 受け付け、異なる区分なら競合として拒否する。返すのは
+    // 判定区分だけであり、秘密は含まない。
+    judgmentFor(trialId, attempt) {
+      const cur = current;
+      if (cur === null || cur.trialId !== trialId) return null;
+      if (!Number.isInteger(attempt) || attempt < 1 || attempt > MAX_SENDS) return null;
+      return cur.judgments.has(attempt) ? cur.judgments.get(attempt) : null;
+    },
     // 試行枠の発行開始時刻（期限基準）。未発行なら null。
     slotIssuedAt(trialId, attempt) {
       const cur = current;

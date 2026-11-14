@@ -92,7 +92,11 @@ function buildS15Driver({ server, session, base }) {
         request,
       });
     },
-    // 独立した読み戻しによる判定の送信器への記録。
+    // 独立した読み戻しによる判定の送信器への記録。担い手
+    // ルール（修正4）：同じ試行・試行番号に同じ区分が記録
+    // 済みの場合は、入口が { status: 200, ok: true,
+    // already_recorded: true } を返し、異なる区分が記録済み
+    // の場合は s15_judgment_conflict で拒否する。
     recordJudgment({ trialId, attempt, outcome }) {
       return post("/s15/record-judgment", {
         trial_id: trialId,
