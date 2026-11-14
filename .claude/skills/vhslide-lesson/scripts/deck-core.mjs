@@ -305,18 +305,27 @@ async function side(s, x, y, w, h) {
   return [];
 }
 function tableEl(t, x, y, w, h) {
-  const rows = t.rows, cols = rows[0].length;
+  // Tolerate the small slips an AI makes (ragged rows, a highlight past the last row, sizes out of range): VHSlide rejects the whole file otherwise.
+  const name = t.title ?? t.rows?.[0]?.[0] ?? "表";
+  if (!Array.isArray(t.rows) || !t.rows.length || !t.rows.every(Array.isArray)) throw Error(`表「${name}」の rows は「行の配列」の配列にしてください。`);
+  const cols = Math.max(...t.rows.map(row => row.length));
+  if (t.rows.length > 12 || cols > 12 || !cols) throw Error(`表「${name}」は1〜12行・1〜12列にしてください（いま ${t.rows.length}行・${cols}列）。大きい表はページを分けてください。`);
+  const rows = t.rows.map(row => Array.from({ length: cols }, (_, j) => String(row[j] ?? "").slice(0, 2000)));
   const rid = rows.map((_, i) => `r${i}`), cid = rows[0].map((_, j) => `c${j}`);
   const cells = {}, styles = {};
-  rows.forEach((row, i) => row.forEach((v, j) => (cells[`${rid[i]}:${cid[j]}`] = String(v ?? ""))));
-  for (const i of t.highlight ?? []) for (let j = 0; j < cols; j++) styles[`${rid[i]}:${cid[j]}`] = { fill: T.accentSoft, bold: true, color: T.header === "chalk" ? "#1d1f23" : T.ink };
-  const headerLines = Math.max(...rows[0].map(v => String(v).split("\n").length));
+  rows.forEach((row, i) => row.forEach((v, j) => (cells[`${rid[i]}:${cid[j]}`] = v)));
+  const hi = (t.highlight ?? []).filter(i => Number.isInteger(i) && i >= 0 && i < rows.length);
+  if (hi.length !== (t.highlight ?? []).length) warn(`※ 表「${name}」の highlight（強調する行）に、ない行の番号がありました（行は見出しを0として 0〜${rows.length - 1}）。その番号は無視しました。`);
+  for (const i of hi) for (let j = 0; j < cols; j++) styles[`${rid[i]}:${cid[j]}`] = { fill: T.accentSoft, bold: true, color: T.header === "chalk" ? "#1d1f23" : T.ink };
+  const sizes = (list, ids) => Array.isArray(list) ? Object.fromEntries(list.slice(0, ids.length).map((v, k) => [ids[k], Number(v)]).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => [k, Math.min(8, Math.max(0.25, v))])) : undefined;
+  const widths = sizes(t.widths, cid), heights = sizes(t.heights, rid);
+  const headerLines = Math.max(...rows[0].map(v => v.split("\n").length));
   const fs = t.fontSize ?? Math.max(12, Math.min(18, Math.floor((h / (rows.length + headerLines - 1)) * 0.45), Math.floor((w / cols) / 5.2)));
   return [{
     id: nid("tb"), type: "table", x: r(x), y: r(y), w: r(w), h: r(h), fontSize: fs, color: "#1d1f23", fill: "#ffffff", stroke: T.muted, textAlign: t.align ?? "center",
     table: { rows: rid, columns: cid, header: t.header !== false, cells, ...(Object.keys(styles).length ? { styles } : {}),
-      ...(t.widths ? { widths: Object.fromEntries(t.widths.map((v, j) => [cid[j], v])) } : {}),
-      ...(t.heights ? { heights: Object.fromEntries(t.heights.map((v, i) => [rid[i], v])) } : headerLines > 1 ? { heights: { r0: Math.min(3, 0.8 + 0.6 * headerLines) } } : {}) },
+      ...(widths && Object.keys(widths).length ? { widths } : {}),
+      ...(heights && Object.keys(heights).length ? { heights } : headerLines > 1 ? { heights: { r0: Math.min(3, 0.8 + 0.6 * headerLines) } } : {}) },
   }];
 }
 function chartEl(c, x, y, w, h) {

@@ -706,26 +706,47 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         return []
 
     def table_el(t, x, y, w, h):
-        rows = t["rows"]
-        cols = len(rows[0])
+        # tolerate small slips (ragged rows, a highlight past the last row, sizes out of range): VHSlide rejects the whole file otherwise
+        raw = t.get("rows")
+        name = nn(t.get("title"), raw[0][0] if isinstance(raw, list) and raw and isinstance(raw[0], list) and raw[0] else None, "表")
+        if not isinstance(raw, list) or not raw or not all(isinstance(row, list) for row in raw):
+            raise BuildError(f"表「{name}」の rows は「行の配列」の配列にしてください。")
+        cols = max(len(row) for row in raw)
+        if len(raw) > 12 or cols > 12 or not cols:
+            raise BuildError(f"表「{name}」は1〜12行・1〜12列にしてください（いま {len(raw)}行・{cols}列）。大きい表はページを分けてください。")
+        rows = [[jstr(row[j] if j < len(row) else "")[:2000] for j in range(cols)] for row in raw]
         rid = [f"r{i}" for i in range(len(rows))]
         cid = [f"c{j}" for j in range(cols)]
         cells, styles = {}, {}
         for i, row in enumerate(rows):
             for j, v in enumerate(row):
-                cells[f"{rid[i]}:{cid[j]}"] = jstr(v)
-        for i in t.get("highlight") or []:
+                cells[f"{rid[i]}:{cid[j]}"] = v
+        given = t.get("highlight") or []
+        hi = [i for i in given if isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(rows)]
+        if len(hi) != len(given):
+            warn(f"※ 表「{name}」の highlight（強調する行）に、ない行の番号がありました（行は見出しを0として 0〜{len(rows) - 1}）。その番号は無視しました。")
+        for i in hi:
             for j in range(cols):
                 styles[f"{rid[i]}:{cid[j]}"] = {"fill": T["accentSoft"], "bold": True, "color": "#1d1f23" if T.get("header") == "chalk" else T["ink"]}
-        header_lines = max(len(jstr(v).split("\n")) for v in rows[0])
+
+        def sizes(lst, ids):
+            if not isinstance(lst, list):
+                return None
+            out = {}
+            for k, v in zip(ids, lst):
+                if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                    out[k] = min(8, max(0.25, v))
+            return out
+        widths, heights = sizes(t.get("widths"), cid), sizes(t.get("heights"), rid)
+        header_lines = max(len(v.split("\n")) for v in rows[0])
         fs = nn(t.get("fontSize"), max(12, min(18, math.floor((h / (len(rows) + header_lines - 1)) * 0.45), math.floor((w / cols) / 5.2))))
         table = {"rows": rid, "columns": cid, "header": t.get("header") is not False, "cells": cells}
         if styles:
             table["styles"] = styles
-        if t.get("widths"):
-            table["widths"] = {cid[j]: v for j, v in enumerate(t["widths"])}
-        if t.get("heights"):
-            table["heights"] = {rid[i]: v for i, v in enumerate(t["heights"])}
+        if widths:
+            table["widths"] = widths
+        if heights:
+            table["heights"] = heights
         elif header_lines > 1:
             table["heights"] = {"r0": min(3, 0.8 + 0.6 * header_lines)}
         return [{"id": nid("tb"), "type": "table", "x": r(x), "y": r(y), "w": r(w), "h": r(h), "fontSize": fs, "color": "#1d1f23", "fill": "#ffffff",

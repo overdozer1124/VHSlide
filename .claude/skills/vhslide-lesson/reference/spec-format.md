@@ -73,7 +73,7 @@
 | `question` | `variant`（`band` 帯／`bubble` キャラクターの吹き出し。省略時は自動で交互）、`prompt` `field` または `fields[]`（2〜3。`share: [0.62, 0.38]` で横幅の比、`stack: true` で縦に重ねて `share` は高さの比）、左側に `hints[]`(+`hintsTitle`)／`table`／`chart`／`image`／`body` のいずれか、`split`（左の幅の比率） | 問いと入力欄 |
 | `fields` | `prompt` `keywords[]` `fields[]` | まとめ・ふり返り（入力欄を横に並べる） |
 | `figure` | `image`（png/jpg/webp/gif/svg のパス）`alt` `lead` `source` `field` `imageShare` | 図の読み取り |
-| `table` | `rows[][]`（1行目が見出し、`\n`で改行）`highlight[]`（強調する行番号）`widths[]`（列の幅の比）`heights[]`（行の高さの比、0.25〜8）`fontSize` `lead` `source` `field` | 表 |
+| `table` | `rows[][]`（1行目が見出し、`\n`で改行）`highlight[]`（強調する行番号。見出し行を0と数える）`widths[]`（列の幅の比）`heights[]`（行の高さの比、0.25〜8）`fontSize` `lead` `source` `field` | 表 |
 | `chart` | `chart: { type: bar/line/pie, title, data: [[ラベル, 値, 色(省略可)]], highlight: [ラベルか番号] }` `callout` `calloutTitle` `source` `field` | ネイティブグラフ |
 | `cards` | `variant`（`grid` 並べる／`bento` 大きなタイル1つ＋小さなタイル。3〜5枚のとき。省略時は自動で交互）、`lead` `cards[{title, body, sub, tone}]` `columns` `footer` `bodySize` `subSize`（カードの文字が少なく余白が大きいときは大きくする） | 解説・まとめのカード |
 | `flow` | `lead` `items[{top, bottom, note}]` `footer` | 「A → B」の対応図 |

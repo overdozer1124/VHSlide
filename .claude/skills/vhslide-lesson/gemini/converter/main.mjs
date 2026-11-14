@@ -78,6 +78,17 @@ function mergeSpecs(parts) {
   return base;
 }
 
+/** VHSlide's check names the problem but not the page: try each page alone to find which one it is. */
+function findBadSlide(deck) {
+  for (const slide of deck.slides) {
+    const one = { ...deck, sheets: [{ ...deck.sheets[0], id: "main" }], activeSheetId: undefined, routes: [],
+      slides: [{ ...slide, x: 0, y: 0, sheetId: undefined }] };
+    try { parseDeck(JSON.stringify(one)); }
+    catch { return `原因のページ：「${slide.title}」`; }
+  }
+  return "原因のページは特定できませんでした";
+}
+
 // ---------- UI ----------
 function fillSelect(sel, items, def) {
   sel.innerHTML = "";
@@ -113,7 +124,9 @@ $("build").addEventListener("click", async () => {
       mascot: $("mascot").value || undefined, flat: !$("decor").checked,
     });
     const json = JSON.stringify(deck);
-    const parsed = parseDeck(json); // the same check VHSlide runs when it opens a file
+    let parsed;
+    try { parsed = parseDeck(json); } // the same check VHSlide runs when it opens a file
+    catch (e) { throw Error(`${e.message}（${findBadSlide(deck)}）`); }
     const forms = collectForeignForms(parsed, "00000000-0000-4000-8000-000000000000");
     lastBlob = new Blob([json], { type: "application/json" });
     lastName = `${String(spec.title).replace(/[\\/:*?"<>|（）()　\s]+/g, "_").slice(0, 40)}.vhslide.json`;
