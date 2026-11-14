@@ -574,11 +574,16 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         else:
             ws["sectionIds"].append(sec)
             sid = f"s{len(ws['sectionIds'])}"
-        wf = {"id": fid, "label": f.get("label"), "kind": kind, "options": nn(f.get("options"), []), "placeholder": nn(f.get("placeholder"), ""),
+        choice = kind in ("single", "multiple")
+        dropped = [n for n, v in (("選択肢", f.get("options")), ("理由欄", f.get("reason")), ("集計の公開", f.get("public"))) if v]
+        if not choice and dropped:
+            warn(f"※ 入力欄「{f.get('label')}」は選択式ではないため、{'・'.join(dropped)}を外しました。")
+        opts = list(dict.fromkeys(jstr(o) for o in (f.get("options") or []))) if choice else []
+        wf = {"id": fid, "label": f.get("label"), "kind": kind, "options": opts, "placeholder": nn(f.get("placeholder"), ""),
               "section": sec, "sectionId": sid, "wide": True}
-        if f.get("reason"):
+        if f.get("reason") and choice:
             wf["reason"] = True
-        if f.get("public"):
+        if f.get("public") and choice:
             wf["aggregatePublic"] = True
         if f.get("height"):
             wf["inputHeight"] = f["height"]

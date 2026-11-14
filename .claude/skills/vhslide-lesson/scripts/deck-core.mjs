@@ -184,10 +184,14 @@ function field(f, x, y, w, h, fs = 18, opts = {}) {
   if (ws.fields.some(g => g.id === id)) throw Error(`入力欄のIDが重複しています: ${id}`);
   const sectionTitle = ws.section;
   const sectionId = `s${ws.sectionIds.indexOf(sectionTitle) + 1 || ws.sectionIds.push(sectionTitle)}`;
+  // VHSlide accepts options, a reason box and public results only on choice fields: drop them elsewhere instead of failing.
+  const choice = kind === "single" || kind === "multiple";
+  if (!choice && (f.reason || f.public || f.options?.length))
+    warn(`※ 入力欄「${f.label}」は選択式ではないため、${[f.options?.length && "選択肢", f.reason && "理由欄", f.public && "集計の公開"].filter(Boolean).join("・")}を外しました。`);
   const wf = {
-    id, label: f.label, kind, options: f.options ?? [], placeholder: f.placeholder ?? "",
+    id, label: f.label, kind, options: choice ? [...new Set((f.options ?? []).map(String))] : [], placeholder: f.placeholder ?? "",
     section: sectionTitle, sectionId, wide: true,
-    ...(f.reason ? { reason: true } : {}), ...(f.public ? { aggregatePublic: true } : {}),
+    ...(f.reason && choice ? { reason: true } : {}), ...(f.public && choice ? { aggregatePublic: true } : {}),
     ...(f.height ? { inputHeight: f.height } : {}),
     ...(f.hideLabel && kind !== "checkbox" ? { hideLabel: true } : {}),
   };
