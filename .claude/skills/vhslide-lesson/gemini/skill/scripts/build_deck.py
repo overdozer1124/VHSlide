@@ -4,14 +4,14 @@
 usage: python build_deck.py <spec.json> <out.vhslide.json> [--layout lesson-rows|phase-grid]
                             [--theme name|theme.json] [--mascot kind|none] [--flat] [--no-fonts]
 
-Backdrops and icons are pre-rendered (characters are drawn from SVG with Pillow) into ../assets/images-N.txt (plain-text files: '@ group/name mime' lines followed by base64) (only Python's standard library is needed).
+Icons and character templates are inside this script (characters are drawn with Pillow); the decorated backdrops are in
+backdrops.py next to it when the skill includes them. Only the standard library (and Pillow for characters) is needed.
 Images in the spec: a file path (relative to the spec), a data: URL, or inline SVG markup. SVG is drawn with
 cairosvg when it is installed; otherwise a PNG with the same name next to an .svg file is used.
 """
 import base64, json, math, os, re, struct, sys, uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ASSETS = os.path.join(HERE, "..", "assets")
 W, H, X0, X1, BOTTOM = 960, 540, 36, 924, 516
 FONTS = ["sans", "serif", "mono", "rounded", "klee", "yomogi", "ud", "brush", "shippori"]
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -113,23 +113,40 @@ def svg_to_png(svg):
     return cairosvg.svg2png(bytestring=svg.encode("utf-8"), scale=2)
 
 
-def read_images(path):
+B64 = re.compile(r"^[A-Za-z0-9+/=]+$")
+
+
+def parse_images(text):
+    """'@ group/name mime' lines, each followed by its base64 data; other lines are ignored."""
     pack, key, mime, buf = {}, None, None, []
 
     def flush():
         if key:
             g, name = key.split("/", 1)
             pack.setdefault(g, {})[name] = f"data:{mime};base64,{''.join(buf)}"
-    with open(path, encoding="ascii") as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith("@ "):
-                flush()
-                _, key, mime = line.split(" ")
-                buf = []
-            elif line:
-                buf.append(line)
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("@ "):
+            flush()
+            _, key, mime = line.split(" ")
+            buf = []
+        elif key and B64.match(line):
+            buf.append(line)
     flush()
+    return pack
+
+
+IMAGES = None  # build-skill.mjs writes the character templates, marks and icons here
+
+
+def load_images():
+    """Images inside this script, plus the backdrops in backdrops.py next to it (when the skill has it)."""
+    pack = parse_images(IMAGES) if IMAGES else {}
+    extra = os.path.join(HERE, "backdrops.py")
+    if os.path.exists(extra):
+        with open(extra, encoding="ascii") as f:
+            for g, m in parse_images(f.read()).items():
+                pack.setdefault(g, {}).update(m)
     return pack
 
 
@@ -278,8 +295,7 @@ THEMES = None  # build-skill.mjs writes the theme data here, so the skill needs 
 def load_themes():
     if THEMES is not None:
         return THEMES
-    with open(os.path.join(ASSETS, "themes.json"), encoding="utf-8") as f:
-        return json.load(f)
+    raise BuildError("テーマのデータがありません（build-skill.mjs で作ったスキルの build_deck.py を使ってください）。")
 
 
 def resolve_theme(spec, themes):
@@ -310,11 +326,12 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
     sm = spec.get("mascot")
     mascot_arg = nn(mascot, sm if isinstance(sm, str) else (sm or {}).get("kind") if isinstance(sm, dict) else None, "onigiri")
     use_mascot = mascot_arg != "none"
-    image_files = sorted(f for f in (os.listdir(ASSETS) if os.path.isdir(ASSETS) else []) if re.match(r"images-\d+\.txt$", f))
-    has_images = bool(image_files)
-    if not has_images and (use_mascot or (not flat and spec.get("decor") is not False)):
-        warn("※ 画像のデータ（assets/images-*.txt）が無いため、背景の装飾・アイコン・キャラクターなしで作ります。")
+    pack = load_images()
+    if use_mascot and not pack.get("mascots"):
+        warn("※ キャラクターのデータが無いため、キャラクターなしで作ります。")
         use_mascot = False
+    if T.get("decor") and not flat and spec.get("decor") is not False and not pack.get("backdrops"):
+        warn("※ このスキルには背景の装飾の画像が入っていないため、装飾なしの見た目で作ります。")
     if not spec.get("title"):
         raise BuildError("title（作品名）がありません。")
 
@@ -469,14 +486,7 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
 
     # ---------- pre-rendered images ----------
     def asset(group, name):
-        if not has_images:
-            return None
-        if "pack" not in state:
-            state["pack"] = {}
-            for fname in image_files:
-                for g, m in read_images(os.path.join(ASSETS, fname)).items():
-                    state["pack"].setdefault(g, {}).update(m)
-        return state["pack"][group].get(name)
+        return pack.get(group, {}).get(name)
 
     custom_note = {"done": False}
 
@@ -512,7 +522,7 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
             images[pose] = "data:image/png;base64," + base64.b64encode(png).decode()
         return images[pose]
 
-    decor_on = bool(T.get("decor")) and not flat and nn(spec.get("decor"), True) and has_images
+    decor_on = bool(T.get("decor")) and not flat and nn(spec.get("decor"), True) and bool(pack.get("backdrops"))
     backdrops = {}
 
     def backdrop(kind):

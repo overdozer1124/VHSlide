@@ -15,7 +15,7 @@ import { svgToPng, closeRenderer } from "../scripts/render.mjs";
 const here = path.dirname(new URL(import.meta.url).pathname), skill = path.join(here, "..");
 const out = path.join(here, "dist", "vhslide-lesson");
 fs.rmSync(out, { recursive: true, force: true });
-for (const d of ["scripts", "references", "assets"]) fs.mkdirSync(path.join(out, d), { recursive: true });
+for (const d of ["scripts", "references"]) fs.mkdirSync(path.join(out, d), { recursive: true });
 const read = f => fs.readFileSync(path.join(skill, f), "utf8");
 const write = (f, s) => fs.writeFileSync(path.join(out, f), s);
 
@@ -54,15 +54,17 @@ for (const [k, svg] of Object.entries(marks)) {
   images.marks[`${k}.png`] = url(await svgToPng(`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260">${text}</svg>`, { scale: 1.2, transparent: true }));
 }
 await closeRenderer();
-// plain text with short lines ("@ group/name mime" then base64 wrapped at 76), split into files of about 120KB
-const entries = Object.entries(images).flatMap(([g, m]) => Object.entries(m).map(([k, u]) => {
+// plain text with short lines: "@ group/name mime" then base64 wrapped at 76 characters.
+// Characters, marks and icons go inside build_deck.py; the backdrops into scripts/backdrops.py (full skill only).
+const pack = groups => Object.entries(images).filter(([g]) => groups.includes(g)).flatMap(([g, m]) => Object.entries(m).map(([k, u]) => {
   const [, mime, b64] = /^data:([^;]+);base64,(.*)$/s.exec(u);
-  return [`@ ${g}/${k} ${mime}`, ...b64.match(/.{1,76}/g)].join("\n") + "\n";
-}));
-const chunks = [""];
-for (const e of entries) { if (chunks.at(-1).length + e.length > 240_000 && chunks.at(-1)) chunks.push(""); chunks[chunks.length - 1] += e; }
-chunks.forEach((c, i) => write(`assets/images-${i + 1}.txt`, c));
-console.log(`images: ${entries.length} in ${chunks.length} files (${chunks.map(c => Math.round(c.length / 1024) + "KB").join(", ")})`);
+  return [`@ ${g}/${k} ${mime}`, ...b64.match(/.{1,76}/g)].join("\n");
+})).join("\n");
+const script = fs.readFileSync(path.join(out, "scripts/build_deck.py"), "utf8");
+if (!script.includes("\nIMAGES = None")) throw Error("build_deck.py: IMAGES placeholder not found");
+write("scripts/build_deck.py", script.replace(/\nIMAGES = None[^\n]*/, () => `\nIMAGES = """\n${pack(["mascots", "marks", "icons"])}\n"""`));
+write("scripts/backdrops.py", `"""Decorated backdrops for build_deck.py (JPEG, base64). Read as text by build_deck.load_images()."""\nDATA = """\n${pack(["backdrops"])}\n"""\n`);
+console.log(`images: build_deck.py ${Math.round(fs.statSync(path.join(out, "scripts/build_deck.py")).size / 1024)}KB, backdrops.py ${Math.round(fs.statSync(path.join(out, "scripts/backdrops.py")).size / 1024)}KB`);
 
 // 3. SKILL.md and references
 const vhs = JSON.parse(read("scripts/vendor/version.json"));
@@ -114,14 +116,14 @@ ${read("examples/patterns.spec.json").trim()}
 \`\`\`
 `);
 
-// 4. zips (SKILL.md inside one folder named like the skill): full, and light (text only, no image data)
+// 4. zips (SKILL.md inside one folder named like the skill): full (with backdrops.py) and standard (without)
 const dist = path.join(here, "dist");
-const pack = (zipName, exclude = []) => {
+const zipSkill = (zipName, exclude = []) => {
   const zip = path.join(dist, zipName);
   fs.rmSync(zip, { force: true });
   execFileSync("zip", ["-qr", "-X", zip, "vhslide-lesson", ...exclude.flatMap(e => ["-x", e])], { cwd: dist });
   const list = execFileSync("unzip", ["-Z1", zip]).toString().trim().split("\n").filter(f => !f.endsWith("/"));
   console.log(`${zip} (${Math.round(fs.statSync(zip).size / 1024)}KB, ${list.length} files)\n  ${list.join("\n  ")}`);
 };
-pack("vhslide-lesson-gemini-skill.zip");
-pack("vhslide-lesson-gemini-skill-light.zip", ["vhslide-lesson/assets/*"]);
+zipSkill("vhslide-lesson-gemini-skill-full.zip");
+zipSkill("vhslide-lesson-gemini-skill.zip", ["vhslide-lesson/scripts/backdrops.py"]);
