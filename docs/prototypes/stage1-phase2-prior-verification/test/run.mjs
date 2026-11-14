@@ -207,8 +207,36 @@ async function doDirect(mf, pathName, payload) {
   return { status: res.status, json };
 }
 
+// DO 直接入口の nonce 発行は、輸送層の一時的な失敗
+// （ECONNRESET 等で stub.fetch 自体が投げる場合）と、状態は
+// 200 だが nonce／ctx を欠く応答に対してだけ、上限付きで再試
+// 行する（Windows の全体実行で観測された不安定さへの対応。
+// Codex 再レビュー 6879939268 の副次指摘）。再試行で未使用の
+// nonce が増えることはあるが、この経路の確認項目（運営者集
+// 合・消費済み操作・完了記録・初期化の有無）は未使用 nonce
+// の件数に依存しない。200 以外の状態は意味のある応答として
+// 再試行しない。/do/apply 自体は再送になるため再試行しない。
+async function issueNonceDirect(mf) {
+  let last = null;
+  let lastError = null;
+  for (let i = 0; i < 5; i++) {
+    try {
+      last = await doDirect(mf, "/do/nonce", {});
+      if (last.status === 200 && last.json && last.json.nonce && last.json.ctx) {
+        return last;
+      }
+      if (last.status !== 200) return last;
+    } catch (e) {
+      lastError = e;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (last) return last;
+  throw lastError || new Error("direct nonce issuance failed");
+}
+
 async function platformApplyDirect(mf, sub, body, extraBody = {}) {
-  const n = await doDirect(mf, "/do/nonce", {});
+  const n = await issueNonceDirect(mf);
   if (n.status !== 200 || !n.json || !n.json.nonce) {
     throw new Error(`direct nonce issuance failed: status=${n.status}`);
   }
@@ -218,9 +246,20 @@ async function platformApplyDirect(mf, sub, body, extraBody = {}) {
   });
 }
 
+// 読み戻しは読み取り専用であるため、輸送層の失敗に限り上限
+// 付きで再試行する（同上の不安定さへの対応）。
 async function snapshotDirect(mf) {
-  const r = await doDirect(mf, "/do/snapshot", {});
-  return r.json;
+  let lastError = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await doDirect(mf, "/do/snapshot", {});
+      return r.json;
+    } catch (e) {
+      lastError = e;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+  throw lastError;
 }
 
 const FUTURE = () => Date.now() + 10 * 60 * 1000;
@@ -1592,9 +1631,26 @@ async function main() {
     for (const r of results.filter((x) => !x.pass)) console.log(`FAIL: ${r.name}`);
   }
   process.exitCode = fail > 0 ? 1 : 0;
+  armForcedExit();
+}
+
+// ランナーの終了保証：途中で例外が投げられると、破棄されな
+// かった Miniflare（workerd）のハンドルがイベントループを
+// 生かし続け、プロセスが終了しないことがある（Windows の
+// 全体実行で観測。Codex 再レビュー 6879939268 の副次指摘）。
+// unref したタイマーは、それ自体ではループを生かさないが、
+// 他のハンドルによってループが回り続けている間は発火する
+// ため、記録済みの終了コードで強制終了できる。通常の終了
+// ではループが先に空になり、タイマーは発火しない。
+function armForcedExit() {
+  const t = setTimeout(() => {
+    process.exit(process.exitCode ?? 0);
+  }, 5000);
+  t.unref();
 }
 
 main().catch((e) => {
   console.error("試験ランナー自体が異常終了しました:", e);
   process.exitCode = 2;
+  armForcedExit();
 });

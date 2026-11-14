@@ -1,9 +1,19 @@
 // S15（項目7 手順1：応答破棄を伴う全面復旧）の PC 側運転コード。
 //
-// 役割：提供サーバー（tools/serve-real.mjs）を同一プロセスで生成
-// し、S15 入口の試験単位セッションをメモリー内だけで受け取って、
-// /s15/* 入口を HTTP で運転する（Codex レビュー 6879152477 への
-// 対応。DESIGN.md の S15 付録の修正節）。
+// 役割：提供サーバー（tools/serve-real.mjs）の S15 入口
+// （/s15/*）を HTTP で運転するハンドルを提供する。ハンドルの
+// 得方は2通りある。
+// - createS15Driver(options)：提供サーバーを同一プロセスで
+//   生成して待ち受け、ハンドルを返す（従来どおり。試験が使う）。
+// - attachS15Driver(created)：生成済みの提供サーバー
+//   （createRealServer の戻り値）へ結び付けて、ハンドルを返す。
+//   運転ランチャー（tools/s15-run.mjs）が使う。ランチャーは
+//   提供サーバーを自プロセスで生成し、画面の配信とこの
+//   ハンドルを同一プロセスで保持するため、ハンドル経由の
+//   判定の記録は「画面が使っている送信器そのもの」へ届く
+//   （Codex 再レビュー 6879939268 への対応）。新規に生成した
+//   別プロセス・別サーバーのハンドルでは、別の送信器へ記録
+//   されてしまい、現在の送信器の状態は復旧できない。
 //
 // セッションの受け渡し（本モジュールの要点）：
 // - セッション値は createRealServer の戻り値（s15Session）とし
@@ -19,9 +29,9 @@
 //   の記録までを、同じ /s15/* 入口経由で運転する（Codex 再
 //   レビュー 6879462050 への対応）。本モジュールは、その入口
 //   に対するプログラム経路（同一プロセス・メモリー内だけの
-//   受け渡し）であり、試験と、画面の送信指示の結果が不明に
-//   なった場合に読み戻し判定を送信器側へ記録する復旧経路を
-//   担う。
+//   受け渡し）であり、試験と、運転ランチャー経由で画面の送信
+//   指示の結果が不明になった場合に読み戻し判定を送信器側へ
+//   記録する復旧経路を担う。
 //
 // 各メソッドは HTTP の状態と応答 JSON を { status, ...body }
 // の形で返す（入口の拒否は例外にせず、理由コードを含む応答
@@ -30,24 +40,10 @@
 
 import { createRealServer } from "./serve-real.mjs";
 
-// 提供サーバーを生成して待ち受け、S15 の運転ハンドルを返す。
-// options は { clientId, relayUrl, port } であり、createRealServer
-// へそのまま渡す（指定がなければ環境変数から読む）。port は
-// 入口の Host 照合が待ち受けポートと結び付くため、待ち受ける
-// ポートそのものを指定すること（0 のような自動採番は使わない）。
-export async function createS15Driver(options = {}) {
-  const created = await createRealServer(options);
-  const { server } = created;
-  // セッション値はクロージャ内だけに保持する。戻り値のオブ
-  // ジェクトのプロパティには載せない。
-  const session = created.s15Session;
-  const port = created.port;
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
-  const base = `http://127.0.0.1:${port}`;
-
+// 接続先とセッション（クロージャ内だけに保持）から、運転
+// ハンドルを組み立てる。createS15Driver と attachS15Driver で
+// 共用する。close() は結び付いた提供サーバーを閉じる。
+function buildS15Driver({ server, session, base }) {
   async function call(pathWithQuery, init = {}) {
     const res = await fetch(base + pathWithQuery, {
       ...init,
@@ -118,4 +114,39 @@ export async function createS15Driver(options = {}) {
       });
     },
   };
+}
+
+// 生成済みの提供サーバー（createRealServer の戻り値）へ結び
+// 付けて、S15 の運転ハンドルを返す。まだ待ち受けていなければ
+// created.port で待ち受ける（入口の Host 照合が待ち受けポート
+// と結び付くため、自動採番は使わない）。セッション値は戻り値
+// から JS の値としてだけ受け取り、クロージャ内に保持する。
+export async function attachS15Driver(created) {
+  const { server } = created;
+  // セッション値はクロージャ内だけに保持する。戻り値のオブ
+  // ジェクトのプロパティには載せない。
+  const session = created.s15Session;
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(created.port, "127.0.0.1", resolve);
+    });
+  }
+  const address = server.address();
+  const port =
+    address && typeof address === "object" && typeof address.port === "number"
+      ? address.port
+      : created.port;
+  const base = `http://127.0.0.1:${port}`;
+  return buildS15Driver({ server, session, base });
+}
+
+// 提供サーバーを生成して待ち受け、S15 の運転ハンドルを返す。
+// options は { clientId, relayUrl, port } であり、createRealServer
+// へそのまま渡す（指定がなければ環境変数から読む）。port は
+// 入口の Host 照合が待ち受けポートと結び付くため、待ち受ける
+// ポートそのものを指定すること（0 のような自動採番は使わない）。
+export async function createS15Driver(options = {}) {
+  const created = await createRealServer(options);
+  return attachS15Driver(created);
 }

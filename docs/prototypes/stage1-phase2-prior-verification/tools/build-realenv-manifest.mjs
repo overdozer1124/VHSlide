@@ -130,6 +130,7 @@ const ARTIFACTS = [
   "tools/s15-apply.mjs",
   "tools/s15-sender.mjs",
   "tools/s15-driver.mjs",
+  "tools/s15-run.mjs",
   "test/s15-apply.test.mjs",
   "test/s15-sender.test.mjs",
   "test/s15-guard.test.mjs",
@@ -216,6 +217,9 @@ const s14ScreenLines = readRel("test/s14-rotate.screen.mjs").split("\n");
 const s15ModuleLines = readRel("tools/s15-apply.mjs").split("\n");
 const s15SenderLines = readRel("tools/s15-sender.mjs").split("\n");
 const s15DriverLines = readRel("tools/s15-driver.mjs").split("\n");
+const s15RunLines = readRel("tools/s15-run.mjs").split("\n");
+const s15ServeTestLines = readRel("test/serve-real-s15.test.mjs").split("\n");
+const coreRunLines = readRel("test/run.mjs").split("\n");
 const s15GuardLines = readRel("test/s15-guard.test.mjs").split("\n");
 const s15ScreenLines = readRel("public/s15-apply.html").split("\n");
 const gitattributesLines = readRel(".gitattributes").split("\n");
@@ -1229,6 +1233,49 @@ const checks = {
     found: findLines(s15ScreenLines, /\/platform\/apply/),
     expect: "absent",
   },
+  // S15 修正3（Codex 再レビュー 6879939268）：復旧経路は
+  // 画面と同じ送信器へ届くこと。運転コードは生成済みの提供
+  // サーバーへ結び付ける attachS15Driver を持ち、運転ラン
+  // チャー（tools/s15-run.mjs）は createRealServer と
+  // attachS15Driver で同一プロセスに保持し、judge 操作
+  // （parseJudgeCommand）を提供すること。画面の案内がラン
+  // チャーを指名し、復旧の再現試験が入口試験に存在すること。
+  // あわせて、コアスイート（test/run.mjs）の DO 直接入口の
+  // nonce 発行には上限付き再試行（issueNonceDirect）が、終
+  // 了保証（armForcedExit）があること（同レビューの副次指摘
+  // への対応）。
+  s15_driver_attach: {
+    found: findLines(s15DriverLines, /attachS15Driver/),
+    expect: "present",
+  },
+  s15_run_creates_server: {
+    found: findLines(s15RunLines, /createRealServer/),
+    expect: "present",
+  },
+  s15_run_attaches_driver: {
+    found: findLines(s15RunLines, /attachS15Driver/),
+    expect: "present",
+  },
+  s15_run_judge_command: {
+    found: findLines(s15RunLines, /parseJudgeCommand/),
+    expect: "present",
+  },
+  s15_screen_names_launcher: {
+    found: findLines(s15ScreenLines, /s15-run\.mjs/),
+    expect: "present",
+  },
+  s15_recovery_test_present: {
+    found: findLines(s15ServeTestLines, /startS15Run/),
+    expect: "present",
+  },
+  core_run_direct_nonce_retry: {
+    found: findLines(coreRunLines, /issueNonceDirect/),
+    expect: "present",
+  },
+  core_run_forced_exit: {
+    found: findLines(coreRunLines, /armForcedExit/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -1412,7 +1459,8 @@ const manifest = {
     s13_revoke_page: "public/s13-revoke.html（tools/serve-real.mjs が /s13-revoke で配信。GOOGLE_CLIENT_ID と S13 セッションをメモリ上で差し込む。項目6 手順6（最後の運営者の保護）の専用画面。対象 C の主体ハッシュを取得し、A の認可で C の失効を送り（generation 5→6・登録簿 {A}）、A 自身の失効試行が 409 last_operator で拒否されること（この拒否が合格。状態は変わらない）と A の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s13-revoke.mjs は Node 試験 test/s13-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s13-sender.mjs（Node）が行う。名前付きスロット（revokeC / revokeA / checkA）ごとに Cookie jar を分け、失効の対象は手順ごとに送信器の境界でも結び付け、期待世代はスロットごとに固定する（revokeC = 5、revokeA = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s13-sender.test.mjs、実 Worker との結線は test/s13-guard.test.mjs、画面の実画面試験は test/s13-revoke.screen.mjs）",
     s14_rotate_page: "public/s14-rotate.html（tools/serve-real.mjs が /s14-rotate で配信。GOOGLE_CLIENT_ID と S14 セッションをメモリ上で差し込む。項目6 手順7（ローテーション A→B）の専用画面。対象 A・B の主体ハッシュを取得し、A の認可でローテーションを送り（generation 6→7・登録簿 {A}→{B}。削除と追加は同一トランザクション）、A の次回操作が 403 not_operator で拒否されること（この拒否が合格。状態は変わらない）と B の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s14-rotate.mjs は Node 試験 test/s14-rotate.test.mjs と共用する。送信は提供サーバー側の tools/s14-sender.mjs（Node）が行う。名前付きスロット（rotateAB / checkA / checkB）ごとに Cookie jar を分け、ローテーションの対象は旧主体・新主体の組で送信器の境界でも結び付け、期待世代は固定する（rotateAB = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s14-sender.test.mjs、実 Worker との結線は test/s14-guard.test.mjs、画面の実画面試験は test/s14-rotate.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
-    s15_driver: "tools/s15-driver.mjs（S15 の PC 側運転コード。tools/serve-real.mjs を同一プロセスで生成し、S15 入口の試験単位セッションを createRealServer の戻り値としてメモリー内だけで受け取り、x-s15-session ヘッダーで示す。値はログ・URL・応答・ファイルに出ない。S15 専用画面は設けない）",
+    s15_driver: "tools/s15-driver.mjs（S15 の PC 側運転コード。createS15Driver は提供サーバー（tools/serve-real.mjs）を同一プロセスで生成して待ち受け、attachS15Driver は生成済みの提供サーバーへ結び付ける。S15 入口の試験単位セッションを createRealServer の戻り値としてメモリー内だけで受け取り、x-s15-session ヘッダーで示す。値はログ・URL・応答・ファイルに出ない）",
+    s15_run: "tools/s15-run.mjs（S15 運転ランチャー。提供サーバーを同一プロセスで生成し、S15 専用画面の配信と復旧操作の運転ハンドル（attachS15Driver）を同じプロセスで保持する。画面の送信指示の結果が不明になった場合は、独立した読み戻しの後に、標準入力の judge 操作で判定を画面と同じ送信器へ記録する。セッション値はメモリー内だけで受け渡し、標準入出力・URL・ファイルに出ない）",
   },
   source_checks: checks,
 };

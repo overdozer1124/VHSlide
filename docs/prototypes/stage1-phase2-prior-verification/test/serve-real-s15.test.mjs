@@ -31,6 +31,14 @@
 //   判定の記録が 409 s15_send_in_flight で拒否され、再実施
 //   の発行も開かず、中継の発行・送信件数も増えないこと。
 //   応答を解放して送信が確定した後は、判定を記録できること。
+// - 復旧経路の再現（Codex 再レビュー 6879939268）：運転
+//   ランチャー（tools/s15-run.mjs）が同一プロセスで保持する
+//   提供サーバーで、画面の送信指示の応答が失われても（指示
+//   自体は送信器が完走する）、読み戻し後にランチャーの復旧
+//   操作（judge）で記録した判定が「同じ送信器」に届き、同じ
+//   試行の再実施が開いて完走すること。別に新規生成した運転
+//   コードの判定記録では、元の送信器の関門は開かないこと
+//   （反証）。復旧操作の行解釈と委譲は単体でも確認する。
 // 秘密の値は使わない。
 //
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
@@ -42,6 +50,11 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createS15Driver } from "../tools/s15-driver.mjs";
+import {
+  startS15Run,
+  parseJudgeCommand,
+  handleRecoveryLine,
+} from "../tools/s15-run.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SERVE_PORT = 8910;
@@ -484,6 +497,228 @@ test("S15 競合：送信中（飛行中）の新しい試行の開始は 409 �
     // 判定を記録すれば、運転は続けられる。
     const judged = await driver.recordJudgment({ trialId: "rc1", attempt: 1, outcome: "uncommitted" });
     assert.equal(judged.status, 200);
+  } finally {
+    rt.releaseApply();
+    await driver.close();
+    rt.close();
+  }
+});
+
+const RUN_PORT = 8914;
+const FRESH_PORT = 8915;
+const ONE_TIME_R1 = "one-time-recovery-1";
+const ONE_TIME_R2 = "one-time-recovery-2";
+
+test("S15 復旧操作：judge 行の解釈と、判定記録の委譲（運転ランチャー）", async () => {
+  // 行の解釈：形式・試行枠（1〜3）・区分のいずれが外れても
+  // null で、送信器へは何も委譲されない。
+  assert.deepEqual(parseJudgeCommand("judge t1 2 committed"), {
+    trialId: "t1",
+    attempt: 2,
+    outcome: "committed",
+  });
+  assert.deepEqual(parseJudgeCommand("judge t1 1 uncommitted"), {
+    trialId: "t1",
+    attempt: 1,
+    outcome: "uncommitted",
+  });
+  assert.deepEqual(parseJudgeCommand("judge t1 3 discrepancy"), {
+    trialId: "t1",
+    attempt: 3,
+    outcome: "discrepancy",
+  });
+  assert.equal(parseJudgeCommand("judge t1 2 bogus"), null);
+  assert.equal(parseJudgeCommand("judge t1 0 committed"), null);
+  assert.equal(parseJudgeCommand("judge t1 4 committed"), null);
+  assert.equal(parseJudgeCommand("judge t1 x committed"), null);
+  assert.equal(parseJudgeCommand("judge t1 1"), null);
+  assert.equal(parseJudgeCommand("hello"), null);
+  // 委譲：記録できればその旨が、拒否されれば理由コードだけが
+  // 表示文字列になる（セッション等の秘密は含まれない）。
+  const seenArgs = [];
+  const stubOk = {
+    recordJudgment: async (a) => {
+      seenArgs.push(a);
+      return { status: 200, ok: true };
+    },
+  };
+  const okOut = await handleRecoveryLine(stubOk, "judge t1 1 uncommitted");
+  assert.equal(okOut.quit, false);
+  assert.match(okOut.text, /判定を記録しました/);
+  assert.deepEqual(seenArgs, [{ trialId: "t1", attempt: 1, outcome: "uncommitted" }]);
+  const stubRefuse = {
+    recordJudgment: async () => ({ status: 409, error: "s15_send_in_flight" }),
+  };
+  const ngOut = await handleRecoveryLine(stubRefuse, "judge t1 1 committed");
+  assert.equal(ngOut.quit, false);
+  assert.match(ngOut.text, /s15_send_in_flight/);
+  const usage = await handleRecoveryLine(stubOk, "judge t1");
+  assert.match(usage.text, /^usage:/);
+  const quit = await handleRecoveryLine(stubOk, "quit");
+  assert.equal(quit.quit, true);
+  const empty = await handleRecoveryLine(stubOk, "   ");
+  assert.equal(empty.text, null);
+  assert.equal(empty.quit, false);
+});
+
+test("S15 復旧経路：送信指示の応答が失われても、ランチャーの復旧操作で同じ送信器へ判定が届き、再実施が完走する", async () => {
+  const rt = makeRoundTripRelay();
+  const rtPort = await rt.listen();
+  // 運転ランチャーと同じ構成（startS15Run）：提供サーバーを
+  // 同一プロセスで生成し、運転ハンドルを結び付ける。画面の
+  // 代理は、配信された S15 専用画面から差し込まれたセッ
+  // ションを取り出して /s15/* を呼ぶ（値はこの試験の変数内
+  // だけに保持し、出力しない。画面試験と同じ取り出し方）。
+  const run = await startS15Run({
+    clientId: CLIENT_ID,
+    relayUrl: `http://127.0.0.1:${rtPort}`,
+    port: RUN_PORT,
+  });
+  const driver = run.driver;
+  const base = driver.baseUrl;
+  try {
+    const pageRes = await fetch(base + "/s15-apply");
+    assert.equal(pageRes.status, 200);
+    const pageHtml = await pageRes.text();
+    const sessionMatch = pageHtml.match(/const S15_SESSION = "([^"]+)"/);
+    assert.ok(sessionMatch && sessionMatch[1].length > 0);
+    const screenSession = sessionMatch[1];
+    const screenCall = async (pathWithQuery, init = {}) => {
+      const res = await fetch(base + pathWithQuery, {
+        ...init,
+        headers: { ...(init.headers || {}), "x-s15-session": screenSession },
+      });
+      const body = await res.json().catch(() => null);
+      return { status: res.status, ...(body && typeof body === "object" ? body : {}) };
+    };
+    const screenPost = (pathname, payload) =>
+      screenCall(pathname, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+    // 画面の手順：試行 rr1 の nonce 発行 → 承認の固定。
+    const issued = await screenCall("/s15/nonces?trial_id=rr1&attempt=1");
+    assert.equal(issued.status, 200);
+    assert.equal(issued.nonce, "rt-nonce-1");
+    const frozen = await screenPost("/s15/freeze-approval", {
+      trial_id: "rr1",
+      attempt: 1,
+      operation_id: OP5,
+      purpose: "full-replace",
+      subject_hash: HASH_B,
+      env_id: ENV_ID,
+      one_time_value: ONE_TIME_R1,
+    });
+    assert.equal(frozen.status, 200);
+
+    // 送信指示の応答喪失を再現する：中継の応答を保留して送信
+    // を飛行中にし、送信が中継へ届いた時点で画面側の接続を
+    // 切る（abort）。送信器は送信を完走するが、画面は破棄
+    // 記録を受け取れない＝指示の結果が不明になる。
+    rt.state.hangApply = true;
+    const seen = rt.waitApplySeen();
+    const ac = new AbortController();
+    let sendError = null;
+    const sending = fetch(base + "/s15/send-discard", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-s15-session": screenSession,
+      },
+      body: JSON.stringify({
+        trial_id: "rr1",
+        attempt: 1,
+        request: requestFor({ nonce: "rt-nonce-1", oneTimeValue: ONE_TIME_R1 }),
+      }),
+      signal: ac.signal,
+    }).catch((e) => {
+      sendError = e;
+    });
+    await seen; // 中継が送信を受けた＝送信は実施された
+    ac.abort();
+    await sending;
+    assert.ok(sendError, "画面側の送信指示は応答喪失で失敗するはず");
+    assert.equal(rt.calls.apply, 1);
+    // 中継の応答を解放し、送信器側の送信を完走させる。
+    rt.releaseApply();
+    rt.state.hangApply = false;
+    await new Promise((r) => setTimeout(r, 600));
+
+    // 反証：別に新規生成した運転コード（別の提供サーバー・
+    // 別の送信器）へ判定を記録しても、元の送信器は復旧
+    // しない。新規側は自試行を送信していないため、判定の
+    // 記録自体が 409 s15_judgment_order で拒否される。
+    const fresh = await createS15Driver({
+      clientId: CLIENT_ID,
+      relayUrl: `http://127.0.0.1:${rtPort}`,
+      port: FRESH_PORT,
+    });
+    try {
+      const freshJudged = await fresh.recordJudgment({
+        trialId: "rr1",
+        attempt: 1,
+        outcome: "uncommitted",
+      });
+      assert.equal(freshJudged.status, 409);
+      assert.equal(freshJudged.error, "s15_judgment_order");
+    } finally {
+      await fresh.close();
+    }
+    // 元の送信器では、再実施の関門はまだ閉じたままである
+    // （中継の発行・送信件数も増えていない）。
+    const stillShut = await screenCall("/s15/nonces?trial_id=rr1&attempt=2");
+    assert.equal(stillShut.status, 409);
+    assert.equal(stillShut.error, "s15_attempt_gate");
+    assert.equal(rt.calls.nonce, 1);
+    assert.equal(rt.calls.apply, 1);
+
+    // 復旧操作：独立した読み戻し（ここでは中継の送信件数＝
+    // 到達の実測）に相当する確認の後、ランチャーの標準入力
+    // に対する復旧操作（judge 行）を、ランチャーが保持する
+    // ハンドルへそのまま処理させる。
+    const recovered = await handleRecoveryLine(driver, "judge rr1 1 uncommitted");
+    assert.equal(recovered.quit, false);
+    assert.match(recovered.text, /判定を記録しました/);
+
+    // 同じ送信器で再実施が開く（判定が同じ送信器へ届いた
+    // 証明）。画面の通常経路で再実施を完走させる。
+    const issued2 = await screenCall("/s15/nonces?trial_id=rr1&attempt=2");
+    assert.equal(issued2.status, 200);
+    assert.equal(issued2.nonce, "rt-nonce-2");
+    const frozen2 = await screenPost("/s15/freeze-approval", {
+      trial_id: "rr1",
+      attempt: 2,
+      operation_id: OP5,
+      purpose: "full-replace",
+      subject_hash: HASH_B,
+      env_id: ENV_ID,
+      one_time_value: ONE_TIME_R2,
+    });
+    assert.equal(frozen2.status, 200);
+    const sent2 = await screenPost("/s15/send-discard", {
+      trial_id: "rr1",
+      attempt: 2,
+      request: requestFor({ nonce: "rt-nonce-2", oneTimeValue: ONE_TIME_R2 }),
+    });
+    assert.equal(sent2.status, 200);
+    assert.deepEqual(Object.keys(sent2).sort(), ["outcome", "sent", "status"]);
+    assert.equal(sent2.sent, true);
+    assert.equal(sent2.outcome, "discarded");
+    // 喪失した1件＋再実施の1件で、中継の送信はちょうど2件。
+    assert.equal(rt.calls.apply, 2);
+    const judged2 = await driver.recordJudgment({
+      trialId: "rr1",
+      attempt: 2,
+      outcome: "committed",
+    });
+    assert.equal(judged2.status, 200);
+    // committed（終端）の後は、同じサーバーで新しい試行を
+    // 開始できる（締めまで同じ送信器で進んだことの確認）。
+    const next = await screenCall("/s15/nonces?trial_id=rr-next&attempt=1");
+    assert.equal(next.status, 200);
+    assert.equal(rt.calls.nonce, 3);
   } finally {
     rt.releaseApply();
     await driver.close();

@@ -251,7 +251,10 @@
 // relay } を返す。s15Session（S15 入口の試験単位セッション）は
 // プロセス内でのみ運転コード（tools/s15-driver.mjs）へ渡り、
 // あわせて S15 専用画面へメモリ上で差し込む（S15_SESSION の
-// 定義箇所の注記を参照）。
+// 定義箇所の注記を参照）。S15 の運転では、運転ランチャー
+// （tools/s15-run.mjs）が本モジュールを同一プロセスで生成し、
+// 画面の配信と復旧操作の運転ハンドル（attachS15Driver）を
+// 同じプロセスで保持する。
 
 import http from "node:http";
 import { randomUUID } from "node:crypto";
