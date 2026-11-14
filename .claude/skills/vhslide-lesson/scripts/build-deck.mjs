@@ -6,6 +6,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { resolveTheme } from "./themes.mjs";
 import { mascotSvg } from "./mascot.mjs";
+import { decorSvg } from "./decor.mjs";
+import { iconSvg } from "./icons.mjs";
 import { svgToPng, loadImage, closeRenderer } from "./render.mjs";
 
 const W = 960, H = 540, X0 = 36, X1 = 924, BOTTOM = 516;
@@ -84,6 +86,8 @@ function card(x, y, w, h, tone = "plain") {
   const tile = T.tiles ? T.tiles[tileNo++ % T.tiles.length] : soft;
   const els = [];
   let pad = 16;
+  if (T.shadow !== false && ["fill", "bento", "sticky", "strip", "outline"].includes(T.card ?? "strip"))
+    els.push({ ...rect(x + 2, y + 6, w, h, T.shadowColor ?? "#1d2533", { shape: T.card === "bento" ? "rounded" : "rect" }), opacity: T.shadowOpacity ?? 0.1 });
   if (T.card === "fill") els.push(rect(x, y, w, h, tone === "plain" ? T.surface : soft));
   else if (T.card === "outline") els.push(rect(x, y, w, h, edge), rect(x + 2, y + 2, w - 4, h - 4, tone === "plain" ? T.surface : soft)); // even border on every side
   else if (T.card === "brutal") { // thick black frame with an offset hard shadow
@@ -127,6 +131,35 @@ async function mascot(pose) {
   }
   return images[pose];
 }
+// ---------- decor (textured backdrops) and icons ----------
+const decorOn = !!T.decor && !args.includes("--flat") && (spec.decor ?? true);
+const backdrops = {};
+let decorFailed = false;
+async function backdrop(kind) {
+  if (!decorOn || decorFailed) return undefined;
+  if (!(kind in backdrops)) {
+    try {
+      const svgText = decorSvg(T, kind);
+      const jpg = await svgToPng(svgText, { scale: 1.25, type: "jpeg", quality: 84 });
+      backdrops[kind] = `data:image/jpeg;base64,${jpg.toString("base64")}`;
+    } catch (e) { decorFailed = true; console.warn("※ 装飾の背景を描画できないため、背景なしで作ります:", e.message); return undefined; }
+  }
+  return backdrops[kind];
+}
+/** True once the decorated backdrop is in use (so headers can drop their own flat bands). */
+const decorReady = () => decorOn && !decorFailed;
+const icons = {};
+async function iconEl(name, x, y, s, bg = T.accent) {
+  const ink = bg === T.accent ? T.onAccent : bg === T.primary ? T.onPrimary : "#ffffff";
+  const key = `${name}:${ink}`;
+  if (!(key in icons)) {
+    try { icons[key] = `data:image/png;base64,${(await svgToPng(iconSvg(name, ink), { scale: 1, transparent: true })).toString("base64")}`; }
+    catch { icons[key] = null; }
+  }
+  const els = [rect(x, y, s, s, bg, { shape: "circle" })];
+  if (icons[key]) els.push({ id: nid("ic"), type: "image", x: r(x + s * 0.18), y: r(y + s * 0.18), w: r(s * 0.64), h: r(s * 0.64), src: icons[key], altText: "", aspectLocked: true });
+  return els;
+}
 const mascotEl = async (pose, x, y, s) => {
   const src = await mascot(pose);
   return src ? [{ id: nid("m"), type: "image", x, y, w: s, h: s, src, altText: pose === "think" ? "考えるキャラクター" : "キャラクター", aspectLocked: true }] : [];
@@ -169,13 +202,21 @@ function field(f, x, y, w, h, fs = 18, opts = {}) {
 function header(tag, title, meta) {
   const els = [];
   let top;
+  if (decorReady() && T.decor.headerBand) { // the backdrop draws the band; only the chip and the title go on top
+    els.push({ ...rect(22, 14, 152, 42, "#ffffff", { shape: "rounded" }) });
+    els.push(text(tag, 22, 16, 152, 38, 16, { color: T.primary, bold: true, align: "center", valign: "middle", min: 12 }));
+    els.push(text(title, 192, 8, 640, 54, 29, { color: T.decor.headInk ?? "#ffffff", bold: true, valign: "middle", min: 18, heading: true }));
+    if (meta) els.push(text(meta, 800, 18, 140, 28, 13, { color: T.decor.headInk ?? "#ffffff", align: "right", valign: "middle", min: 12 }));
+    return { els, top: T.decor.top ?? 100 };
+  }
   if (T.header === "band" || T.header === "chalk") {
     const fill = T.header === "band" ? T.primary : T.bg;
-    els.push(rect(0, 0, W, 64, fill));
+    if (!(decorReady() && T.header === "chalk")) els.push(rect(0, 0, W, 64, fill));
     els.push({ ...rect(18, 12, 150, 40, T.accent, { shape: "rounded" }) });
     els.push(text(tag, 18, 14, 150, 36, 16, { color: T.onAccent, bold: true, align: "center", valign: "middle", min: 12 }));
     els.push(text(title, 186, 8, 650, 50, 28, { color: T.header === "band" ? T.onPrimary : T.accent, bold: true, valign: "middle", min: 18, heading: true }));
-    if (T.header === "chalk") els.push(rect(18, 62, 924, 20, T.line), rect(18, 64, 924, 20, T.bg));
+    if (T.header === "chalk" && !decorReady()) els.push(rect(18, 62, 924, 20, T.line), rect(18, 64, 924, 20, T.bg));
+    else if (T.header === "chalk") els.push(hline(24, 70, 912, T.line, 2));
     top = 78;
   } else if (T.header === "gingham") { // tablecloth: coloured band with a checked edge
     els.push(rect(0, 0, W, 64, T.primary));
@@ -231,13 +272,23 @@ function header(tag, title, meta) {
 /** Question band: prompt on the left, thinking mascot on the right. */
 async function ask(prompt, y, h = 72) {
   const mw = useMascot ? h + 18 : 0;
-  return [...cardText(X0, y, X1 - X0 - mw, h, prompt, { tone: "accent", fs: 21, bold: true, align: "center" }),
+  if (T.icons === false) return [...cardText(X0, y, X1 - X0 - mw, h, prompt, { tone: "accent", fs: 21, bold: true, align: "center" }), ...(await mascotEl("think", X1 - h - 4, y - 4, h + 8))];
+  const s = Math.min(58, h - 6), bx = X0 + s / 2;
+  const c = card(bx, y, X1 - X0 - mw - s / 2, h, "accent");
+  return [...c.els, ...(await iconEl("question", X0, y + (h - s) / 2, s, T.accent)),
+    text(prompt, bx + s / 2 + 14, y + 6, X1 - X0 - mw - s - 30, h - 12, 21, { bold: true, align: "center", valign: "middle" }),
     ...(await mascotEl("think", X1 - h - 4, y - 4, h + 8))];
 }
 
 /** Side content for question/table/chart slides; returns elements. */
 async function side(s, x, y, w, h) {
-  if (s.hints) return cardText(x, y, w, h, s.hints.map(v => `・${v}`).join("\n"), { tone: "primary", fs: 19, title: s.hintsTitle ?? "ヒント", valign: "top" });
+  if (s.hints) {
+    if (T.icons === false) return cardText(x, y, w, h, s.hints.map(v => `・${v}`).join("\n"), { tone: "primary", fs: 19, title: s.hintsTitle ?? "ヒント", valign: "top" });
+    const c = card(x, y, w, h, "primary"), i = c.inner;
+    return [...c.els, ...(await iconEl("bulb", i.x, i.y, 36, T.primary)),
+      text(s.hintsTitle ?? "ヒント", i.x + 44, i.y, i.w - 44, 36, 22, { bold: true, color: T.ink, valign: "middle", heading: true }),
+      text(s.hints.map(v => `・${v}`).join("\n"), i.x, i.y + 46, i.w, i.h - 46, 19)];
+  }
   if (s.table) return tableEl(s.table, x, y, w, h);
   if (s.chart) return [chartEl(s.chart, x, y, w, h)];
   if (s.image) { const f = await figure(s.image, x, y, w, h, s.alt); return [f.el]; }
@@ -273,19 +324,21 @@ const source = (t, x, y, w) => text(t, x, y, w, 22, 12, { color: T.sub, min: 12 
 // ---------- slide kinds ----------
 const kinds = {
   async title(s, L) {
-    const dark = T.header === "band" || T.header === "chalk";
-    const els = [rect(0, 0, W, H, dark ? (T.header === "chalk" ? T.bg : T.primary) : T.bg)];
-    const fg = dark ? (T.header === "chalk" ? T.ink : T.onPrimary) : T.ink;
-    if (!dark) els.push(rect(0, 0, 22, H, T.accent), { ...rect(700, 0, 260, 260, T.accentSoft, { shape: "circle" }) }, { ...rect(820, 400, 140, 140, T.primarySoft, { shape: "circle" }) });
-    els.push(text(s.subtitle ?? spec.course ?? "", 64, 60, 720, 34, 20, { color: dark ? T.line : T.sub }));
+    const deco = !!(await backdrop("title"));
+    const dark = deco ? T.decor.titleDark : T.header === "band" || T.header === "chalk";
+    const els = deco ? [] : [rect(0, 0, W, H, dark ? (T.header === "chalk" ? T.bg : T.primary) : T.bg)];
+    const fg = deco ? T.decor.titleInk ?? T.ink : dark ? (T.header === "chalk" ? T.ink : T.onPrimary) : T.ink;
+    if (!dark && !deco) els.push(rect(0, 0, 22, H, T.accent), { ...rect(700, 0, 260, 260, T.accentSoft, { shape: "circle" }) }, { ...rect(820, 400, 140, 140, T.primarySoft, { shape: "circle" }) });
+    els.push(text(s.subtitle ?? spec.course ?? "", 64, 60, 720, 34, 20, { color: deco ? fg : dark ? T.line : T.sub }));
     els.push(text(s.title ?? L.title, 64, 104, 640, 120, 50, { color: fg, bold: true, valign: "middle", min: 30, heading: true }));
     if (s.goal ?? L.goal) els.push(...cardText(64, 244, 600, 120, s.goal ?? L.goal, { tone: "accent", fs: 22, title: "学習の目標", valign: "top" }));
-    if (s.note ?? L.hour) els.push(text(s.note ?? L.hour, 64, 384, 640, 34, 18, { color: dark ? T.line : T.sub })); // accent can vanish on a dark primary
+    if (s.note ?? L.hour) els.push(text(s.note ?? L.hour, 64, 384, 640, 34, 18, { color: deco ? fg : dark ? T.line : T.sub })); // accent can vanish on a dark primary
     els.push(...(await mascotEl("happy", 712, 230, 200)));
     return els;
   },
   async task(s, _L, top) {
     const els = [...cardText(72, top + 60, 816, 170, s.text, { tone: "accent", fs: 30, bold: true, align: "center", heading: true })];
+    if (T.icons !== false) els.push(...(await iconEl("flag", 46, top + 34, 64, T.accent)));
     if (s.clues) els.push(text(`手がかり：${s.clues.join("　")}`, 96, top + 250, 768, 40, 19, { color: T.sub, align: "center" }));
     els.push(...(await mascotEl("think", 415, top + 300, 130)));
     return els;
@@ -512,10 +565,11 @@ const kinds = {
   },
   /** Phase divider: big number, phase name, minutes and an optional line. Drawn without the heading strip. */
   async section(s) {
-    const els = [rect(0, 0, W, H, T.sectionBg ?? T.primary)];
-    const fg = T.sectionInk ?? T.onPrimary;
-    if (T.card === "brutal") els.push(rect(40, 40, W - 80, H - 80, T.ink), rect(46, 46, W - 92, H - 92, T.sectionBg ?? T.primary));
-    els.push(text(String(s.number ?? ""), 80, 120, 220, 220, 120, { bold: true, color: T.sectionNum ?? fg, valign: "middle", noFit: true, heading: true }));
+    const deco = !!(await backdrop("section"));
+    const els = deco ? [] : [rect(0, 0, W, H, T.sectionBg ?? T.primary)];
+    const fg = deco ? T.decor.sectionInk ?? T.sectionInk ?? T.onPrimary : T.sectionInk ?? T.onPrimary;
+    if (T.card === "brutal" && !deco) els.push(rect(40, 40, W - 80, H - 80, T.ink), rect(46, 46, W - 92, H - 92, T.sectionBg ?? T.primary));
+    els.push(text(String(s.number ?? ""), 80, 120, 220, 220, 120, { bold: true, color: deco ? T.decor.sectionNum ?? fg : T.sectionNum ?? fg, valign: "middle", noFit: true, heading: true }));
     els.push(text(s.name ?? "", 300, 150, 560, 80, 52, { bold: true, color: fg, valign: "middle", min: 28, heading: true }));
     if (s.minutes) els.push(text(`${s.minutes}分`, 304, 232, 300, 40, 24, { color: fg }));
     if (s.lead) els.push(text(s.lead, 304, 290, 560, 90, 22, { color: fg }));
@@ -598,6 +652,7 @@ const multiSheet = layout === "phase-grid" && lessons.length > 1;
 if (!multiSheet) sheets.push({ id: "main", name: spec.sheetName ?? spec.title, rowLabels: {} });
 
 const variety = {};
+await backdrop("content"); // find out early whether decorated backdrops can be drawn
 for (const [li, L] of lessons.entries()) {
   ws = { deckId: crypto.randomUUID(), worksheetId: crypto.randomUUID(), fields: [], sectionIds: [], section: "" };
   const sheetId = multiSheet ? `lesson-${li + 1}` : "main";
@@ -629,6 +684,9 @@ for (const [li, L] of lessons.entries()) {
         top = h.top;
         els = [...h.els, ...(await kinds[S.kind](S, L, top))];
       }
+      const bdKind = S.kind === "title" ? "title" : S.kind === "section" ? "section" : S.header === false ? "plain" : "content";
+      const bd = await backdrop(bdKind);
+      if (bd) els.unshift({ id: nid("bg"), type: "image", x: 0, y: 0, w: W, h: H, src: bd, altText: "" });
       const slide = {
         id: `L${li + 1}-${row}-${col}`, x: col, y: row, title: (S.title ?? S.heading ?? S.kind).slice(0, 200),
         background: T.bg, elements: els.filter(Boolean),
@@ -647,7 +705,7 @@ for (const [li, L] of lessons.entries()) {
       id: `L${li + 1}-ws`, x: col, y: row, title: "ワークシート全体", background: T.bg,
       ...(multiSheet ? { sheetId } : {}),
       speakerNotes: "各ページの入力欄と同じワークシートの全体表示。提出前の見直しや家庭学習に使う。",
-      elements: [...h.els, {
+      elements: [...(backdrops.content ? [{ id: nid("bg"), type: "image", x: 0, y: 0, w: W, h: H, src: backdrops.content, altText: "" }] : []), ...h.els, {
         id: nid("ws"), type: "shape", shape: "rounded", x: X0, y: h.top, w: X1 - X0, h: BOTTOM - h.top, fill: "#ffffff", stroke: T.accent, strokeWidth: 2, formFontSize: 16,
         worksheet: { deckId: ws.deckId, worksheetId: ws.worksheetId, title: (L.worksheet?.title ?? `${L.title} ワークシート`).slice(0, 200), description: L.worksheet?.description ?? "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。", sections, fields: ws.fields },
       }],

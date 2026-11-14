@@ -8,6 +8,7 @@
   "course": "教科・単元（表紙の小見出し）",
   "layout": "lesson-rows",          // または "phase-grid"
   "theme": "natural",               // プリセット名、または { "base": "chic", "accent": "#c0392b", ... }
+  "decor": true,                    // 装飾の背景（既定 true。false または --flat で図形だけの見た目）
   "mascot": "onigiri",              // onigiri | drop | book | sprout | kokeshi | hiyoko | ninjin | blob | none
   "lessons": [                      // 1要素＝1単位時間
     {
@@ -95,4 +96,4 @@
 { "base": "minimal", "label": "学校カラー", "accent": "#c0392b", "accentSoft": "#fbe9e7", "primary": "#1b2a49" }
 ```
 
-使えるキー：`font`（本文の書体）`headingFont`（見出しの書体）— sans／serif／mono／rounded（丸ゴシック）／klee（教科書風）／yomogi（手書き風）／ud（UDゴシック）／brush（筆文字）／shippori（見出し明朝）、`bg` `surface` `ink` `sub` `primary` `onPrimary` `primarySoft` `accent` `onAccent` `accentSoft` `line` `muted` `chart[]` `header`（band/underline/tab/chalk/gingham/brutal/bento/notebook/board/magazine/minimal）`card`（fill/strip/outline/brutal/bento/sticky）`tiles`（タイルの色の並び）`card`（fill/strip/outline）`mascot{body, outline, wrap, cheek, think, idea}`。色は必ず `#rrggbb`。
+使えるキー：`decor`（{style, headerBand, top, titleInk, titleDark, sectionInk, sectionNum, heroFrom, heroTo}）`shadow`（false で影なし）`icons`（false でアイコンなし）`font`（本文の書体）`headingFont`（見出しの書体）— sans／serif／mono／rounded（丸ゴシック）／klee（教科書風）／yomogi（手書き風）／ud（UDゴシック）／brush（筆文字）／shippori（見出し明朝）、`bg` `surface` `ink` `sub` `primary` `onPrimary` `primarySoft` `accent` `onAccent` `accentSoft` `line` `muted` `chart[]` `header`（band/underline/tab/chalk/gingham/brutal/bento/notebook/board/magazine/minimal）`card`（fill/strip/outline/brutal/bento/sticky）`tiles`（タイルの色の並び）`card`（fill/strip/outline）`mascot{body, outline, wrap, cheek, think, idea}`。色は必ず `#rrggbb`。

@@ -33,16 +33,16 @@ function svgToPngWithoutBrowser(svg, scale) {
 export async function closeRenderer() { if (browser) await browser.close(); browser = undefined; }
 
 /** Render an SVG string (with width/height attributes) to PNG bytes. */
-export async function svgToPng(svg, { scale = 2, transparent = false } = {}) {
+export async function svgToPng(svg, { scale = 2, transparent = false, type = "png", quality = 82 } = {}) {
   const w = Number(/width="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
   const h = Number(/height="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
   if (!w || !h) throw Error("SVGに width / height 属性が必要です。");
   const b = await getBrowser();
-  if (!b) return svgToPngWithoutBrowser(svg, scale);
+  if (!b) { if (type === "jpeg") throw Error("JPEG needs Chromium"); return svgToPngWithoutBrowser(svg, scale); }
   const page = await b.newPage({ viewport: { width: Math.ceil(w), height: Math.ceil(h) }, deviceScaleFactor: scale });
   await page.setContent(`<html><body style="margin:0;background:transparent">${svg}</body></html>`);
   await page.evaluate(() => document.fonts.ready);
-  const png = await page.screenshot({ type: "png", omitBackground: transparent, clip: { x: 0, y: 0, width: w, height: h } });
+  const png = await page.screenshot({ type, ...(type === "jpeg" ? { quality } : { omitBackground: transparent }), clip: { x: 0, y: 0, width: w, height: h } });
   await page.close();
   return png;
 }

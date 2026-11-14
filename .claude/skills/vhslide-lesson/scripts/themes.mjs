@@ -1,11 +1,14 @@
 // Tone presets for lesson decks. Every color is #rrggbb (VHSlide accepts no other form).
 // font / headingFont: VHSlide 0.101+ fonts — sans | serif | mono | rounded（丸ゴシック）| klee（教科書風）| yomogi（手書き風）| ud（UDゴシック）| brush（筆文字）| shippori（見出し明朝）
 // header: band | underline | tab | chalk | gingham | brutal | bento | notebook | board | magazine | minimal
+// decor:  textured backdrop drawn as an image under each page (scripts/decor.mjs). style: waves | blobs | wa | cloth | chalk | cork | paper | pop | editorial
+//         headerBand: the backdrop draws the heading band; titleInk/sectionInk: text colours on title and divider pages
 // card:   fill | strip | outline | brutal | bento | sticky   (tiles: colours cycled by bento / sticky / brutal cards)
 // card:   fill  (tinted panel) | strip (panel + accent bar on the left) | outline (thin frame)
 export const themes = {
   natural: {
     label: "ナチュラル（やさしい・落ち着いた緑とオレンジ）",
+    decor: { style: "waves", headerBand: true, top: 100, titleInk: "#ffffff", titleDark: true, sectionInk: "#ffffff" },
     font: "ud", headingFont: "rounded",
     bg: "#fffdf8", surface: "#ffffff", ink: "#173d38", sub: "#5b6670",
     primary: "#173d38", onPrimary: "#ffffff", primarySoft: "#eef6f1",
@@ -16,6 +19,7 @@ export const themes = {
   },
   pop: {
     label: "ポップ（明るい・元気）",
+    decor: { style: "waves", headerBand: true, top: 100, titleInk: "#ffffff", titleDark: true, sectionInk: "#ffffff", heroFrom: "#2b7de9", heroTo: "#7a5cf0" },
     font: "ud", headingFont: "rounded",
     bg: "#ffffff", surface: "#fff9db", ink: "#24324a", sub: "#5d6b82",
     primary: "#2b7de9", onPrimary: "#ffffff", primarySoft: "#e7f1ff",
@@ -26,6 +30,7 @@ export const themes = {
   },
   chic: {
     label: "シック（大人っぽい・紺と金）",
+    decor: { style: "editorial", titleInk: "#1f2a44", sectionInk: "#ffffff", sectionNum: "#d9b25a" },
     font: "ud", headingFont: "shippori",
     bg: "#f7f5f0", surface: "#ffffff", ink: "#1f2a44", sub: "#69707f",
     primary: "#1f2a44", onPrimary: "#ffffff", primarySoft: "#e9ecf3",
@@ -36,6 +41,7 @@ export const themes = {
   },
   chalk: {
     label: "黒板（板書の雰囲気）",
+    decor: { style: "chalk", titleInk: "#f5f3e8", titleDark: true, sectionInk: "#f5f3e8", sectionNum: "#ffd84d" },
     font: "ud", headingFont: "yomogi",
     bg: "#1f4a3d", surface: "#285a4b", ink: "#f5f3e8", sub: "#c9dccf",
     primary: "#f5f3e8", onPrimary: "#1f4a3d", primarySoft: "#285a4b",
@@ -46,6 +52,7 @@ export const themes = {
   },
   wa: {
     label: "和（生成り・藍・朱）",
+    decor: { style: "wa", headerBand: true, top: 100, titleInk: "#ffffff", titleDark: true, sectionInk: "#ffffff", heroFrom: "#1b2d4f", heroTo: "#2f4f80" },
     font: "ud", headingFont: "shippori",
     bg: "#fbf7ee", surface: "#ffffff", ink: "#1f2a3a", sub: "#6a6458",
     primary: "#243b63", onPrimary: "#ffffff", primarySoft: "#e8edf5",
@@ -56,6 +63,7 @@ export const themes = {
   },
   pastel: {
     label: "パステル（やわらかい桃色・若草色）",
+    decor: { style: "waves", headerBand: true, top: 100, titleInk: "#ffffff", titleDark: true, sectionInk: "#ffffff", heroFrom: "#e58fa2", heroTo: "#f2b77a" },
     font: "ud", headingFont: "rounded",
     bg: "#fffaf6", surface: "#ffffff", ink: "#3f3a44", sub: "#7a7078",
     primary: "#d97a8c", onPrimary: "#ffffff", primarySoft: "#fde9ee",
@@ -66,6 +74,7 @@ export const themes = {
   },
   shokutaku: {
     label: "食卓（トマト・にんじん・菜っ葉の、食事が楽しくなる配色）",
+    decor: { style: "cloth", headerBand: true, top: 104, titleInk: "#3b2a20", sectionInk: "#ffffff" },
     font: "ud", headingFont: "rounded",
     bg: "#fffaf0", surface: "#ffffff", ink: "#3b2a20", sub: "#7a6555",
     primary: "#d94a32", onPrimary: "#ffffff", primarySoft: "#fde8e1",
@@ -76,6 +85,7 @@ export const themes = {
   },
   bento: {
     label: "ボックス（Bento：角の丸いタイルを並べる、いま主流のレイアウト）",
+    decor: { style: "blobs", titleInk: "#1f2430", sectionInk: "#ffffff", sectionGround: "#2b5fd9" },
     font: "ud", headingFont: "rounded",
     bg: "#f1f2f4", surface: "#ffffff", ink: "#1f2430", sub: "#5b6170",
     primary: "#2b5fd9", onPrimary: "#ffffff", primarySoft: "#e4ecff",
@@ -87,6 +97,7 @@ export const themes = {
   },
   kukkiri: {
     label: "くっきり（太い黒枠とずらした影。元気でメリハリのある見た目）",
+    decor: { style: "pop", titleInk: "#111111", sectionInk: "#111111" },
     font: "ud", headingFont: "rounded",
     bg: "#fff6e0", surface: "#ffffff", ink: "#111111", sub: "#3d3d3d",
     primary: "#111111", onPrimary: "#ffffff", primarySoft: "#c9f2ff",
@@ -99,6 +110,7 @@ export const themes = {
   },
   notebook: {
     label: "ノート（罫線と赤い余白線。板書・ノートの延長として）",
+    decor: { style: "paper", titleInk: "#26313f", sectionInk: "#ffffff" },
     font: "ud", headingFont: "klee",
     bg: "#fffdf6", surface: "#ffffff", ink: "#26313f", sub: "#5d6876",
     primary: "#2c4f8c", onPrimary: "#ffffff", primarySoft: "#eaf1fb",
@@ -110,6 +122,7 @@ export const themes = {
   },
   board: {
     label: "コルクボード（付箋とマスキングテープ。話し合いや意見の共有に）",
+    decor: { style: "cork", titleInk: "#2d2416", sectionInk: "#ffffff" },
     font: "ud", headingFont: "rounded",
     bg: "#c99a63", surface: "#fffdf5", ink: "#2d2416", sub: "#4d3c27",
     primary: "#8a5a2b", onPrimary: "#ffffff", primarySoft: "#fff3a0",
@@ -122,6 +135,7 @@ export const themes = {
   },
   magazine: {
     label: "マガジン（白地に大きな見出し明朝と細い罫線。講義・課題提示に）",
+    decor: { style: "editorial", titleInk: "#1a1a1a", sectionInk: "#ffffff", sectionNum: "#e0695a" },
     font: "ud", headingFont: "shippori",
     bg: "#ffffff", surface: "#f6f4f0", ink: "#1a1a1a", sub: "#555555",
     primary: "#1a1a1a", onPrimary: "#ffffff", primarySoft: "#f2efe9",
@@ -133,6 +147,7 @@ export const themes = {
   },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",
+    decor: { style: "blobs", titleInk: "#1d1f23", sectionInk: "#ffffff", sectionGround: "#0f8b8d" },
     font: "ud", headingFont: "ud",
     bg: "#ffffff", surface: "#f4f5f7", ink: "#1d1f23", sub: "#6b7079",
     primary: "#1d1f23", onPrimary: "#ffffff", primarySoft: "#f4f5f7",
