@@ -135,10 +135,53 @@ async function doDirect(mf, pathName, payload) {
   return { status: res.status, json };
 }
 
+// 応答の形だけを表す診断表記（値は一切含めない）。応答 JSON の
+// キー名をソートして並べるか、JSON でなければ no-json を返す。
+function responseShape(json) {
+  if (!json || typeof json !== "object") return "no-json";
+  return `keys=[${Object.keys(json).sort().join(",")}]`;
+}
+
+// DO 直接入口の nonce 発行は、輸送層の一時的な失敗
+// （ECONNRESET 等で stub.fetch 自体が投げる場合）と、状態は
+// 200 だが nonce／ctx を欠く応答に対してだけ、上限付きで再試
+// 行する（test/run.mjs の issueNonceDirect と同じ意味論。
+// Windows ではガード単独実行でもこの不安定さが再現したため、
+// ガード側にも同じ堅牢化を入れる。Codex 判断 6880709295）。
+// 再試行で未使用の nonce が増えることはあるが、この経路の確
+// 認項目（運営者集合・消費済み操作・完了記録・初期化の有無）
+// は未使用 nonce の件数に依存しない。200 以外の状態は意味の
+// ある応答として再試行しない。/do/apply 等の変更要求は再送
+// になるため再試行しない。最終的に失敗した場合は、状態と応
+// 答の形（キー名のみで値は含めない）、輸送失敗なら例外の名前
+// だけをエラーに含め、値・nonce・トークンは決して含めない。
+async function issueNonceDoDirect(mf) {
+  let last = null;
+  let lastError = null;
+  for (let i = 0; i < 5; i++) {
+    try {
+      last = await doDirect(mf, "/do/nonce", {});
+      if (last.status === 200 && last.json && last.json.nonce && last.json.ctx) {
+        return last;
+      }
+      if (last.status !== 200) return last;
+    } catch (e) {
+      lastError = e;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (last) return last;
+  throw new Error(
+    `direct nonce issuance failed: transport=${lastError ? lastError.name || "Error" : "Error"}`
+  );
+}
+
 async function platformApplyDirect(mf, sub, body, extraBody = {}) {
-  const n = await doDirect(mf, "/do/nonce", {});
+  const n = await issueNonceDoDirect(mf);
   if (n.status !== 200 || !n.json || !n.json.nonce) {
-    throw new Error(`direct nonce issuance failed: status=${n.status}`);
+    throw new Error(
+      `direct nonce issuance failed: status=${n.status} ${responseShape(n.json)}`
+    );
   }
   return doDirect(mf, "/do/apply", {
     body: { ...body, id_token: mockToken(sub, n.json.nonce), ...extraBody },

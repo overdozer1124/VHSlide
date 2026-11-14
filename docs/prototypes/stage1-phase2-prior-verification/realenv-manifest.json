@@ -153,8 +153,8 @@
     },
     {
       "path": "test/s10-add-guard.test.mjs",
-      "sha256": "91dca902f2fcc122c46f8a711f1bee1718e5a14a572bb98093bd996541b5de51",
-      "bytes": 11209
+      "sha256": "e5706a498773dd1ce008b20f652cf7a848a13bbb76f611fdc8700b5cde1807c7",
+      "bytes": 13227
     },
     {
       "path": "test/s10-add.screen.mjs",
@@ -193,8 +193,8 @@
     },
     {
       "path": "test/s11-guard.test.mjs",
-      "sha256": "68f7f383636aea9907ed225e5c114d87345384b4527a173b35671d00b4731852",
-      "bytes": 12849
+      "sha256": "2ed0aed01275598e307df09222c9cde1575c2fb0b88dce56dce76ecd1fd7c9ee",
+      "bytes": 14867
     },
     {
       "path": "test/s11-parallel.screen.mjs",
@@ -233,8 +233,8 @@
     },
     {
       "path": "test/s12-guard.test.mjs",
-      "sha256": "18976f397f7b2047d6d273c29ccb34116e075acdc74c031c512fc03754749bfd",
-      "bytes": 14865
+      "sha256": "2686250ff19449d3a59562663856d2c0a582f436718be57fd154a4ea04767c01",
+      "bytes": 16883
     },
     {
       "path": "test/s12-revoke.screen.mjs",
@@ -273,8 +273,8 @@
     },
     {
       "path": "test/s13-guard.test.mjs",
-      "sha256": "a8aa3b16bc914b5d12b289b1d224f8c1bc2600daceafd2de0b02d7aadf78e8ae",
-      "bytes": 15039
+      "sha256": "265f6fb32d65dec5a5c2ac99588844485bdf03def7325fe3d934710e0aa34fc8",
+      "bytes": 21380
     },
     {
       "path": "test/s13-revoke.screen.mjs",
@@ -313,8 +313,8 @@
     },
     {
       "path": "test/s14-guard.test.mjs",
-      "sha256": "f7daada8c054a5cf64e78b708174419418e10168452207b84378fa8e92a3ef04",
-      "bytes": 16995
+      "sha256": "ec1934cfe73152a75f8b08bcf429f4dbe4eb6a5faf1af137c2f1f72b649a47de",
+      "bytes": 19013
     },
     {
       "path": "test/s14-rotate.screen.mjs",
@@ -363,8 +363,8 @@
     },
     {
       "path": "test/s15-guard.test.mjs",
-      "sha256": "8c1a0965abc40829ec74f13327ef2c36ee39e0912fdd697678e08930194c972f",
-      "bytes": 20930
+      "sha256": "a691636da19f570e9300f9eb7e96d7a8509c2c07c9479673db0bfd49a9b0e51c",
+      "bytes": 22948
     },
     {
       "path": "test/s15-apply.screen.mjs",
@@ -2192,11 +2192,11 @@
           "text": "//   403 nonce_replayed で拒否される（nonce 消費が先に効く）。"
         },
         {
-          "line": 246,
+          "line": 289,
           "text": "test(\"S10ガード: 同一要求の再送（同じ nonce・トークン・Cookie・body）は 403 nonce_replayed で拒否される\", async () => {"
         },
         {
-          "line": 253,
+          "line": 296,
           "text": "assert.equal(replay.json.error, \"nonce_replayed\");"
         }
       ],
@@ -2586,7 +2586,7 @@
           "text": "import { createS11Sender } from \"../tools/s11-sender.mjs\";"
         },
         {
-          "line": 218,
+          "line": 261,
           "text": "sender = createS11Sender({ relayUrl: normal.base });"
         }
       ],
@@ -3021,7 +3021,7 @@
           "text": "import { createS12Sender } from \"../tools/s12-sender.mjs\";"
         },
         {
-          "line": 227,
+          "line": 270,
           "text": "sender = createS12Sender({ relayUrl: normal.base });"
         }
       ],
@@ -3495,7 +3495,7 @@
           "text": "import { createS13Sender } from \"../tools/s13-sender.mjs\";"
         },
         {
-          "line": 235,
+          "line": 278,
           "text": "sender = createS13Sender({ relayUrl: normal.base });"
         }
       ],
@@ -4002,7 +4002,7 @@
           "text": "import { createS14Sender } from \"../tools/s14-sender.mjs\";"
         },
         {
-          "line": 257,
+          "line": 300,
           "text": "sender = createS14Sender({ relayUrl: normal.base });"
         }
       ],
@@ -4409,15 +4409,15 @@
           "text": "import { createS15Sender } from \"../tools/s15-sender.mjs\";"
         },
         {
-          "line": 335,
+          "line": 378,
           "text": "const sender = createS15Sender({ relayUrl: base });"
         },
         {
-          "line": 394,
+          "line": 437,
           "text": "const sender = createS15Sender({ relayUrl: base });"
         },
         {
-          "line": 461,
+          "line": 504,
           "text": "const sender = createS15Sender({ relayUrl: base });"
         }
       ],
@@ -4426,19 +4426,19 @@
     "s15_guard_records_judgment": {
       "found": [
         {
-          "line": 363,
+          "line": 406,
           "text": "const j = session.recordReadBackJudgment(trialId, generation, readBack);"
         },
         {
-          "line": 412,
+          "line": 455,
           "text": "const j1 = session.recordReadBackJudgment(trialId, generation, readBack1);"
         },
         {
-          "line": 431,
+          "line": 474,
           "text": "const j2 = session.recordReadBackJudgment(trialId, generation, readBack2);"
         },
         {
-          "line": 478,
+          "line": 521,
           "text": "const j = session.recordReadBackJudgment(trialId, generation, readBack);"
         }
       ],

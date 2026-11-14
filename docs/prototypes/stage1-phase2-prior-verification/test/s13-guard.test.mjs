@@ -135,10 +135,53 @@ async function doDirect(mf, pathName, payload) {
   return { status: res.status, json };
 }
 
+// 応答の形だけを表す診断表記（値は一切含めない）。応答 JSON の
+// キー名をソートして並べるか、JSON でなければ no-json を返す。
+function responseShape(json) {
+  if (!json || typeof json !== "object") return "no-json";
+  return `keys=[${Object.keys(json).sort().join(",")}]`;
+}
+
+// DO 直接入口の nonce 発行は、輸送層の一時的な失敗
+// （ECONNRESET 等で stub.fetch 自体が投げる場合）と、状態は
+// 200 だが nonce／ctx を欠く応答に対してだけ、上限付きで再試
+// 行する（test/run.mjs の issueNonceDirect と同じ意味論。
+// Windows ではガード単独実行でもこの不安定さが再現したため、
+// ガード側にも同じ堅牢化を入れる。Codex 判断 6880709295）。
+// 再試行で未使用の nonce が増えることはあるが、この経路の確
+// 認項目（運営者集合・消費済み操作・完了記録・初期化の有無）
+// は未使用 nonce の件数に依存しない。200 以外の状態は意味の
+// ある応答として再試行しない。/do/apply 等の変更要求は再送
+// になるため再試行しない。最終的に失敗した場合は、状態と応
+// 答の形（キー名のみで値は含めない）、輸送失敗なら例外の名前
+// だけをエラーに含め、値・nonce・トークンは決して含めない。
+async function issueNonceDoDirect(mf) {
+  let last = null;
+  let lastError = null;
+  for (let i = 0; i < 5; i++) {
+    try {
+      last = await doDirect(mf, "/do/nonce", {});
+      if (last.status === 200 && last.json && last.json.nonce && last.json.ctx) {
+        return last;
+      }
+      if (last.status !== 200) return last;
+    } catch (e) {
+      lastError = e;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (last) return last;
+  throw new Error(
+    `direct nonce issuance failed: transport=${lastError ? lastError.name || "Error" : "Error"}`
+  );
+}
+
 async function platformApplyDirect(mf, sub, body, extraBody = {}) {
-  const n = await doDirect(mf, "/do/nonce", {});
+  const n = await issueNonceDoDirect(mf);
   if (n.status !== 200 || !n.json || !n.json.nonce) {
-    throw new Error(`direct nonce issuance failed: status=${n.status}`);
+    throw new Error(
+      `direct nonce issuance failed: status=${n.status} ${responseShape(n.json)}`
+    );
   }
   return doDirect(mf, "/do/apply", {
     body: { ...body, id_token: mockToken(sub, n.json.nonce), ...extraBody },
@@ -245,6 +288,127 @@ after(async () => {
     // 衝突しない（失敗を after フックの例外にしない）。
     await removeDirWithRetry(path.join(ROOT, PERSIST));
   }
+});
+
+test("S13ガード（堅牢化）：DO直接nonceが200だが nonce／ctx 欠落なら再試行して成功し、/do/apply はちょうど1回だけ送る", async () => {
+  // 偽の Miniflare／DO スタブ。1回目の /do/nonce は 200 だが
+  // nonce／ctx を欠く応答（Windows で観測された一過性異常の
+  // 形）を返し、2回目で正しい発行応答を返す。/do/apply は
+  // 受けた要求を記録し、再送されていないことを数で確認する。
+  const calls = [];
+  let nonceCalls = 0;
+  const stub = {
+    async fetch(url, opts) {
+      const pathName = new URL(url).pathname;
+      calls.push(pathName);
+      if (pathName === "/do/nonce") {
+        nonceCalls += 1;
+        if (nonceCalls === 1) {
+          return { status: 200, json: async () => ({ ok: true }) };
+        }
+        return {
+          status: 200,
+          json: async () => ({ nonce: "nonce-retry-demo", ctx: "ctx-retry-demo" }),
+        };
+      }
+      if (pathName === "/do/apply") {
+        const payload = JSON.parse(opts.body);
+        // 2回目の発行で得た nonce と ctx で送られていること。
+        assert.equal(payload.ctx, "ctx-retry-demo");
+        assert.ok(payload.body.id_token.includes("|nonce-retry-demo|"));
+        return { status: 201, json: async () => ({ ok: true }) };
+      }
+      throw new Error("unexpected path: " + pathName);
+    },
+  };
+  const fakeMf = {
+    async getDurableObjectNamespace(name) {
+      assert.equal(name, "REGISTRY");
+      return { idFromName: (n) => n, get: () => stub };
+    },
+  };
+  const r = await platformApplyDirect(fakeMf, SUB_A, {
+    purpose: "bootstrap",
+    env_id: ENV_ID,
+    one_time_value: "one-time-retry-demo",
+  });
+  assert.equal(r.status, 201);
+  assert.equal(nonceCalls, 2);
+  assert.equal(calls.filter((p) => p === "/do/apply").length, 1);
+});
+
+test("S13ガード（堅牢化）：再試行の上限・非200の即時失敗・輸送失敗の診断は、値を含まない形だけを出す", async () => {
+  const makeFakeMf = (handler) => ({
+    async getDurableObjectNamespace() {
+      return {
+        idFromName: (n) => n,
+        get: () => ({ fetch: handler }),
+      };
+    },
+  });
+  // (a) 200 だが nonce／ctx 欠落が続く場合：上限（5回）まで
+  // 再試行し、エラーは状態とキー名だけを含む（値は含めない）。
+  let callsA = 0;
+  const mfA = makeFakeMf(async () => {
+    callsA += 1;
+    return { status: 200, json: async () => ({ ok: true, detail: "shape-only" }) };
+  });
+  await assert.rejects(
+    () =>
+      platformApplyDirect(mfA, SUB_A, {
+        purpose: "bootstrap",
+        env_id: ENV_ID,
+        one_time_value: "one-time-retry-demo",
+      }),
+    (e) => {
+      assert.ok(e.message.includes("status=200"), e.message);
+      assert.ok(e.message.includes("keys=[detail,ok]"), e.message);
+      assert.ok(!e.message.includes("shape-only"), e.message);
+      return true;
+    }
+  );
+  assert.equal(callsA, 5);
+  // (b) 200 以外の状態は意味のある応答として再試行しない。
+  let callsB = 0;
+  const mfB = makeFakeMf(async () => {
+    callsB += 1;
+    return { status: 403, json: async () => ({ error: "forbidden" }) };
+  });
+  await assert.rejects(
+    () =>
+      platformApplyDirect(mfB, SUB_A, {
+        purpose: "bootstrap",
+        env_id: ENV_ID,
+        one_time_value: "one-time-retry-demo",
+      }),
+    (e) => {
+      assert.ok(e.message.includes("status=403"), e.message);
+      assert.ok(e.message.includes("keys=[error]"), e.message);
+      return true;
+    }
+  );
+  assert.equal(callsB, 1);
+  // (c) 輸送失敗が続く場合：上限まで再試行し、エラーには例外
+  // の名前だけを含める（例外のメッセージ文は含めない）。
+  let callsC = 0;
+  const mfC = makeFakeMf(async () => {
+    callsC += 1;
+    throw new TypeError("simulated transport detail");
+  });
+  await assert.rejects(
+    () =>
+      platformApplyDirect(mfC, SUB_A, {
+        purpose: "bootstrap",
+        env_id: ENV_ID,
+        one_time_value: "one-time-retry-demo",
+      }),
+    (e) => {
+      assert.ok(e.message.includes("transport=TypeError"), e.message);
+      assert.ok(!e.message.includes("simulated transport detail"), e.message);
+      return true;
+    }
+  );
+  assert.equal(callsC, 5);
 });
 
 test("S13ガード：開始状態は generation 5・登録簿 {A, C}・consumed=2・completion=2", async () => {
