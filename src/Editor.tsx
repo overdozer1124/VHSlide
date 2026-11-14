@@ -12,6 +12,7 @@ import { InkControls } from "./InkControls";
 import { emptyInkImage } from "./InkObject";
 import { EditorInspector, TableInspector } from "./EditorInspector";
 import {
+  EmbedSidebarEditor,
   SurveySidebarEditor,
   WorksheetSidebarEditor,
 } from "./FormSidebarEditor";
@@ -1102,6 +1103,13 @@ export function Editor({
                   deckId={cloud!.active!.id}
                   elementId={element!.id}
                   onFormSaved={onFormSaved}
+                />
+              )}
+              {editable && element?.embed && (
+                <EmbedSidebarEditor
+                  key={element.id}
+                  element={element}
+                  onChange={(patch) => updateElement(patch)}
                 />
               )}
             </div>

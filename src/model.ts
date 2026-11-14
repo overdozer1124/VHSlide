@@ -8,6 +8,8 @@ import { parseSurveyBinding } from "./surveyBinding.ts";
 import type { SurveyBinding } from "./surveyBinding.ts";
 import { parseWebbingBinding } from "./webbingBinding.ts";
 import type { WebbingBinding } from "./webbingBinding.ts";
+import { parseEmbedBinding } from "./embedBinding.ts";
+import type { EmbedBinding } from "./embedBinding.ts";
 import { webLink } from "./webLink.ts";
 import { parseChart } from "./chartData.ts";
 import type { ChartData } from "./chartData.ts";
@@ -40,6 +42,7 @@ export interface Element {
   survey?: SurveyBinding;
   surveyResult?: SurveyResultBinding;
   webbing?: WebbingBinding;
+  embed?: EmbedBinding;
   id: string;
   type: "text" | "image" | "shape" | "table" | "line" | "chart";
   groupId?: string;
@@ -698,7 +701,8 @@ export function parseDeck(input: string): Deck {
             e.survey !== undefined ||
             e.worksheet !== undefined ||
             e.surveyResult !== undefined ||
-            e.webbing !== undefined
+            e.webbing !== undefined ||
+            e.embed !== undefined
           )
             fail();
           base.responseField = parseResponseField(e.responseField);
@@ -709,10 +713,23 @@ export function parseDeck(input: string): Deck {
             e.survey !== undefined ||
             e.worksheet !== undefined ||
             e.surveyResult !== undefined ||
-            e.responseField !== undefined
+            e.responseField !== undefined ||
+            e.embed !== undefined
           )
             fail();
           base.webbing = parseWebbingBinding(e.webbing);
+        }
+        if (e.embed !== undefined) {
+          if (
+            e.type !== "shape" ||
+            e.survey !== undefined ||
+            e.worksheet !== undefined ||
+            e.surveyResult !== undefined ||
+            e.responseField !== undefined ||
+            e.webbing !== undefined
+          )
+            fail();
+          base.embed = parseEmbedBinding(e.embed);
         }
         if (e.surveyResult !== undefined) {
           const binding = parseSurveyResultBinding(e.surveyResult);
@@ -729,12 +746,18 @@ export function parseDeck(input: string): Deck {
           base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== undefined) {
-          if (e.type !== "shape" || e.survey !== undefined || e.webbing !== undefined)
+          if (
+            e.type !== "shape" ||
+            e.survey !== undefined ||
+            e.webbing !== undefined ||
+            e.embed !== undefined
+          )
             fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);
         }
         if (e.survey !== undefined) {
-          if (e.type !== "shape" || e.webbing !== undefined) fail();
+          if (e.type !== "shape" || e.webbing !== undefined || e.embed !== undefined)
+            fail();
           base.survey = parseSurveyBinding(e.survey);
         }
         if (e.rotation !== undefined)

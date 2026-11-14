@@ -6,6 +6,7 @@ import { SurveyResultCaption } from "./SurveyResultCaption";
 import { SlideWorksheet } from "./SlideWorksheet";
 import { SlideSurvey } from "./SlideSurvey";
 import { SlideWebbing } from "./SlideWebbing";
+import { SlideEmbed } from "./SlideEmbed";
 import { InkObject } from "./InkObject";
 import { ChartGraphic } from "./ChartGraphic";
 import {
@@ -40,6 +41,7 @@ export function ElementView({ element: e }: { element: Element }) {
   if (e.worksheet) return <SlideWorksheet element={e} />;
   if (e.survey) return <SlideSurvey element={e} />;
   if (e.webbing) return <SlideWebbing element={e} />;
+  if (e.embed) return <SlideEmbed element={e} />;
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
   if (e.type === "text" && e.surveyResult)
@@ -844,7 +846,8 @@ export function Canvas({
                         : undefined
               }
               onDoubleClick={(event) => {
-                if (e.survey || e.worksheet || e.responseField) return;
+                if (e.survey || e.worksheet || e.responseField || e.embed)
+                  return;
                 if (event.shiftKey || event.ctrlKey || event.metaKey) return;
                 if (
                   editable &&
@@ -880,6 +883,7 @@ export function Canvas({
                   !e.survey &&
                   !e.worksheet &&
                   !e.responseField &&
+                  !e.embed &&
                   (e.groupId || e.type === "text" || e.type === "shape") &&
                   ["Enter", "F2"].includes(event.key)
                 ) {
@@ -985,6 +989,16 @@ export function Canvas({
                 ) : e.webbing ? (
                   <SlideWebbing
                     key={`${e.webbing.deckId}:${e.webbing.mapId}`}
+                    element={e}
+                    interactive={surveyInteractive}
+                    onMoveStart={
+                      editable
+                        ? (event) => start(event, e, false, false)
+                        : undefined
+                    }
+                  />
+                ) : e.embed ? (
+                  <SlideEmbed
                     element={e}
                     interactive={surveyInteractive}
                     onMoveStart={

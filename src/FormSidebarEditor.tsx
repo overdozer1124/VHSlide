@@ -12,6 +12,12 @@ import type { FormDraft } from "./formEditing";
 import { worksheetTemplate } from "./worksheetTemplates";
 import { useWorksheets } from "./WorksheetContext";
 import { SurveySlideContext } from "./SurveySlideContext";
+import type { Element } from "./model";
+import {
+  embedHostName,
+  normalizeEmbedUrl,
+  parseEmbedBinding,
+} from "./embedBinding";
 
 const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -727,6 +733,83 @@ export function SurveySidebarEditor({
       </div>
       <p className="inspector-note">
         受付の開始・終了や集計の共有は、フォーム画面から行えます。
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Sidebar editor for a slide-placed embedded app: the URL is part of the
+ * element itself, so saving is a plain element patch (no server round-trip).
+ */
+export function EmbedSidebarEditor({
+  element,
+  onChange,
+}: {
+  element: Element;
+  onChange: (patch: Partial<Element>) => void;
+}) {
+  const current = element.embed?.url ?? "";
+  const [url, setUrl] = useState(current);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const savedRef = useRef(current);
+  useEffect(() => {
+    // 自分の保存でURLが変わったときは入力とメッセージを消さない。
+    // 元に戻すなどで外から変わったときだけ、表示を追随させる。
+    if (current !== savedRef.current) {
+      savedRef.current = current;
+      setUrl(current);
+    }
+    setError("");
+  }, [current, element.id]);
+  const dirty = url.trim() !== current;
+  return (
+    <section className="embed-sidebar-editor" aria-label="埋め込みアプリの設定">
+      <h3>埋め込みアプリ</h3>
+      <label>
+        アプリのURL
+        <input
+          type="url"
+          value={url}
+          placeholder="https://…"
+          onChange={(event) => {
+            setUrl(event.target.value);
+            setMessage("");
+          }}
+        />
+      </label>
+      {error && (
+        <p role="alert" className="embed-panel-error">
+          {error}
+        </p>
+      )}
+      {message && <p className="embed-sidebar-message">{message}</p>}
+      <button
+        type="button"
+        className="button"
+        disabled={!dirty}
+        onClick={() => {
+          try {
+            const binding = parseEmbedBinding({
+              url: normalizeEmbedUrl(url),
+            });
+            savedRef.current = binding.url;
+            onChange({
+              embed: binding,
+              text: `アプリ：${embedHostName(binding.url)}`,
+            });
+            setError("");
+            setMessage("URLを変更しました。");
+          } catch (e) {
+            setError((e as Error).message);
+          }
+        }}
+      >
+        URLを変更
+      </button>
+      <p className="embed-panel-note">
+        埋め込みを禁止しているサイトは表示されません。
       </p>
     </section>
   );

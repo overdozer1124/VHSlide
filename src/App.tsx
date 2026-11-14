@@ -21,6 +21,8 @@ import { GroupsProvider } from "./GroupsContext";
 import { DeckPollProvider } from "./deckPoll";
 import { WebbingPanel } from "./WebbingPanel";
 import { parseWebbingBinding } from "./webbingBinding";
+import { EmbedPanel } from "./EmbedPanel";
+import { embedHostName, parseEmbedBinding } from "./embedBinding";
 import type { WebbingView } from "./webbing";
 import { parseWorksheetBinding } from "./worksheets";
 import { createElement } from "react";
@@ -3664,6 +3666,55 @@ export default function App() {
         />
       )}
       <ActivitiesPanel
+        apps={
+          <EmbedPanel
+            onEmbed={(url: string) => {
+              if (cloud.active && !cloud.isHost)
+                throw new Error("ホストだけがアプリを配置できます。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target || target.elements.length >= 200)
+                throw new Error(
+                  "配置先のページを確認してください。1ページ200要素までです。",
+                );
+              const binding = parseEmbedBinding({ url });
+              const element: Element = {
+                id: uid(),
+                type: "shape",
+                shape: "rounded",
+                x: 110,
+                y: 60,
+                w: 740,
+                h: 420,
+                fill: "#ffffff",
+                stroke: "#587d59",
+                color: "#173d38",
+                fontSize: 20,
+                text: `アプリ：${embedHostName(binding.url)}`,
+                embed: binding,
+              };
+              const next = {
+                ...current,
+                slides: current.slides.map((s) =>
+                  s.id === target.id
+                    ? { ...s, elements: [...s.elements, element] }
+                    : s,
+                ),
+              };
+              if (
+                !commitWorkbook(parseDeck(serializeDeck(next)), current, true)
+              )
+                throw new Error("アプリを配置できませんでした。");
+              setSelected(element.id);
+              setView("editor");
+              notify(
+                "アプリをスライドに配置しました。開いた画面でそのまま操作できます。",
+              );
+            }}
+          />
+        }
         fields={
           <ResponseFieldCreator
             key={`${cloud.active?.id}:${slide.id}`}
