@@ -113,7 +113,12 @@ def svg_to_png(svg):
     return cairosvg.svg2png(bytestring=svg.encode("utf-8"), scale=2)
 
 
+THEMES = None  # build-skill.mjs writes the theme data here, so the skill needs no separate data file
+
+
 def load_themes():
+    if THEMES is not None:
+        return THEMES
     with open(os.path.join(ASSETS, "themes.json"), encoding="utf-8") as f:
         return json.load(f)
 
@@ -146,6 +151,10 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
     sm = spec.get("mascot")
     mascot_arg = nn(mascot, sm if isinstance(sm, str) else (sm or {}).get("kind") if isinstance(sm, dict) else None, "onigiri")
     use_mascot = mascot_arg != "none"
+    has_images = os.path.exists(os.path.join(ASSETS, "images.json"))
+    if not has_images and (use_mascot or (not flat and spec.get("decor") is not False)):
+        warn("※ 画像のデータ（assets/images.json）が無いため、背景の装飾・アイコン・キャラクターなしで作ります。")
+        use_mascot = False
     if not spec.get("title"):
         raise BuildError("title（作品名）がありません。")
 
@@ -300,6 +309,8 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
 
     # ---------- pre-rendered images ----------
     def asset(group, name):
+        if not has_images:
+            return None
         if "pack" not in state:
             with open(os.path.join(ASSETS, "images.json"), encoding="utf-8") as f:
                 state["pack"] = json.load(f)
@@ -325,7 +336,7 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
             images[pose] = src
         return images[pose]
 
-    decor_on = bool(T.get("decor")) and not flat and nn(spec.get("decor"), True)
+    decor_on = bool(T.get("decor")) and not flat and nn(spec.get("decor"), True) and has_images
     backdrops = {}
 
     def backdrop(kind):

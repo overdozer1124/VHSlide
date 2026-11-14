@@ -14,7 +14,7 @@ description: 指導書・教科書・ワークシート（画像やPDF）から�
 - `references/spec-format.md`：レッスン仕様の書き方（ページの種類・キー）。**書く前に必ず読む。**
 - `references/design.md`：トーン・キャラクターの一覧と見た目の原則
 - `references/vhslide-features.md`：VHSlide の機能（対応版 {{VHSLIDE_VERSION}}）
-- `examples/nutrition.spec.json`（完成例）、`examples/patterns.spec.json`（ページの型の例）
+- `references/examples.md`：完成例（1時間の授業）とページの型の例
 
 ## 0. 最初に1回だけ確認する（1つのメッセージにまとめ、番号付きの選択肢で聞く）
 
@@ -56,7 +56,8 @@ python3 SKILL_DIR/scripts/build_deck.py lesson.spec.json 単元名.vhslide.json 
 ```
 
 3. 「作れませんでした：…」と出たら、理由を読んで仕様を直し、もう一度実行する（入力欄IDの重複、40個を超える入力欄、未知の kind・テーマ、見つからない画像など）。「※」で始まる注意は読んで必要なら直す。
-4. 成功したら、出力の `.vhslide.json` を先生がダウンロードできるファイルとして渡す。
+4. 「画像のデータが無い」と出たら軽量版のスキル。背景の装飾とキャラクターなしで作られることを先生に伝える。
+5. 成功したら、出力の `.vhslide.json` を先生がダウンロードできるファイルとして渡す。
 
 コードを実行できない場合は、レッスン仕様JSONを ```json のコードブロックで出し、「VHSlide 授業スライド変換」ページ（別配布のHTML）に貼って作るよう案内する。
 
