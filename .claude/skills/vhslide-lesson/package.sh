@@ -6,5 +6,6 @@ out="${1:-$PWD/vhslide-lesson.zip}"
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 cp -r "$here" "$tmp/vhslide-lesson"
 rm -f "$tmp/vhslide-lesson/package.sh"
+rm -rf "$tmp/vhslide-lesson/gemini/dist"
 (cd "$tmp" && zip -qr -X "$out" vhslide-lesson)
 echo "$out"

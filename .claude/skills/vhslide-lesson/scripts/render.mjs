@@ -34,8 +34,9 @@ export async function closeRenderer() { if (browser) await browser.close(); brow
 
 /** Render an SVG string (with width/height attributes) to PNG bytes. */
 export async function svgToPng(svg, { scale = 2, transparent = false, type = "png", quality = 82 } = {}) {
-  const w = Number(/width="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
-  const h = Number(/height="(\d+(?:\.\d+)?)"/.exec(svg)?.[1]);
+  const head = svg.slice(0, svg.indexOf(">") + 1);
+  const w = Number(/\bwidth=["'](\d+(?:\.\d+)?)/.exec(head)?.[1]);
+  const h = Number(/\bheight=["'](\d+(?:\.\d+)?)/.exec(head)?.[1]);
   if (!w || !h) throw Error("SVGに width / height 属性が必要です。");
   const b = await getBrowser();
   if (!b) { if (type === "jpeg") throw Error("JPEG needs Chromium"); return svgToPngWithoutBrowser(svg, scale); }
