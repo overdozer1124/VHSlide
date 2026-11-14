@@ -127,3 +127,19 @@ const zipSkill = (zipName, exclude = []) => {
 };
 zipSkill("vhslide-lesson-gemini-skill-full.zip");
 zipSkill("vhslide-lesson-gemini-skill.zip", ["vhslide-lesson/scripts/backdrops.py"]);
+
+// 5. what Gemini accepted in practice (it only says "スキルを保存できませんでした" otherwise)
+const md = fs.readFileSync(path.join(out, "SKILL.md"), "utf8");
+const desc = /^description: (.*)$/m.exec(md)[1];
+const problems = [];
+if (desc.length > 120) problems.push(`description is ${desc.length} characters (a 218-character one was refused; keep it short)`);
+if (/Gemini|Google|Canvas|PowerPoint/.test(md)) problems.push("SKILL.md names a product (a version that did was refused)");
+for (const f of execFileSync("find", [".", "-type", "f"], { cwd: out }).toString().trim().split("\n")) {
+  const text = fs.readFileSync(path.join(out, f), "utf8");
+  const longest = Math.max(...text.split("\n").map(l => l.length));
+  if (longest > 2000) problems.push(`${f}: a line of ${longest} characters (very long lines were refused)`);
+  if (!/\.(md|py)$/.test(f)) problems.push(`${f}: only .md and .py files have been accepted so far`);
+}
+const total = execFileSync("du", ["-sb", out]).toString().split("\t")[0];
+if (total > 800_000) problems.push(`the skill is ${Math.round(total / 1024)}KB (about 690KB was accepted, 11MB was not)`);
+if (problems.length) { console.error("Gemini may refuse this skill:\n- " + problems.join("\n- ")); process.exit(1); }

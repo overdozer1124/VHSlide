@@ -1,16 +1,15 @@
 ---
 name: vhslide-lesson
-description: VHSlide用の授業スライドを .vhslide.json ファイルで作る。指導書から作るときに使う。Geminiのスライド機能は使わない。
+description: 指導書や教科書から、問いとワークシートの入力欄つきの VHSlide 授業スライド（.vhslide.json）を作る。
 ---
 
 # 指導書・教科書から VHSlide の授業スライドを作る
 
 **先生への回答・報告・質問は、すべて日本語で書く。**
 
-> **最重要：成果物は VHSlide の作品ファイル（`.vhslide.json`）1つだけ。**
-> Gemini のスライド作成機能（Canvas のスライド）・Google スライド・PowerPoint・HTML のスライドは **作らない**。
-> 「スライドを作って」と頼まれても、このスキルが呼ばれた以上は VHSlide 用のファイルを、下の手順（コード実行で `scripts/build_deck.py`）で作る。
-> 生徒が VHSlide の中で回答を入力するため、入力欄とワークシートは build_deck.py でしか作れない。
+## 成果物
+
+作るのは VHSlide の作品ファイル（`.vhslide.json`）1つだけ。ほかの形式のスライド（スライド作成機能、プレゼンテーションのファイル、HTML）は作らない。「スライドを作って」と頼まれたときも、下の手順どおりコード実行で `scripts/build_deck.py` を動かしてファイルを作る。生徒が VHSlide の中で回答を入力する入力欄とワークシートは、build_deck.py でしか作れない。
 
 入力（指導書・教科書の画像やPDF）から授業を設計し、生徒への問いとワークシートの入力欄を含む VHSlide の作品ファイルを作る。
 ページの組み立ては `scripts/build_deck.py`（Python の標準ライブラリだけで動く）が行う。あなたは **授業の設計（レッスン仕様JSON）と図** に集中する。座標を手で計算して VHSlide のJSONを直接書かない。
