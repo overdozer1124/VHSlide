@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
@@ -17,7 +24,9 @@ import {
   loadTextMineAnalyzer,
   textMineTexts,
   type TextMineResult,
+  type TextMineWord,
 } from "./textMine";
+import { layoutWordCloud } from "./wordCloud";
 import { worksheetCsv } from "./worksheetCsv";
 import { ResponseGalleryCard } from "./ResponseGalleryPanel";
 import type { ResponseGallery } from "./responseGallery";
@@ -571,6 +580,61 @@ function ConsoleFields({
   );
 }
 
+/** よく出る言葉のワードクラウド。大きさは書いた人数に比例する。 */
+function WordCloud({ words }: { words: TextMineWord[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(update)
+        : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, []);
+  const placed = useMemo(() => {
+    if (!width || !words.length) return [];
+    const canvas = document.createElement("canvas").getContext("2d");
+    const measure = (text: string, size: number) => {
+      if (canvas) {
+        canvas.font = `700 ${size}px "BIZ UDPGothic", sans-serif`;
+        return { w: canvas.measureText(text).width, h: size };
+      }
+      return { w: text.length * size * 0.62, h: size };
+    };
+    return layoutWordCloud(
+      words.map((w) => ({ word: w.word, weight: w.respondents })),
+      width,
+      280,
+      measure,
+    );
+  }, [words, width]);
+  if (!words.length) return null;
+  const byWord = new Map(words.map((w) => [w.word, w]));
+  return (
+    <div
+      className="console-wordcloud"
+      ref={ref}
+      role="img"
+      aria-label="言葉のクラウド（文字の大きさは書いた人数の多さ）"
+    >
+      {placed.map((p) => (
+        <span
+          key={p.word}
+          style={{ left: p.x, top: p.y, fontSize: p.size, color: p.color }}
+          title={`${p.word}（${byWord.get(p.word)?.respondents ?? 0}人）`}
+        >
+          {p.word}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 type TextMineState =
   | { kind: "idle" }
   | { kind: "loading"; done: number }
@@ -625,8 +689,10 @@ function TextMineAnalysis({
       {state.kind === "done" && (
         <>
           <p className="console-textmine-note">
-            {state.result.texts}人の回答から分析しました。よく出る言葉（人数順）：
+            {state.result.texts}人の回答から分析しました。言葉の大きさは、書いた人数の多さです。
           </p>
+          <WordCloud words={state.result.words} />
+          <p className="console-textmine-note">よく出る言葉（人数順）：</p>
           <table className="console-textmine-table">
             <thead>
               <tr>

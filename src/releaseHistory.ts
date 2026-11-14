@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.122.0",
+    date: "2026-11-14",
+    title: "言葉の分析にワードクラウド表示",
+    changes: [
+      "授業コンソールの「言葉の分析」の結果に、ワードクラウドが付きました。よく出る言葉が、書いた人数の多さに応じた大きさで並びます。",
+      "正確な人数・回数は、これまでどおり下の表で確認できます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.121.0",
     date: "2026-11-14",
     title: "記述回答の「言葉の分析」（テキストマイニング）",

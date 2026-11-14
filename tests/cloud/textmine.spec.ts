@@ -133,6 +133,17 @@ test("console text mining analyzes a text field's answers", async ({
     );
     await expect(mine).toContainText("2人の回答から分析しました");
     await expect(mine).toContainText("野菜 × 大切（1人）");
+    const cloud = mine.locator(".console-wordcloud");
+    await expect(cloud).toBeVisible();
+    const sizes = await cloud.evaluate((el) => {
+      const out: Record<string, number> = {};
+      el.querySelectorAll("span").forEach((s) => {
+        out[s.textContent || ""] = parseFloat(getComputedStyle(s).fontSize);
+      });
+      return out;
+    });
+    expect(sizes["栄養素"]).toBeGreaterThan(0);
+    expect(sizes["栄養素"]).toBeGreaterThan(sizes["野菜"]);
   } finally {
     await context.close();
   }
