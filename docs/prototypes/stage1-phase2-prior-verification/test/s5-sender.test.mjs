@@ -12,7 +12,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Miniflare } from "miniflare";
 import { createHash, randomUUID } from "node:crypto";
-import { rmSync } from "node:fs";
+import { removeDirWithRetry } from "./teardown-helper.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createS5Sender, extractNonceCtx, tokenNonce } from "../tools/s5-sender.mjs";
@@ -112,7 +112,7 @@ function persistDir(tag) {
 // full-replace 承認 op-101 の一時ビルドを起動して返す。
 async function setupFullReplace(tag) {
   const dir = persistDir(tag);
-  rmSync(path.join(ROOT, dir), { recursive: true, force: true });
+  await removeDirWithRetry(path.join(ROOT, dir));
   const boot = await startPlatform(
     dir,
     approvalBindings({
@@ -149,7 +149,9 @@ async function setupFullReplace(tag) {
 
 async function teardown({ dir, full }) {
   await full.mf.dispose();
-  rmSync(path.join(ROOT, dir), { recursive: true, force: true });
+  // dispose 直後の削除は Windows で EBUSY になり得るため、
+  // 上限付きで再試行する（Codex レビュー 6873611386 への対応）。
+  await removeDirWithRetry(path.join(ROOT, dir));
 }
 
 test("送信器：6件の並行送信で 201 が正確に1件、残りは 409 operation_consumed", async () => {

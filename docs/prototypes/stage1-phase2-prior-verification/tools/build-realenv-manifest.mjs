@@ -26,6 +26,13 @@
 //   6) クリーン起動試験の終了処理が、子プロセスの終了待ち →
 //      中継の閉鎖待ち → ミラーの削除の順であること（Windows の
 //      EBUSY 対策。Codex レビュー 6737085464 への対応）
+//   7) 成果物のバイト列に行末の CR が含まれないこと（行末 LF
+//      固定の担保。チェックアウト変換で CRLF 化した作業ツリー
+//      では生成を拒否する）。あわせて、サブツリー全体の行末を
+//      LF に固定する .gitattributes が成果物に含まれ、その固定
+//      行があることを検査する（Codex レビュー 6873611386 への
+//      対応。PC 側 core.autocrlf=true のチェックアウト変換で
+//      全成果物のハッシュ・サイズがずれたことへの対策）
 //
 // このスクリプト自体はデプロイを行わない。対象同一性の確認は、
 // このマニフェストや成果物自身の設定の読み返しでは行わない
@@ -122,6 +129,7 @@ const ARTIFACTS = [
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
+  ".gitattributes",
 ];
 
 function readRel(rel) {
@@ -143,6 +151,12 @@ const artifacts = ARTIFACTS.map((rel) => {
     return { path: rel, missing: true };
   }
   const buf = readFileSync(p);
+  // 行末は LF 固定（.gitattributes）。CR バイトを含む成果物は、
+  // チェックアウト変換（core.autocrlf）でバイト列が変わった
+  // 作業ツリーとみなし、マニフェストを生成しない（検査 7）。
+  if (buf.includes(0x0d)) {
+    problems.push(`成果物に行末の CR が含まれます（LF 固定違反）: ${rel}`);
+  }
   return {
     path: rel,
     sha256: createHash("sha256").update(buf).digest("hex"),
@@ -190,6 +204,7 @@ const s14ModuleLines = readRel("tools/s14-rotate.mjs").split("\n");
 const s14SenderLines = readRel("tools/s14-sender.mjs").split("\n");
 const s14GuardLines = readRel("test/s14-guard.test.mjs").split("\n");
 const s14ScreenLines = readRel("test/s14-rotate.screen.mjs").split("\n");
+const gitattributesLines = readRel(".gitattributes").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
 const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
@@ -200,6 +215,13 @@ function firstLineIndex(lines, re) {
 }
 
 const checks = {
+  // 行末の LF 固定（.gitattributes がサブツリー全体を対象に
+  // eol=lf を宣言していること）。成果物そのものの CR 混入は
+  // 上の成果物走査で生成自体を拒否する（検査 7）。
+  gitattributes_pins_lf: {
+    found: findLines(gitattributesLines, /^\* text eol=lf$/),
+    expect: "present",
+  },
   clean_platform_has_no_fault_marker: {
     found: findLines(platformLines, /injected_fault_apply_after_writes/),
     expect: "absent",

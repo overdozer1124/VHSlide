@@ -16,7 +16,8 @@
 
 import { Miniflare } from "miniflare";
 import { createHash } from "node:crypto";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { removeDirWithRetry } from "./teardown-helper.mjs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -232,7 +233,10 @@ async function main() {
     ".persist-p9", ".persist-p10", ".persist-p11", ".persist-p12",
     ".persist-p13", ".persist-p14",
   ]) {
-    rmSync(path.join(ROOT, p), { recursive: true, force: true });
+    // 前回実行が中断され workerd が残っていると、Windows では
+    // 削除が EBUSY になり得るため、上限付きで再試行する
+    // （Codex レビュー 6873611386 への対応）。
+    await removeDirWithRetry(path.join(ROOT, p));
   }
 
   // ===== 構成: ビルド成果物の分離（静的確認） =====

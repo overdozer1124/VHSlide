@@ -118,3 +118,33 @@ export async function teardownAndRemove({ child, server, dir, stopOptions, close
   await rm(dir, { recursive: true, force: true });
   return { stopResult, closeResult, removed: true, failure: null };
 }
+
+// ディレクトリの削除を、上限付きで再試行する（ガード試験群と
+// run.mjs の開始時掃除が使う）。Windows では Miniflare（workerd）
+// の dispose 直後でも SQLite ファイルのハンドルが短時間残り、
+// 削除が EBUSY／EPERM で失敗することがある。固定名の永続化
+// ディレクトリを即時に rmSync する従来方式は、after フックの
+// 失敗（＝スイートの失敗表示）や、残留した workerd が次回実行の
+// before の削除・起動を塞ぐ原因になった（Codex レビュー
+// 6873611386 への対応：全体実行だけが S10／S14 ガードで止まり、
+// 単体では合格した）。
+// 戻り値：true = 削除できた（元々存在しない場合を含む）、
+//         false = 上限まで再試行しても削除できなかった。
+// 例外は投げない。呼び出し元は、削除できない場合でも次回実行と
+// 衝突しない形（実行ごとに一意な名前など）で使うこと。
+export const REMOVE_DIR_ATTEMPTS = 20;
+export const REMOVE_DIR_DELAY_MS = 250;
+export async function removeDirWithRetry(
+  dir,
+  { attempts = REMOVE_DIR_ATTEMPTS, delayMs = REMOVE_DIR_DELAY_MS } = {}
+) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return true;
+    } catch {
+      if (i + 1 < attempts) await delay(delayMs);
+    }
+  }
+  return false;
+}

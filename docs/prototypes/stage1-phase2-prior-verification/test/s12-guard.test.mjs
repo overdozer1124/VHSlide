@@ -30,9 +30,9 @@ import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { Miniflare } from "miniflare";
 import { createHash } from "node:crypto";
-import { rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeDirWithRetry } from "./teardown-helper.mjs";
 import { createS12Sender } from "../tools/s12-sender.mjs";
 import {
   buildS12RevokeRequest,
@@ -45,7 +45,11 @@ const ENV_ID = "stage1-phase2-verification-local";
 const CLIENT_ID = "dummy-client-id.apps.googleusercontent.com";
 const DIAG_KEY = "test-diag-key";
 const ISS = "https://accounts.google.com";
-const PERSIST = ".persist-s12-guard";
+// 永続化先は実行ごとに一意にする（pid 付き）。固定名だと、中断
+// された前回実行の workerd が残っていた場合に、その削除・起動が
+// Windows のファイルロック（EBUSY／EPERM）で塞がれる
+// （Codex レビュー 6873611386 への対応）。
+const PERSIST = `.persist-s12-guard-${process.pid}`;
 
 const SUB_A = "operator-subject-alpha";
 const SUB_B = "operator-subject-beta";
@@ -172,8 +176,10 @@ let normal = null;
 let sender = null;
 
 before(async () => {
-  rmSync(path.join(ROOT, PERSIST), { recursive: true, force: true });
+  await removeDirWithRetry(path.join(ROOT, PERSIST));
   // bootstrap：generation 1・登録簿 {A}。
+  // dispose は finally で行い、途中の assert 失敗で workerd を
+  // 残さない（残るとプロセスが終了できず全体実行が止まる）。
   let platform = await startBuild("platform-worker.js", PERSIST, approvalBindings({
     operationId: "op-s12-guard-001",
     purpose: "bootstrap",
@@ -181,13 +187,16 @@ before(async () => {
     oneTime: "one-time-s12-guard-001",
     expiresAtMs: FUTURE(),
   }));
-  let r = await platformApplyDirect(platform.mf, SUB_A, {
-    purpose: "bootstrap",
-    env_id: ENV_ID,
-    one_time_value: "one-time-s12-guard-001",
-  });
-  assert.equal(r.status, 201, `bootstrap failed: ${JSON.stringify(r.json)}`);
-  await platform.mf.dispose();
+  try {
+    let r = await platformApplyDirect(platform.mf, SUB_A, {
+      purpose: "bootstrap",
+      env_id: ENV_ID,
+      one_time_value: "one-time-s12-guard-001",
+    });
+    assert.equal(r.status, 201, `bootstrap failed: ${JSON.stringify(r.json)}`);
+  } finally {
+    await platform.mf.dispose();
+  }
   // full-replace：generation 2・登録簿 {A}。
   platform = await startBuild("platform-worker.js", PERSIST, approvalBindings({
     operationId: "op-s12-guard-002",
@@ -196,13 +205,16 @@ before(async () => {
     oneTime: "one-time-s12-guard-002",
     expiresAtMs: FUTURE(),
   }));
-  r = await platformApplyDirect(platform.mf, SUB_A, {
-    purpose: "full-replace",
-    env_id: ENV_ID,
-    one_time_value: "one-time-s12-guard-002",
-  });
-  assert.equal(r.status, 201, `full-replace failed: ${JSON.stringify(r.json)}`);
-  await platform.mf.dispose();
+  try {
+    const r = await platformApplyDirect(platform.mf, SUB_A, {
+      purpose: "full-replace",
+      env_id: ENV_ID,
+      one_time_value: "one-time-s12-guard-002",
+    });
+    assert.equal(r.status, 201, `full-replace failed: ${JSON.stringify(r.json)}`);
+  } finally {
+    await platform.mf.dispose();
+  }
   // 通常ビルドで B を追加：generation 3・登録簿 {A, B}。
   normal = await startBuild("worker.js", PERSIST);
   const gen = await adminAdd(normal.base, HASH_B, 2);
@@ -216,8 +228,15 @@ before(async () => {
 });
 
 after(async () => {
-  if (normal) await normal.mf.dispose();
-  rmSync(path.join(ROOT, PERSIST), { recursive: true, force: true });
+  try {
+    if (normal) await normal.mf.dispose();
+  } finally {
+    // dispose 直後は Windows でファイルハンドルが短時間残る
+    // ことがあるため、削除は上限付きで再試行する。削除でき
+    // なくても永続化先は実行ごとに一意なので、次回実行とは
+    // 衝突しない（失敗を after フックの例外にしない）。
+    await removeDirWithRetry(path.join(ROOT, PERSIST));
+  }
 });
 
 test("S12ガード（負の分岐）：世代3で固定値4の失効を送るとサーバーが 409 stale_generation で拒否し、状態は変わらない", async () => {

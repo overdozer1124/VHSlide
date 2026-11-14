@@ -98,8 +98,8 @@
     },
     {
       "path": "test/s5-sender.test.mjs",
-      "sha256": "f0c5685fe63eca6194f3d004790e09f10b7af2d95f941d4c8632d79c2b8f0908",
-      "bytes": 28567
+      "sha256": "31cf421f54b43e5225ba063db20832eed0b6b5a9944960a8e5f0cdcbccebe60d",
+      "bytes": 28723
     },
     {
       "path": "test/s5-apply.screen.mjs",
@@ -153,8 +153,8 @@
     },
     {
       "path": "test/s10-add-guard.test.mjs",
-      "sha256": "05f6da1a536d316bbd694ba6ae9e02e702505ccd9a4e589f96f06517daa33b34",
-      "bytes": 10281
+      "sha256": "91dca902f2fcc122c46f8a711f1bee1718e5a14a572bb98093bd996541b5de51",
+      "bytes": 11209
     },
     {
       "path": "test/s10-add.screen.mjs",
@@ -193,8 +193,8 @@
     },
     {
       "path": "test/s11-guard.test.mjs",
-      "sha256": "fd3183d3366afebd0951b10c5a43d93b40796d11013fa62d84bb1d9f53f8a198",
-      "bytes": 11921
+      "sha256": "68f7f383636aea9907ed225e5c114d87345384b4527a173b35671d00b4731852",
+      "bytes": 12849
     },
     {
       "path": "test/s11-parallel.screen.mjs",
@@ -233,8 +233,8 @@
     },
     {
       "path": "test/s12-guard.test.mjs",
-      "sha256": "637d36d46a878c36e39fcfa3e8b625901dfc4b98f1acb859bf0eeb0db794bee5",
-      "bytes": 13937
+      "sha256": "18976f397f7b2047d6d273c29ccb34116e075acdc74c031c512fc03754749bfd",
+      "bytes": 14865
     },
     {
       "path": "test/s12-revoke.screen.mjs",
@@ -273,8 +273,8 @@
     },
     {
       "path": "test/s13-guard.test.mjs",
-      "sha256": "7778b8b07ba0143225429fde6abd250644f7e039977aa27b48789510c2ad4b18",
-      "bytes": 14111
+      "sha256": "a8aa3b16bc914b5d12b289b1d224f8c1bc2600daceafd2de0b02d7aadf78e8ae",
+      "bytes": 15039
     },
     {
       "path": "test/s13-revoke.screen.mjs",
@@ -313,8 +313,8 @@
     },
     {
       "path": "test/s14-guard.test.mjs",
-      "sha256": "66606f5a258479d8edbafa834295d6a54d611c7255cdf47d15eb79e7b5fcb085",
-      "bytes": 16065
+      "sha256": "f7daada8c054a5cf64e78b708174419418e10168452207b84378fa8e92a3ef04",
+      "bytes": 16995
     },
     {
       "path": "test/s14-rotate.screen.mjs",
@@ -333,13 +333,18 @@
     },
     {
       "path": "test/teardown-helper.mjs",
-      "sha256": "dd1fa544bd4f7a3cd69e7bd92f9a8d8d4330539365e0f9fe05ad491748a72364",
-      "bytes": 6495
+      "sha256": "d414c6c06b482f223adb32be2a609caa836ad3fb3ca5dff4cfcb52412cb95fb8",
+      "bytes": 7963
     },
     {
       "path": "test/clean-boot-teardown.test.mjs",
       "sha256": "283ba20734f0cbfd2206628b547b663f838c9e749a4e8b0539120e00578f8f2c",
       "bytes": 15560
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "fde3ef0a7e06cf05c9403a179e3445016bc875c6f9c5c8bc09e2da40c291a5fb",
+      "bytes": 537
     }
   ],
   "builds": {
@@ -602,6 +607,15 @@
     "serve": "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）"
   },
   "source_checks": {
+    "gitattributes_pins_lf": {
+      "found": [
+        {
+          "line": 7,
+          "text": "* text eol=lf"
+        }
+      ],
+      "expect": "present"
+    },
     "clean_platform_has_no_fault_marker": {
       "found": [],
       "expect": "absent"
@@ -2126,11 +2140,11 @@
           "text": "//   403 nonce_replayed で拒否される（nonce 消費が先に効く）。"
         },
         {
-          "line": 227,
+          "line": 246,
           "text": "test(\"S10ガード: 同一要求の再送（同じ nonce・トークン・Cookie・body）は 403 nonce_replayed で拒否される\", async () => {"
         },
         {
-          "line": 234,
+          "line": 253,
           "text": "assert.equal(replay.json.error, \"nonce_replayed\");"
         }
       ],
@@ -2520,7 +2534,7 @@
           "text": "import { createS11Sender } from \"../tools/s11-sender.mjs\";"
         },
         {
-          "line": 206,
+          "line": 218,
           "text": "sender = createS11Sender({ relayUrl: normal.base });"
         }
       ],
@@ -2955,7 +2969,7 @@
           "text": "import { createS12Sender } from \"../tools/s12-sender.mjs\";"
         },
         {
-          "line": 215,
+          "line": 227,
           "text": "sender = createS12Sender({ relayUrl: normal.base });"
         }
       ],
@@ -3429,7 +3443,7 @@
           "text": "import { createS13Sender } from \"../tools/s13-sender.mjs\";"
         },
         {
-          "line": 223,
+          "line": 235,
           "text": "sender = createS13Sender({ relayUrl: normal.base });"
         }
       ],
@@ -3936,7 +3950,7 @@
           "text": "import { createS14Sender } from \"../tools/s14-sender.mjs\";"
         },
         {
-          "line": 245,
+          "line": 257,
           "text": "sender = createS14Sender({ relayUrl: normal.base });"
         }
       ],
