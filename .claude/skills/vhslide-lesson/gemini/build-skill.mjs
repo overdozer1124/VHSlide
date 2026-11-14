@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { themes } from "../scripts/themes.mjs";
-import { mascotKinds } from "../scripts/mascot.mjs";
+import { mascotKinds, mascotSvg } from "../scripts/mascot.mjs";
 import { decorSvg } from "../scripts/decor.mjs";
 import { iconSvg } from "../scripts/icons.mjs";
 import { svgToPng, closeRenderer } from "../scripts/render.mjs";
@@ -25,32 +25,44 @@ const py = fs.readFileSync(path.join(here, "skill", "scripts", "build_deck.py"),
 if (!py.includes("\nTHEMES = None")) throw Error("build_deck.py: THEMES placeholder not found");
 write("scripts/build_deck.py", py.replace(/\nTHEMES = None[^\n]*/, `\nTHEMES = json.loads(r"""\n${JSON.stringify(themes, null, 1)}\n""")`));
 
-// 2. pre-rendered images (the same renderer and settings as the Node builder), packed into ONE json file:
-// Gemini refuses skills with too many files.
-const images = { backdrops: {}, icons: {}, mascots: {} };
+// 2. images, kept small (Gemini will not save a skill with a large file):
+// backdrops pre-rendered (JPEG, slide size), icons pre-rendered once per ink colour, characters as SVG templates
+// (colours as placeholders) that build_deck.py draws with Pillow, plus the badge marks (?, !, ♪) drawn here.
+const images = { backdrops: {}, icons: {}, mascots: {}, marks: {} };
 const url = (buf, type = "png") => `data:image/${type};base64,${buf.toString("base64")}`;
-let n = 0;
+const BD_QUALITY = Number(process.env.BD_QUALITY ?? 60), BD_SCALE = Number(process.env.BD_SCALE ?? 0.7);
 for (const [name, t] of Object.entries(themes)) {
   const T = { ...structuredClone(t), name };
   if (T.decor)
-    for (const kind of ["title", "section", "content", "plain"]) {
-      images.backdrops[`${name}-${kind}.jpg`] = url(await svgToPng(decorSvg(T, kind), { scale: 1.25, type: "jpeg", quality: 84 }), "jpeg"); n++;
-    }
-  for (const [role, ink] of [["accent", T.onAccent], ["primary", T.onPrimary], ["white", "#ffffff"]])
-    for (const icon of ["question", "bulb", "flag"]) {
-      images.icons[`${name}-${icon}-${role}.png`] = url(await svgToPng(iconSvg(icon, ink), { scale: 1, transparent: true })); n++;
-    }
-  for (const kind of mascotKinds)
-    for (const pose of ["think", "idea", "happy"])
-      images.mascots[`${name}-${kind}-${pose}.png`] = url(fs.readFileSync(path.join(skill, "assets/mascots", `${name}-${kind}-${pose}.png`)));
+    for (const kind of ["title", "section", "content", "plain"])
+      images.backdrops[`${name}-${kind}.jpg`] = url(await svgToPng(decorSvg(T, kind), { scale: BD_SCALE, type: "jpeg", quality: BD_QUALITY }), "jpeg");
+  for (const ink of [T.onAccent, T.onPrimary, "#ffffff"])
+    for (const icon of ["question", "bulb", "flag"])
+      images.icons[`${icon}-${ink.toLowerCase()}.png`] ??= url(await svgToPng(iconSvg(icon, ink), { scale: 1, transparent: true }));
+}
+const KEYS = ["body", "outline", "wrap", "cheek", "think", "idea"]; // must match MASCOT_PLACEHOLDER in build_deck.py
+const placeholder = Object.fromEntries(KEYS.map((k, i) => [k, `#a0000${i + 1}`]));
+for (const kind of mascotKinds) {
+  const svg = mascotSvg(kind, "plain", placeholder).replace(/\n/g, " ");
+  if (/<text|<g|transform=/.test(svg)) throw Error(`${kind}: the Python renderer does not draw text/groups/transforms`);
+  images.mascots[`${kind}.svg`] = url(Buffer.from(svg), "svg+xml");
+}
+// badge marks: the same text as mascot.mjs draws, alone on a transparent 260×260 layer
+const marks = { q: mascotSvg("blob", "think", placeholder), x: mascotSvg("blob", "idea", placeholder), n: mascotSvg("blob", "happy", placeholder) };
+for (const [k, svg] of Object.entries(marks)) {
+  const text = svg.match(/<text[\s\S]*?<\/text>/)[0];
+  images.marks[`${k}.png`] = url(await svgToPng(`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260">${text}</svg>`, { scale: 1.2, transparent: true }));
 }
 await closeRenderer();
-// plain text, short lines: "@ group/name mime" then the base64 data wrapped at 76 characters
-write("assets/images.txt", Object.entries(images).flatMap(([g, m]) => Object.entries(m).flatMap(([k, u]) => {
+// plain text with short lines ("@ group/name mime" then base64 wrapped at 76), split into files of about 120KB
+const entries = Object.entries(images).flatMap(([g, m]) => Object.entries(m).map(([k, u]) => {
   const [, mime, b64] = /^data:([^;]+);base64,(.*)$/s.exec(u);
-  return [`@ ${g}/${k} ${mime}`, ...b64.match(/.{1,76}/g)];
-})).join("\n") + "\n");
-console.log(`images: ${n} rendered + ${Object.keys(themes).length * mascotKinds.length * 3} characters`);
+  return [`@ ${g}/${k} ${mime}`, ...b64.match(/.{1,76}/g)].join("\n") + "\n";
+}));
+const chunks = [""];
+for (const e of entries) { if (chunks.at(-1).length + e.length > 240_000 && chunks.at(-1)) chunks.push(""); chunks[chunks.length - 1] += e; }
+chunks.forEach((c, i) => write(`assets/images-${i + 1}.txt`, c));
+console.log(`images: ${entries.length} in ${chunks.length} files (${chunks.map(c => Math.round(c.length / 1024) + "KB").join(", ")})`);
 
 // 3. SKILL.md and references
 const vhs = JSON.parse(read("scripts/vendor/version.json"));

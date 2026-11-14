@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.122.0 (0ab55e3): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.125.0 (771688a): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -262,6 +262,35 @@ function parseWebbingBinding(value) {
     throw new Error("\u30B9\u30E9\u30A4\u30C9\u5185\u30A6\u30A7\u30D3\u30F3\u30B0\u30DE\u30C3\u30D7\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
   }
   return { deckId: v.deckId, mapId: v.mapId, title: v.title };
+}
+
+// src/embedBinding.ts
+var EMBED_POSTER_MAX_CHARS = 54e4;
+var POSTER_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
+var EMBED_ERROR = "\u57CB\u3081\u8FBC\u3080\u30A2\u30D7\u30EA\u306EURL\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002";
+function normalizeEmbedUrl(raw) {
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!text || text.length > 2048) throw new Error(EMBED_ERROR);
+  let url;
+  try {
+    url = new URL(text);
+  } catch {
+    throw new Error(EMBED_ERROR);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    throw new Error(EMBED_ERROR);
+  return url.toString();
+}
+function parseEmbedBinding(value) {
+  const v = value;
+  if (!v || typeof v.url !== "string") throw new Error(EMBED_ERROR);
+  const binding = { url: normalizeEmbedUrl(v.url) };
+  if (v.poster !== void 0) {
+    if (typeof v.poster !== "string" || v.poster.length > EMBED_POSTER_MAX_CHARS || !POSTER_PATTERN.test(v.poster))
+      throw new Error(EMBED_ERROR);
+    binding.poster = v.poster;
+  }
+  return binding;
 }
 
 // src/webLink.ts
@@ -717,14 +746,19 @@ function parseDeck(input) {
         }
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
         if (e.responseField !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0 || e.embed !== void 0)
             fail();
           base.responseField = parseResponseField(e.responseField);
         }
         if (e.webbing !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.embed !== void 0)
             fail();
           base.webbing = parseWebbingBinding(e.webbing);
+        }
+        if (e.embed !== void 0) {
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0)
+            fail();
+          base.embed = parseEmbedBinding(e.embed);
         }
         if (e.surveyResult !== void 0) {
           const binding = parseSurveyResultBinding(e.surveyResult);
@@ -737,12 +771,13 @@ function parseDeck(input) {
           base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0 || e.embed !== void 0)
             fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);
         }
         if (e.survey !== void 0) {
-          if (e.type !== "shape" || e.webbing !== void 0) fail();
+          if (e.type !== "shape" || e.webbing !== void 0 || e.embed !== void 0)
+            fail();
           base.survey = parseSurveyBinding(e.survey);
         }
         if (e.rotation !== void 0)

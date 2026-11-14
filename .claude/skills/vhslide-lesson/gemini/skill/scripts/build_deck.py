@@ -4,7 +4,7 @@
 usage: python build_deck.py <spec.json> <out.vhslide.json> [--layout lesson-rows|phase-grid]
                             [--theme name|theme.json] [--mascot kind|none] [--flat] [--no-fonts]
 
-Backdrops, icons and characters are pre-rendered into ../assets/images.txt (one plain-text file: '@ group/name mime' lines followed by base64) (only Python's standard library is needed).
+Backdrops and icons are pre-rendered (characters are drawn from SVG with Pillow) into ../assets/images-N.txt (plain-text files: '@ group/name mime' lines followed by base64) (only Python's standard library is needed).
 Images in the spec: a file path (relative to the spec), a data: URL, or inline SVG markup. SVG is drawn with
 cairosvg when it is installed; otherwise a PNG with the same name next to an .svg file is used.
 """
@@ -133,6 +133,145 @@ def read_images(path):
     return pack
 
 
+# ---------- characters: a small SVG renderer (Pillow) for the simple shapes the characters use ----------
+MASCOT_KEYS = ["body", "outline", "wrap", "cheek", "think", "idea"]
+MASCOT_PLACEHOLDER = {k: "#a0000" + str(i + 1) for i, k in enumerate(MASCOT_KEYS)}  # must match build-skill.mjs
+
+
+def _path_points(d):
+    toks = re.findall(r"[MmLlHhVvCcQqZz]|-?\d*\.?\d+(?:e-?\d+)?", d)
+    subs, pts, i, cmd = [], [], 0, None
+    x = y = sx = sy = 0.0
+
+    def num():
+        nonlocal i
+        i += 1
+        return float(toks[i - 1])
+
+    def bez(p0, ps, n=20):
+        out = []
+        for k in range(1, n + 1):
+            t = k / n
+            if len(ps) == 2:
+                (x1, y1), (x2, y2) = ps
+                out.append(((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * x1 + t * t * x2, (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * y1 + t * t * y2))
+            else:
+                (x1, y1), (x2, y2), (x3, y3) = ps
+                a, b, c, e = (1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t * t, t ** 3
+                out.append((a * p0[0] + b * x1 + c * x2 + e * x3, a * p0[1] + b * y1 + c * y2 + e * y3))
+        return out
+    closed = False
+    while i < len(toks):
+        if re.match(r"[A-Za-z]", toks[i]):
+            cmd = toks[i]
+            i += 1
+            if cmd in "Zz":
+                closed = True
+                x, y = sx, sy
+                subs.append((pts, True))
+                pts = []
+                continue
+        rel = cmd.islower()
+        C = cmd.upper()
+        ox, oy = (x, y) if rel else (0.0, 0.0)
+        if C == "M":
+            if pts:
+                subs.append((pts, False))
+            x, y = num() + ox, num() + oy
+            sx, sy = x, y
+            pts = [(x, y)]
+            cmd = "l" if rel else "L"
+        elif C == "L":
+            x, y = num() + ox, num() + oy
+            pts.append((x, y))
+        elif C == "H":
+            x = num() + (x if rel else 0)
+            pts.append((x, y))
+        elif C == "V":
+            y = num() + (y if rel else 0)
+            pts.append((x, y))
+        elif C == "C":
+            ps = [(num() + ox, num() + oy) for _ in range(3)]
+            pts += bez((x, y), ps)
+            x, y = ps[-1]
+        elif C == "Q":
+            ps = [(num() + ox, num() + oy) for _ in range(2)]
+            pts += bez((x, y), ps)
+            x, y = ps[-1]
+        else:
+            raise ValueError("unsupported path command " + cmd)
+    if pts:
+        subs.append((pts, closed))
+    return subs
+
+
+def _color(v):
+    v = v.lstrip("#")
+    return tuple(int(v[k:k + 2], 16) for k in (0, 2, 4))
+
+
+def render_mascot_png(svg, layer_png, out_px=312, ss=4):
+    """Draw the character SVG (paths, circles, ellipses, rects) and paste the pre-drawn badge mark on top."""
+    from PIL import Image, ImageDraw
+    import io
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(svg)
+    vw = float(root.get("width"))
+    k = out_px * ss / vw
+    canvas = Image.new("RGBA", (out_px * ss, out_px * ss), (0, 0, 0, 0))
+    for el in root:
+        tag = el.tag.split("}")[-1]
+        if tag == "text":
+            continue
+        fill, stroke = el.get("fill", "#000000"), el.get("stroke")
+        sw = float(el.get("stroke-width", "1")) * k
+        layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+        g = ImageDraw.Draw(layer)
+        fc = None if fill == "none" else _color(fill) + (255,)
+        sc = None if not stroke or stroke == "none" else _color(stroke) + (255,)
+        f = lambda a: float(el.get(a, "0")) * k
+        if tag in ("circle", "ellipse"):
+            cx, cy = f("cx"), f("cy")
+            rx, ry = (f("r"), f("r")) if tag == "circle" else (f("rx"), f("ry"))
+            box = [cx - rx, cy - ry, cx + rx, cy + ry]
+            if fc:
+                g.ellipse(box, fill=fc)
+            if sc:
+                g.ellipse([box[0] - sw / 2, box[1] - sw / 2, box[2] + sw / 2, box[3] + sw / 2], outline=sc, width=max(1, round(sw)))
+        elif tag == "rect":
+            x0, y0 = f("x"), f("y")
+            box = [x0, y0, x0 + f("width"), y0 + f("height")]
+            rad = f("rx")
+            if fc:
+                g.rounded_rectangle(box, radius=rad, fill=fc)
+            if sc:
+                g.rounded_rectangle([box[0] - sw / 2, box[1] - sw / 2, box[2] + sw / 2, box[3] + sw / 2], radius=rad + sw / 2, outline=sc, width=max(1, round(sw)))
+        elif tag == "path":
+            subs = [([(px * k, py * k) for px, py in pts], closed) for pts, closed in _path_points(el.get("d"))]
+            if fc:
+                for pts, _ in subs:
+                    if len(pts) > 2:
+                        g.polygon(pts, fill=fc)
+            if sc:
+                w = max(1, round(sw))
+                for pts, closed in subs:
+                    line = pts + [pts[0]] if (closed or fc) else pts
+                    g.line(line, fill=sc, width=w, joint="curve")
+                    for px, py in pts:  # round joins and caps
+                        g.ellipse([px - sw / 2, py - sw / 2, px + sw / 2, py + sw / 2], fill=sc)
+        op = float(el.get("opacity", "1"))
+        if op < 1:
+            a = layer.getchannel("A").point(lambda v: int(v * op))
+            layer.putalpha(a)
+        canvas.alpha_composite(layer)
+    img = canvas.resize((out_px, out_px), Image.LANCZOS)
+    if layer_png:
+        img.alpha_composite(Image.open(io.BytesIO(layer_png)).convert("RGBA").resize((out_px, out_px), Image.LANCZOS))
+    buf = io.BytesIO()
+    img.save(buf, "PNG", optimize=True)
+    return buf.getvalue()
+
+
 THEMES = None  # build-skill.mjs writes the theme data here, so the skill needs no separate data file
 
 
@@ -171,9 +310,10 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
     sm = spec.get("mascot")
     mascot_arg = nn(mascot, sm if isinstance(sm, str) else (sm or {}).get("kind") if isinstance(sm, dict) else None, "onigiri")
     use_mascot = mascot_arg != "none"
-    has_images = os.path.exists(os.path.join(ASSETS, "images.txt"))
+    image_files = sorted(f for f in (os.listdir(ASSETS) if os.path.isdir(ASSETS) else []) if re.match(r"images-\d+\.txt$", f))
+    has_images = bool(image_files)
     if not has_images and (use_mascot or (not flat and spec.get("decor") is not False)):
-        warn("※ 画像のデータ（assets/images.txt）が無いため、背景の装飾・アイコン・キャラクターなしで作ります。")
+        warn("※ 画像のデータ（assets/images-*.txt）が無いため、背景の装飾・アイコン・キャラクターなしで作ります。")
         use_mascot = False
     if not spec.get("title"):
         raise BuildError("title（作品名）がありません。")
@@ -332,7 +472,10 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         if not has_images:
             return None
         if "pack" not in state:
-            state["pack"] = read_images(os.path.join(ASSETS, "images.txt"))
+            state["pack"] = {}
+            for fname in image_files:
+                for g, m in read_images(os.path.join(ASSETS, fname)).items():
+                    state["pack"].setdefault(g, {}).update(m)
         return state["pack"][group].get(name)
 
     custom_note = {"done": False}
@@ -348,11 +491,25 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         if not use_mascot:
             return None
         if pose not in images:
-            src = asset("mascots", f"{T['name']}-{mascot_arg}-{pose}.png")
-            if not src:
+            tpl = asset("mascots", f"{mascot_arg}.svg")
+            if not tpl:
                 raise BuildError(f"未知のキャラクターです: {mascot_arg}")
-            custom_warning("キャラクター")
-            images[pose] = src
+            svg = base64.b64decode(tpl.split(",", 1)[1]).decode("utf-8")
+            colors = T.get("mascot") or {}
+            for key, ph in MASCOT_PLACEHOLDER.items():
+                svg = svg.replace(ph, colors.get(key, "#888888"))
+            badge = {"think": ("think", "q"), "idea": ("idea", "x"), "happy": ("think", "n")}.get(pose)
+            mark = None
+            if badge:
+                svg = svg.replace("</svg>", f'<circle cx="222" cy="44" r="32" fill="{colors.get(badge[0], "#888888")}"/></svg>')
+                mark = base64.b64decode(asset("marks", f"{badge[1]}.png").split(",", 1)[1])
+            try:
+                png = render_mascot_png(svg, mark)
+            except ImportError:
+                warn("※ Pillow が無いため、キャラクターなしで作ります。")
+                images[pose] = None
+                return None
+            images[pose] = "data:image/png;base64," + base64.b64encode(png).decode()
         return images[pose]
 
     decor_on = bool(T.get("decor")) and not flat and nn(spec.get("decor"), True) and has_images
@@ -374,11 +531,10 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
     icons = {}
 
     def icon_el(name, x, y, s, bg):
-        role = "accent" if bg == T["accent"] else "primary" if bg == T["primary"] else "white"
-        key = f"{name}:{role}"
+        ink = T["onAccent"] if bg == T["accent"] else T["onPrimary"] if bg == T["primary"] else "#ffffff"
+        key = f"{name}:{ink}"
         if key not in icons:
-            icons[key] = asset("icons", f"{T['name']}-{name}-{role}.png")
-            custom_warning("アイコン")
+            icons[key] = asset("icons", f"{name}-{ink.lower()}.png") or asset("icons", f"{name}-#ffffff.png")
         els = [rect(x, y, s, s, bg, shape="circle")]
         if icons[key]:
             els.append({"id": nid("ic"), "type": "image", "x": r(x + s * 0.18), "y": r(y + s * 0.18), "w": r(s * 0.64), "h": r(s * 0.64), "src": icons[key], "altText": "", "aspectLocked": True})
