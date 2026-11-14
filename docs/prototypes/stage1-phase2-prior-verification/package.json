@@ -6,7 +6,7 @@
   "name": "stage1-phase2-harness",
   "private": true,
   "scripts": {
-    "test": "node test/run.mjs && node --test test/subject-hash-verify.test.mjs && node --test test/trial-apply.test.mjs && node --test test/s5-apply.test.mjs && node --test test/s5-sender.test.mjs && node --test test/serve-real-s5.test.mjs && node --test test/s9-negative.test.mjs && node --test test/serve-real-s9.test.mjs && node --test test/s10-add.test.mjs && node --test test/s10-add-guard.test.mjs && node --test test/serve-real-s10.test.mjs && node --test test/s11-parallel.test.mjs && node --test test/s11-sender.test.mjs && node --test test/s11-guard.test.mjs && node --test test/serve-real-s11.test.mjs && node --test test/s12-revoke.test.mjs && node --test test/s12-sender.test.mjs && node --test test/s12-guard.test.mjs && node --test test/serve-real-s12.test.mjs && node --test test/s13-revoke.test.mjs && node --test test/s13-sender.test.mjs && node --test test/s13-guard.test.mjs && node --test test/serve-real-s13.test.mjs && node --test test/s14-rotate.test.mjs && node --test test/s14-sender.test.mjs && node --test test/s14-guard.test.mjs && node --test test/serve-real-s14.test.mjs && node --test test/clean-boot.test.mjs && node --test test/clean-boot-teardown.test.mjs",
+    "test": "node test/run.mjs && node --test test/subject-hash-verify.test.mjs && node --test test/trial-apply.test.mjs && node --test test/s5-apply.test.mjs && node --test test/s5-sender.test.mjs && node --test test/serve-real-s5.test.mjs && node --test test/s9-negative.test.mjs && node --test test/serve-real-s9.test.mjs && node --test test/s10-add.test.mjs && node --test test/s10-add-guard.test.mjs && node --test test/serve-real-s10.test.mjs && node --test test/s11-parallel.test.mjs && node --test test/s11-sender.test.mjs && node --test test/s11-guard.test.mjs && node --test test/serve-real-s11.test.mjs && node --test test/s12-revoke.test.mjs && node --test test/s12-sender.test.mjs && node --test test/s12-guard.test.mjs && node --test test/serve-real-s12.test.mjs && node --test test/s13-revoke.test.mjs && node --test test/s13-sender.test.mjs && node --test test/s13-guard.test.mjs && node --test test/serve-real-s13.test.mjs && node --test test/s14-rotate.test.mjs && node --test test/s14-sender.test.mjs && node --test test/s14-guard.test.mjs && node --test test/serve-real-s14.test.mjs && node --test test/s15-apply.test.mjs && node --test test/s15-sender.test.mjs && node --test test/s15-guard.test.mjs && node --test test/serve-real-s15.test.mjs && node --test test/clean-boot.test.mjs && node --test test/clean-boot-teardown.test.mjs",
     "test:s10-add": "node --test test/s10-add.test.mjs",
     "test:s10-add-guard": "node --test test/s10-add-guard.test.mjs",
     "test:s11": "node --test test/s11-parallel.test.mjs && node --test test/s11-sender.test.mjs",
@@ -17,6 +17,8 @@
     "test:s13-guard": "node --test test/s13-guard.test.mjs",
     "test:s14": "node --test test/s14-rotate.test.mjs && node --test test/s14-sender.test.mjs",
     "test:s14-guard": "node --test test/s14-guard.test.mjs",
+    "test:s15": "node --test test/s15-apply.test.mjs && node --test test/s15-sender.test.mjs",
+    "test:s15-guard": "node --test test/s15-guard.test.mjs",
     "test:screen": "node test/trial-apply.screen.mjs",
     "test:screen:s5": "node test/s5-apply.screen.mjs",
     "test:screen:s9": "node test/s9-negative.screen.mjs",

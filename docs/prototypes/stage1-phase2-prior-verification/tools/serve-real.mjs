@@ -173,6 +173,35 @@
 //   （checkA / checkB）を受け取り、送信器がそのスロットの
 //   Cookie で1件を送信し、応答を返す。ID トークン・Cookie・
 //   nonce の値はログ・応答に出さない。
+// - GET /s15-apply.mjs → tools/s15-apply.mjs をそのまま返す
+//   （S15 の状態機械の純粋モジュール。S15 専用画面は設けず、
+//   準備は既存の trial-apply 画面の全面復旧の完全一致の流れが
+//   担い、破棄送信は送信器／提供層で扱う。DESIGN.md の S15
+//   付録を参照）。
+// - GET /s15/nonces → 送信器が中継先の /nonce を試行枠
+//   （attempt 1〜3）ごとに1回呼び、その試行枠の nonce context
+//   Cookie を保持し、nonce だけを返す（ctx は返さない）。次の
+//   試行枠は、先行試行の未成立の判定が /s15/record-judgment で
+//   記録されるまで開かない。呼び出し元の境界は S14 と同じ型
+//   （試験単位セッション・Host・Origin）であり、発行は試験 ID
+//   と試行番号に結び付ける。
+// - POST /s15/freeze-approval → 承認内容の凍結の時点で、凍結
+//   済みの承認内容（操作ID・用途・対象主体ハッシュ・環境ID・
+//   一回値）を送信器に固定する。送信器は以後の破棄送信で、
+//   送信されてきた要求を固定値と照合し、異なれば1件も送ら
+//   ない。応答は固定できたか（ok）または理由コードだけを
+//   返し、固定値は返さない。
+// - POST /s15/send-discard → 画面からの全面復旧の要求と試行
+//   番号を受け取り、送信器がその試行枠の Cookie で1件を送信
+//   し、応答は読み取らずに破棄する。応答として返すのは破棄
+//   記録（sent と outcome: "discarded"）だけであり、実応答の
+//   状態・本文・理由コード・世代は構造上ここに存在しない。
+//   送信前の確認に失敗した場合は1件も送っておらず、理由
+//   コードだけを返す。ID トークン・一回値・Cookie・nonce の
+//   値はログ・応答に出さない。
+// - POST /s15/record-judgment → 独立した読み戻しによる判定
+//   （committed / uncommitted / discrepancy）を送信器へ記録
+//   する。未成立の判定の記録だけが次の試行枠を開く。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -222,6 +251,7 @@ import { createS11Sender } from "./s11-sender.mjs";
 import { createS12Sender } from "./s12-sender.mjs";
 import { createS13Sender } from "./s13-sender.mjs";
 import { createS14Sender } from "./s14-sender.mjs";
+import { createS15Sender } from "./s15-sender.mjs";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
@@ -602,6 +632,61 @@ async function readS14SendBody(req) {
   return { body: Buffer.concat(chunks) };
 }
 
+// S15 応答破棄ドリルの送信器（1プロセスに1つ）。試行枠ごとの
+// nonce・ctx・承認固定値の保持はメモリー内だけである。
+const s15Sender = createS15Sender({ relayUrl: RELAY });
+
+// S15 入口の試験単位セッション。S14 と同じ型であり、起動ごとに
+// 不可推測の値を新規発行する。S15 専用画面は設けないため、この
+// 値は画面へ差し込まれず、PC 側の運転手順がメモリー内だけの
+// 扱いで保持して各入口のヘッダーに示す（値の受け渡し方法は
+// 実施手順の提案で Codex と確定する。DESIGN.md の S15 付録）。
+const S15_SESSION = randomUUID();
+const S15_MAX_BODY_BYTES = 64 * 1024;
+
+// S15 入口（/s15/nonces・/s15/freeze-approval・/s15/send-discard・
+// /s15/record-judgment）の呼び出し元境界。S14 入口と同じ型であり、
+// 次をすべて満たさなければ、状態を変更せず理由コードだけを返す。
+function checkS15Entry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "s15_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "s15_bad_origin" };
+    }
+  }
+  if (req.headers["x-s15-session"] !== S15_SESSION) {
+    return { ok: false, status: 403, error: "s15_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /s15/* の POST の本体をサイズ上限付きで読む（S14 と同じ型）。
+async function readS15SendBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > S15_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -737,6 +822,9 @@ const s14RotateHtml = rawS14RotateHtml
   .split(S14_SESSION_PLACEHOLDER).join(S14_SESSION);
 const s14RotateJs = await readFile(path.join(root, "tools", "s14-rotate.mjs"), "utf8");
 
+// S15 の状態機械モジュールはそのまま返す（S15 専用画面はない）。
+const s15ApplyJs = await readFile(path.join(root, "tools", "s15-apply.mjs"), "utf8");
+
 const FORWARD_PATHS = new Set([
   "/nonce",
   "/platform/apply",
@@ -861,6 +949,12 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s14-rotate.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s14RotateJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s15-apply.mjs") {
+      console.log(`GET /s15-apply.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s15ApplyJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
@@ -1577,6 +1671,181 @@ const server = http.createServer(async (req, res) => {
         console.log(`POST ${pathname} -> ${status}`);
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s14_send_failed" }));
+      }
+      return;
+    }
+    // S15 応答破棄ドリルの送信器への入口。S14 入口と同じ型である。
+    // 要求・応答の本体、トークン・一回値・Cookie・nonce の値は
+    // ログに出さない。送信器の局所エラーは理由コードだけを返す。
+    // 呼び出し元の境界（Host・Origin・試験単位セッション）を先に
+    // 確認し、通らなければ状態を変更しない。破棄送信の応答は、
+    // 実応答の内容ではなく破棄記録だけである。
+    if (req.method === "GET" && pathname === "/s15/nonces") {
+      const entry = checkS15Entry(req);
+      if (!entry.ok) {
+        console.log(`GET /s15/nonces -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const trialId = params.get("trial_id");
+      const attemptRaw = params.get("attempt");
+      const attempt = attemptRaw !== null && /^\d+$/.test(attemptRaw) ? Number(attemptRaw) : NaN;
+      if (!trialId || !Number.isInteger(attempt) || attempt < 1 || attempt > 3) {
+        console.log(`GET /s15/nonces -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は運転側の試行に追随する（S14 と同じ）。
+        const snap = s15Sender.snapshot();
+        if (!snap || snap.trialId !== trialId) {
+          s15Sender.beginTrial(trialId);
+        }
+        const issued = await s15Sender.issueNonce({ trialId, attempt });
+        console.log(`GET /s15/nonces -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ nonce: issued.nonce }));
+      } catch (e) {
+        const status = e.code === "s15_sender_busy" || (e.code || "").startsWith("s15_") ? 409 : 502;
+        console.log(`GET /s15/nonces -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s15_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (pathname === "/s15/freeze-approval" ||
+        pathname === "/s15/send-discard" ||
+        pathname === "/s15/record-judgment")
+    ) {
+      const entry = checkS15Entry(req);
+      if (!entry.ok) {
+        console.log(`POST ${pathname} -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST ${pathname} -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS15SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST ${pathname} -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      const validAttempt =
+        parsed && Number.isInteger(parsed.attempt) && parsed.attempt >= 1 && parsed.attempt <= 3;
+      const validTrial =
+        parsed && typeof parsed.trial_id === "string" && parsed.trial_id.length > 0;
+      if (!parsed || typeof parsed !== "object" || !validTrial || !validAttempt) {
+        console.log(`POST ${pathname} -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は運転側の試行に追随する（/s15/nonces と同じ）。
+        const snap = s15Sender.snapshot();
+        if (!snap || snap.trialId !== parsed.trial_id) {
+          s15Sender.beginTrial(parsed.trial_id);
+        }
+        if (pathname === "/s15/freeze-approval") {
+          if (
+            typeof parsed.operation_id !== "string" || parsed.operation_id.length === 0 ||
+            typeof parsed.purpose !== "string" ||
+            typeof parsed.subject_hash !== "string" ||
+            typeof parsed.env_id !== "string" || parsed.env_id.length === 0 ||
+            typeof parsed.one_time_value !== "string" || parsed.one_time_value.length === 0
+          ) {
+            console.log(`POST ${pathname} -> 400`);
+            res.writeHead(400, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "bad_body" }));
+            return;
+          }
+          s15Sender.freezeApproval({
+            trialId: parsed.trial_id,
+            attempt: parsed.attempt,
+            operationId: parsed.operation_id,
+            purpose: parsed.purpose,
+            subjectHash: parsed.subject_hash,
+            envId: parsed.env_id,
+            oneTimeValue: parsed.one_time_value,
+          });
+          console.log(`POST ${pathname} -> 200`);
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+          return;
+        }
+        if (pathname === "/s15/record-judgment") {
+          if (!["committed", "uncommitted", "discrepancy"].includes(parsed.outcome)) {
+            console.log(`POST ${pathname} -> 400`);
+            res.writeHead(400, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "bad_body" }));
+            return;
+          }
+          s15Sender.recordJudgment({
+            trialId: parsed.trial_id,
+            attempt: parsed.attempt,
+            outcome: parsed.outcome,
+          });
+          console.log(`POST ${pathname} -> 200`);
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+          return;
+        }
+        // /s15/send-discard：要求の形を確認してから送信器へ渡す。
+        const request = parsed.request;
+        if (
+          !request || typeof request !== "object" ||
+          typeof request.id_token !== "string" || request.id_token.length === 0 ||
+          typeof request.one_time_value !== "string" ||
+          typeof request.purpose !== "string" ||
+          typeof request.env_id !== "string"
+        ) {
+          console.log(`POST ${pathname} -> 400`);
+          res.writeHead(400, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "bad_body" }));
+          return;
+        }
+        const out = await s15Sender.sendDiscard({
+          trialId: parsed.trial_id,
+          attempt: parsed.attempt,
+          request,
+        });
+        // 返すのは破棄記録だけである（実応答の状態・理由・世代は
+        // 送信器にも提供サーバーにも存在しない）。
+        console.log(`POST ${pathname} -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(out));
+      } catch (e) {
+        // 送信前の確認に失敗した場合は1件も送っていない。理由
+        // コードだけを返し、値は返さない。期限切れは 410、その他
+        // は 409 とする。
+        const status = e.code === "s15_nonces_expired" ? 410 : 409;
+        console.log(`POST ${pathname} -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s15_send_failed" }));
       }
       return;
     }

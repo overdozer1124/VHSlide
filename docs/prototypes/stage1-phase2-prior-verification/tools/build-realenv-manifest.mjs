@@ -126,6 +126,12 @@ const ARTIFACTS = [
   "test/s14-guard.test.mjs",
   "test/s14-rotate.screen.mjs",
   "test/serve-real-s14.test.mjs",
+  "tools/s15-apply.mjs",
+  "tools/s15-sender.mjs",
+  "test/s15-apply.test.mjs",
+  "test/s15-sender.test.mjs",
+  "test/s15-guard.test.mjs",
+  "test/serve-real-s15.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
@@ -204,6 +210,9 @@ const s14ModuleLines = readRel("tools/s14-rotate.mjs").split("\n");
 const s14SenderLines = readRel("tools/s14-sender.mjs").split("\n");
 const s14GuardLines = readRel("test/s14-guard.test.mjs").split("\n");
 const s14ScreenLines = readRel("test/s14-rotate.screen.mjs").split("\n");
+const s15ModuleLines = readRel("tools/s15-apply.mjs").split("\n");
+const s15SenderLines = readRel("tools/s15-sender.mjs").split("\n");
+const s15GuardLines = readRel("test/s15-guard.test.mjs").split("\n");
 const gitattributesLines = readRel(".gitattributes").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
@@ -1063,6 +1072,91 @@ const checks = {
   },
   s14_screen_jsdom: {
     found: findLines(s14ScreenLines, /jsdom/),
+    expect: "present",
+  },
+  // S15（項目7 手順1：応答破棄を伴う全面復旧）。状態機械は
+  // 凍結・判定・再実施の数え方・通常版復帰の記録による締めを
+  // 持ち、送信器は破棄送信（応答を読まない）・判定ゲート・
+  // redirect: "manual" を持つこと。破棄送信の本体（番兵
+  // コメントの間）に応答の状態・ok・ヘッダー・本文取得への
+  // アクセスが存在しないことも構造検査する。
+  s15_module_freeze: {
+    found: findLines(s15ModuleLines, /freezeApproval/),
+    expect: "present",
+  },
+  s15_module_judge: {
+    found: findLines(s15ModuleLines, /judgeS15ReadBack/),
+    expect: "present",
+  },
+  s15_module_max_reattempts: {
+    found: findLines(s15ModuleLines, /MAX_REATTEMPTS/),
+    expect: "present",
+  },
+  s15_module_normal_restored: {
+    found: findLines(s15ModuleLines, /recordNormalRestored/),
+    expect: "present",
+  },
+  s15_module_already_committed: {
+    found: findLines(s15ModuleLines, /s15_already_committed/),
+    expect: "present",
+  },
+  s15_module_attempts_exhausted: {
+    found: findLines(s15ModuleLines, /s15_attempts_exhausted/),
+    expect: "present",
+  },
+  s15_module_undetermined_state: {
+    found: findLines(s15ModuleLines, /sent-undetermined/),
+    expect: "present",
+  },
+  s15_module_discarded_outcome: {
+    found: findLines(s15ModuleLines, /S15_DISCARDED_OUTCOME/),
+    expect: "present",
+  },
+  s15_sender_freeze: {
+    found: findLines(s15SenderLines, /freezeApproval/),
+    expect: "present",
+  },
+  s15_sender_attempt_gate: {
+    found: findLines(s15SenderLines, /s15_attempt_gate/),
+    expect: "present",
+  },
+  s15_sender_redirect_manual: {
+    found: findLines(s15SenderLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s15_sender_per_attempt_cookie: {
+    found: findLines(s15SenderLines, /op2_nonce_ctx=\$\{slot\.ctx\}/),
+    expect: "present",
+  },
+  s15_sender_discard_block_clean: {
+    found: (() => {
+      const begin = s15SenderLines.findIndex((l) => l.includes("[discard-send-begin]"));
+      const end = s15SenderLines.findIndex((l) => l.includes("[discard-send-end]"));
+      if (begin < 0 || end < 0 || end <= begin) return [];
+      const forbidden = /\.status|\.ok\b|\.headers|\.json\(|\.text\(/;
+      const dirty = s15SenderLines.slice(begin, end + 1).some((l) => forbidden.test(l));
+      return dirty ? [] : [{ line: begin + 1, text: "discard block free of response access" }];
+    })(),
+    expect: "present",
+  },
+  s15_serve_module_route: {
+    found: findLines(serveRealLines, /\/s15-apply\.mjs/),
+    expect: "present",
+  },
+  s15_serve_nonces_route: {
+    found: findLines(serveRealLines, /\/s15\/nonces/),
+    expect: "present",
+  },
+  s15_serve_send_route: {
+    found: findLines(serveRealLines, /\/s15\/send-discard/),
+    expect: "present",
+  },
+  s15_guard_uses_sender: {
+    found: findLines(s15GuardLines, /createS15Sender/),
+    expect: "present",
+  },
+  s15_guard_records_judgment: {
+    found: findLines(s15GuardLines, /recordReadBackJudgment/),
     expect: "present",
   },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ

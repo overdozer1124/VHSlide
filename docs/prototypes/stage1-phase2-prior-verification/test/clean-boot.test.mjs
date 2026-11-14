@@ -45,6 +45,8 @@ const MIRROR_FILES = [
   "tools/s13-revoke.mjs",
   "tools/s14-sender.mjs",
   "tools/s14-rotate.mjs",
+  "tools/s15-sender.mjs",
+  "tools/s15-apply.mjs",
   "tools/trial-apply.mjs",
   "tools/subject-hash-verify.mjs",
   "public/login-real.html",
