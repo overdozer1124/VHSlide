@@ -54,7 +54,7 @@ describe("embed poster (captured thumbnail)", () => {
     for (const bad of [
       "data:image/png;base64,iVBORw0KGgo=",
       "https://example.com/thumb.jpg",
-      `data:image/jpeg;base64,${"A".repeat(300_000)}`,
+      `data:image/jpeg;base64,${"A".repeat(600_000)}`,
       "data:image/jpeg;base64,not base64!!",
       42,
     ]) {

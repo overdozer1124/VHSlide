@@ -9,7 +9,7 @@ export type EmbedBinding = {
 };
 
 /** サムネイル画像を受け入れる最大の長さ（data URL の文字数）。 */
-export const EMBED_POSTER_MAX_CHARS = 260_000;
+export const EMBED_POSTER_MAX_CHARS = 540_000;
 const POSTER_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
 
 const EMBED_ERROR = "埋め込むアプリのURLが正しくありません。";
