@@ -173,11 +173,17 @@
 //   （checkA / checkB）を受け取り、送信器がそのスロットの
 //   Cookie で1件を送信し、応答を返す。ID トークン・Cookie・
 //   nonce の値はログ・応答に出さない。
+// - GET /s15-apply → public/s15-apply.html を返す（S15 応答
+//   破棄ドリル専用画面。Codex 再レビュー 6879462050 への対応
+//   で新設）。S14 画面と同じ型であり、クライアント ID と
+//   S15 セッションをメモリ上で差し込む。画面は対象 B の実
+//   ログインから、承認内容の凍結、破棄送信、読み戻し判定、
+//   通常版復帰の記録までを /s15/* 入口経由で運転する。全面
+//   復旧の実送信は送信器が担い、画面は送信先へ直接送らず、
+//   その応答も読まない。
 // - GET /s15-apply.mjs → tools/s15-apply.mjs をそのまま返す
-//   （S15 の状態機械の純粋モジュール。S15 専用画面は設けず、
-//   準備は既存の trial-apply 画面の全面復旧の完全一致の流れが
-//   担い、破棄送信は送信器／提供層で扱う。DESIGN.md の S15
-//   付録を参照）。
+//   （S15 の状態機械の純粋モジュール。s15-apply 画面が
+//   import する。DESIGN.md の S15 付録を参照）。
 // - GET /s15/nonces → 送信器が中継先の /nonce を試行枠
 //   （attempt 1〜3）ごとに1回呼び、その試行枠の nonce context
 //   Cookie を保持し、nonce だけを返す（ctx は返さない）。次の
@@ -243,7 +249,9 @@
 // モジュールとして import した場合は生成も待ち受けもせず、
 // createRealServer(options) が { server, s15Session, port,
 // relay } を返す。s15Session（S15 入口の試験単位セッション）は
-// プロセス内でのみ運転コード（tools/s15-driver.mjs）へ渡る。
+// プロセス内でのみ運転コード（tools/s15-driver.mjs）へ渡り、
+// あわせて S15 専用画面へメモリ上で差し込む（S15_SESSION の
+// 定義箇所の注記を参照）。
 
 import http from "node:http";
 import { randomUUID } from "node:crypto";
@@ -657,14 +665,17 @@ async function readS14SendBody(req) {
 const s15Sender = createS15Sender({ relayUrl: RELAY });
 
 // S15 入口の試験単位セッション。S14 と同じ型であり、生成ごとに
-// 不可推測の値を新規発行する。S15 専用画面は設けないため、この
-// 値は画面へ差し込まれない。受け渡しはプロセス内だけである：
+// 不可推測の値を新規発行する。受け渡しは同一 PC・同一プロセス
+// の内側だけである：(1) S15 専用画面（public/s15-apply.html）へ
+// 起動時にメモリ上で差し込む（ファイルは書き換えず、S14 画面と
+// 同じ型。Codex 再レビュー 6879462050 への対応）。(2)
 // createRealServer の戻り値（s15Session）として、同一 PC の運転
 // コード（tools/s15-driver.mjs）へ JS の値として渡り、運転コード
 // が各入口のヘッダー（x-s15-session）に示す（Codex レビュー
 // 6879152477 への対応。DESIGN.md の S15 付録の修正節）。値その
-// ものはログ・URL・応答・ファイルのどこにも出ない。
+// ものはログ・URL・ファイルのどこにも出ない。
 const S15_SESSION = randomUUID();
+const S15_SESSION_PLACEHOLDER = "REPLACE_WITH_S15_SESSION";
 const S15_MAX_BODY_BYTES = 64 * 1024;
 
 // S15 入口（/s15/nonces・/s15/freeze-approval・/s15/send-discard・
@@ -830,7 +841,19 @@ const s14RotateHtml = rawS14RotateHtml
   .split(S14_SESSION_PLACEHOLDER).join(S14_SESSION);
 const s14RotateJs = await readFile(path.join(root, "tools", "s14-rotate.mjs"), "utf8");
 
-// S15 の状態機械モジュールはそのまま返す（S15 専用画面はない）。
+// S15 応答破棄ドリル専用画面も同じく、起動時に読み込み、クライ
+// アント ID と S15 セッションをメモリ上で差し込む（ファイルは
+// 書き換えない）。状態機械モジュールはそのまま返す。
+const rawS15ApplyHtml = await readFile(path.join(root, "public", "s15-apply.html"), "utf8");
+if (!rawS15ApplyHtml.includes(PLACEHOLDER)) {
+  throw new Error("error: s15-apply.html にクライアント ID のプレースホルダが見つかりません");
+}
+if (!rawS15ApplyHtml.includes(S15_SESSION_PLACEHOLDER)) {
+  throw new Error("error: s15-apply.html に S15 セッションのプレースホルダが見つかりません");
+}
+const s15ApplyHtml = rawS15ApplyHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(S15_SESSION_PLACEHOLDER).join(S15_SESSION);
 const s15ApplyJs = await readFile(path.join(root, "tools", "s15-apply.mjs"), "utf8");
 
 const FORWARD_PATHS = new Set([
@@ -957,6 +980,12 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s14-rotate.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s14RotateJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s15-apply") {
+      console.log(`GET /s15-apply -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s15ApplyHtml);
       return;
     }
     if (req.method === "GET" && pathname === "/s15-apply.mjs") {

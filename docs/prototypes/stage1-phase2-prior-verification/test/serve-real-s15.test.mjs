@@ -22,6 +22,15 @@
 //   （飛行中）の新しい試行の開始も 409 で拒否されること。
 //   判定の記録後は同じ試行の再実施が開き、committed の判定
 //   の後は新しい試行を開始できること。
+// - S15 専用画面（GET /s15-apply）の配信（Codex 再レビュー
+//   6879462050）：クライアント ID と S15 セッションがメモリ
+//   上で差し込まれて配信され、他の画面には S15 セッションの
+//   プレースホルダが現れないこと。
+// - 判定記録の競合の HTTP 層回帰（Codex 再レビュー
+//   6879462050）：送信が飛行中（中継の応答を保留）の間は、
+//   判定の記録が 409 s15_send_in_flight で拒否され、再実施
+//   の発行も開かず、中継の発行・送信件数も増えないこと。
+//   応答を解放して送信が確定した後は、判定を記録できること。
 // 秘密の値は使わない。
 //
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
@@ -166,11 +175,27 @@ test("S15 入口：セッションなしの POST 群は 403 で、何も送ら�
   assert.deepEqual(relayCalls, before);
 });
 
-test("S15 入口：セッション値はどの配信ページにも差し込まれない", async () => {
-  // S15 専用画面はなく、既存画面の配信にも S15 セッションの
-  // プレースホルダは存在しない。境界の確認として、トップと
-  // S14 画面の配信に x-s15-session の手がかりが含まれないこと
-  // だけを見る（値そのものは試験側にも分からない設計である）。
+test("S15 画面：/s15-apply は専用画面を、クライアント ID とセッションを差し込んで返す", async () => {
+  // S15 専用画面（public/s15-apply.html）へは、S14 画面と同じ
+  // 型で、クライアント ID と S15 セッションがメモリ上で差し
+  // 込まれる（ファイル自体は書き換えない）。配信後の画面に
+  // プレースホルダは残らず、他の画面には S15 セッションの
+  // プレースホルダは現れない（値そのものは試験側にも分から
+  // ない設計である）。
+  const r = await fetch(base + "/s15-apply");
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get("content-type") || "", /text\/html/);
+  const page = await r.text();
+  assert.ok(page.includes(CLIENT_ID));
+  assert.ok(!page.includes("REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID"));
+  assert.ok(!page.includes("REPLACE_WITH_S15_SESSION"));
+  // 画面は状態機械モジュールを import し、/s15/* 入口を
+  // x-s15-session ヘッダーで呼ぶ。送信先へ直接送る経路は
+  // 画面内に存在しない（画面自体の実動確認は
+  // test/s15-apply.screen.mjs が担う）。
+  assert.ok(page.includes("./s15-apply.mjs"));
+  assert.ok(page.includes("x-s15-session"));
+  assert.ok(page.includes("/s15/send-discard"));
   const top = await (await fetch(base + "/")).text();
   assert.ok(!top.includes("REPLACE_WITH_S15_SESSION"));
   const s14 = await (await fetch(base + "/s14-rotate")).text();
@@ -190,6 +215,7 @@ test("S15 入口：未知の経路は 404", async () => {
 
 const DRIVER_PORT_A = 8911;
 const DRIVER_PORT_B = 8912;
+const DRIVER_PORT_C = 8913;
 const OP5 = "op-fixture-005";
 const ONE_TIME_A1 = "one-time-driver-a1";
 const ONE_TIME_A2 = "one-time-driver-a2";
@@ -458,6 +484,87 @@ test("S15 競合：送信中（飛行中）の新しい試行の開始は 409 �
     // 判定を記録すれば、運転は続けられる。
     const judged = await driver.recordJudgment({ trialId: "rc1", attempt: 1, outcome: "uncommitted" });
     assert.equal(judged.status, 200);
+  } finally {
+    rt.releaseApply();
+    await driver.close();
+    rt.close();
+  }
+});
+
+test("S15 競合：送信中（飛行中）の判定記録は 409 s15_send_in_flight で拒否され、確定後に記録できる", async () => {
+  const rt = makeRoundTripRelay();
+  const rtPort = await rt.listen();
+  const driver = await createS15Driver({
+    clientId: CLIENT_ID,
+    relayUrl: `http://127.0.0.1:${rtPort}`,
+    port: DRIVER_PORT_C,
+  });
+  try {
+    const issued = await driver.issueNonce({ trialId: "rj1", attempt: 1 });
+    assert.equal(issued.status, 200);
+    const frozen = await driver.freezeApproval({
+      trialId: "rj1",
+      attempt: 1,
+      operationId: OP5,
+      purpose: "full-replace",
+      subjectHash: HASH_B,
+      envId: ENV_ID,
+      oneTimeValue: ONE_TIME_A1,
+    });
+    assert.equal(frozen.status, 200);
+    // 中継の応答を保留し、破棄送信を飛行中のままにする。送信は
+    // まだ到達・コミット中の可能性がある状態である。
+    rt.state.hangApply = true;
+    const seen = rt.waitApplySeen();
+    const sending = driver.sendDiscard({
+      trialId: "rj1",
+      attempt: 1,
+      request: requestFor({ nonce: "rt-nonce-1", oneTimeValue: ONE_TIME_A1 }),
+    });
+    await seen; // 中継が送信を受けた＝送信器は送信中
+    assert.equal(rt.calls.apply, 1);
+    // 飛行中の判定記録は、区分によらず 409 s15_send_in_flight
+    // で拒否される（Codex 再レビュー 6879462050 の再現への
+    // 対応）。この時点の読み戻しを未成立として記録できては
+    // ならない。
+    const judgedEarly = await driver.recordJudgment({
+      trialId: "rj1",
+      attempt: 1,
+      outcome: "uncommitted",
+    });
+    assert.equal(judgedEarly.status, 409);
+    assert.equal(judgedEarly.error, "s15_send_in_flight");
+    const judgedEarly2 = await driver.recordJudgment({
+      trialId: "rj1",
+      attempt: 1,
+      outcome: "committed",
+    });
+    assert.equal(judgedEarly2.status, 409);
+    assert.equal(judgedEarly2.error, "s15_send_in_flight");
+    // 判定が記録されていないため、再実施の発行は開かない。
+    // 中継の発行・送信件数も増えていない。
+    const reattempt = await driver.issueNonce({ trialId: "rj1", attempt: 2 });
+    assert.equal(reattempt.status, 409);
+    assert.equal(rt.calls.nonce, 1);
+    assert.equal(rt.calls.apply, 1);
+    // 応答を解放して送信の Promise が確定すれば（送信試行の
+    // 完了）、判定を記録できる。
+    rt.releaseApply();
+    const sent = await sending;
+    assert.equal(sent.status, 200);
+    assert.equal(sent.sent, true);
+    assert.equal(sent.outcome, "discarded");
+    const judged = await driver.recordJudgment({
+      trialId: "rj1",
+      attempt: 1,
+      outcome: "uncommitted",
+    });
+    assert.equal(judged.status, 200);
+    assert.equal(judged.ok, true);
+    // 判定の後は通常どおり再実施が開く。
+    const issued2 = await driver.issueNonce({ trialId: "rj1", attempt: 2 });
+    assert.equal(issued2.status, 200);
+    assert.equal(rt.calls.nonce, 2);
   } finally {
     rt.releaseApply();
     await driver.close();

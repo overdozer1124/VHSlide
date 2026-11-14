@@ -27,6 +27,7 @@
     "test:screen:s12": "node test/s12-revoke.screen.mjs",
     "test:screen:s13": "node test/s13-revoke.screen.mjs",
     "test:screen:s14": "node test/s14-rotate.screen.mjs",
+    "test:screen:s15": "node test/s15-apply.screen.mjs",
     "test:clean-boot": "node --test test/clean-boot.test.mjs"
   },
   "type": "module",

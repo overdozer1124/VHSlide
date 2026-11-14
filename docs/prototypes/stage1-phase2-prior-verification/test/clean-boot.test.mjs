@@ -59,6 +59,7 @@ const MIRROR_FILES = [
   "public/s12-revoke.html",
   "public/s13-revoke.html",
   "public/s14-rotate.html",
+  "public/s15-apply.html",
 ];
 
 // 一時ディレクトリへミラー対象だけを複写する。親ディレクトリも作る。

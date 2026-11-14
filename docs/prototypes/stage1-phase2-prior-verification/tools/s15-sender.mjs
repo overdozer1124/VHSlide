@@ -52,6 +52,20 @@
 //   保持するものであり、本送信器の終端は判定の確定である
 //   （両層を並行して使う運転の型は従来どおり。状態機械側
 //   の関門は closed 到達を必須とする）。
+// - 判定記録と送信の競合（Codex 再レビュー 6879462050 への
+//   対応）：recordJudgment は、送信が飛行中（未確定）の間は
+//   s15_send_in_flight で拒否する。送信試行が「完了」する
+//   のは、その fetch の Promise が確定（解決・拒否のいずれ
+//   か）した時点である。通信例外・タイムアウトで拒否され
+//   た送信も、確定した時点で完了した試行として扱い、その
+//   後に限り読み戻し判定へ進める。応答が保留されている間
+//   は、送信がまだ到達・コミット中の可能性があり、その時
+//   点の読み戻しを未成立として記録すると再実施の関門が誤
+//   って開くため、判定は記録しない（記録件数も増えない）。
+//   状態機械（tools/s15-apply.mjs）側に同種の関門は要らな
+//   い：状態機械の送信記録（recordSendDiscard）は送信器が
+//   破棄記録を返した後にだけ作られ、その時点では送信は
+//   構造上すでに確定しているためである。
 //
 // 試行枠のライフサイクル：
 // - issueNonce({ trialId, attempt })：その試行枠の nonce を
@@ -225,6 +239,10 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
         trialId,
         slots,
         attemptsSent: 0,
+        // 送信が飛行中（fetch の Promise が未確定）かどうか。
+        // 試行枠の消費と同時に同期的に立て、確定した時点で
+        // 倒す。判定記録の競合関門（s15_send_in_flight）が使う。
+        sendInFlight: false,
         judgments: new Map(),
         settledOutcome: null,
         frozenContent: null, // 試行を通じた承認内容（操作ID・用途・対象・環境。一回値は含めない）
@@ -391,6 +409,10 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
       // は s15_not_prepared で拒否され、再送の経路はない。
       slot.consumed = true;
       cur.attemptsSent = attempt;
+      // 飛行中の印も同じく同期的に立てる。以後の判定記録は、
+      // この送信の fetch が確定するまで s15_send_in_flight
+      // で拒否される。
+      cur.sendInFlight = true;
       busy = true;
       try {
         // [discard-send-begin]
@@ -430,6 +452,9 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
         }
         // [discard-send-end]
       } finally {
+        // fetch の Promise が確定した（解決・拒否のいずれか）。
+        // 送信試行はここで完了し、以後は読み戻し判定へ進める。
+        cur.sendInFlight = false;
         busy = false;
       }
       return Object.freeze({ sent: true, outcome: S15_DISCARDED_OUTCOME });
@@ -437,7 +462,13 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
     // 送信済みの試行への判定を記録する。判定は、その試行が
     // 送信済みの最新試行であり、まだ判定が記録されていない
     // 場合にだけ1回記録できる。次の試行の発行・固定・送信は
-    // この記録を前提とする（assertAttemptGate）。
+    // この記録を前提とする（assertAttemptGate）。送信が飛行
+    // 中（fetch の Promise が未確定）の間は、送信がまだ到達・
+    // コミット中の可能性があるため、判定は記録せず
+    // s15_send_in_flight で拒否する。送信試行の完了は、その
+    // Promise の確定（解決・拒否のいずれか）である。通信例外
+    // で拒否された送信も、確定した時点で完了した試行として
+    // 扱い、その後に限り判定へ進める。
     recordJudgment({ trialId, attempt, outcome }) {
       const cur = mustCurrent(trialId);
       requireAttempt(attempt);
@@ -447,6 +478,12 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
         outcome !== S15_JUDGMENT_DISCREPANCY
       ) {
         fail("bad_trial_input", "判定区分が committed / uncommitted / discrepancy ではありません");
+      }
+      if (cur.sendInFlight) {
+        fail(
+          "s15_send_in_flight",
+          "送信が完了していないため、読み戻し判定はまだ記録できません"
+        );
       }
       if (cur.attemptsSent !== attempt || cur.judgments.has(attempt)) {
         fail("s15_judgment_order", "判定は送信済みの最新試行に1回だけ記録できます");

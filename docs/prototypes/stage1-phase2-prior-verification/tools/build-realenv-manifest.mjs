@@ -126,12 +126,14 @@ const ARTIFACTS = [
   "test/s14-guard.test.mjs",
   "test/s14-rotate.screen.mjs",
   "test/serve-real-s14.test.mjs",
+  "public/s15-apply.html",
   "tools/s15-apply.mjs",
   "tools/s15-sender.mjs",
   "tools/s15-driver.mjs",
   "test/s15-apply.test.mjs",
   "test/s15-sender.test.mjs",
   "test/s15-guard.test.mjs",
+  "test/s15-apply.screen.mjs",
   "test/serve-real-s15.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
@@ -215,6 +217,7 @@ const s15ModuleLines = readRel("tools/s15-apply.mjs").split("\n");
 const s15SenderLines = readRel("tools/s15-sender.mjs").split("\n");
 const s15DriverLines = readRel("tools/s15-driver.mjs").split("\n");
 const s15GuardLines = readRel("test/s15-guard.test.mjs").split("\n");
+const s15ScreenLines = readRel("public/s15-apply.html").split("\n");
 const gitattributesLines = readRel(".gitattributes").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
@@ -1199,6 +1202,32 @@ const checks = {
   s15_driver_sends_session_header: {
     found: findLines(s15DriverLines, /x-s15-session/),
     expect: "present",
+  },
+  // S15 修正2（Codex 再レビュー 6879462050）：送信が飛行中の
+  // 間は判定記録を s15_send_in_flight で拒否すること。S15
+  // 専用画面が /s15-apply で配信され、セッションがプレース
+  // ホルダで差し込まれること。画面は /s15/send-discard を
+  // 使い、送信先パスへの直接の経路（パス文字列そのもの）を
+  // 含まないこと。
+  s15_sender_judgment_in_flight_gate: {
+    found: findLines(s15SenderLines, /s15_send_in_flight/),
+    expect: "present",
+  },
+  s15_serve_screen_route: {
+    found: findLines(serveRealLines, /pathname === "\/s15-apply"/),
+    expect: "present",
+  },
+  s15_serve_screen_session_injection: {
+    found: findLines(serveRealLines, /REPLACE_WITH_S15_SESSION/),
+    expect: "present",
+  },
+  s15_screen_uses_send_discard: {
+    found: findLines(s15ScreenLines, /\/s15\/send-discard/),
+    expect: "present",
+  },
+  s15_screen_no_direct_apply: {
+    found: findLines(s15ScreenLines, /\/platform\/apply/),
+    expect: "absent",
   },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。

@@ -27,6 +27,12 @@
 //   終端（committed／試行枯渇後の未成立）では開始でき、
 //   discrepancy では明示的な破棄でのみ切り替えられること。
 //   送信中の開始も拒否されること。
+// - 判定記録の競合（Codex 再レビュー 6879462050）：送信が
+//   飛行中（fetch の Promise が未確定）の間は、判定記録が
+//   s15_send_in_flight で拒否され、記録件数も増えず、再実施
+//   の関門も開かないこと。応答の解放（解決）・通信例外
+//   （拒否）のいずれでも、Promise が確定した後は判定を記録
+//   できること（送信試行の完了＝Promise の確定）。
 // - 承認固定の関門：固定なしの送信の拒否。用途・環境ID・
 //   一回値の不一致の拒否（拒否されても試行枠は消費されず、
 //   送信もされない）。再実施では承認内容が先行試行と一致する
@@ -419,6 +425,74 @@ test("busy：飛行中の送信と重なる発行・送信は拒否される", a
   release();
   const result = await sending;
   assert.deepEqual({ ...result }, { sent: true, outcome: "discarded" });
+});
+
+test("判定の競合：送信中（応答保留中）の判定記録は s15_send_in_flight で拒否され、確定後に記録できる", async () => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const { res } = recordingResponse();
+  const { calls, fetchImpl } = makeRelayFetch({
+    applyImpl: async () => {
+      await gate;
+      return res;
+    },
+  });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  sender.beginTrial("t1");
+  await preparedAttempt(sender, { trialId: "t1", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  const sending = sender.sendDiscard({
+    trialId: "t1",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  // 送信が飛行中（fetch 未確定）の間は、どの区分の判定も記録
+  // できない。送信はまだ到達・コミット中の可能性があり、その
+  // 時点の読み戻しを未成立として記録すると再実施の関門が誤
+  // って開くためである。記録件数は増えず、再実施も開かない。
+  assertCode(
+    () => sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "uncommitted" }),
+    "s15_send_in_flight"
+  );
+  assertCode(
+    () => sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "committed" }),
+    "s15_send_in_flight"
+  );
+  assert.equal(sender.snapshot().judgmentsRecorded, 0);
+  await assertCodeAsync(sender.issueNonce({ trialId: "t1", attempt: 2 }), "s15_sender_busy");
+  assert.equal(applyCallsOf(calls).length, 1);
+  // 応答を解放して送信の Promise が確定すれば、判定を記録
+  // できる（送信試行の完了＝Promise の確定）。
+  release();
+  const result = await sending;
+  assert.deepEqual({ ...result }, { sent: true, outcome: "discarded" });
+  assert.equal(sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "uncommitted" }), true);
+  assert.equal(sender.snapshot().judgmentsRecorded, 1);
+  // 判定の後は通常どおり再実施が開く。
+  await preparedAttempt(sender, { trialId: "t1", attempt: 2, oneTimeValue: ONE_TIME_2 });
+});
+
+test("判定の競合：通信例外で fetch が拒否された送信は、確定した時点で完了として判定を記録できる", async () => {
+  const { calls, fetchImpl } = makeRelayFetch({
+    applyImpl: async () => {
+      throw new Error("connection reset");
+    },
+  });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  sender.beginTrial("t1");
+  await preparedAttempt(sender, { trialId: "t1", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  const result = await sender.sendDiscard({
+    trialId: "t1",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  assert.deepEqual({ ...result }, { sent: true, outcome: "discarded" });
+  assert.equal(applyCallsOf(calls).length, 1);
+  // 拒否（通信例外）でも Promise は確定済みであり、送信試行
+  // は完了している。読み戻し判定へ進める。
+  assert.equal(sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "uncommitted" }), true);
+  assert.equal(sender.snapshot().judgmentsRecorded, 1);
 });
 
 test("固定の冪等性と再実施の内容一致：操作IDが変われば拒否、一回値だけが新しい値でよい", async () => {
