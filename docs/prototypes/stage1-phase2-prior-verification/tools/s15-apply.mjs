@@ -44,6 +44,23 @@
 //   記録された場合にだけ数え、最大で2回まで（送信は合計3回
 //   まで）。各再実施は新しい一回値を使うが、操作ID #5 は同じ
 //   である。committed の判定の後は送信手段は残らない。
+// - 試行の切り替え関門（Codex レビュー 6879152477 への対応）：
+//   beginTrial は、送信済みの現行試行を sent-undetermined の
+//   まま上書きしない。新しい試行を始められる終端条件は次の
+//   場合だけである。(a) 現行試行がない。(b) 現行試行が1件も
+//   送信していない（開始そのものが明示的な破棄として働く）。
+//   (c) 現行試行が完全に締まった（phase が closed：判定が
+//   確定＝committed、または未成立で試行枯渇＝uncommitted-
+//   final、かつ通常版復帰が記録済み）。送信済み・判定前は
+//   s15_trial_unjudged、判定済みでも締まっていなければ
+//   s15_trial_not_closed で拒否する。discrepancy で停止した
+//   試行（halted）は、復帰が記録済みでも切り替え条件に含め
+//   ない（停止して人の確認を待つ。切り替えは discard の
+//   明示操作でのみ行う）。discard も、送信済み・判定前の
+//   試行については s15_trial_unjudged で拒否する（関門の
+//   迂回路にしない）。送信器（tools/s15-sender.mjs）も同じ
+//   関門を持ち、そちらでは飛行中の送信も判定未記録として
+//   塞ぐ。
 // - 締め：committed／uncommitted のどちらの帰結でも、手順は
 //   通常ビルドへの復帰と、有効なバージョン・バインディングの
 //   確認で終わる（手順書 §5.1 の操作ごとの終了手順）。この
@@ -346,12 +363,18 @@ export function createS15Session() {
   }
 
   return {
-    // 新しい S15 試行を始める。前回の試行を無効化する（旧
-    // トークンの消去は呼び出し側が S15_TOKEN_ERASE_TRIGGERS
-    // の "new-trial-begun" で行う）。operationId は PC 側で
-    // 一時ビルドに固定した操作ID #5 の文字列、envId は対象
-    // 環境の識別子、startConsumedOperationIds は開始時点の
-    // 消費済み操作ID（{#1, #3} の2件）である。
+    // 新しい S15 試行を始める。operationId は PC 側で一時
+    // ビルドに固定した操作ID #5 の文字列、envId は対象環境
+    // の識別子、startConsumedOperationIds は開始時点の消費
+    // 済み操作ID（{#1, #3} の2件）である。切り替え関門：
+    // 現行試行が送信済みの場合、新しい試行を始められるのは
+    // 現行試行が完全に締まった（closed）ときだけであり、
+    // 送信済み・判定前は s15_trial_unjudged、判定済みでも
+    // 締まっていなければ s15_trial_not_closed で拒否する。
+    // 1件も送信していない現行試行は、開始そのものが明示的
+    // な破棄として切り替えられる（旧トークンの消去は呼び
+    // 出し側が S15_TOKEN_ERASE_TRIGGERS の "new-trial-begun"
+    // で行う）。
     beginTrial({ operationId, envId, startConsumedOperationIds } = {}) {
       requireNonEmptyString(operationId, "操作ID");
       requireNonEmptyString(envId, "環境ID");
@@ -369,6 +392,20 @@ export function createS15Session() {
       }
       if (startConsumedOperationIds.includes(operationId)) {
         fail("bad_trial_input", "操作IDが開始時点の消費済み操作IDに含まれています");
+      }
+      if (current !== null && current.sendCount > 0) {
+        if (current.phase === "sent-undetermined") {
+          fail(
+            "s15_trial_unjudged",
+            "現行試行が送信済み・判定前であり、新しい試行は始められません"
+          );
+        }
+        if (current.phase !== "closed") {
+          fail(
+            "s15_trial_not_closed",
+            "現行試行が締まっておらず（判定確定＋通常版復帰の記録が必要）、新しい試行は始められません"
+          );
+        }
       }
       generation += 1;
       const trialId = makeTrialId();
@@ -666,8 +703,19 @@ export function createS15Session() {
     },
     // 試行の破棄。現行の試行なら無効化し（トークンの消去は
     // 呼び出し側が行う）、古い試行に対しては無害に偽を返す。
+    // 明示的な破棄は切り替え関門の迂回路にしない：送信済み・
+    // 判定前（sent-undetermined）の試行は s15_trial_unjudged
+    // で拒否する。判定が記録済みの試行（discrepancy で停止
+    // した試行を含む）・送信していない試行は破棄できる
+    // （人の確認を経た明示操作として扱う）。
     discard(trialId, gen) {
       if (!this.isCurrent(trialId, gen)) return false;
+      if (current.phase === "sent-undetermined") {
+        fail(
+          "s15_trial_unjudged",
+          "送信済み・判定前の試行は破棄できません"
+        );
+      }
       current = null;
       return true;
     },

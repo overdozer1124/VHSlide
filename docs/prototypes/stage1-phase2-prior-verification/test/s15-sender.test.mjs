@@ -20,6 +20,13 @@
 // - 判定ゲート：先行試行が未確定（判定未記録）の間は次の試行
 //   の発行・固定・送信が拒否され、未成立の判定の記録で開く
 //   こと。committed の判定の後は永久に拒否されること。
+// - 試行切替関門：送信済み・判定前の試行がある間は新しい
+//   試行 ID の開始（beginTrial）と破棄（discard）が
+//   s15_trial_unjudged で拒否され、判定済みでも終端（判定
+//   確定）でなければ s15_trial_not_closed で拒否されること。
+//   終端（committed／試行枯渇後の未成立）では開始でき、
+//   discrepancy では明示的な破棄でのみ切り替えられること。
+//   送信中の開始も拒否されること。
 // - 承認固定の関門：固定なしの送信の拒否。用途・環境ID・
 //   一回値の不一致の拒否（拒否されても試行枠は消費されず、
 //   送信もされない）。再実施では承認内容が先行試行と一致する
@@ -554,4 +561,120 @@ test("送信の入口は sendDiscard だけであり、試行枠の再発行は�
       }),
     "s15_trial_mismatch"
   );
+});
+
+test("試行切替関門：未判定の間は新試行を開始できず、判定済みでも終端でなければ開始できず、枯渇で開始できる", async () => {
+  const { res } = recordingResponse();
+  const { fetchImpl } = makeRelayFetch({ applyImpl: async () => res });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  sender.beginTrial("t1");
+  await preparedAttempt(sender, { trialId: "t1", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  await sender.sendDiscard({
+    trialId: "t1",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  // 送信済み・判定前：新しい試行の開始も、破棄による迂回も拒否。
+  assertCode(() => sender.beginTrial("t2"), "s15_trial_unjudged");
+  assertCode(() => sender.discard(), "s15_trial_unjudged");
+  assert.equal(sender.snapshot().trialId, "t1");
+  assert.equal(sender.snapshot().attemptsSent, 1);
+  // 未成立の判定を記録しても、試行が残っている間は終端ではない。
+  sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "uncommitted" });
+  assertCode(() => sender.beginTrial("t2"), "s15_trial_not_closed");
+  // 試行2・3も未成立で、3回目の判定で試行枯渇＝終端になる。
+  await preparedAttempt(sender, { trialId: "t1", attempt: 2, oneTimeValue: ONE_TIME_2 });
+  await sender.sendDiscard({
+    trialId: "t1",
+    attempt: 2,
+    request: requestFor({ nonce: NONCE_2, oneTimeValue: ONE_TIME_2 }),
+  });
+  sender.recordJudgment({ trialId: "t1", attempt: 2, outcome: "uncommitted" });
+  assertCode(() => sender.beginTrial("t2"), "s15_trial_not_closed");
+  await preparedAttempt(sender, { trialId: "t1", attempt: 3, oneTimeValue: ONE_TIME_2 });
+  await sender.sendDiscard({
+    trialId: "t1",
+    attempt: 3,
+    request: requestFor({ nonce: "nonce-attempt-3", oneTimeValue: ONE_TIME_2 }),
+  });
+  sender.recordJudgment({ trialId: "t1", attempt: 3, outcome: "uncommitted" });
+  assert.equal(sender.beginTrial("t2"), true);
+  assert.equal(sender.snapshot().trialId, "t2");
+  assert.equal(sender.snapshot().attemptsSent, 0);
+});
+
+test("試行切替関門：committed の判定の後は新しい試行を開始できる", async () => {
+  const { res } = recordingResponse();
+  const { fetchImpl } = makeRelayFetch({ applyImpl: async () => res });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  sender.beginTrial("t1");
+  await preparedAttempt(sender, { trialId: "t1", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  await sender.sendDiscard({
+    trialId: "t1",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "committed" });
+  assert.equal(sender.beginTrial("t2"), true);
+  assert.equal(sender.snapshot().trialId, "t2");
+});
+
+test("試行切替関門：discrepancy の判定の後は開始できず、明示的な破棄でのみ切り替えられる", async () => {
+  const { res } = recordingResponse();
+  const { fetchImpl } = makeRelayFetch({ applyImpl: async () => res });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  sender.beginTrial("t1");
+  await preparedAttempt(sender, { trialId: "t1", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  await sender.sendDiscard({
+    trialId: "t1",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  sender.recordJudgment({ trialId: "t1", attempt: 1, outcome: "discrepancy" });
+  // discrepancy は終端に含めない（停止して人の確認を待つ）。
+  assertCode(() => sender.beginTrial("t2"), "s15_trial_not_closed");
+  // 判定は記録済みなので、明示的な破棄はできる。
+  assert.equal(sender.discard(), true);
+  assert.equal(sender.snapshot(), null);
+  assert.equal(sender.beginTrial("t2"), true);
+});
+
+test("試行切替関門：送信していない試行は切り替えられ、送信中の開始・破棄は拒否される", async () => {
+  const { res } = recordingResponse();
+  const { fetchImpl } = makeRelayFetch({ applyImpl: async () => res });
+  const sender = createS15Sender({ relayUrl: RELAY, fetchImpl });
+  sender.beginTrial("t1");
+  await sender.issueNonce({ trialId: "t1", attempt: 1 });
+  // 1件も送信していない試行は、開始そのものが明示的な破棄
+  // として切り替えられる。
+  assert.equal(sender.beginTrial("t2"), true);
+  assert.equal(sender.snapshot().trialId, "t2");
+
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const gated = makeRelayFetch({
+    applyImpl: async () => {
+      await gate;
+      return res;
+    },
+  });
+  const sender2 = createS15Sender({ relayUrl: RELAY, fetchImpl: gated.fetchImpl });
+  sender2.beginTrial("u1");
+  await preparedAttempt(sender2, { trialId: "u1", attempt: 1, oneTimeValue: ONE_TIME_1 });
+  const sending = sender2.sendDiscard({
+    trialId: "u1",
+    attempt: 1,
+    request: requestFor({ nonce: NONCE_1, oneTimeValue: ONE_TIME_1 }),
+  });
+  // 送信中（飛行中）の新しい試行の開始と破棄は拒否される。
+  assertCode(() => sender2.beginTrial("u2"), "s15_sender_busy");
+  assertCode(() => sender2.discard(), "s15_sender_busy");
+  release();
+  const result = await sending;
+  assert.deepEqual({ ...result }, { sent: true, outcome: "discarded" });
+  // 送信が終わっても、判定が記録されるまでは未判定として
+  // 関門にかかる。
+  assertCode(() => sender2.beginTrial("u2"), "s15_trial_unjudged");
 });

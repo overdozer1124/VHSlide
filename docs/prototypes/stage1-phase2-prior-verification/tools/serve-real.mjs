@@ -240,6 +240,10 @@
 //   RELAY_URL=http://127.0.0.1:8798 \
 //   node tools/serve-real.mjs          # http://127.0.0.1:8787/
 //   （PORT 環境変数で待ち受けポートを変更できる。既定 8787）
+// モジュールとして import した場合は生成も待ち受けもせず、
+// createRealServer(options) が { server, s15Session, port,
+// relay } を返す。s15Session（S15 入口の試験単位セッション）は
+// プロセス内でのみ運転コード（tools/s15-driver.mjs）へ渡る。
 
 import http from "node:http";
 import { randomUUID } from "node:crypto";
@@ -253,15 +257,32 @@ import { createS13Sender } from "./s13-sender.mjs";
 import { createS14Sender } from "./s14-sender.mjs";
 import { createS15Sender } from "./s15-sender.mjs";
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+// 提供サーバーの生成（ファクトリー。Codex レビュー 6879152477
+// への対応）。従来はモジュールのトップレベルで生成していたもの
+// を、createRealServer(options) の内側へ移した。options は
+// { clientId, relayUrl, port } であり、指定がなければ環境変数
+// （GOOGLE_CLIENT_ID／RELAY_URL／PORT）から読む（スクリプト
+// 起動時の従来動作と同一）。生成に失敗した場合は、従来
+// console.error して終了コード 1 で終わっていた理由をそのまま
+// message に持つ Error を投げる（スクリプト入口が表示して
+// 終了コード 1 で終わる）。検証・プレースホルダ検査・送信器と
+// セッションの生成・画面の読み込みの順序と内容は従来と同一で
+// ある。戻り値は { server, s15Session, port, relay } であり、
+// server はまだ待ち受けていない（待ち受けは呼び出し側が行
+// う）。s15Session は S15 入口の試験単位セッション値そのもの
+// であり、プロセス内でのみ JS の値として呼び出し側へ渡る。
+// 関数本体は旧トップレベルコードをそのまま移したため、字下げ
+// は元のままである（差分を生成・検証・入口の意味に限定する
+// ため）。
+export async function createRealServer(options = {}) {
+const CLIENT_ID = options.clientId || process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
-  console.error(
+  throw new Error(
     "error: 環境変数 GOOGLE_CLIENT_ID（検証用 OAuth クライアント ID）が未設定です。設定してから起動してください"
   );
-  process.exit(1);
 }
 const PLACEHOLDER = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
-const PORT = Number(process.env.PORT || "8787");
+const PORT = Number(options.port || process.env.PORT || "8787");
 
 // RELAY_URL の検証。不正なら理由（文字列）を返し、正しければ
 // 転送に使う正規化済みの基底 URL（末尾スラッシュなし）を返す。
@@ -317,15 +338,14 @@ function validateRelayUrl(raw) {
 }
 
 const relayValidation = validateRelayUrl(
-  process.env.RELAY_URL || "http://127.0.0.1:8798"
+  options.relayUrl || process.env.RELAY_URL || "http://127.0.0.1:8798"
 );
 if (relayValidation.error) {
-  console.error(
+  throw new Error(
     `error: RELAY_URL が許可条件を満たしません: ${relayValidation.error}。` +
       "RELAY_URL は同一マシン内のローカル中継だけを指定してください" +
       "（例: http://127.0.0.1:8798）。値は表示していません"
   );
-  process.exit(1);
 }
 const RELAY = relayValidation.relay;
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -636,11 +656,14 @@ async function readS14SendBody(req) {
 // nonce・ctx・承認固定値の保持はメモリー内だけである。
 const s15Sender = createS15Sender({ relayUrl: RELAY });
 
-// S15 入口の試験単位セッション。S14 と同じ型であり、起動ごとに
+// S15 入口の試験単位セッション。S14 と同じ型であり、生成ごとに
 // 不可推測の値を新規発行する。S15 専用画面は設けないため、この
-// 値は画面へ差し込まれず、PC 側の運転手順がメモリー内だけの
-// 扱いで保持して各入口のヘッダーに示す（値の受け渡し方法は
-// 実施手順の提案で Codex と確定する。DESIGN.md の S15 付録）。
+// 値は画面へ差し込まれない。受け渡しはプロセス内だけである：
+// createRealServer の戻り値（s15Session）として、同一 PC の運転
+// コード（tools/s15-driver.mjs）へ JS の値として渡り、運転コード
+// が各入口のヘッダー（x-s15-session）に示す（Codex レビュー
+// 6879152477 への対応。DESIGN.md の S15 付録の修正節）。値その
+// ものはログ・URL・応答・ファイルのどこにも出ない。
 const S15_SESSION = randomUUID();
 const S15_MAX_BODY_BYTES = 64 * 1024;
 
@@ -689,8 +712,7 @@ async function readS15SendBody(req) {
 
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
-  console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
 }
 // クライアント ID の差し込みはメモリ上だけで行う（ファイルは書き換えない）。
 const loginHtml = rawHtml.split(PLACEHOLDER).join(CLIENT_ID);
@@ -699,8 +721,7 @@ const loginHtml = rawHtml.split(PLACEHOLDER).join(CLIENT_ID);
 // をメモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
 const rawSubjectHashHtml = await readFile(path.join(root, "public", "subject-hash.html"), "utf8");
 if (!rawSubjectHashHtml.includes(PLACEHOLDER)) {
-  console.error("error: subject-hash.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: subject-hash.html にクライアント ID のプレースホルダが見つかりません");
 }
 const subjectHashHtml = rawSubjectHashHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const subjectHashVerifyJs = await readFile(path.join(root, "tools", "subject-hash-verify.mjs"), "utf8");
@@ -711,8 +732,7 @@ const subjectHashVerifyJs = await readFile(path.join(root, "tools", "subject-has
 // import する。
 const rawTrialApplyHtml = await readFile(path.join(root, "public", "trial-apply.html"), "utf8");
 if (!rawTrialApplyHtml.includes(PLACEHOLDER)) {
-  console.error("error: trial-apply.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: trial-apply.html にクライアント ID のプレースホルダが見つかりません");
 }
 const trialApplyHtml = rawTrialApplyHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const trialApplyJs = await readFile(path.join(root, "tools", "trial-apply.mjs"), "utf8");
@@ -721,12 +741,10 @@ const trialApplyJs = await readFile(path.join(root, "tools", "trial-apply.mjs"),
 // メモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
 const rawS5ApplyHtml = await readFile(path.join(root, "public", "s5-apply.html"), "utf8");
 if (!rawS5ApplyHtml.includes(PLACEHOLDER)) {
-  console.error("error: s5-apply.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s5-apply.html にクライアント ID のプレースホルダが見つかりません");
 }
 if (!rawS5ApplyHtml.includes(S5_SESSION_PLACEHOLDER)) {
-  console.error("error: s5-apply.html に S5 セッションのプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s5-apply.html に S5 セッションのプレースホルダが見つかりません");
 }
 // クライアント ID と S5 セッションはメモリ上で差し込む（ファイルは書き換えない）。
 const s5ApplyHtml = rawS5ApplyHtml
@@ -738,8 +756,7 @@ const s5ApplyJs = await readFile(path.join(root, "tools", "s5-apply.mjs"), "utf8
 // メモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
 const rawS9NegativeHtml = await readFile(path.join(root, "public", "s9-negative.html"), "utf8");
 if (!rawS9NegativeHtml.includes(PLACEHOLDER)) {
-  console.error("error: s9-negative.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s9-negative.html にクライアント ID のプレースホルダが見つかりません");
 }
 const s9NegativeHtml = rawS9NegativeHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const s9NegativeJs = await readFile(path.join(root, "tools", "s9-negative.mjs"), "utf8");
@@ -748,8 +765,7 @@ const s9NegativeJs = await readFile(path.join(root, "tools", "s9-negative.mjs"),
 // メモリ上で差し込む（ファイルは書き換えない）。検証モジュールはそのまま返す。
 const rawS10AddHtml = await readFile(path.join(root, "public", "s10-add-operator.html"), "utf8");
 if (!rawS10AddHtml.includes(PLACEHOLDER)) {
-  console.error("error: s10-add-operator.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s10-add-operator.html にクライアント ID のプレースホルダが見つかりません");
 }
 const s10AddHtml = rawS10AddHtml.split(PLACEHOLDER).join(CLIENT_ID);
 const s10AddJs = await readFile(path.join(root, "tools", "s10-add.mjs"), "utf8");
@@ -759,12 +775,10 @@ const s10AddJs = await readFile(path.join(root, "tools", "s10-add.mjs"), "utf8")
 // モジュールはそのまま返す。
 const rawS11ParallelHtml = await readFile(path.join(root, "public", "s11-parallel.html"), "utf8");
 if (!rawS11ParallelHtml.includes(PLACEHOLDER)) {
-  console.error("error: s11-parallel.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s11-parallel.html にクライアント ID のプレースホルダが見つかりません");
 }
 if (!rawS11ParallelHtml.includes(S11_SESSION_PLACEHOLDER)) {
-  console.error("error: s11-parallel.html に S11 セッションのプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s11-parallel.html に S11 セッションのプレースホルダが見つかりません");
 }
 const s11ParallelHtml = rawS11ParallelHtml
   .split(PLACEHOLDER).join(CLIENT_ID)
@@ -776,12 +790,10 @@ const s11ParallelJs = await readFile(path.join(root, "tools", "s11-parallel.mjs"
 // モジュールはそのまま返す。
 const rawS12RevokeHtml = await readFile(path.join(root, "public", "s12-revoke.html"), "utf8");
 if (!rawS12RevokeHtml.includes(PLACEHOLDER)) {
-  console.error("error: s12-revoke.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s12-revoke.html にクライアント ID のプレースホルダが見つかりません");
 }
 if (!rawS12RevokeHtml.includes(S12_SESSION_PLACEHOLDER)) {
-  console.error("error: s12-revoke.html に S12 セッションのプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s12-revoke.html に S12 セッションのプレースホルダが見つかりません");
 }
 const s12RevokeHtml = rawS12RevokeHtml
   .split(PLACEHOLDER).join(CLIENT_ID)
@@ -793,12 +805,10 @@ const s12RevokeJs = await readFile(path.join(root, "tools", "s12-revoke.mjs"), "
 // モジュールはそのまま返す。
 const rawS13RevokeHtml = await readFile(path.join(root, "public", "s13-revoke.html"), "utf8");
 if (!rawS13RevokeHtml.includes(PLACEHOLDER)) {
-  console.error("error: s13-revoke.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s13-revoke.html にクライアント ID のプレースホルダが見つかりません");
 }
 if (!rawS13RevokeHtml.includes(S13_SESSION_PLACEHOLDER)) {
-  console.error("error: s13-revoke.html に S13 セッションのプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s13-revoke.html に S13 セッションのプレースホルダが見つかりません");
 }
 const s13RevokeHtml = rawS13RevokeHtml
   .split(PLACEHOLDER).join(CLIENT_ID)
@@ -810,12 +820,10 @@ const s13RevokeJs = await readFile(path.join(root, "tools", "s13-revoke.mjs"), "
 // 検証モジュールはそのまま返す。
 const rawS14RotateHtml = await readFile(path.join(root, "public", "s14-rotate.html"), "utf8");
 if (!rawS14RotateHtml.includes(PLACEHOLDER)) {
-  console.error("error: s14-rotate.html にクライアント ID のプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s14-rotate.html にクライアント ID のプレースホルダが見つかりません");
 }
 if (!rawS14RotateHtml.includes(S14_SESSION_PLACEHOLDER)) {
-  console.error("error: s14-rotate.html に S14 セッションのプレースホルダが見つかりません");
-  process.exit(1);
+  throw new Error("error: s14-rotate.html に S14 セッションのプレースホルダが見つかりません");
 }
 const s14RotateHtml = rawS14RotateHtml
   .split(PLACEHOLDER).join(CLIENT_ID)
@@ -1901,6 +1909,25 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`real login page: http://127.0.0.1:${PORT}/  (relay: ${RELAY})`);
-});
+return { server, s15Session: S15_SESSION, port: PORT, relay: RELAY };
+}
+
+// スクリプトとして直接実行された場合の入口（従来の起動方法）。
+// モジュールとして import された場合は、生成も待ち受けもしない。
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  path.resolve(process.argv[1]) ===
+    path.resolve(fileURLToPath(import.meta.url));
+if (isDirectRun) {
+  try {
+    const created = await createRealServer();
+    created.server.listen(created.port, "127.0.0.1", () => {
+      console.log(
+        `real login page: http://127.0.0.1:${created.port}/  (relay: ${created.relay})`
+      );
+    });
+  } catch (e) {
+    console.error(e && e.message ? e.message : String(e));
+    process.exit(1);
+  }
+}

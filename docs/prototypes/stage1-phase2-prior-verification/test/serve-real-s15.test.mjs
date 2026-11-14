@@ -2,19 +2,26 @@
 // /s15/nonces・/s15/freeze-approval・/s15/send-discard・
 // /s15/record-judgment）の実行試験。
 // 実行: node --test test/serve-real-s15.test.mjs
-// 実 Google・実 Worker とは通信しない。serve-real.mjs を子プロセスで
-// 起動し、次を HTTP 層で確認する。
+// 実 Google・実 Worker とは通信しない。次を HTTP 層で確認する。
 // - /s15-apply.mjs が状態機械モジュールをそのまま返すこと。
-// - S15 入口の呼び出し元境界：試験単位セッション（x-s15-session）
-//   を示さない呼び出しは 403 で拒否され、中継へは何も送られず、
-//   送信器の状態も変わらないこと。S15 には専用画面がなく、
-//   セッション値はどの配信ページにも差し込まれないため、正当な
-//   セッションを示す往復はここでは行わない（送信器の往復は
-//   test/s15-sender.test.mjs と test/s15-guard.test.mjs が実
-//   ビルドで確認する。セッション値の受け渡し方法は実施手順の
-//   提案で確定する開いた点であり、DESIGN.md の S15 付録に
-//   記録する）。
-// - 未知の経路は 404 であること。
+// - S15 入口の呼び出し元境界（子プロセスで起動した提供サーバー）：
+//   試験単位セッション（x-s15-session）を示さない呼び出しは 403
+//   で拒否され、中継へは何も送られず、送信器の状態も変わらない
+//   こと。未知の経路は 404 であること。
+// - 正当なセッションの往復（プロセス内で生成した提供サーバー＋
+//   運転コード tools/s15-driver.mjs）：セッション値は
+//   createRealServer の戻り値としてプロセス内だけで受け取り
+//   （HTTP 応答からは得ない）、nonce 発行 → 承認固定 → 破棄
+//   送信（中継が受けた送信はちょうど1件で、応答は破棄記録だけ
+//   が返る）→ 判定記録の往復ができること。セッションなし・
+//   誤ったセッションは 403 で、中継へ何も届かないこと。
+// - 試行切替関門の HTTP 層回帰（Codex レビュー 6879152477）：
+//   送信済み・判定前の間は、(a) 新しい試行 ID でも (b) 同じ
+//   試行 ID でも、新規の nonce 発行と送信がどちらも 409 で
+//   拒否され、中継の発行・送信件数が増えないこと。送信中
+//   （飛行中）の新しい試行の開始も 409 で拒否されること。
+//   判定の記録後は同じ試行の再実施が開き、committed の判定
+//   の後は新しい試行を開始できること。
 // 秘密の値は使わない。
 //
 // 終了コード: 全項目 PASS なら 0、FAIL があれば 1。
@@ -25,6 +32,7 @@ import http from "node:http";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createS15Driver } from "../tools/s15-driver.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SERVE_PORT = 8910;
@@ -172,4 +180,287 @@ test("S15 入口：セッション値はどの配信ページにも差し込ま�
 test("S15 入口：未知の経路は 404", async () => {
   const r = await fetch(base + "/s15-unknown");
   assert.equal(r.status, 404);
+});
+
+// ---- ここから、正当なセッションの往復と試行切替関門の回帰 ----
+// 提供サーバーは子プロセスではなくプロセス内で生成し、
+// セッション値は createRealServer の戻り値から運転コード
+// （tools/s15-driver.mjs）がプロセス内だけで受け取る。
+// HTTP 応答からセッション値を得る経路は存在しない。
+
+const DRIVER_PORT_A = 8911;
+const DRIVER_PORT_B = 8912;
+const OP5 = "op-fixture-005";
+const ONE_TIME_A1 = "one-time-driver-a1";
+const ONE_TIME_A2 = "one-time-driver-a2";
+
+function tokenFor(nonce) {
+  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({ sub: "subject-b", nonce, iss: "https://accounts.google.com", aud: "dummy", exp: 9999999999 })
+  ).toString("base64url");
+  return `${header}.${payload}.sig`;
+}
+
+function requestFor({ nonce, oneTimeValue }) {
+  return {
+    id_token: tokenFor(nonce),
+    one_time_value: oneTimeValue,
+    purpose: "full-replace",
+    env_id: ENV_ID,
+  };
+}
+
+// 往復確認用の偽の中継。/nonce は呼び出しごとに異なる nonce／
+// ctx を返し、/platform/apply は件数だけを数える。hangApply が
+// 真の間は /platform/apply の応答を保留し、releaseApply() で
+// 解放する（送信中の競合の確認用）。waitApplySeen() は次の
+// /platform/apply の到着を待つ。
+function makeRoundTripRelay() {
+  const calls = { nonce: 0, apply: 0 };
+  const state = { hangApply: false };
+  let releaseCurrent = null;
+  let seenResolve = null;
+  const server = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      if (req.url === "/nonce") {
+        calls.nonce += 1;
+        const n = calls.nonce;
+        res.writeHead(200, {
+          "content-type": "application/json",
+          "set-cookie": `op2_nonce_ctx=rt-ctx-${n}; Path=/; HttpOnly`,
+        });
+        res.end(JSON.stringify({ nonce: `rt-nonce-${n}` }));
+        return;
+      }
+      if (req.url === "/platform/apply") {
+        calls.apply += 1;
+        if (seenResolve) {
+          const r = seenResolve;
+          seenResolve = null;
+          r();
+        }
+        const respond = () => {
+          res.writeHead(201, { "content-type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        };
+        if (state.hangApply) {
+          releaseCurrent = respond;
+        } else {
+          respond();
+        }
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+  });
+  return {
+    calls,
+    state,
+    server,
+    async listen() {
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      return server.address().port;
+    },
+    waitApplySeen() {
+      return new Promise((resolve) => {
+        seenResolve = resolve;
+      });
+    },
+    releaseApply() {
+      if (releaseCurrent) {
+        const r = releaseCurrent;
+        releaseCurrent = null;
+        r();
+      }
+    },
+    close() {
+      server.close();
+      if (typeof server.closeAllConnections === "function") server.closeAllConnections();
+    },
+  };
+}
+
+test("S15 往復：正当なセッションで nonce→凍結→破棄送信→判定が HTTP 層で往復し、未判定の間は新旧どちらの試行 ID でも発行・送信が増えない", async () => {
+  const rt = makeRoundTripRelay();
+  const rtPort = await rt.listen();
+  const driver = await createS15Driver({
+    clientId: CLIENT_ID,
+    relayUrl: `http://127.0.0.1:${rtPort}`,
+    port: DRIVER_PORT_A,
+  });
+  try {
+    // 運転コードはセッションを保持していることだけが分かり、
+    // 値そのものは snapshot にも結果にも含まれない。
+    assert.deepEqual(driver.snapshot(), { baseUrl: driver.baseUrl, sessionHeld: true });
+    // nonce 発行 → 承認固定 → 破棄送信。
+    const issued = await driver.issueNonce({ trialId: "rt1", attempt: 1 });
+    assert.equal(issued.status, 200);
+    assert.equal(issued.nonce, "rt-nonce-1");
+    assert.equal(rt.calls.nonce, 1);
+    const frozen = await driver.freezeApproval({
+      trialId: "rt1",
+      attempt: 1,
+      operationId: OP5,
+      purpose: "full-replace",
+      subjectHash: HASH_B,
+      envId: ENV_ID,
+      oneTimeValue: ONE_TIME_A1,
+    });
+    assert.equal(frozen.status, 200);
+    assert.equal(frozen.ok, true);
+    const sent = await driver.sendDiscard({
+      trialId: "rt1",
+      attempt: 1,
+      request: requestFor({ nonce: "rt-nonce-1", oneTimeValue: ONE_TIME_A1 }),
+    });
+    assert.equal(sent.status, 200);
+    // 返すのは破棄記録だけ（実応答の状態・理由・世代はない）。
+    assert.deepEqual(Object.keys(sent).sort(), ["outcome", "sent", "status"]);
+    assert.equal(sent.sent, true);
+    assert.equal(sent.outcome, "discarded");
+    // 中継が受けた送信はちょうど1件。
+    assert.equal(rt.calls.apply, 1);
+
+    // 未判定の間：(a) 新しい試行 ID では発行も送信もできない。
+    const otherNonce = await driver.issueNonce({ trialId: "rt-other", attempt: 1 });
+    assert.equal(otherNonce.status, 409);
+    assert.equal(otherNonce.error, "s15_trial_unjudged");
+    const otherSend = await driver.sendDiscard({
+      trialId: "rt-other",
+      attempt: 1,
+      request: requestFor({ nonce: "rt-nonce-1", oneTimeValue: ONE_TIME_A1 }),
+    });
+    assert.equal(otherSend.status, 409);
+    assert.equal(otherSend.error, "s15_trial_unjudged");
+    // 未判定の間：(b) 同じ試行 ID でも、次の試行枠の発行と
+    // 送信済み試行枠の再送はできない。
+    const nextNonce = await driver.issueNonce({ trialId: "rt1", attempt: 2 });
+    assert.equal(nextNonce.status, 409);
+    assert.equal(nextNonce.error, "s15_attempt_gate");
+    const resend = await driver.sendDiscard({
+      trialId: "rt1",
+      attempt: 1,
+      request: requestFor({ nonce: "rt-nonce-1", oneTimeValue: ONE_TIME_A1 }),
+    });
+    assert.equal(resend.status, 409);
+    assert.equal(resend.error, "s15_not_prepared");
+    // どちらの拒否でも、中継の発行・送信件数は増えていない。
+    assert.equal(rt.calls.nonce, 1);
+    assert.equal(rt.calls.apply, 1);
+
+    // 判定（未成立）を記録すると、同じ試行の再実施が開く。
+    const judged = await driver.recordJudgment({ trialId: "rt1", attempt: 1, outcome: "uncommitted" });
+    assert.equal(judged.status, 200);
+    const issued2 = await driver.issueNonce({ trialId: "rt1", attempt: 2 });
+    assert.equal(issued2.status, 200);
+    assert.equal(issued2.nonce, "rt-nonce-2");
+    const frozen2 = await driver.freezeApproval({
+      trialId: "rt1",
+      attempt: 2,
+      operationId: OP5,
+      purpose: "full-replace",
+      subjectHash: HASH_B,
+      envId: ENV_ID,
+      oneTimeValue: ONE_TIME_A2,
+    });
+    assert.equal(frozen2.status, 200);
+    const sent2 = await driver.sendDiscard({
+      trialId: "rt1",
+      attempt: 2,
+      request: requestFor({ nonce: "rt-nonce-2", oneTimeValue: ONE_TIME_A2 }),
+    });
+    assert.equal(sent2.status, 200);
+    assert.equal(rt.calls.apply, 2);
+    const judged2 = await driver.recordJudgment({ trialId: "rt1", attempt: 2, outcome: "committed" });
+    assert.equal(judged2.status, 200);
+
+    // committed の判定（終端）の後は、新しい試行を開始できる。
+    const next = await driver.issueNonce({ trialId: "rt-next", attempt: 1 });
+    assert.equal(next.status, 200);
+    assert.equal(rt.calls.nonce, 3);
+
+    // 同じ提供サーバーでも、セッションなし・誤ったセッション
+    // は 403 で、中継へは何も届かない。
+    const before = { ...rt.calls };
+    const noSession = await fetch(
+      `${driver.baseUrl}/s15/nonces?trial_id=rt-next&attempt=2`
+    );
+    assert.equal(noSession.status, 403);
+    assert.equal((await noSession.json()).error, "s15_bad_session");
+    const wrongSession = await fetch(
+      `${driver.baseUrl}/s15/nonces?trial_id=rt-next&attempt=2`,
+      { headers: { "x-s15-session": "not-the-session" } }
+    );
+    assert.equal(wrongSession.status, 403);
+    assert.deepEqual(rt.calls, before);
+  } finally {
+    await driver.close();
+    rt.close();
+  }
+});
+
+test("S15 競合：送信中（飛行中）の新しい試行の開始は 409 で拒否され、送信はちょうど1件だけが中継へ届く", async () => {
+  const rt = makeRoundTripRelay();
+  const rtPort = await rt.listen();
+  const driver = await createS15Driver({
+    clientId: CLIENT_ID,
+    relayUrl: `http://127.0.0.1:${rtPort}`,
+    port: DRIVER_PORT_B,
+  });
+  try {
+    const issued = await driver.issueNonce({ trialId: "rc1", attempt: 1 });
+    assert.equal(issued.status, 200);
+    const frozen = await driver.freezeApproval({
+      trialId: "rc1",
+      attempt: 1,
+      operationId: OP5,
+      purpose: "full-replace",
+      subjectHash: HASH_B,
+      envId: ENV_ID,
+      oneTimeValue: ONE_TIME_A1,
+    });
+    assert.equal(frozen.status, 200);
+    // 中継の応答を保留し、破棄送信を飛行中のままにする。
+    rt.state.hangApply = true;
+    const seen = rt.waitApplySeen();
+    const sending = driver.sendDiscard({
+      trialId: "rc1",
+      attempt: 1,
+      request: requestFor({ nonce: "rt-nonce-1", oneTimeValue: ONE_TIME_A1 }),
+    });
+    await seen; // 中継が送信を受けた＝送信器は送信中
+    assert.equal(rt.calls.apply, 1);
+    // 送信中に新しい試行 ID で開始しようとしても 409 で、
+    // nonce は発行されない。同じ試行の次の試行枠も開かない。
+    const other = await driver.issueNonce({ trialId: "rc-other", attempt: 1 });
+    assert.equal(other.status, 409);
+    assert.equal(other.error, "s15_sender_busy");
+    const next = await driver.issueNonce({ trialId: "rc1", attempt: 2 });
+    assert.equal(next.status, 409);
+    assert.equal(next.error, "s15_sender_busy");
+    assert.equal(rt.calls.nonce, 1);
+    // 保留を解放すると、送信は破棄記録で完了する（再送はない）。
+    rt.releaseApply();
+    const sent = await sending;
+    assert.equal(sent.status, 200);
+    assert.equal(sent.sent, true);
+    assert.equal(sent.outcome, "discarded");
+    assert.equal(rt.calls.apply, 1);
+    // 送信が終わっても未判定の間は、新しい試行は開始できない。
+    const afterSend = await driver.issueNonce({ trialId: "rc-other", attempt: 1 });
+    assert.equal(afterSend.status, 409);
+    assert.equal(afterSend.error, "s15_trial_unjudged");
+    assert.equal(rt.calls.nonce, 1);
+    // 判定を記録すれば、運転は続けられる。
+    const judged = await driver.recordJudgment({ trialId: "rc1", attempt: 1, outcome: "uncommitted" });
+    assert.equal(judged.status, 200);
+  } finally {
+    rt.releaseApply();
+    await driver.close();
+    rt.close();
+  }
 });

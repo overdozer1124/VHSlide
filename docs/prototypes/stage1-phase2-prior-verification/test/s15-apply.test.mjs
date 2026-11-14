@@ -23,6 +23,10 @@
 //   されること。
 // - 締め：判定確定後も、通常版復帰の記録（版確認・バインディ
 //   ング確認の両方）がなければ closed にならないこと。
+// - 試行切替関門：送信済み・判定前の試行は新しい試行の開始
+//   （beginTrial）と破棄（discard）のどちらでも上書きでき
+//   ず、判定済みでも完全に締まる（closed）までは開始でき
+//   ないこと。送信していない試行は切り替えられること。
 // - 読み戻しの正規化：RegistryDO の snapshot の形と正規形の
 //   両方を受け、形式不正を拒否すること。
 // - ログ記録には ID トークン・一回値・Cookie・nonce・主体
@@ -532,4 +536,114 @@ test("破棄：現行試行だけが無効化され、旧試行の操作は stal
     "stale_attempt"
   );
   assert.equal(session.discard(trialId, generation), false);
+});
+
+test("試行切替関門：送信済み・判定前の試行は開始でも破棄でも上書きできない", () => {
+  const { session, trialId, generation } = throughSent();
+  assert.equal(session.snapshot().phase, "sent-undetermined");
+  assertCode(
+    () =>
+      session.beginTrial({
+        operationId: OP5,
+        envId: ENV_ID,
+        startConsumedOperationIds: [OP1, OP3],
+      }),
+    "s15_trial_unjudged"
+  );
+  assertCode(() => session.discard(trialId, generation), "s15_trial_unjudged");
+  // 現行試行はそのまま残っている。
+  assert.equal(session.isCurrent(trialId, generation), true);
+  assert.equal(session.snapshot().phase, "sent-undetermined");
+});
+
+test("試行切替関門：判定済みでも締まるまでは開始できず、closed で開始できる", () => {
+  const { session, trialId, generation } = throughSent();
+  const j = session.recordReadBackJudgment(trialId, generation, COMMITTED_RB());
+  assert.equal(j.outcome, "committed");
+  // committed の判定だけでは締まっていない（復帰の記録が要る）。
+  assertCode(
+    () =>
+      session.beginTrial({
+        operationId: "op-fixture-006",
+        envId: ENV_ID,
+        startConsumedOperationIds: [OP1, OP3],
+      }),
+    "s15_trial_not_closed"
+  );
+  const closed = session.recordNormalRestored(trialId, generation, {
+    versionVerified: true,
+    bindingsVerified: true,
+  });
+  assert.equal(closed.state, "closed");
+  const next = session.beginTrial({
+    operationId: "op-fixture-006",
+    envId: ENV_ID,
+    startConsumedOperationIds: [OP1, OP3],
+  });
+  assert.ok(next.trialId);
+  assert.notEqual(next.trialId, trialId);
+  assert.equal(session.isCurrent(trialId, generation), false);
+});
+
+test("試行切替関門：未成立で再実施可能な間も開始できず、discrepancy は破棄でのみ切り替えられる", () => {
+  // 未成立の判定の後（reattempt-ready）も終端ではない。
+  const a = throughSent();
+  const ja = a.session.recordReadBackJudgment(a.trialId, a.generation, readBack({}));
+  assert.equal(ja.outcome, "uncommitted");
+  assert.equal(a.session.snapshot().phase, "reattempt-ready");
+  assertCode(
+    () =>
+      a.session.beginTrial({
+        operationId: OP5,
+        envId: ENV_ID,
+        startConsumedOperationIds: [OP1, OP3],
+      }),
+    "s15_trial_not_closed"
+  );
+  // discrepancy で停止した試行は、復帰の記録の後も開始では
+  // 切り替えられない（停止して人の確認を待つ）。
+  const b = throughSent();
+  const jb = b.session.recordReadBackJudgment(
+    b.trialId,
+    b.generation,
+    readBack({ generation: 9 })
+  );
+  assert.equal(jb.outcome, "discrepancy");
+  assert.equal(b.session.snapshot().phase, "halted");
+  b.session.recordNormalRestored(b.trialId, b.generation, {
+    versionVerified: true,
+    bindingsVerified: true,
+  });
+  assert.equal(b.session.snapshot().phase, "halted");
+  assertCode(
+    () =>
+      b.session.beginTrial({
+        operationId: OP5,
+        envId: ENV_ID,
+        startConsumedOperationIds: [OP1, OP3],
+      }),
+    "s15_trial_not_closed"
+  );
+  // 判定は記録済みなので、明示的な破棄はできる。
+  assert.equal(b.session.discard(b.trialId, b.generation), true);
+  const next = b.session.beginTrial({
+    operationId: OP5,
+    envId: ENV_ID,
+    startConsumedOperationIds: [OP1, OP3],
+  });
+  assert.ok(next.trialId);
+});
+
+test("試行切替関門：送信していない試行は新しい試行で切り替えられる", () => {
+  const { session, trialId, generation } = beginSession();
+  freeze(session, trialId, generation);
+  const next = session.beginTrial({
+    operationId: OP5,
+    envId: ENV_ID,
+    startConsumedOperationIds: [OP1, OP3],
+  });
+  assert.ok(next.trialId);
+  assert.notEqual(next.trialId, trialId);
+  assert.equal(session.isCurrent(trialId, generation), false);
+  assert.equal(session.snapshot().sendCount, 0);
 });

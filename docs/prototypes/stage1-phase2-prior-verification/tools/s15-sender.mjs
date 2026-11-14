@@ -29,6 +29,29 @@
 //   開く。committed／discrepancy の判定の後は、以後一切の
 //   発行・固定・送信を拒否する。再実施の上限（合計3回）は
 //   試行番号そのもので数える。
+// - 試行の切り替え関門（Codex レビュー 6879152477 への対応）：
+//   beginTrial は、現行試行を無条件に初期化しない。新しい
+//   試行 ID へ切り替えられる終端条件は次の場合だけである。
+//   (a) 現行試行がない。(b) 現行試行が1件も送信していない
+//   （開始そのものが明示的な破棄として働く。実送信も判定の
+//   義務も存在しない）。(c) 現行試行が終端に達した：判定が
+//   確定した（committed の判定、または3回目の未成立の判定
+//   ＝試行枯渇）。送信済み・判定前の試行がある間は
+//   s15_trial_unjudged で拒否し、判定済みでも終端でなけれ
+//   ば s15_trial_not_closed で拒否する。discrepancy の判定
+//   は終端に含めない（停止して人の確認を待つ状態であり、
+//   切り替えは discard の明示操作でのみ行う）。discard も、
+//   判定未記録の送信がある試行については同じく
+//   s15_trial_unjudged で拒否する（関門の迂回路にしない）。
+//   破棄送信は最初の await の前に同期的に試行番号を進める
+//   ため、「送信中（飛行中）」の試行も判定未記録として関門
+//   にかかる。あわせて beginTrial・discard は busy（発行・
+//   送信の飛行中）でも s15_sender_busy で拒否する。なお、
+//   完全に締まった試行の条件のうち「通常版復帰の記録」は
+//   状態機械（tools/s15-apply.mjs の createS15Session）が
+//   保持するものであり、本送信器の終端は判定の確定である
+//   （両層を並行して使う運転の型は従来どおり。状態機械側
+//   の関門は closed 到達を必須とする）。
 //
 // 試行枠のライフサイクル：
 // - issueNonce({ trialId, attempt })：その試行枠の nonce を
@@ -146,11 +169,55 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
     }
   }
 
+  // 現行試行に「送信済み・判定未記録」の試行があるか。破棄
+  // 送信は最初の await の前に同期的に attemptsSent を進める
+  // ため、飛行中の送信もここに含まれる（送信中の非同期処理
+  // と新試行開始の競合は、この判定と busy の両方で塞ぐ）。
+  function hasUnjudgedSend(cur) {
+    return cur.attemptsSent > 0 && !cur.judgments.has(cur.attemptsSent);
+  }
+
+  // 現行試行が終端（新しい試行へ切り替え可能）かどうか。
+  // 終端は、判定が確定した場合だけである：committed の
+  // 判定、または3回目の未成立の判定（試行枯渇）。discrepancy
+  // の判定は終端に含めない（停止して人の確認を待つ）。
+  function isTrialTerminal(cur) {
+    if (cur.settledOutcome === S15_JUDGMENT_COMMITTED) return true;
+    return (
+      cur.attemptsSent === MAX_SENDS &&
+      cur.judgments.get(MAX_SENDS) === S15_JUDGMENT_UNCOMMITTED
+    );
+  }
+
   return {
     // 新しい試行を開始する。試行枠と判定の保持を空にする。
+    // 切り替え関門：現行試行が送信済みの場合、新しい試行を
+    // 始められるのは現行試行が終端（判定確定）のときだけで
+    // ある。送信済み・判定前なら s15_trial_unjudged、判定
+    // 済みでも終端でなければ s15_trial_not_closed で拒否
+    // する。1件も送信していない現行試行は、開始そのものが
+    // 明示的な破棄として切り替えられる。飛行中（busy）も
+    // 拒否する。
     beginTrial(trialId) {
+      if (busy) {
+        fail("s15_sender_busy", "別の送信または発行が進行中です");
+      }
       if (current !== null && current.trialId === trialId) {
         fail("s15_trial_mismatch", "同じ試行が既に開始されています");
+      }
+      if (current !== null && current.attemptsSent > 0) {
+        if (hasUnjudgedSend(current)) {
+          fail(
+            "s15_trial_unjudged",
+            "現行試行に判定未記録の送信があり、新しい試行は始められません"
+          );
+        }
+        if (!isTrialTerminal(current)) {
+          fail(
+            "s15_trial_not_closed",
+            "現行試行が終端（判定確定）に達しておらず、新しい試行は始められません"
+          );
+        }
       }
       const slots = {};
       for (let n = 1; n <= MAX_SENDS; n++) slots[n] = emptySlot();
@@ -402,8 +469,22 @@ export function createS15Sender({ relayUrl, fetchImpl = fetch, now = () => Date.
       if (!Number.isInteger(attempt) || attempt < 1 || attempt > MAX_SENDS) return false;
       return cur.slots[attempt].consumed;
     },
-    // 試行を破棄し、送信器側の状態を消す。
+    // 試行を破棄し、送信器側の状態を消す。明示的な破棄は
+    // 切り替え関門の迂回路にしない：判定未記録の送信がある
+    // 試行は s15_trial_unjudged で拒否し、飛行中（busy）も
+    // s15_sender_busy で拒否する。判定が記録済みの試行・
+    // 送信していない試行は破棄できる（人の確認を経た明示
+    // 操作として扱う）。
     discard() {
+      if (busy) {
+        fail("s15_sender_busy", "別の送信または発行が進行中です");
+      }
+      if (current !== null && hasUnjudgedSend(current)) {
+        fail(
+          "s15_trial_unjudged",
+          "判定未記録の送信がある試行は破棄できません"
+        );
+      }
       current = null;
       return true;
     },

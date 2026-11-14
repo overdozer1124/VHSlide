@@ -128,6 +128,7 @@ const ARTIFACTS = [
   "test/serve-real-s14.test.mjs",
   "tools/s15-apply.mjs",
   "tools/s15-sender.mjs",
+  "tools/s15-driver.mjs",
   "test/s15-apply.test.mjs",
   "test/s15-sender.test.mjs",
   "test/s15-guard.test.mjs",
@@ -212,6 +213,7 @@ const s14GuardLines = readRel("test/s14-guard.test.mjs").split("\n");
 const s14ScreenLines = readRel("test/s14-rotate.screen.mjs").split("\n");
 const s15ModuleLines = readRel("tools/s15-apply.mjs").split("\n");
 const s15SenderLines = readRel("tools/s15-sender.mjs").split("\n");
+const s15DriverLines = readRel("tools/s15-driver.mjs").split("\n");
 const s15GuardLines = readRel("test/s15-guard.test.mjs").split("\n");
 const gitattributesLines = readRel(".gitattributes").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
@@ -1159,6 +1161,45 @@ const checks = {
     found: findLines(s15GuardLines, /recordReadBackJudgment/),
     expect: "present",
   },
+  // S15 修正（Codex レビュー 6879152477）：試行切替関門は状態
+  // 機械と送信器の両層に s15_trial_unjudged／
+  // s15_trial_not_closed として存在すること。提供サーバーは
+  // createRealServer ファクトリーで生成され、S15 セッション
+  // （s15Session）をプロセス内だけで戻り値に含めること。
+  // 運転コード（tools/s15-driver.mjs）はファクトリーを
+  // import し、セッションを x-s15-session ヘッダーで示すこと。
+  s15_module_trial_unjudged_gate: {
+    found: findLines(s15ModuleLines, /s15_trial_unjudged/),
+    expect: "present",
+  },
+  s15_module_trial_not_closed_gate: {
+    found: findLines(s15ModuleLines, /s15_trial_not_closed/),
+    expect: "present",
+  },
+  s15_sender_trial_unjudged_gate: {
+    found: findLines(s15SenderLines, /s15_trial_unjudged/),
+    expect: "present",
+  },
+  s15_sender_trial_not_closed_gate: {
+    found: findLines(s15SenderLines, /s15_trial_not_closed/),
+    expect: "present",
+  },
+  s15_serve_factory: {
+    found: findLines(serveRealLines, /createRealServer/),
+    expect: "present",
+  },
+  s15_serve_factory_returns_session: {
+    found: findLines(serveRealLines, /s15Session/),
+    expect: "present",
+  },
+  s15_driver_uses_factory: {
+    found: findLines(s15DriverLines, /createRealServer/),
+    expect: "present",
+  },
+  s15_driver_sends_session_header: {
+    found: findLines(s15DriverLines, /x-s15-session/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -1342,6 +1383,7 @@ const manifest = {
     s13_revoke_page: "public/s13-revoke.html（tools/serve-real.mjs が /s13-revoke で配信。GOOGLE_CLIENT_ID と S13 セッションをメモリ上で差し込む。項目6 手順6（最後の運営者の保護）の専用画面。対象 C の主体ハッシュを取得し、A の認可で C の失効を送り（generation 5→6・登録簿 {A}）、A 自身の失効試行が 409 last_operator で拒否されること（この拒否が合格。状態は変わらない）と A の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s13-revoke.mjs は Node 試験 test/s13-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s13-sender.mjs（Node）が行う。名前付きスロット（revokeC / revokeA / checkA）ごとに Cookie jar を分け、失効の対象は手順ごとに送信器の境界でも結び付け、期待世代はスロットごとに固定する（revokeC = 5、revokeA = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s13-sender.test.mjs、実 Worker との結線は test/s13-guard.test.mjs、画面の実画面試験は test/s13-revoke.screen.mjs）",
     s14_rotate_page: "public/s14-rotate.html（tools/serve-real.mjs が /s14-rotate で配信。GOOGLE_CLIENT_ID と S14 セッションをメモリ上で差し込む。項目6 手順7（ローテーション A→B）の専用画面。対象 A・B の主体ハッシュを取得し、A の認可でローテーションを送り（generation 6→7・登録簿 {A}→{B}。削除と追加は同一トランザクション）、A の次回操作が 403 not_operator で拒否されること（この拒否が合格。状態は変わらない）と B の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s14-rotate.mjs は Node 試験 test/s14-rotate.test.mjs と共用する。送信は提供サーバー側の tools/s14-sender.mjs（Node）が行う。名前付きスロット（rotateAB / checkA / checkB）ごとに Cookie jar を分け、ローテーションの対象は旧主体・新主体の組で送信器の境界でも結び付け、期待世代は固定する（rotateAB = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s14-sender.test.mjs、実 Worker との結線は test/s14-guard.test.mjs、画面の実画面試験は test/s14-rotate.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
+    s15_driver: "tools/s15-driver.mjs（S15 の PC 側運転コード。tools/serve-real.mjs を同一プロセスで生成し、S15 入口の試験単位セッションを createRealServer の戻り値としてメモリー内だけで受け取り、x-s15-session ヘッダーで示す。値はログ・URL・応答・ファイルに出ない。S15 専用画面は設けない）",
   },
   source_checks: checks,
 };
