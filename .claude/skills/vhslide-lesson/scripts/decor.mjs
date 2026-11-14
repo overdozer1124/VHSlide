@@ -65,6 +65,35 @@ const confetti = (T, n, seed, area) => {
 
 // ---------- styles ----------
 const styles = {
+  /** Ancient Greek: parchment, meander (雷文) bands, ionic columns. */
+  greek(T, kind) {
+    const gold = T.decor.gold ?? "#b8923a", dark = T.primary;
+    const meander = (y, h, color, op = 1) => {
+      let d = "";
+      for (let x = -4; x < W + 30; x += 28) d += `M${x} ${y + h - 3} V${y + 3} H${x + 20} V${y + h - 7} H${x + 8} V${y + 11} H${x + 14} `;
+      return `<g opacity="${op}"><path d="${d}" fill="none" stroke="${color}" stroke-width="2.4"/><line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="2"/><line x1="0" x2="${W}" y1="${y + h}" y2="${y + h}" stroke="${color}" stroke-width="2"/></g>`;
+    };
+    const column = (x, top, bottom, color, op) => {
+      let f = ""; for (let i = 1; i < 6; i++) f += `<line x1="${x + i * 9}" x2="${x + i * 9}" y1="${top + 34}" y2="${bottom - 22}" stroke="${color}" stroke-width="1.4"/>`;
+      return `<g opacity="${op}" fill="none" stroke="${color}" stroke-width="2"><rect x="${x - 10}" y="${top}" width="74" height="14" rx="3"/><circle cx="${x - 4}" cy="${top + 22}" r="9"/><circle cx="${x + 58}" cy="${top + 22}" r="9"/><rect x="${x}" y="${top + 14}" width="54" height="20"/><rect x="${x + 2}" y="${top + 34}" width="50" height="${bottom - top - 56}"/>${f}<rect x="${x - 6}" y="${bottom - 22}" width="66" height="10"/><rect x="${x - 12}" y="${bottom - 12}" width="78" height="12"/></g>`;
+    };
+    const parch = `<filter id="parch" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="4"/><feColorMatrix type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 0 0.12  0 0 0 0.15 0"/></filter>
+      <filter id="cracks" x="0" y="0" width="100%" height="100%"><feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="2" seed="12"/><feColorMatrix type="matrix" values="0 0 0 0 0.3  0 0 0 0 0.2  0 0 0 0 0.1  0 0 0 -2.4 1.25"/></filter>
+      <radialGradient id="vig" cx="50%" cy="50%" r="70%"><stop offset="60%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#3a2410" stop-opacity=".45"/></radialGradient>
+      <linearGradient id="gBand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(dark, "#000000", 0.15)}"/><stop offset="1" stop-color="${dark}"/></linearGradient>`;
+    const ground = (c) => `<rect width="${W}" height="${H}" fill="${c}"/><rect width="${W}" height="${H}" filter="url(#parch)"/><rect width="${W}" height="${H}" filter="url(#cracks)" opacity=".18"/>${grain}`;
+    if (kind === "content") return svg(defs(T, parch) + ground(T.bg) + `
+      <rect width="${W}" height="62" fill="url(#gBand)"/>
+      ${meander(62, 24, gold, 0.95)}
+      <rect width="${W}" height="${H}" fill="url(#vig)" opacity=".55"/>`);
+    const darkKind = kind === "section";
+    return svg(defs(T, parch) + ground(darkKind ? mix(T.bg, dark, 0.55) : T.bg) + `
+      ${meander(28, 24, darkKind ? "#f3e2bd" : dark, 0.7)}${meander(H - 52, 24, darkKind ? "#f3e2bd" : dark, 0.7)}
+      ${column(40, 74, H - 58, darkKind ? "#f3e2bd" : dark, 0.6)}${column(W - 94, 74, H - 58, darkKind ? "#f3e2bd" : dark, 0.6)}
+      <rect x="150" y="96" width="${W - 300}" height="${H - 196}" fill="${darkKind ? "#000000" : "#fffaf0"}" opacity="${darkKind ? 0.18 : 0.55}"/>
+      <rect x="150" y="96" width="${W - 300}" height="${H - 196}" fill="none" stroke="${darkKind ? "#f3e2bd" : dark}" stroke-width="2" opacity=".6"/>
+      <rect width="${W}" height="${H}" fill="url(#vig)"/>`);
+  },
   /** Gradient header with a wavy edge, soft blobs, dots; hero pages with layered waves. */
   waves(T, kind) {
     if (kind === "content") return svg(defs(T) + `

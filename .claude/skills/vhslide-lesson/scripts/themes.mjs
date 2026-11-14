@@ -1,7 +1,7 @@
 // Tone presets for lesson decks. Every color is #rrggbb (VHSlide accepts no other form).
 // font / headingFont: VHSlide 0.101+ fonts — sans | serif | mono | rounded（丸ゴシック）| klee（教科書風）| yomogi（手書き風）| ud（UDゴシック）| brush（筆文字）| shippori（見出し明朝）
 // header: band | underline | tab | chalk | gingham | brutal | bento | notebook | board | magazine | minimal
-// decor:  textured backdrop drawn as an image under each page (scripts/decor.mjs). style: waves | blobs | wa | cloth | chalk | cork | paper | pop | editorial
+// decor:  textured backdrop drawn as an image under each page (scripts/decor.mjs). style: greek | waves | blobs | wa | cloth | chalk | cork | paper | pop | editorial
 //         headerBand: the backdrop draws the heading band; titleInk/sectionInk: text colours on title and divider pages
 // card:   fill | strip | outline | brutal | bento | sticky   (tiles: colours cycled by bento / sticky / brutal cards)
 // card:   fill  (tinted panel) | strip (panel + accent bar on the left) | outline (thin frame)
@@ -144,6 +144,18 @@ export const themes = {
     sectionBg: "#1a1a1a", sectionNum: "#e0695a",
     chart: ["#1a1a1a", "#c0392b", "#1f5aa6", "#8c6d1f", "#5e7d4a", "#8a8a8a"],
     muted: "#d0ccc4", mascot: { body: "#ffffff", outline: "#1a1a1a", wrap: "#1a1a1a", cheek: "#f0b0a8", think: "#c0392b", idea: "#1f5aa6" },
+  },
+  greek: {
+    label: "ギリシャ（羊皮紙・雷文・円柱。神話や西洋が舞台の物語に）",
+    decor: { style: "greek", headerBand: true, top: 100, headInk: "#fff4dc", titleInk: "#3a2a1c", sectionInk: "#fff4dc", sectionNum: "#f0cd78" },
+    font: "ud", headingFont: "shippori",
+    bg: "#efe3c8", surface: "#fffaf0", ink: "#3a2a1c", sub: "#6e5a45",
+    primary: "#5a3e26", onPrimary: "#fff4dc", primarySoft: "#f3e8d0",
+    accent: "#b5482b", onAccent: "#ffffff", accentSoft: "#f8e4da",
+    line: "#cdb894", header: "band", card: "strip",
+    tiles: ["#f8e4da", "#f3e8d0", "#e6ecd4", "#f1e0c0"],
+    chart: ["#b5482b", "#5a3e26", "#6b7f3a", "#b8923a", "#3f5f7a", "#8a5a8a"],
+    muted: "#cdb894", mascot: { body: "#fffaf0", outline: "#3a2a1c", wrap: "#5a3e26", cheek: "#e9a99a", think: "#b5482b", idea: "#6b7f3a" },
   },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",

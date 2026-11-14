@@ -79,13 +79,14 @@
 | `flow` | `lead` `items[{top, bottom, note}]` `footer` | 「A → B」の対応図 |
 | `points` | `items[[項目, 説明]]` `note{title, body}` | ポイントの一覧 |
 | `board` | `task` `items[[見出し, 内容]]` | 板書例 |
+| （共通） | `id`（ページID。`link` の行き先にする）`backdrop`（このページだけ背景にする画像のパス。`false` で背景なし）`backdropKind`（`title`／`section`／`content`／`plain`）`header: false` | すべてのページ |
 | `section` | `number` `name` `minutes` `lead`（ふつうは自動。各場面の始まりに入る。`sectionSlides: false` で無効） | 場面の区切り |
 | `statement` | `big`（大きな数字・言葉）`caption` `note` `bigSize` | 1枚1メッセージ。印象に残す数値・結論 |
 | `compare` | `prompt` `left{title, items[] か body}` `right{…}` `field` `fieldHeight` | 2つを比べる（VS） |
 | `steps` | `lead` `items[{title, body}]`（2〜5）`field` | 番号つきの手順 |
 | `quiz` | `prompt` `choices[]`（2〜4）`id` `label` `reason`（既定true）`public`（既定true） | 大きな選択肢タイルと回答欄 |
 | `rubric` | `lead` `selfCheck`（`true`＝観点ごとの A/B/C 自己評価欄、`"public"`＝集計も公開）`split` `fontSize`。内容は lesson.rubric（`rubric` キーで上書き可） | ルーブリック（見通し・自己評価） |
-| `form` | `items[]`（座標で自由配置。`{type:"field", field, x, y, w, h, fontSize, stroke}`／`{type:"band", text, x, y, w, h, fill, color}`／`{type:"text", ...}`／`{type:"card", title, text, tone}`／`{type:"chart", chart}`／`{type:"table", table}`／`{type:"image", image, alt}`／`{type:"mascot", pose, x, y, s}`）`fieldFont` `stroke`。`header: false` で見出し帯を省き、ページ全体を使う（見出しありなら要素は y≧100 程度に置く）。グラフを2つ並べるなど、既定の型にない構図にも使う。色は #rrggbb かテーマの色名（例：`primarySoft`） | 紙のワークシートを1枚に再配置する、入力欄の多いページ |
+| `form` | `items[]`（座標で自由配置。`{type:"field", field, x, y, w, h, fontSize, stroke}`／`{type:"band", text, x, y, w, h, fill, color}`／`{type:"text", ...}`／`{type:"card", title, text, tone}`／`{type:"chart", chart}`／`{type:"table", table}`／`{type:"image", image, alt}`／`{type:"shape", shape, fill, stroke, text, vertical, link}`（吹き出し・星・矢印など。`link` に別ページの `id` を書くとボタンになる。`vertical: true` で縦書き）／`{type:"mascot", pose, x, y, s}`）`fieldFont` `stroke`。`header: false` で見出し帯を省き、ページ全体を使う（見出しありなら要素は y≧100 程度に置く）。グラフを2つ並べるなど、既定の型にない構図にも使う。色は #rrggbb かテーマの色名（例：`primarySoft`） | 紙のワークシートを1枚に再配置する、入力欄の多いページ |
 | `custom` | `elements[]`（VHSlide の要素をそのまま） | 上で表せないもの・新機能の利用 |
 
 `tone` は `plain`／`primary`／`accent`。グラフのラベルは短く（6字以内が目安）。長いと折り返す。

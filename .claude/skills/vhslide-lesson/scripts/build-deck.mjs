@@ -65,6 +65,7 @@ const text = (t, x, y, w, h, fs = 20, o = {}) => {
     id: nid("t"), type: "text", x: r(x), y: r(y), w: r(w), h: r(h), text: t, fontSize, color,
     ...(o.bold ? { bold: true } : {}), ...(o.align ? { textAlign: o.align } : {}), ...(o.valign ? { verticalAlign: o.valign } : {}),
     ...(font && font !== "sans" ? { richText: richOps(t, fontSize, { ...o, font }, color) } : {}),
+    ...(o.vertical ? { writingMode: "vertical-rl" } : {}),
   };
 };
 const rect = (x, y, w, h, fill, o = {}) => ({
@@ -552,6 +553,7 @@ const kinds = {
     const els = [];
     for (const it of s.items) {
       const t = it.type ?? (it.field ? "field" : "text");
+      const before = els.length;
       if (t === "field") els.push(field(it.field, it.x, it.y, it.w, it.h, it.fontSize ?? s.fieldFont ?? 14, { stroke: col(it.stroke ?? s.stroke) }));
       else if (t === "band") els.push(rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.primarySoft), text(it.text, it.x + 6, it.y, it.w - 12, it.h, it.fontSize ?? 15, { bold: true, align: it.align ?? "center", valign: "middle", color: col(it.color) ?? T.ink, min: 12, heading: true, font: it.font }));
       else if (t === "mascot") els.push(...(await mascotEl(it.pose ?? "idea", it.x, it.y, it.s ?? 48)));
@@ -559,7 +561,14 @@ const kinds = {
       else if (t === "table") els.push(...tableEl(it.table, it.x, it.y, it.w, it.h));
       else if (t === "image") els.push((await figure(it.image, it.x, it.y, it.w, it.h, it.alt)).el);
       else if (t === "card") els.push(...cardText(it.x, it.y, it.w, it.h, it.text, { tone: it.tone ?? "primary", fs: it.fontSize ?? 18, title: it.title, align: it.align, valign: it.valign ?? "top" }));
-      else els.push(text(it.text, it.x, it.y, it.w, it.h, it.fontSize ?? 18, { bold: it.bold, align: it.align, valign: it.valign ?? "middle", color: col(it.color) ?? T.ink, heading: it.heading, font: it.font }));
+      else if (t === "shape") { // any VHSlide shape (bubble, cloud, arrow…) with optional text on top
+        els.push({ ...rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.surface, { shape: it.shape ?? "rounded", stroke: col(it.stroke) ?? T.ink, strokeWidth: it.strokeWidth ?? 2 }),
+          ...(it.flipX ? { flipX: true } : {}), ...(it.flipY ? { flipY: true } : {}), ...(it.opacity !== undefined ? { opacity: it.opacity } : {}) });
+        if (it.text) { const p = it.pad ?? [0.12, 0.14, 0.12, 0.3]; // left, top, right, bottom as a share of the size
+          els.push(text(it.text, it.x + it.w * p[0], it.y + it.h * p[1], it.w * (1 - p[0] - p[2]), it.h * (1 - p[1] - p[3]), it.fontSize ?? 20, { bold: it.bold ?? true, align: it.align ?? "center", valign: it.valign ?? "middle", color: col(it.color) ?? T.ink, heading: it.heading, font: it.font, vertical: it.vertical, noFit: it.vertical })); }
+      }
+      else els.push(text(it.text, it.x, it.y, it.w, it.h, it.fontSize ?? 18, { bold: it.bold, align: it.align, valign: it.valign ?? "middle", color: col(it.color) ?? T.ink, heading: it.heading, font: it.font, vertical: it.vertical, noFit: it.vertical }));
+      if (it.link) for (const e of els.slice(before)) if (e.type !== "line") e.link = { slideId: it.link }; // jump to another page (same deck)
     }
     return els;
   },
@@ -684,11 +693,11 @@ for (const [li, L] of lessons.entries()) {
         top = h.top;
         els = [...h.els, ...(await kinds[S.kind](S, L, top))];
       }
-      const bdKind = S.kind === "title" ? "title" : S.kind === "section" ? "section" : S.header === false ? "plain" : "content";
-      const bd = await backdrop(bdKind);
+      const bdKind = S.backdropKind ?? (S.kind === "title" ? "title" : S.kind === "section" ? "section" : S.header === false ? "plain" : "content");
+      const bd = S.backdrop ? (await loadImage(path.resolve(baseDir, S.backdrop))).src : S.backdrop === false ? undefined : await backdrop(bdKind);
       if (bd) els.unshift({ id: nid("bg"), type: "image", x: 0, y: 0, w: W, h: H, src: bd, altText: "" });
       const slide = {
-        id: `L${li + 1}-${row}-${col}`, x: col, y: row, title: (S.title ?? S.heading ?? S.kind).slice(0, 200),
+        id: S.id ?? `L${li + 1}-${row}-${col}`, x: col, y: row, title: (S.title ?? S.heading ?? (S.kind === "section" ? `${S.name ?? ""}（区切り）` : S.kind)).slice(0, 200),
         background: T.bg, elements: els.filter(Boolean),
         ...(sheets.length > 1 || multiSheet ? { sheetId } : {}),
         ...(S.notes ? { speakerNotes: S.notes } : {}),
