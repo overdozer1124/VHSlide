@@ -111,6 +111,14 @@ const ARTIFACTS = [
   "test/s13-guard.test.mjs",
   "test/s13-revoke.screen.mjs",
   "test/serve-real-s13.test.mjs",
+  "public/s14-rotate.html",
+  "tools/s14-rotate.mjs",
+  "tools/s14-sender.mjs",
+  "test/s14-rotate.test.mjs",
+  "test/s14-sender.test.mjs",
+  "test/s14-guard.test.mjs",
+  "test/s14-rotate.screen.mjs",
+  "test/serve-real-s14.test.mjs",
   "test/clean-boot.test.mjs",
   "test/teardown-helper.mjs",
   "test/clean-boot-teardown.test.mjs",
@@ -177,6 +185,11 @@ const s13ModuleLines = readRel("tools/s13-revoke.mjs").split("\n");
 const s13SenderLines = readRel("tools/s13-sender.mjs").split("\n");
 const s13GuardLines = readRel("test/s13-guard.test.mjs").split("\n");
 const s13ScreenLines = readRel("test/s13-revoke.screen.mjs").split("\n");
+const s14RotateLines = readRel("public/s14-rotate.html").split("\n");
+const s14ModuleLines = readRel("tools/s14-rotate.mjs").split("\n");
+const s14SenderLines = readRel("tools/s14-sender.mjs").split("\n");
+const s14GuardLines = readRel("test/s14-guard.test.mjs").split("\n");
+const s14ScreenLines = readRel("test/s14-rotate.screen.mjs").split("\n");
 const cleanBootLines = readRel("test/clean-boot.test.mjs").split("\n");
 const teardownHelperLines = readRel("test/teardown-helper.mjs").split("\n");
 const teardownTestLines = readRel("test/clean-boot-teardown.test.mjs").split("\n");
@@ -920,6 +933,116 @@ const checks = {
     found: findLines(s13ScreenLines, /jsdom/),
     expect: "present",
   },
+  // S14 ローテーション専用モジュール・送信器・画面：ローテーション
+  // 要求が対象の組つきで凍結できること（freezeRotateRequest）。
+  // 手順1の期待が 200 ok・generation 7 であること
+  // （EXPECTED_ROTATE_RESPONSE）。手順2の期待が 403 not_operator
+  // であること（EXPECTED_CHECKA_REFUSAL_RESPONSE。この拒否が合格）。
+  // 手順3の記録が状態機械の段階で手順2の後段に限られること
+  // （recordCheckBVerifyOnly）。認可者・対象主体の機械確認
+  // （wrong_authorizer / wrong_subject）。送信器がスロットごとに
+  // Cookie を分け、対象の組の結び付け（s14_rotate_not_frozen /
+  // s14_rotate_target_mismatch）と固定の期待世代
+  // （ROTATE_EXPECTED_GENERATION）と送信窓と redirect: "manual" を
+  // 持つこと。画面にテキスト入力欄がなく、セッションのプレース
+  // ホルダを持つこと。提供サーバーが S14 の経路を返すこと。
+  // ガード試験が実際の送信器で本手順を通すこと。
+  s14_module_freeze_rotate: {
+    found: findLines(s14ModuleLines, /freezeRotateRequest/),
+    expect: "present",
+  },
+  s14_module_rotate_expectation: {
+    found: findLines(s14ModuleLines, /EXPECTED_ROTATE_RESPONSE/),
+    expect: "present",
+  },
+  s14_module_checka_refusal_expectation: {
+    found: findLines(s14ModuleLines, /EXPECTED_CHECKA_REFUSAL_RESPONSE/),
+    expect: "present",
+  },
+  s14_module_checkb_order: {
+    found: findLines(s14ModuleLines, /recordCheckBVerifyOnly/),
+    expect: "present",
+  },
+  s14_module_wrong_authorizer: {
+    found: findLines(s14ModuleLines, /wrong_authorizer/),
+    expect: "present",
+  },
+  s14_module_wrong_subject: {
+    found: findLines(s14ModuleLines, /wrong_subject/),
+    expect: "present",
+  },
+  s14_module_one_capture_claim: {
+    found: findLines(s14ModuleLines, /claimCallbackCapture/),
+    expect: "present",
+  },
+  s14_module_rotate_path: {
+    found: findLines(s14ModuleLines, /\/admin\/registry\/rotate/),
+    expect: "present",
+  },
+  s14_sender_per_slot_cookie: {
+    found: findLines(s14SenderLines, /op2_nonce_ctx=\$\{slotState\.ctx\}/),
+    expect: "present",
+  },
+  s14_sender_target_not_frozen: {
+    found: findLines(s14SenderLines, /s14_rotate_not_frozen/),
+    expect: "present",
+  },
+  s14_sender_target_mismatch: {
+    found: findLines(s14SenderLines, /s14_rotate_target_mismatch/),
+    expect: "present",
+  },
+  s14_sender_fixed_generation: {
+    found: findLines(s14SenderLines, /ROTATE_EXPECTED_GENERATION/),
+    expect: "present",
+  },
+  s14_sender_redirect_manual: {
+    found: findLines(s14SenderLines, /redirect: "manual"/),
+    expect: "present",
+  },
+  s14_sender_window: {
+    found: findLines(s14SenderLines, /s14_nonces_expired/),
+    expect: "present",
+  },
+  s14_page_no_text_input: {
+    found: findLines(s14RotateLines, /type="text"/),
+    expect: "absent",
+  },
+  s14_page_session_placeholder: {
+    found: findLines(s14RotateLines, /REPLACE_WITH_S14_SESSION/),
+    expect: "present",
+  },
+  s14_page_sends_session: {
+    found: findLines(s14RotateLines, /x-s14-session/),
+    expect: "present",
+  },
+  s14_serve_route: {
+    found: findLines(serveRealLines, /s14-rotate/),
+    expect: "present",
+  },
+  s14_serve_nonces_route: {
+    found: findLines(serveRealLines, /\/s14\/nonces/),
+    expect: "present",
+  },
+  s14_serve_freeze_route: {
+    found: findLines(serveRealLines, /\/s14\/freeze-rotate/),
+    expect: "present",
+  },
+  s14_serve_send_route: {
+    found: findLines(serveRealLines, /\/s14\/send-rotate/),
+    expect: "present",
+  },
+  s14_guard_uses_sender: {
+    found: findLines(s14GuardLines, /createS14Sender/),
+    expect: "present",
+  },
+  s14_screen_fake_gis: {
+    found: findLines(s14ScreenLines, /__gis/),
+    expect: "present",
+  },
+  s14_screen_jsdom: {
+    found: findLines(s14ScreenLines, /jsdom/),
+    expect: "present",
+  },
   // クリーン起動試験はミラー対象ファイルだけを一時ディレクトリへ
   // 複写し、未追跡ファイルに依存しないことを確認する（指摘1）。
   clean_boot_mirror_list: {
@@ -1101,6 +1224,7 @@ const manifest = {
     s11_parallel_page: "public/s11-parallel.html（tools/serve-real.mjs が /s11-parallel で配信。GOOGLE_CLIENT_ID と S11 セッションをメモリ上で差し込む。項目6 手順3・手順4の専用画面。C の主体ハッシュと A の実トークンを集めて凍結した要求を作り、送信直前に表示して、その送信指示を送信器へ渡す。送信はブラウザーから直接行わない。検証モジュール tools/s11-parallel.mjs は Node 試験 test/s11-parallel.test.mjs と共用する。並行送信は提供サーバー側の tools/s11-sender.mjs（Node）が行う。スロットごとに Cookie jar を分け、手順4の2件を Promise.allSettled で並行送信する。手順3の単発送信も送信器経由とする。送信器の試験は test/s11-sender.test.mjs、実 Worker との結線は test/s11-guard.test.mjs、画面の実画面試験は test/s11-parallel.screen.mjs）",
     s12_revoke_page: "public/s12-revoke.html（tools/serve-real.mjs が /s12-revoke で配信。GOOGLE_CLIENT_ID と S12 セッションをメモリ上で差し込む。項目6 手順5（運営者 B の失効）の専用画面。B のトークンを未使用のまま保持し、A の認可で失効を送り、新しい B と保持した失効前トークンの提示拒否（not_operator）と C の提示成功を確認する。送信はブラウザーから直接行わない。検証モジュール tools/s12-revoke.mjs は Node 試験 test/s12-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s12-sender.mjs（Node）が行う。名前付きスロット（heldB / revokeA / freshB / checkC）ごとに Cookie jar を分け、保持トークンの鮮度を失効の送信前に機械確認する。送信器の試験は test/s12-sender.test.mjs、実 Worker との結線は test/s12-guard.test.mjs、画面の実画面試験は test/s12-revoke.screen.mjs）",
     s13_revoke_page: "public/s13-revoke.html（tools/serve-real.mjs が /s13-revoke で配信。GOOGLE_CLIENT_ID と S13 セッションをメモリ上で差し込む。項目6 手順6（最後の運営者の保護）の専用画面。対象 C の主体ハッシュを取得し、A の認可で C の失効を送り（generation 5→6・登録簿 {A}）、A 自身の失効試行が 409 last_operator で拒否されること（この拒否が合格。状態は変わらない）と A の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s13-revoke.mjs は Node 試験 test/s13-revoke.test.mjs と共用する。送信は提供サーバー側の tools/s13-sender.mjs（Node）が行う。名前付きスロット（revokeC / revokeA / checkA）ごとに Cookie jar を分け、失効の対象は手順ごとに送信器の境界でも結び付け、期待世代はスロットごとに固定する（revokeC = 5、revokeA = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s13-sender.test.mjs、実 Worker との結線は test/s13-guard.test.mjs、画面の実画面試験は test/s13-revoke.screen.mjs）",
+    s14_rotate_page: "public/s14-rotate.html（tools/serve-real.mjs が /s14-rotate で配信。GOOGLE_CLIENT_ID と S14 セッションをメモリ上で差し込む。項目6 手順7（ローテーション A→B）の専用画面。対象 A・B の主体ハッシュを取得し、A の認可でローテーションを送り（generation 6→7・登録簿 {A}→{B}。削除と追加は同一トランザクション）、A の次回操作が 403 not_operator で拒否されること（この拒否が合格。状態は変わらない）と B の提示成功を確認する。順序は状態機械が強制し、手順2は手順1が期待どおり終わるまで、手順3は手順2の結果が記録されるまで始められない。送信はブラウザーから直接行わない。検証モジュール tools/s14-rotate.mjs は Node 試験 test/s14-rotate.test.mjs と共用する。送信は提供サーバー側の tools/s14-sender.mjs（Node）が行う。名前付きスロット（rotateAB / checkA / checkB）ごとに Cookie jar を分け、ローテーションの対象は旧主体・新主体の組で送信器の境界でも結び付け、期待世代は固定する（rotateAB = 6）。対象取得の nonce は画面が /nonce から直接取得する。送信器の試験は test/s14-sender.test.mjs、実 Worker との結線は test/s14-guard.test.mjs、画面の実画面試験は test/s14-rotate.screen.mjs）",
     serve: "tools/serve-real.mjs（127.0.0.1 のみバインド。RELAY_URL はループバック＋ポート明示のみ許可）",
   },
   source_checks: checks,

@@ -43,6 +43,8 @@ const MIRROR_FILES = [
   "tools/s12-revoke.mjs",
   "tools/s13-sender.mjs",
   "tools/s13-revoke.mjs",
+  "tools/s14-sender.mjs",
+  "tools/s14-rotate.mjs",
   "tools/trial-apply.mjs",
   "tools/subject-hash-verify.mjs",
   "public/login-real.html",
@@ -54,6 +56,7 @@ const MIRROR_FILES = [
   "public/s11-parallel.html",
   "public/s12-revoke.html",
   "public/s13-revoke.html",
+  "public/s14-rotate.html",
 ];
 
 // 一時ディレクトリへミラー対象だけを複写する。親ディレクトリも作る。

@@ -138,6 +138,41 @@
 //   （checkA）を受け取り、送信器がそのスロットの Cookie で1件
 //   を送信し、応答を返す。ID トークン・Cookie・nonce の値は
 //   ログ・応答に出さない。
+// - GET /s14-rotate → public/s14-rotate.html を返す（S14 ローテー
+//   ション専用画面。同じくクライアント ID をメモリ上で差し込む）。
+//   このページは A・B の主体ハッシュを取得し、A の認可で
+//   ローテーション（generation 6→7、登録簿 {A}→{B}）を送り、
+//   A の次回操作が 403 not_operator で拒否されること（この拒否
+//   が合格）と B の提示成功を確認する。送信はブラウザーから直接
+//   行わない（Cookie 文脈の分離のため）。検証モジュール
+//   tools/s14-rotate.mjs と tools/subject-hash-verify.mjs を
+//   import する。
+// - GET /s14-rotate.mjs → tools/s14-rotate.mjs をそのまま返す
+//   （s14-rotate 画面が import する純粋モジュール）。
+// - GET /s14/nonces → 送信器が中継先の /nonce をスロット
+//   （rotateAB / checkA / checkB）ごとに1回呼び、そのスロットの
+//   nonce context Cookie を保持し、nonce だけを返す（ctx は
+//   返さない）。対象取得（targetA / targetB）の nonce は画面が
+//   /nonce から直接取得するため、ここには含まれない。スロット
+//   ごとに発行から4分以内に送信しなければ送信器が拒否する。
+//   呼び出し元の境界は S13 と同じ型（試験単位セッション・Host・
+//   Origin）であり、発行は試験 ID とスロットに結び付ける。
+// - POST /s14/freeze-rotate → 画面がローテーション要求を凍結した
+//   時点で、凍結済み要求の対象の組（旧主体 A・新主体 B の主体
+//   ハッシュ）を送信器に固定する。送信器は以後のローテーション
+//   送信で、送信されてきた要求の対象の組を固定値と照合し、
+//   異なれば1件も送らない（送信器の境界での対象の結び付け）。
+//   応答は固定できたか（ok）または理由コードだけを返し、固定値
+//   は返さない。
+// - POST /s14/send-rotate → 画面からのローテーション要求と
+//   スロット名（rotateAB）を受け取り、送信器がそのスロットの
+//   Cookie で1件を送信し、応答（状態と理由コード・返された世代
+//   だけ）を返す。期待世代は固定であり（rotateAB = 6）、送信器
+//   が照合する。
+// - POST /s14/send-verify-only → 画面からの提示要求とスロット名
+//   （checkA / checkB）を受け取り、送信器がそのスロットの
+//   Cookie で1件を送信し、応答を返す。ID トークン・Cookie・
+//   nonce の値はログ・応答に出さない。
 // - GET /s5/nonces → 送信器が中継先の /nonce を6回呼び、スロットごと
 //   に nonce context Cookie を保持し、nonce の配列だけを返す（ctx は
 //   返さない）。発行から4分以内に送信しなければ送信器が拒否する。
@@ -186,6 +221,7 @@ import { createS5Sender } from "./s5-sender.mjs";
 import { createS11Sender } from "./s11-sender.mjs";
 import { createS12Sender } from "./s12-sender.mjs";
 import { createS13Sender } from "./s13-sender.mjs";
+import { createS14Sender } from "./s14-sender.mjs";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 if (!CLIENT_ID) {
@@ -509,6 +545,63 @@ async function readS13SendBody(req) {
   return { body: Buffer.concat(chunks) };
 }
 
+// S14 ローテーションの送信器（1プロセスに1つ）。スロットごとの
+// nonce・ctx・要求の保持はメモリー内だけである。
+const s14Sender = createS14Sender({ relayUrl: RELAY });
+
+// S14 入口の試験単位セッション。S13 と同じ型であり、起動ごとに不可
+// 推測の値を新規発行し、/s14-rotate 画面へメモリ上で差し込む
+// （ファイルは書き換えない）。画面は /s14/nonces・/s14/send-* の
+// 呼び出し時にこの値をヘッダーで示す。
+const S14_SESSION = randomUUID();
+const S14_SESSION_PLACEHOLDER = "REPLACE_WITH_S14_SESSION";
+// /s14/send-* の本体サイズ上限。要求1件（ID トークンを含む）は
+// 数 KiB であり、64 KiB で十分に足りる。超過は 413 で拒否する。
+const S14_MAX_BODY_BYTES = 64 * 1024;
+
+// S14 入口（/s14/nonces・/s14/send-*）の呼び出し元境界。S13 入口と
+// 同じ型であり、次をすべて満たさなければ、状態を変更せず理由コード
+// だけを返す。
+function checkS14Entry(req) {
+  const host = (req.headers.host || "").toLowerCase();
+  const allowedHosts = new Set([
+    `127.0.0.1:${PORT}`,
+    `localhost:${PORT}`,
+    `[::1]:${PORT}`,
+  ]);
+  if (!allowedHosts.has(host)) {
+    return { ok: false, status: 403, error: "s14_bad_origin" };
+  }
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    const allowedOrigins = new Set([
+      `http://127.0.0.1:${PORT}`,
+      `http://localhost:${PORT}`,
+    ]);
+    if (!allowedOrigins.has(origin)) {
+      return { ok: false, status: 403, error: "s14_bad_origin" };
+    }
+  }
+  if (req.headers["x-s14-session"] !== S14_SESSION) {
+    return { ok: false, status: 403, error: "s14_bad_session" };
+  }
+  return { ok: true };
+}
+
+// /s14/send-* の本体をサイズ上限付きで読む（S13 と同じ型）。
+async function readS14SendBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > S14_MAX_BODY_BYTES) {
+      return { tooLarge: true };
+    }
+    chunks.push(chunk);
+  }
+  return { body: Buffer.concat(chunks) };
+}
+
 const rawHtml = await readFile(path.join(root, "public", "login-real.html"), "utf8");
 if (!rawHtml.includes(PLACEHOLDER)) {
   console.error("error: login-real.html にクライアント ID のプレースホルダが見つかりません");
@@ -627,6 +720,23 @@ const s13RevokeHtml = rawS13RevokeHtml
   .split(S13_SESSION_PLACEHOLDER).join(S13_SESSION);
 const s13RevokeJs = await readFile(path.join(root, "tools", "s13-revoke.mjs"), "utf8");
 
+// S14 ローテーション専用画面も同じく、起動時に読み込み、クライアント
+// ID と S14 セッションをメモリ上で差し込む（ファイルは書き換えない）。
+// 検証モジュールはそのまま返す。
+const rawS14RotateHtml = await readFile(path.join(root, "public", "s14-rotate.html"), "utf8");
+if (!rawS14RotateHtml.includes(PLACEHOLDER)) {
+  console.error("error: s14-rotate.html にクライアント ID のプレースホルダが見つかりません");
+  process.exit(1);
+}
+if (!rawS14RotateHtml.includes(S14_SESSION_PLACEHOLDER)) {
+  console.error("error: s14-rotate.html に S14 セッションのプレースホルダが見つかりません");
+  process.exit(1);
+}
+const s14RotateHtml = rawS14RotateHtml
+  .split(PLACEHOLDER).join(CLIENT_ID)
+  .split(S14_SESSION_PLACEHOLDER).join(S14_SESSION);
+const s14RotateJs = await readFile(path.join(root, "tools", "s14-rotate.mjs"), "utf8");
+
 const FORWARD_PATHS = new Set([
   "/nonce",
   "/platform/apply",
@@ -739,6 +849,18 @@ const server = http.createServer(async (req, res) => {
       console.log(`GET /s13-revoke.mjs -> 200`);
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
       res.end(s13RevokeJs);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s14-rotate") {
+      console.log(`GET /s14-rotate -> 200`);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(s14RotateHtml);
+      return;
+    }
+    if (req.method === "GET" && pathname === "/s14-rotate.mjs") {
+      console.log(`GET /s14-rotate.mjs -> 200`);
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(s14RotateJs);
       return;
     }
     // S5 並行試験の送信器への入口。ループバック限定の提供サーバー上での
@@ -1276,6 +1398,185 @@ const server = http.createServer(async (req, res) => {
         console.log(`POST ${pathname} -> ${status}`);
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: e.code || "s13_send_failed" }));
+      }
+      return;
+    }
+    // S14 ローテーションの送信器への入口。S13 入口と同じ型である。
+    // 要求・応答の本体、トークン・Cookie・nonce の値はログに出さない。
+    // 送信器の局所エラーは理由コードだけを返す。呼び出し元の境界
+    // （Host・Origin・試験単位セッション）を先に確認し、通らなければ
+    // 状態を変更しない。
+    if (req.method === "GET" && pathname === "/s14/nonces") {
+      const entry = checkS14Entry(req);
+      if (!entry.ok) {
+        console.log(`GET /s14/nonces -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const trialId = params.get("trial_id");
+      const slot = params.get("slot");
+      const S14_SLOT_NAMES = ["rotateAB", "checkA", "checkB"];
+      if (!trialId || !S14_SLOT_NAMES.includes(slot)) {
+        console.log(`GET /s14/nonces -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は画面の試行に追随する。画面が新しい試行を
+        // 始めたら、送信器もその試行で開始する（旧試行のスロットは
+        // 破棄される）。
+        const snap = s14Sender.snapshot();
+        if (!snap || snap.trialId !== trialId) {
+          s14Sender.beginTrial(trialId);
+        }
+        const issued = await s14Sender.issueNonce({ trialId, slot });
+        console.log(`GET /s14/nonces -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ nonce: issued.nonce }));
+      } catch (e) {
+        console.log(`GET /s14/nonces -> 502`);
+        res.writeHead(502, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s14_nonce_issuance_failed" }));
+      }
+      return;
+    }
+    if (req.method === "POST" && pathname === "/s14/freeze-rotate") {
+      const entry = checkS14Entry(req);
+      if (!entry.ok) {
+        console.log(`POST /s14/freeze-rotate -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST /s14/freeze-rotate -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS14SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST /s14/freeze-rotate -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (
+        !parsed || typeof parsed !== "object" ||
+        typeof parsed.trial_id !== "string" || parsed.trial_id.length === 0 ||
+        typeof parsed.old_subject_hash !== "string" ||
+        typeof parsed.new_subject_hash !== "string"
+      ) {
+        console.log(`POST /s14/freeze-rotate -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        // 送信器の試行は画面の試行に追随する（/s14/nonces と同じ）。
+        const snap = s14Sender.snapshot();
+        if (!snap || snap.trialId !== parsed.trial_id) {
+          s14Sender.beginTrial(parsed.trial_id);
+        }
+        s14Sender.freezeRotateTargets({
+          trialId: parsed.trial_id,
+          oldSubjectHash: parsed.old_subject_hash,
+          newSubjectHash: parsed.new_subject_hash,
+        });
+        console.log(`POST /s14/freeze-rotate -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        // 固定できなかった場合は理由コードだけを返す。固定値は
+        // 応答・ログに出さない。
+        console.log(`POST /s14/freeze-rotate -> 409`);
+        res.writeHead(409, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s14_freeze_failed" }));
+      }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (pathname === "/s14/send-rotate" || pathname === "/s14/send-verify-only")
+    ) {
+      const entry = checkS14Entry(req);
+      if (!entry.ok) {
+        console.log(`POST ${pathname} -> ${entry.status}`);
+        res.writeHead(entry.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: entry.error }));
+        return;
+      }
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        console.log(`POST ${pathname} -> 415`);
+        res.writeHead(415, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_content_type" }));
+        return;
+      }
+      const read = await readS14SendBody(req);
+      if (read.tooLarge) {
+        console.log(`POST ${pathname} -> 413`);
+        res.writeHead(413, { "content-type": "application/json", Connection: "close" });
+        res.end(JSON.stringify({ error: "body_too_large" }));
+        // 読み残した本体がソケットに残るため、応答の送信後に破棄する。
+        res.on("finish", () => {
+          try {
+            req.socket.destroy();
+          } catch { /* 破棄の失敗は無視する */ }
+        });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(read.body.toString("utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        console.log(`POST ${pathname} -> 400`);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "bad_body" }));
+        return;
+      }
+      try {
+        const out =
+          pathname === "/s14/send-rotate"
+            ? await s14Sender.sendRotate({
+                trialId: parsed.trial_id,
+                slot: parsed.slot,
+                request: parsed.request,
+              })
+            : await s14Sender.sendVerifyOnly({
+                trialId: parsed.trial_id,
+                slot: parsed.slot,
+                request: parsed.request,
+              });
+        console.log(`POST ${pathname} -> 200`);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(out));
+      } catch (e) {
+        // 送信前の確認に失敗した場合は1件も送っていない。理由コード
+        // だけを返し、値は返さない。期限切れは 410、その他は 409 と
+        // する。
+        const status = e.code === "s14_nonces_expired" ? 410 : 409;
+        console.log(`POST ${pathname} -> ${status}`);
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: e.code || "s14_send_failed" }));
       }
       return;
     }
