@@ -4997,6 +4997,54 @@ h1 span {
 .tools-dialog::backdrop {
   background: #183c3655;
 }
+.deck-size-dialog {
+  width: min(520px, 94vw);
+}
+.deck-size-total {
+  margin: 18px 0 10px;
+  font-size: 34px;
+  font-weight: 700;
+  color: #173d38;
+}
+.deck-size-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #e3ebdf;
+  overflow: hidden;
+}
+.deck-size-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #587d59;
+}
+.deck-size-limit {
+  margin: 8px 0 4px;
+  color: #47635c;
+  font-size: 13px;
+}
+.deck-size-breakdown {
+  margin: 14px 0 6px;
+}
+.deck-size-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-top: 1px solid #e3ebdf;
+}
+.deck-size-breakdown dt {
+  color: #47635c;
+}
+.deck-size-breakdown dd {
+  margin: 0;
+  font-weight: 600;
+}
+.deck-size-note {
+  color: #47635c;
+  font-size: 13px;
+  line-height: 1.6;
+}
 .tools-dialog > header {
   display: flex;
   align-items: center;

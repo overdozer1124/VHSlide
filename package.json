@@ -1,7 +1,7 @@
 {
   "name": "vhslide",
   "private": true,
-  "version": "0.124.1",
+  "version": "0.125.0",
   "type": "module",
   "engines": {
     "node": "24.x"
@@ -12,7 +12,7 @@
     "start": "node server/index.ts",
     "dev:server": "node --watch server/index.ts",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test scripts/deploy-guard.test.mjs && vitest run src/responseGallery.test.ts src/responseFields.test.ts src/surveyResults.test.ts src/worksheets.test.ts src/surveyCsv.test.ts src/surveyBinding.test.ts src/webbing.test.ts src/groups.test.ts src/featureVersions.test.ts src/surveySlides.test.ts src/chartLayout.test.ts src/noteRecovery.test.ts src/saveState.test.ts src/mapBatch.test.ts src/pageScope.test.ts src/cloudDocument.test.ts src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts src/pptx.test.ts src/formAdoption.test.ts src/imageAdoption.test.ts src/teacherConsole.test.ts src/formDrag.test.ts src/textMine.test.ts src/wordCloud.test.ts src/embedBinding.test.ts && npm run test:server",
+    "test": "node --test scripts/deploy-guard.test.mjs && vitest run src/responseGallery.test.ts src/responseFields.test.ts src/surveyResults.test.ts src/worksheets.test.ts src/surveyCsv.test.ts src/surveyBinding.test.ts src/webbing.test.ts src/groups.test.ts src/featureVersions.test.ts src/surveySlides.test.ts src/chartLayout.test.ts src/noteRecovery.test.ts src/saveState.test.ts src/mapBatch.test.ts src/pageScope.test.ts src/cloudDocument.test.ts src/assignmentReadiness.test.ts src/syncRecovery.test.ts src/cellFormatting.test.ts src/structureEditing.test.ts src/contentEditing.test.ts src/objectEditing.test.ts src/tableData.test.ts src/mediaVisibility.test.ts src/joinRequests.test.ts src/learningTools.test.ts src/backupProtocol.test.ts src/backup.test.ts src/axes.test.ts src/model.test.ts src/sharedDeck.test.ts src/workbook.test.ts src/permissions.test.ts src/preSharing.test.ts src/releaseHistory.test.ts src/pptx.test.ts src/formAdoption.test.ts src/imageAdoption.test.ts src/teacherConsole.test.ts src/formDrag.test.ts src/textMine.test.ts src/wordCloud.test.ts src/embedBinding.test.ts src/deckSize.test.ts && npm run test:server",
     "test:server": "node --test tests/server/*.test.ts",
     "test:e2e": "playwright test",
     "test:cloud": "playwright test --config playwright.cloud.config.ts",

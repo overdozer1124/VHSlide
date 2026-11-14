@@ -43,6 +43,7 @@ import { fitKey, needsFitCheck } from "./checkContentFit";
 import type { FitIssue } from "./contentFit";
 import { SaveState } from "./SaveState";
 import { BackupDialog } from "./BackupDialog";
+import { DeckSizeDialog } from "./DeckSizeDialog";
 import { batchAxes, removeSelectedPages } from "./mapBatch";
 import { PageScopeSummary } from "./PageScopeSummary";
 import {
@@ -446,6 +447,7 @@ export default function App() {
   const [updatesOpen, setUpdatesOpen] = useState(
     () => location.hash === "#updates",
   );
+  const [deckSizeOpen, setDeckSizeOpen] = useState(false);
   useEffect(() => {
     const sync = () => setUpdatesOpen(location.hash === "#updates");
     window.addEventListener("popstate", sync);
@@ -2531,6 +2533,7 @@ export default function App() {
         items={[
           { label: "更新履歴", action: openUpdates },
           { label: "使い方", action: toggleHelp },
+          { label: "ファイルサイズ", action: () => setDeckSizeOpen(true) },
         ]}
       />
     </>
@@ -4020,6 +4023,12 @@ export default function App() {
         >
           <ReleaseHistory onClose={closeUpdates} />
         </Suspense>
+      )}
+      {deckSizeOpen && (
+        <DeckSizeDialog
+          deck={workbook}
+          close={() => setDeckSizeOpen(false)}
+        />
       )}
     </CloudDocument.Provider>,
   );
