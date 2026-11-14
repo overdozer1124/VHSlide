@@ -12,7 +12,12 @@ import type { WebbingNode } from "./webbing";
 import { WebbingMini } from "./WebbingMini";
 import { usePageVisible } from "./usePageVisible";
 import { WorksheetResults } from "./WorksheetResults";
-import type { WorksheetView } from "./worksheets";
+import type { WorksheetField, WorksheetView } from "./worksheets";
+import {
+  loadTextMineAnalyzer,
+  textMineTexts,
+  type TextMineResult,
+} from "./textMine";
 import { worksheetCsv } from "./worksheetCsv";
 import { ResponseGalleryCard } from "./ResponseGalleryPanel";
 import type { ResponseGallery } from "./responseGallery";
@@ -555,10 +560,111 @@ function ConsoleFields({
                   <span>{summary.counts[i] ?? 0}件</span>
                 </div>
               ))}
+            {field.kind === "text" && (
+              <TextMineAnalysis sheet={sheet} field={field} />
+            )}
           </article>
         );
       })}
       {!sheet.fields.length && <p>設問がありません。</p>}
+    </div>
+  );
+}
+
+type TextMineState =
+  | { kind: "idle" }
+  | { kind: "loading"; done: number }
+  | { kind: "done"; result: TextMineResult }
+  | { kind: "error" };
+
+/** 記述回答の言葉の分析（テキストマイニング）。解析はブラウザの中で行い、
+ * 回答が外部へ送られることはない。辞書の読み込みは初回だけ。 */
+function TextMineAnalysis({
+  sheet,
+  field,
+}: {
+  sheet: WorksheetView;
+  field: WorksheetField;
+}) {
+  const [state, setState] = useState<TextMineState>({ kind: "idle" });
+  const responses = sheet.results?.responses ?? [];
+  const texts = textMineTexts(responses, field.id);
+  const run = async () => {
+    setState({ kind: "loading", done: 0 });
+    try {
+      const analyzer = await loadTextMineAnalyzer((done) =>
+        setState({ kind: "loading", done }),
+      );
+      setState({ kind: "done", result: analyzer.analyze(texts) });
+    } catch {
+      setState({ kind: "error" });
+    }
+  };
+  return (
+    <div className="console-textmine">
+      <button
+        type="button"
+        className="console-textmine-button"
+        disabled={!texts.length || state.kind === "loading"}
+        onClick={() => void run()}
+      >
+        {state.kind === "done" ? "最新の回答で分析し直す" : "言葉を分析する"}
+      </button>
+      {state.kind === "loading" && (
+        <p className="console-textmine-status" role="status">
+          {state.done > 0
+            ? `辞書を読み込んでいます…（初回のみ）${state.done}/12`
+            : "分析しています…"}
+        </p>
+      )}
+      {state.kind === "error" && (
+        <p className="console-textmine-status" role="alert">
+          読み込みに失敗しました。通信環境を確認して、もう一度押してください。
+        </p>
+      )}
+      {state.kind === "done" && (
+        <>
+          <p className="console-textmine-note">
+            {state.result.texts}人の回答から分析しました。よく出る言葉（人数順）：
+          </p>
+          <table className="console-textmine-table">
+            <thead>
+              <tr>
+                <th>言葉</th>
+                <th>人数</th>
+                <th>回数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.result.words.slice(0, 15).map((w) => (
+                <tr key={w.word}>
+                  <td>{w.word}</td>
+                  <td>{w.respondents}人</td>
+                  <td>{w.count}回</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {state.result.pairs.length > 0 && (
+            <>
+              <p className="console-textmine-note">よく一緒に出る言葉：</p>
+              <ul className="console-textmine-pairs">
+                {state.result.pairs.slice(0, 8).map((p) => (
+                  <li key={p.a + "\0" + p.b}>
+                    {p.a} × {p.b}（{p.respondents}人）
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+      {state.kind === "idle" && texts.length > 0 && (
+        <p className="console-textmine-note">
+          記述の回答を言葉に分けて、よく出る言葉を人数順に並べます。解析はこの
+          端末の中で行われ、回答が外部へ送られることはありません。
+        </p>
+      )}
     </div>
   );
 }

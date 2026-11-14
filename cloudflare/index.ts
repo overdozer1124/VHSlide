@@ -35,7 +35,7 @@ export default {
       );
       result.headers.set(
         "Content-Security-Policy",
-        `default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob:; frame-src https://accounts.google.com; connect-src 'self' ${origin.replace(/^http/, "ws")} https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
+        `default-src 'self'; script-src 'self' https://accounts.google.com https://vhslide-textmine.overdozer1124.workers.dev; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob:; frame-src https://accounts.google.com; connect-src 'self' ${origin.replace(/^http/, "ws")} https://accounts.google.com https://vhslide-textmine.overdozer1124.workers.dev; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
       );
       if (url.pathname.startsWith("/api/"))
         result.headers.set("Cache-Control", "no-store");

@@ -7573,6 +7573,15 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-field > span {font-size:12.5px;color:#41604f;}
 .console-field-row {display:grid;grid-template-columns:minmax(0,1fr) 120px 38px;align-items:center;gap:7px;font-size:12.5px;color:#41604f;}
 .console-field-row progress {width:120px;}
+.console-textmine {margin-top:6px;display:flex;flex-direction:column;gap:6px;}
+.console-textmine-button {align-self:flex-start;border:1px solid #b9c6ae;border-radius:8px;background:#f4f7ef;color:#315d4e;font-size:12.5px;padding:5px 12px;cursor:pointer;}
+.console-textmine-button:disabled {opacity:0.5;cursor:default;}
+.console-textmine-status {margin:0;font-size:12.5px;color:#2f6a45;}
+.console-textmine-note {margin:0;font-size:12.5px;color:#55645c;line-height:1.6;}
+.console-textmine-table {border-collapse:collapse;align-self:flex-start;}
+.console-textmine-table th,.console-textmine-table td {border:1px solid #d8e0d2;padding:3px 12px;font-size:12.5px;text-align:left;color:#263d39;}
+.console-textmine-table th {background:#f4f7ef;}
+.console-textmine-pairs {margin:0;padding-left:18px;font-size:12.5px;color:#263d39;line-height:1.7;}
 .console-students {display:flex;flex-direction:column;gap:10px;}
 .console-students-head {display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
 .console-zoom {display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:13px;color:#41604f;}

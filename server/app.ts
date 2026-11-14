@@ -610,7 +610,7 @@ export function createApplication(options: Options) {
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
     res.setHeader(
       "Content-Security-Policy",
-      `default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob: https:; frame-src https://accounts.google.com; connect-src 'self' ${origin.replace(/^http/, "ws")} https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
+      `default-src 'self'; script-src 'self' https://accounts.google.com https://vhslide-textmine.overdozer1124.workers.dev; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob: https:; frame-src https://accounts.google.com; connect-src 'self' ${origin.replace(/^http/, "ws")} https://accounts.google.com https://vhslide-textmine.overdozer1124.workers.dev; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
     );
     try {
       const url = new URL(req.url ?? "/", origin),
