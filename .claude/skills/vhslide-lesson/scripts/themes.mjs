@@ -1,9 +1,11 @@
 // Tone presets for lesson decks. Every color is #rrggbb (VHSlide accepts no other form).
-// header: band | underline | tab | chalk | minimal
+// font / headingFont: VHSlide 0.101+ fonts — sans | serif | mono | rounded（丸ゴシック）| klee（教科書風）| yomogi（手書き風）| ud（UDゴシック）| brush（筆文字）| shippori（見出し明朝）
+// header: band | underline | tab | chalk | gingham | minimal
 // card:   fill  (tinted panel) | strip (panel + accent bar on the left) | outline (thin frame)
 export const themes = {
   natural: {
     label: "ナチュラル（やさしい・落ち着いた緑とオレンジ）",
+    font: "ud", headingFont: "rounded",
     bg: "#fffdf8", surface: "#ffffff", ink: "#173d38", sub: "#5b6670",
     primary: "#173d38", onPrimary: "#ffffff", primarySoft: "#eef6f1",
     accent: "#e8742a", onAccent: "#ffffff", accentSoft: "#fff4e3",
@@ -13,6 +15,7 @@ export const themes = {
   },
   pop: {
     label: "ポップ（明るい・元気）",
+    font: "ud", headingFont: "rounded",
     bg: "#ffffff", surface: "#fff9db", ink: "#24324a", sub: "#5d6b82",
     primary: "#2b7de9", onPrimary: "#ffffff", primarySoft: "#e7f1ff",
     accent: "#ff5c8a", onAccent: "#ffffff", accentSoft: "#ffe8ef",
@@ -22,6 +25,7 @@ export const themes = {
   },
   chic: {
     label: "シック（大人っぽい・紺と金）",
+    font: "ud", headingFont: "shippori",
     bg: "#f7f5f0", surface: "#ffffff", ink: "#1f2a44", sub: "#69707f",
     primary: "#1f2a44", onPrimary: "#ffffff", primarySoft: "#e9ecf3",
     accent: "#b8892e", onAccent: "#ffffff", accentSoft: "#f6eedc",
@@ -31,6 +35,7 @@ export const themes = {
   },
   chalk: {
     label: "黒板（板書の雰囲気）",
+    font: "ud", headingFont: "yomogi",
     bg: "#1f4a3d", surface: "#285a4b", ink: "#f5f3e8", sub: "#c9dccf",
     primary: "#f5f3e8", onPrimary: "#1f4a3d", primarySoft: "#285a4b",
     accent: "#ffd84d", onAccent: "#1f4a3d", accentSoft: "#2f6555",
@@ -40,6 +45,7 @@ export const themes = {
   },
   wa: {
     label: "和（生成り・藍・朱）",
+    font: "ud", headingFont: "shippori",
     bg: "#fbf7ee", surface: "#ffffff", ink: "#1f2a3a", sub: "#6a6458",
     primary: "#243b63", onPrimary: "#ffffff", primarySoft: "#e8edf5",
     accent: "#c4473a", onAccent: "#ffffff", accentSoft: "#f9e8e3",
@@ -49,6 +55,7 @@ export const themes = {
   },
   pastel: {
     label: "パステル（やわらかい桃色・若草色）",
+    font: "ud", headingFont: "rounded",
     bg: "#fffaf6", surface: "#ffffff", ink: "#3f3a44", sub: "#7a7078",
     primary: "#d97a8c", onPrimary: "#ffffff", primarySoft: "#fde9ee",
     accent: "#5f9e52", onAccent: "#ffffff", accentSoft: "#ebf5e6",
@@ -58,6 +65,7 @@ export const themes = {
   },
   shokutaku: {
     label: "食卓（トマト・にんじん・菜っ葉の、食事が楽しくなる配色）",
+    font: "ud", headingFont: "rounded",
     bg: "#fffaf0", surface: "#ffffff", ink: "#3b2a20", sub: "#7a6555",
     primary: "#d94a32", onPrimary: "#ffffff", primarySoft: "#fde8e1",
     accent: "#3f8f3a", onAccent: "#ffffff", accentSoft: "#e9f5e1",
@@ -67,6 +75,7 @@ export const themes = {
   },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",
+    font: "ud", headingFont: "ud",
     bg: "#ffffff", surface: "#f4f5f7", ink: "#1d1f23", sub: "#6b7079",
     primary: "#1d1f23", onPrimary: "#ffffff", primarySoft: "#f4f5f7",
     accent: "#0f8b8d", onAccent: "#ffffff", accentSoft: "#e3f3f3",

@@ -43,11 +43,28 @@ function fit(text, w, h, fs, min = 14) {
   while (s > min && lines(text, w, s) * s * lineH > h) s -= 1;
   return s;
 }
-const text = (t, x, y, w, h, fs = 20, o = {}) => ({
-  id: nid("t"), type: "text", x: r(x), y: r(y), w: r(w), h: r(h), text: t,
-  fontSize: o.noFit ? fs : fit(t, w, h, fs, o.min), color: o.color ?? T.ink,
-  ...(o.bold ? { bold: true } : {}), ...(o.align ? { textAlign: o.align } : {}), ...(o.valign ? { verticalAlign: o.valign } : {}),
-});
+/** Fonts (VHSlide 0.101+): applied through richText. o.font overrides; headings use T.headingFont, body T.font. */
+const FONTS = ["sans", "serif", "mono", "rounded", "klee", "yomogi", "ud", "brush", "shippori"];
+const useFonts = !process.argv.includes("--no-fonts");
+function richOps(t, size, o, color) {
+  const attrs = { font: o.font, size: `${size}px`, color, ...(o.bold ? { bold: true } : {}) };
+  const ops = [];
+  String(t).split("\n").forEach(line => {
+    if (line) ops.push({ insert: line, attributes: attrs });
+    ops.push(o.align && o.align !== "left" ? { insert: "\n", attributes: { align: o.align } } : { insert: "\n" });
+  });
+  return ops;
+}
+const text = (t, x, y, w, h, fs = 20, o = {}) => {
+  const fontSize = o.noFit ? fs : fit(t, w, h, fs, o.min), color = o.color ?? T.ink;
+  const font = useFonts ? o.font ?? (o.heading ? T.headingFont : T.font) : undefined;
+  if (font && !FONTS.includes(font)) throw Error(`使えない書体です: ${font}（${FONTS.join(", ")}）`);
+  return {
+    id: nid("t"), type: "text", x: r(x), y: r(y), w: r(w), h: r(h), text: t, fontSize, color,
+    ...(o.bold ? { bold: true } : {}), ...(o.align ? { textAlign: o.align } : {}), ...(o.valign ? { verticalAlign: o.valign } : {}),
+    ...(font && font !== "sans" ? { richText: richOps(t, fontSize, { ...o, font }, color) } : {}),
+  };
+};
 const rect = (x, y, w, h, fill, o = {}) => ({
   id: nid("r"), type: "shape", shape: o.shape ?? "rect", x: r(x), y: r(y), w: r(Math.max(20, w)), h: r(Math.max(20, h)),
   fill, stroke: o.stroke ?? fill, strokeWidth: o.strokeWidth ?? 0,
@@ -70,13 +87,13 @@ function card(x, y, w, h, tone = "plain") {
   const pad = T.card === "strip" ? 22 : 16;
   return { els, inner: { x: x + pad, y: y + 10, w: w - pad - 14, h: h - 20 } };
 }
-function cardText(x, y, w, h, body, { tone = "plain", fs = 20, title, align, valign = "middle", bold } = {}) {
+function cardText(x, y, w, h, body, { tone = "plain", fs = 20, title, align, valign = "middle", bold, heading } = {}) {
   const c = card(x, y, w, h, tone);
   const i = c.inner;
-  if (!title) return [...c.els, text(body, i.x, i.y, i.w, i.h, fs, { align, valign, bold })];
+  if (!title) return [...c.els, text(body, i.x, i.y, i.w, i.h, fs, { align, valign, bold, heading })];
   const th = Math.min(40, i.h * 0.35);
   return [...c.els,
-    text(title, i.x, i.y, i.w, th, Math.min(26, fs + 4), { bold: true, color: tone === "plain" ? T.accent : T.ink }),
+    text(title, i.x, i.y, i.w, th, Math.min(26, fs + 4), { bold: true, color: tone === "plain" ? T.accent : T.ink, heading: true }),
     text(body, i.x, i.y + th + 4, i.w, i.h - th - 4, fs, { align, valign: "top" })];
 }
 
@@ -121,12 +138,12 @@ function field(f, x, y, w, h, fs = 18, opts = {}) {
     section: sectionTitle, sectionId, wide: true,
     ...(f.reason ? { reason: true } : {}), ...(f.public ? { aggregatePublic: true } : {}),
     ...(f.height ? { inputHeight: f.height } : {}),
+    ...(f.hideLabel && kind !== "checkbox" ? { hideLabel: true } : {}),
   };
   ws.fields.push(wf);
-  // Before VHSlide 0.109 a drawing field showed a label, a toolbar and a 16:9 canvas as wide as the frame;
-  // 0.109+ fills the frame and opens the tools on click. Keep the older layout working too.
-  if (kind === "drawing" && h < w * 0.5625 + 90)
-    console.warn(`※ 画像・手描きの入力欄「${f.label}」の枠が低く、VHSlide 0.109より前の版ではキャンバスが隠れます（幅${Math.round(w)}なら高さ${Math.ceil(w * 0.5625 + 90)}以上）。`);
+  // Since VHSlide 0.106.4 the drawing canvas follows the frame's shape; just avoid frames too small to draw in.
+  if (kind === "drawing" && (h < 120 || w < 160))
+    console.warn(`※ 画像・手描きの入力欄「${f.label}」が小さく、描いたり貼ったりしにくくなります（幅160・高さ120以上を推奨）。`);
   return {
     id: nid("f"), type: "shape", shape: "rounded", x: r(x), y: r(y), w: r(w), h: r(h),
     fill: "#ffffff",
@@ -144,26 +161,26 @@ function header(tag, title, meta) {
     els.push(rect(0, 0, W, 64, fill));
     els.push({ ...rect(18, 12, 150, 40, T.accent, { shape: "rounded" }) });
     els.push(text(tag, 18, 14, 150, 36, 16, { color: T.onAccent, bold: true, align: "center", valign: "middle", min: 12 }));
-    els.push(text(title, 186, 8, 650, 50, 28, { color: T.header === "band" ? T.onPrimary : T.accent, bold: true, valign: "middle", min: 18 }));
+    els.push(text(title, 186, 8, 650, 50, 28, { color: T.header === "band" ? T.onPrimary : T.accent, bold: true, valign: "middle", min: 18, heading: true }));
     if (T.header === "chalk") els.push(rect(18, 62, 924, 20, T.line), rect(18, 64, 924, 20, T.bg));
     top = 78;
   } else if (T.header === "gingham") { // tablecloth: coloured band with a checked edge
     els.push(rect(0, 0, W, 64, T.primary));
     els.push({ ...rect(18, 12, 150, 40, T.surface, { shape: "rounded" }) });
     els.push(text(tag, 18, 14, 150, 36, 16, { color: T.primary, bold: true, align: "center", valign: "middle", min: 12 }));
-    els.push(text(title, 186, 8, 650, 50, 28, { color: T.onPrimary, bold: true, valign: "middle", min: 18 }));
+    els.push(text(title, 186, 8, 650, 50, 28, { color: T.onPrimary, bold: true, valign: "middle", min: 18, heading: true }));
     for (let i = 0; i < W / 40; i++) els.push(rect(i * 40, 64, 40, 20, i % 2 ? T.surface : T.primarySoft));
     top = 96;
   } else if (T.header === "tab") {
     els.push(rect(0, 0, W, 72, T.surface));
     els.push(rect(0, 18, 190, 40, T.accent, { shape: "rounded" }), rect(0, 18, 40, 40, T.accent));
     els.push(text(tag, 20, 20, 160, 36, 17, { color: T.onAccent, bold: true, align: "center", valign: "middle", min: 12 }));
-    els.push(text(title, 206, 12, 640, 52, 28, { bold: true, valign: "middle", min: 18 }));
+    els.push(text(title, 206, 12, 640, 52, 28, { bold: true, valign: "middle", min: 18, heading: true }));
     els.push(rect(0, 70, W, 20, T.line), rect(0, 74, W, 20, T.bg));
     top = 92;
   } else { // underline / minimal
     els.push(text(tag, X0, 14, 300, 24, 14, { color: T.accent, bold: true, min: 12 }));
-    els.push(text(title, X0, 34, 760, 44, 28, { bold: true, valign: "middle", min: 18 }));
+    els.push(text(title, X0, 34, 760, 44, 28, { bold: true, valign: "middle", min: 18, heading: true }));
     if (T.header === "underline") els.push(rect(X0, 80, 84, 20, T.accent), rect(X0, 84, 84, 20, T.bg));
     else els.push(rect(X0, 82, X1 - X0, 20, T.line), rect(X0, 83, X1 - X0, 20, T.bg));
     top = 98;
@@ -222,14 +239,14 @@ const kinds = {
     const fg = dark ? (T.header === "chalk" ? T.ink : T.onPrimary) : T.ink;
     if (!dark) els.push(rect(0, 0, 22, H, T.accent), { ...rect(700, 0, 260, 260, T.accentSoft, { shape: "circle" }) }, { ...rect(820, 400, 140, 140, T.primarySoft, { shape: "circle" }) });
     els.push(text(s.subtitle ?? spec.course ?? "", 64, 60, 720, 34, 20, { color: dark ? T.line : T.sub }));
-    els.push(text(s.title ?? L.title, 64, 104, 640, 120, 50, { color: fg, bold: true, valign: "middle", min: 30 }));
+    els.push(text(s.title ?? L.title, 64, 104, 640, 120, 50, { color: fg, bold: true, valign: "middle", min: 30, heading: true }));
     if (s.goal ?? L.goal) els.push(...cardText(64, 244, 600, 120, s.goal ?? L.goal, { tone: "accent", fs: 22, title: "学習の目標", valign: "top" }));
     if (s.note ?? L.hour) els.push(text(s.note ?? L.hour, 64, 384, 640, 34, 18, { color: dark ? T.line : T.sub })); // accent can vanish on a dark primary
     els.push(...(await mascotEl("happy", 712, 230, 200)));
     return els;
   },
   async task(s, _L, top) {
-    const els = [...cardText(72, top + 60, 816, 170, s.text, { tone: "accent", fs: 30, bold: true, align: "center" })];
+    const els = [...cardText(72, top + 60, 816, 170, s.text, { tone: "accent", fs: 30, bold: true, align: "center", heading: true })];
     if (s.clues) els.push(text(`手がかり：${s.clues.join("　")}`, 96, top + 250, 768, 40, 19, { color: T.sub, align: "center" }));
     els.push(...(await mascotEl("think", 415, top + 300, 130)));
     return els;
@@ -309,7 +326,7 @@ const kinds = {
     s.cards.forEach((c, i) => {
       const x = X0 + (i % cols) * (cw + gap), yy = y + Math.floor(i / cols) * (ch + gap);
       const k = card(x, yy, cw, ch, c.tone ?? "primary"); const inr = k.inner;
-      els.push(...k.els, text(c.title, inr.x, inr.y, inr.w, 38, 24, { bold: true, color: T.accent, min: 16 }));
+      els.push(...k.els, text(c.title, inr.x, inr.y, inr.w, 38, 24, { bold: true, color: T.accent, min: 16, heading: true }));
       const subH = c.sub ? 30 : 0;
       els.push(text(c.body ?? "", inr.x, inr.y + 42, inr.w, inr.h - 42 - subH, s.bodySize ?? 19));
       if (c.sub) els.push(text(c.sub, inr.x, inr.y + inr.h - subH, inr.w, subH, s.subSize ?? 15, { color: T.sub, min: 12 }));
@@ -352,7 +369,7 @@ const kinds = {
     const n = s.items.length, step = (BOTTOM - top - 64) / n;
     s.items.forEach(([head, body], i) => {
       const y = top + 64 + i * step;
-      els.push(text(`○ ${head}`, X0 + 12, y, X1 - X0 - 140, 36, 24, { bold: true }));
+      els.push(text(`○ ${head}`, X0 + 12, y, X1 - X0 - 140, 36, 24, { bold: true, heading: true }));
       els.push(text(body, X0 + 44, y + 38, X1 - X0 - 180, step - 44, 20, { color: T.accent }));
     });
     els.push(...(await mascotEl("idea", X1 - 104, BOTTOM - 104, 100)));
@@ -412,13 +429,13 @@ const kinds = {
     for (const it of s.items) {
       const t = it.type ?? (it.field ? "field" : "text");
       if (t === "field") els.push(field(it.field, it.x, it.y, it.w, it.h, it.fontSize ?? s.fieldFont ?? 14, { stroke: col(it.stroke ?? s.stroke) }));
-      else if (t === "band") els.push(rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.primarySoft), text(it.text, it.x + 6, it.y, it.w - 12, it.h, it.fontSize ?? 15, { bold: true, align: it.align ?? "center", valign: "middle", color: col(it.color) ?? T.ink, min: 12 }));
+      else if (t === "band") els.push(rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.primarySoft), text(it.text, it.x + 6, it.y, it.w - 12, it.h, it.fontSize ?? 15, { bold: true, align: it.align ?? "center", valign: "middle", color: col(it.color) ?? T.ink, min: 12, heading: true, font: it.font }));
       else if (t === "mascot") els.push(...(await mascotEl(it.pose ?? "idea", it.x, it.y, it.s ?? 48)));
       else if (t === "chart") els.push(chartEl(it.chart, it.x, it.y, it.w, it.h));
       else if (t === "table") els.push(...tableEl(it.table, it.x, it.y, it.w, it.h));
       else if (t === "image") els.push((await figure(it.image, it.x, it.y, it.w, it.h, it.alt)).el);
       else if (t === "card") els.push(...cardText(it.x, it.y, it.w, it.h, it.text, { tone: it.tone ?? "primary", fs: it.fontSize ?? 18, title: it.title, align: it.align, valign: it.valign ?? "top" }));
-      else els.push(text(it.text, it.x, it.y, it.w, it.h, it.fontSize ?? 18, { bold: it.bold, align: it.align, valign: it.valign ?? "middle", color: col(it.color) ?? T.ink }));
+      else els.push(text(it.text, it.x, it.y, it.w, it.h, it.fontSize ?? 18, { bold: it.bold, align: it.align, valign: it.valign ?? "middle", color: col(it.color) ?? T.ink, heading: it.heading, font: it.font }));
     }
     return els;
   },
