@@ -47,7 +47,10 @@ const badge = (fill, mark, size = 40) =>
   `<circle cx="222" cy="44" r="32" fill="${fill}"/><text x="222" y="${44 + size * 0.36}" font-size="${size}" font-weight="700" fill="#fff" text-anchor="middle" font-family="sans-serif">${mark}</text>`;
 
 export const mascotKinds = Object.keys(bodies);
-export function mascotSvg(kind = "onigiri", pose = "think", colors) {
+// Characters whose look depends on their real colour keep it whatever the theme.
+const natural = { ninjin: { body: "#f28c28", wrap: "#4f9a3d" }, hiyoko: { body: "#ffe27a", wrap: "#ffffff" } };
+export function mascotSvg(kind = "onigiri", pose = "think", themeColors) {
+  const colors = { ...themeColors, ...(natural[kind] ?? {}) };
   if (!bodies[kind]) throw Error(`キャラクターの種類: ${mascotKinds.join(", ")}`);
   const mark = pose === "think" ? badge(colors.think, "?") : pose === "idea" ? badge(colors.idea, "!") : pose === "happy" ? badge(colors.think, "♪", 34) : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260">${bodies[kind](colors)}${mark}</svg>`;

@@ -56,7 +56,7 @@ function richOps(t, size, o, color) {
   return ops;
 }
 const text = (t, x, y, w, h, fs = 20, o = {}) => {
-  const fontSize = o.noFit ? fs : fit(t, w, h, fs, o.min), color = o.color ?? T.ink;
+  const fontSize = Math.min(120, Math.max(12, o.noFit ? fs : fit(t, w, h, fs, o.min))), color = o.color ?? T.ink;
   const font = useFonts ? o.font ?? (o.heading ? T.headingFont : T.font) : undefined;
   if (font && !FONTS.includes(font)) throw Error(`使えない書体です: ${font}（${FONTS.join(", ")}）`);
   return {
@@ -74,18 +74,31 @@ const r = v => Math.round(v * 10) / 10;
 const bar = (x, y, w, h, fill) => (w >= 20 && h >= 20 ? rect(x, y, w, h, fill) : null);
 
 /** Card background in the theme's style. Returns elements and the inner text box. */
+let tileNo = 0; // cycles the tile colours of bento / sticky cards
+const hline = (x, y, w, color, width = 1) => ({ id: nid("l"), type: "line", x: r(x), y: r(y - 10), w: r(Math.max(20, w)), h: 20, stroke: color, strokeWidth: width, lineStart: { x: 0, y: 50 }, lineEnd: { x: 100, y: 50 } });
+const vline = (x, y, h, color, width = 1) => ({ id: nid("l"), type: "line", x: r(x - 10), y: r(y), w: 20, h: r(Math.max(20, h)), stroke: color, strokeWidth: width, lineStart: { x: 50, y: 0 }, lineEnd: { x: 50, y: 100 } });
+/** Card background in the theme's style. Returns elements and the inner text box. */
 function card(x, y, w, h, tone = "plain") {
   const soft = tone === "accent" ? T.accentSoft : tone === "primary" ? T.primarySoft : T.surface;
   const edge = tone === "accent" ? T.accent : tone === "primary" ? T.primary : T.line;
+  const tile = T.tiles ? T.tiles[tileNo++ % T.tiles.length] : soft;
   const els = [];
+  let pad = 16;
   if (T.card === "fill") els.push(rect(x, y, w, h, tone === "plain" ? T.surface : soft));
   else if (T.card === "outline") els.push(rect(x, y, w, h, edge), rect(x + 2, y + 2, w - 4, h - 4, tone === "plain" ? T.surface : soft)); // even border on every side
-  else { // strip: accent bar is the left 8px of a wider shape hidden under the panel
+  else if (T.card === "brutal") { // thick black frame with an offset hard shadow
+    els.push(rect(x + 6, y + 6, w - 6, h - 6, T.ink), rect(x, y, w - 6, h - 6, T.ink), rect(x + 3, y + 3, w - 12, h - 12, tone === "plain" ? T.surface : tone === "accent" ? T.accentSoft : tile));
+    pad = 18;
+  } else if (T.card === "bento") els.push(rect(x, y, w, h, tone === "plain" ? T.surface : tone === "accent" ? T.accentSoft : tile, { shape: "rounded" }));
+  else if (T.card === "sticky") { // sticky note with a strip of tape
+    els.push(rect(x, y, w, h, tone === "plain" ? T.surface : tone === "accent" ? T.accentSoft : tile), rect(x + w / 2 - 36, y - 10, 72, 22, T.tape ?? "#f4ecd6"));
+    pad = 18;
+  } else { // strip: accent bar is the left 8px of a wider shape hidden under the panel
     els.push(rect(x, y, Math.min(w, 28), h, tone === "plain" ? T.line : edge));
     els.push(rect(x + 8, y, w - 8, h, tone === "plain" ? T.surface : soft));
+    pad = 22;
   }
-  const pad = T.card === "strip" ? 22 : 16;
-  return { els, inner: { x: x + pad, y: y + 10, w: w - pad - 14, h: h - 20 } };
+  return { els, inner: { x: x + pad, y: y + 10, w: w - pad - 14 - (T.card === "brutal" ? 6 : 0), h: h - 20 - (T.card === "brutal" ? 6 : 0) } };
 }
 function cardText(x, y, w, h, body, { tone = "plain", fs = 20, title, align, valign = "middle", bold, heading } = {}) {
   const c = card(x, y, w, h, tone);
@@ -178,6 +191,32 @@ function header(tag, title, meta) {
     els.push(text(title, 206, 12, 640, 52, 28, { bold: true, valign: "middle", min: 18, heading: true }));
     els.push(rect(0, 70, W, 20, T.line), rect(0, 74, W, 20, T.bg));
     top = 92;
+  } else if (T.header === "brutal") { // chip with a hard shadow + big bold title
+    els.push(rect(24, 22, 150, 44, T.ink), rect(18, 16, 150, 44, T.ink), rect(21, 19, 144, 38, T.chip ?? T.accentSoft));
+    els.push(text(tag, 21, 19, 144, 38, 16, { color: T.ink, bold: true, align: "center", valign: "middle", min: 12 }));
+    els.push(text(title, 190, 10, 640, 56, 30, { bold: true, valign: "middle", min: 18, heading: true }));
+    top = 86;
+  } else if (T.header === "bento") { // pill tag + title on the light ground; content tiles follow
+    els.push(rect(X0, 22, 130, 36, T.accent, { shape: "rounded" }));
+    els.push(text(tag, X0, 22, 130, 36, 15, { color: T.onAccent, bold: true, align: "center", valign: "middle", min: 12 }));
+    els.push(text(title, X0 + 146, 12, 660, 56, 30, { bold: true, valign: "middle", min: 18, heading: true }));
+    top = 80;
+  } else if (T.header === "notebook") { // ruled paper with a red margin; date-like tag and handwritten title
+    for (let y = 120; y < H; y += 40) els.push(hline(0, y, W, T.line));
+    els.push(vline(86, 0, H, T.margin ?? "#f0a3a3", 2));
+    for (const y of [60, 270, 480]) els.push(rect(22, y - 10, 20, 20, T.hole ?? "#e7e2d6", { shape: "circle" }));
+    els.push(text(tag, 104, 26, 180, 30, 17, { color: T.accent, bold: true, valign: "middle", min: 12, heading: true }));
+    els.push(text(title, 290, 16, 560, 50, 30, { bold: true, valign: "middle", min: 18, heading: true }));
+    top = 88;
+  } else if (T.header === "board") { // cork board: title on a paper strip
+    els.push(rect(X0, 16, 640, 56, T.surface), rect(X0, 66, 640, 20, T.accent), rect(X0, 72, 640, 20, T.bg));
+    els.push(text(`${tag}｜${title}`, X0 + 16, 18, 610, 50, 26, { bold: true, valign: "middle", min: 16, heading: true }));
+    top = 96;
+  } else if (T.header === "magazine") { // letter-spaced kicker, big title, hairline rule
+    els.push(text(tag, X0 + 4, 16, 400, 24, 14, { color: T.accent, bold: true, min: 12 }));
+    els.push(text(title, X0, 36, 780, 52, 34, { bold: true, valign: "middle", min: 20, heading: true }));
+    els.push(hline(X0, 96, X1 - X0, T.ink, 1));
+    top = 108;
   } else { // underline / minimal
     els.push(text(tag, X0, 14, 300, 24, 14, { color: T.accent, bold: true, min: 12 }));
     els.push(text(title, X0, 34, 760, 44, 28, { bold: true, valign: "middle", min: 18, heading: true }));
@@ -252,9 +291,20 @@ const kinds = {
     return els;
   },
   async question(s, _L, top) {
-    const bandH = s.promptHeight ?? 80;
-    const els = await ask(s.prompt, top, bandH);
-    const y = top + bandH + 14, h = BOTTOM - y;
+    const variant = s.variant ?? s._auto ?? "band";
+    let els, y;
+    if (variant === "bubble" && useMascot) { // big mascot with a speech bubble
+      const bh = s.promptHeight ?? 96;
+      els = [...(await mascotEl("think", X0 - 6, top - 4, bh + 16)),
+        { ...rect(X0 + bh + 18, top, X1 - X0 - bh - 18, bh, T.surface, { shape: "bubble", stroke: T.accent, strokeWidth: 2 }), flipX: true },
+        text(s.prompt, X0 + bh + 44, top + 6, X1 - X0 - bh - 70, bh - 26, 21, { bold: true, valign: "middle" })];
+      y = top + bh + 14;
+    } else {
+      const bandH = s.promptHeight ?? 80;
+      els = await ask(s.prompt, top, bandH);
+      y = top + bandH + 14;
+    }
+    const h = BOTTOM - y;
     const fields = s.fields ?? (s.field ? [s.field] : []);
     const hasSide = s.hints || s.table || s.chart || s.image || s.body;
     const split = s.split ?? (s.hints || s.body ? 0.34 : 0.55);
@@ -321,6 +371,27 @@ const kinds = {
       y += 80;
     }
     const footH = s.footer ? 86 : 0;
+    const variant = s.variant ?? s._auto ?? "grid";
+    if (variant === "bento" && s.cards.length >= 3 && s.cards.length <= 5) { // one large tile + smaller tiles
+      const gap = 14, area = BOTTOM - y - footH - (footH ? gap : 0);
+      const bigW = (X1 - X0 - gap) * 0.46, restX = X0 + bigW + gap, restW = X1 - restX;
+      const rest = s.cards.slice(1), rows = Math.ceil(rest.length / 2), rh = (area - gap * (rows - 1)) / rows;
+      const place = (c, x, yy, w, hh, big) => {
+        const k = card(x, yy, w, hh, c.tone ?? (big ? "accent" : "primary")); const inr = k.inner;
+        els.push(...k.els, text(c.title, inr.x, inr.y, inr.w, big ? 50 : 36, big ? 32 : 22, { bold: true, color: T.accent, min: 16, heading: true }));
+        const top2 = big ? 58 : 40, subH = c.sub ? 30 : 0;
+        els.push(text(c.body ?? "", inr.x, inr.y + top2, inr.w, inr.h - top2 - subH, big ? 24 : s.bodySize ?? 18));
+        if (c.sub) els.push(text(c.sub, inr.x, inr.y + inr.h - subH, inr.w, subH, s.subSize ?? 15, { color: T.sub, min: 12 }));
+      };
+      place(s.cards[0], X0, y, bigW, area, true);
+      rest.forEach((c, i) => {
+        const wide = rest.length % 2 === 1 && i === rest.length - 1;
+        const cw = wide ? restW : (restW - gap) / 2;
+        place(c, restX + (wide ? 0 : (i % 2) * (cw + gap)), y + Math.floor(i / 2) * (rh + gap), cw, rh, false);
+      });
+      if (s.footer) els.push(...cardText(X0, BOTTOM - footH, X1 - X0, footH, s.footer, { tone: "accent", fs: 19 }));
+      return els;
+    }
     const n = s.cards.length, cols = s.columns ?? (n <= 3 ? n : n === 4 ? 2 : 3), rows = Math.ceil(n / cols), gap = 14;
     const cw = (X1 - X0 - gap * (cols - 1)) / cols, ch = (BOTTOM - y - footH - (footH ? gap : 0) - gap * (rows - 1)) / rows;
     s.cards.forEach((c, i) => {
@@ -328,7 +399,7 @@ const kinds = {
       const k = card(x, yy, cw, ch, c.tone ?? "primary"); const inr = k.inner;
       els.push(...k.els, text(c.title, inr.x, inr.y, inr.w, 38, 24, { bold: true, color: T.accent, min: 16, heading: true }));
       const subH = c.sub ? 30 : 0;
-      els.push(text(c.body ?? "", inr.x, inr.y + 42, inr.w, inr.h - 42 - subH, s.bodySize ?? 19));
+      els.push(text(c.body ?? "", inr.x, inr.y + 42, inr.w, inr.h - 42 - subH, s.bodySize ?? (n <= 3 ? 25 : n <= 4 ? 22 : 19)));
       if (c.sub) els.push(text(c.sub, inr.x, inr.y + inr.h - subH, inr.w, subH, s.subSize ?? 15, { color: T.sub, min: 12 }));
     });
     if (s.footer) els.push(...cardText(X0, BOTTOM - footH, X1 - X0, footH, s.footer, { tone: "accent", fs: 19 }));
@@ -439,6 +510,83 @@ const kinds = {
     }
     return els;
   },
+  /** Phase divider: big number, phase name, minutes and an optional line. Drawn without the heading strip. */
+  async section(s) {
+    const els = [rect(0, 0, W, H, T.sectionBg ?? T.primary)];
+    const fg = T.sectionInk ?? T.onPrimary;
+    if (T.card === "brutal") els.push(rect(40, 40, W - 80, H - 80, T.ink), rect(46, 46, W - 92, H - 92, T.sectionBg ?? T.primary));
+    els.push(text(String(s.number ?? ""), 80, 120, 220, 220, 120, { bold: true, color: T.sectionNum ?? fg, valign: "middle", noFit: true, heading: true }));
+    els.push(text(s.name ?? "", 300, 150, 560, 80, 52, { bold: true, color: fg, valign: "middle", min: 28, heading: true }));
+    if (s.minutes) els.push(text(`${s.minutes}分`, 304, 232, 300, 40, 24, { color: fg }));
+    if (s.lead) els.push(text(s.lead, 304, 290, 560, 90, 22, { color: fg }));
+    els.push(...(await mascotEl("happy", 760, 340, 150)));
+    return els;
+  },
+  /** One message: a big number or word, its caption and an optional note. */
+  async statement(s, _L, top) {
+    const els = [];
+    const k = card(X0 + 60, top + 20, X1 - X0 - 120, BOTTOM - top - (s.note ? 120 : 40), s.tone ?? "plain"); els.push(...k.els);
+    const i = k.inner;
+    els.push(text(s.big, i.x, i.y + 10, i.w, i.h * 0.6, s.bigSize ?? 96, { bold: true, color: T.accent, align: "center", valign: "middle", min: 40, heading: true }));
+    els.push(text(s.caption ?? "", i.x, i.y + i.h * 0.62, i.w, i.h * 0.36, 26, { bold: true, align: "center", valign: "top" }));
+    if (s.note) els.push(...cardText(X0, BOTTOM - 90, X1 - X0, 90, s.note, { tone: "primary", fs: 19 }));
+    els.push(...(await mascotEl("idea", X1 - 96, top + 4, 90)));
+    return els;
+  },
+  /** Two things side by side with a VS badge; optional answer field below. */
+  async compare(s, _L, top) {
+    const els = [];
+    let y = top;
+    if (s.prompt) { els.push(...(await ask(s.prompt, y, s.promptHeight ?? 64))); y += (s.promptHeight ?? 64) + 12; }
+    const fh = s.field ? (s.fieldHeight ?? 120) : 0, area = BOTTOM - y - (fh ? fh + 12 : 0);
+    const gap = 70, cw = (X1 - X0 - gap) / 2;
+    [s.left, s.right].forEach((side2, i) => {
+      const x = X0 + i * (cw + gap);
+      const k = card(x, y, cw, area, i ? "primary" : "accent"); const inr = k.inner;
+      els.push(...k.els, text(side2.title, inr.x, inr.y, inr.w, 44, 28, { bold: true, color: T.ink, align: "center", heading: true }));
+      const body = side2.items ? side2.items.map(v => `・${v}`).join("\n") : side2.body ?? "";
+      els.push(text(body, inr.x, inr.y + 52, inr.w, inr.h - 52, 20));
+    });
+    els.push(rect(X0 + cw + 9, y + area / 2 - 26, 52, 52, T.accent, { shape: "circle" }), text("VS", X0 + cw + 9, y + area / 2 - 26, 52, 52, 18, { bold: true, color: T.onAccent, align: "center", valign: "middle", noFit: true }));
+    if (s.field) els.push(field(s.field, X0, BOTTOM - fh, X1 - X0, fh, 17));
+    return els;
+  },
+  /** Numbered steps from left to right with arrows; optional field below. */
+  async steps(s, _L, top) {
+    const els = [];
+    let y = top;
+    if (s.lead) { els.push(text(s.lead, X0, y, X1 - X0 - (useMascot ? 100 : 0), 56, 20, { valign: "middle" }), ...(await mascotEl("idea", X1 - 80, y - 6, 72))); y += 64; }
+    const fh = s.field ? (s.fieldHeight ?? 110) : 0, area = BOTTOM - y - (fh ? fh + 12 : 0);
+    const n = s.items.length, gap = 30, cw = (X1 - X0 - gap * (n - 1)) / n;
+    s.items.forEach((it, i) => {
+      const x = X0 + i * (cw + gap);
+      const ch = Math.min(area - 26, 250);
+      const k = card(x, y + 26, cw, ch, "primary"); els.push(...k.els);
+      els.push(rect(x + cw / 2 - 26, y, 52, 52, T.accent, { shape: "circle" }), text(String(i + 1), x + cw / 2 - 26, y, 52, 52, 24, { bold: true, color: T.onAccent, align: "center", valign: "middle", noFit: true }));
+      els.push(text(it.title, x + 12, y + 64, cw - 24, 40, 21, { bold: true, align: "center", heading: true }));
+      if (it.body) els.push(text(it.body, x + 12, y + 108, cw - 24, ch - 94, 19, { align: "center" }));
+      if (i < n - 1) els.push({ ...rect(x + cw + 4, y + 26 + ch / 2 - 12, gap - 8, 24, T.accent, { shape: "arrow" }) });
+    });
+    if (s.field) els.push(field(s.field, X0, BOTTOM - fh, X1 - X0, fh, 17));
+    return els;
+  },
+  /** Quiz: big choice tiles (A–D) and a single-choice answer field with a reason. */
+  async quiz(s, _L, top) {
+    const els = await ask(s.prompt, top, s.promptHeight ?? 70);
+    const y = top + (s.promptHeight ?? 70) + 14, labels = "ABCD";
+    const n = s.choices.length, cols = n <= 2 ? n : 2, rows = Math.ceil(n / cols), gap = 14;
+    const tw = (X1 - X0) * 0.56, th = (BOTTOM - y - gap * (rows - 1)) / rows, cw = (tw - gap * (cols - 1)) / cols;
+    const fills = T.tiles ?? [T.accentSoft, T.primarySoft, T.accentSoft, T.primarySoft];
+    s.choices.forEach((c, i) => {
+      const x = X0 + (i % cols) * (cw + gap), yy = y + Math.floor(i / cols) * (th + gap);
+      if (T.card === "brutal") els.push(rect(x + 6, yy + 6, cw - 6, th - 6, T.ink), rect(x, yy, cw - 6, th - 6, T.ink), rect(x + 3, yy + 3, cw - 12, th - 12, fills[i % fills.length]));
+      else els.push(rect(x, yy, cw, th, fills[i % fills.length], { shape: T.card === "bento" ? "rounded" : "rect" }));
+      els.push(text(`${labels[i]}　${c}`, x + 18, yy, cw - 36, th - 6, 26, { bold: true, valign: "middle", min: 16 }));
+    });
+    const fx = X0 + tw + 16;
+    els.push(field({ id: s.id, label: s.label ?? "答え", type: "single", options: s.choices.map((c, i) => `${labels[i]}　${c}`).map(v => v.slice(0, 100)), reason: s.reason ?? true, public: s.public ?? true }, fx, y, X1 - fx, BOTTOM - y, 16));
+    return els;
+  },
   async custom(s) { return s.elements.map(e => ({ ...e, id: e.id ?? nid("x") })); },
 };
 
@@ -449,6 +597,7 @@ if (!Array.isArray(lessons) || !lessons.length) throw Error("lessons が必要�
 const multiSheet = layout === "phase-grid" && lessons.length > 1;
 if (!multiSheet) sheets.push({ id: "main", name: spec.sheetName ?? spec.title, rowLabels: {} });
 
+const variety = {};
 for (const [li, L] of lessons.entries()) {
   ws = { deckId: crypto.randomUUID(), worksheetId: crypto.randomUUID(), fields: [], sectionIds: [], section: "" };
   const sheetId = multiSheet ? `lesson-${li + 1}` : "main";
@@ -461,12 +610,20 @@ for (const [li, L] of lessons.entries()) {
     if (layout === "phase-grid") { sheet.rowLabels[String(row)] = P.name; col = 0; }
     else sheet.rowLabels[String(row)] = (L.short ?? L.title).slice(0, 80);
     ws.section = P.name;
-    for (const [si, S] of P.slides.entries()) {
+    // A phase divider before each phase (except the first, which follows the title) unless turned off.
+    const sectionOn = (L.sectionSlides ?? spec.sectionSlides ?? true) && pi > 0;
+    const phaseSlides = sectionOn ? [{ kind: "section", number: pi + 1, name: P.name, minutes: P.minutes, lead: P.lead, title: `${P.name}（区切り）`, notes: P.notes }, ...P.slides] : P.slides;
+    for (const [si, S] of phaseSlides.entries()) {
       if (!kinds[S.kind]) throw Error(`未知のスライド種類: ${S.kind}`);
-      const meta = si === 0 && P.minutes ? `${P.name} ${P.minutes}分` : P.name;
+      // Variety: when no variant is given, alternate layouts of repeated kinds so pages do not all look alike.
+      if (!S.variant && (spec.variety ?? true)) {
+        const cycle = { question: ["band", "bubble"], cards: ["grid", "bento"] }[S.kind];
+        if (cycle) S._auto = cycle[(variety[S.kind] = (variety[S.kind] ?? -1) + 1) % cycle.length];
+      }
+      const meta = (si === 0 || (sectionOn && si === 1)) && P.minutes ? `${P.name} ${P.minutes}分` : P.name;
       let els, top = 0;
       if (S.kind === "title") els = await kinds.title(S, L);
-      else if (S.header === false) els = await kinds[S.kind](S, L, 0); // the slide draws its own heading
+      else if (S.kind === "section" || S.header === false) els = await kinds[S.kind](S, L, 0); // the slide draws its own heading
       else {
         const h = header(S.tag ?? P.name, S.heading ?? S.title ?? "", meta);
         top = h.top;

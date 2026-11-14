@@ -1,6 +1,7 @@
 // Tone presets for lesson decks. Every color is #rrggbb (VHSlide accepts no other form).
 // font / headingFont: VHSlide 0.101+ fonts — sans | serif | mono | rounded（丸ゴシック）| klee（教科書風）| yomogi（手書き風）| ud（UDゴシック）| brush（筆文字）| shippori（見出し明朝）
-// header: band | underline | tab | chalk | gingham | minimal
+// header: band | underline | tab | chalk | gingham | brutal | bento | notebook | board | magazine | minimal
+// card:   fill | strip | outline | brutal | bento | sticky   (tiles: colours cycled by bento / sticky / brutal cards)
 // card:   fill  (tinted panel) | strip (panel + accent bar on the left) | outline (thin frame)
 export const themes = {
   natural: {
@@ -72,6 +73,63 @@ export const themes = {
     line: "#f4c9bd", header: "gingham", card: "fill",
     chart: ["#d94a32", "#f28c28", "#3f8f3a", "#f2c14e", "#8b5a3c", "#6aa3c8"],
     muted: "#e3d6c8", mascot: { body: "#f28c28", outline: "#5a3a22", wrap: "#4f9a3d", cheek: "#ff9e9e", think: "#d94a32", idea: "#3f8f3a" },
+  },
+  bento: {
+    label: "ボックス（Bento：角の丸いタイルを並べる、いま主流のレイアウト）",
+    font: "ud", headingFont: "rounded",
+    bg: "#f1f2f4", surface: "#ffffff", ink: "#1f2430", sub: "#5b6170",
+    primary: "#2b5fd9", onPrimary: "#ffffff", primarySoft: "#e4ecff",
+    accent: "#2b5fd9", onAccent: "#ffffff", accentSoft: "#e4ecff",
+    line: "#d9dce3", header: "bento", card: "bento",
+    tiles: ["#ffe8d6", "#e3f1e4", "#e4ecff", "#f6e3f5", "#fff1c7"],
+    chart: ["#2b5fd9", "#e0782f", "#1f8a5b", "#c2417c", "#7a4cc2", "#d4a20f"],
+    muted: "#c7ccd6", mascot: { body: "#ffffff", outline: "#1f2430", wrap: "#2b5fd9", cheek: "#f5b3b3", think: "#e0782f", idea: "#1f8a5b" },
+  },
+  kukkiri: {
+    label: "くっきり（太い黒枠とずらした影。元気でメリハリのある見た目）",
+    font: "ud", headingFont: "rounded",
+    bg: "#fff6e0", surface: "#ffffff", ink: "#111111", sub: "#3d3d3d",
+    primary: "#111111", onPrimary: "#ffffff", primarySoft: "#c9f2ff",
+    accent: "#c2185b", onAccent: "#ffffff", accentSoft: "#ffd6e3",
+    line: "#111111", header: "brutal", card: "brutal", chip: "#ffd23f",
+    tiles: ["#c9f2ff", "#ffd6e3", "#d7f9c8", "#ffe9a8"],
+    sectionBg: "#ffd23f", sectionInk: "#111111", sectionNum: "#111111",
+    chart: ["#2f6fe4", "#c2185b", "#2e9e4f", "#e08a00", "#7b3fd1", "#111111"],
+    muted: "#c9c2b0", mascot: { body: "#ffffff", outline: "#111111", wrap: "#2f6fe4", cheek: "#ff9eb8", think: "#c2185b", idea: "#2e9e4f" },
+  },
+  notebook: {
+    label: "ノート（罫線と赤い余白線。板書・ノートの延長として）",
+    font: "ud", headingFont: "klee",
+    bg: "#fffdf6", surface: "#ffffff", ink: "#26313f", sub: "#5d6876",
+    primary: "#2c4f8c", onPrimary: "#ffffff", primarySoft: "#eaf1fb",
+    accent: "#2c4f8c", onAccent: "#ffffff", accentSoft: "#fff4b8",
+    line: "#c9dcf0", margin: "#f0a3a3", hole: "#e7e2d6", header: "notebook", card: "outline",
+    sectionBg: "#2c4f8c",
+    chart: ["#2c4f8c", "#c0392b", "#1f7a4d", "#d68910", "#7d3c98", "#5d6876"],
+    muted: "#c3cdd8", mascot: { body: "#ffffff", outline: "#26313f", wrap: "#2c4f8c", cheek: "#f5b7b1", think: "#c0392b", idea: "#1f7a4d" },
+  },
+  board: {
+    label: "コルクボード（付箋とマスキングテープ。話し合いや意見の共有に）",
+    font: "ud", headingFont: "rounded",
+    bg: "#c99a63", surface: "#fffdf5", ink: "#2d2416", sub: "#4d3c27",
+    primary: "#8a5a2b", onPrimary: "#ffffff", primarySoft: "#fff3a0",
+    accent: "#b23a22", onAccent: "#ffffff", accentSoft: "#ffd1dc",
+    line: "#e9d9bf", header: "board", card: "sticky", tape: "#f4ecd6",
+    tiles: ["#fff3a0", "#ffd1dc", "#cdeffd", "#d8f5c8"],
+    sectionBg: "#8a5a2b",
+    chart: ["#b23a22", "#2f6f9f", "#3d8b3d", "#d4900f", "#7a4f9a", "#5a4a35"],
+    muted: "#e3cfae", mascot: { body: "#fffdf5", outline: "#2d2416", wrap: "#b23a22", cheek: "#f7a8a8", think: "#b23a22", idea: "#3d8b3d" },
+  },
+  magazine: {
+    label: "マガジン（白地に大きな見出し明朝と細い罫線。講義・課題提示に）",
+    font: "ud", headingFont: "shippori",
+    bg: "#ffffff", surface: "#f6f4f0", ink: "#1a1a1a", sub: "#555555",
+    primary: "#1a1a1a", onPrimary: "#ffffff", primarySoft: "#f2efe9",
+    accent: "#c0392b", onAccent: "#ffffff", accentSoft: "#fbeae7",
+    line: "#d9d4cc", header: "magazine", card: "fill",
+    sectionBg: "#1a1a1a", sectionNum: "#e0695a",
+    chart: ["#1a1a1a", "#c0392b", "#1f5aa6", "#8c6d1f", "#5e7d4a", "#8a8a8a"],
+    muted: "#d0ccc4", mascot: { body: "#ffffff", outline: "#1a1a1a", wrap: "#1a1a1a", cheek: "#f0b0a8", think: "#c0392b", idea: "#1f5aa6" },
   },
   minimal: {
     label: "ミニマル（白基調・アクセント1色）",

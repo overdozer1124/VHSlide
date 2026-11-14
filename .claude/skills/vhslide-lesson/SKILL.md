@@ -30,7 +30,7 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 | 項目 | 選択肢 | 既定 |
 | --- | --- | --- |
 | 配置（layout） | `lesson-rows`：1行＝1単位時間。左から右へ授業が進み、次の時間は下の行<br>`phase-grid`：導入・展開・まとめを縦に並べる2次元配置（複数時間ならシートを時間ごとに分ける） | `lesson-rows` |
-| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`pastel` パステル／`shokutaku` 食卓／`minimal` ミニマル／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
+| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`pastel` パステル／`shokutaku` 食卓／`bento` ボックス／`kukkiri` くっきり／`notebook` ノート／`board` コルクボード／`magazine` マガジン／`minimal` ミニマル（見本：examples/themes-preview.png・patterns-preview-*.png）／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
 | キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`hiyoko`（成長・幼児）／`ninjin`（食品・栄養）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
 
 単元が複数時間にわたる場合は「何時間目まで作るか」も確認する。
@@ -64,6 +64,10 @@ VHSlide は頻繁に機能が増える。作る前に、その時点の最新版
   - 生徒が読んで分かる言葉で、1マス50字程度まで。観点は2〜4個。
   - 導入（学習課題の直後）に `{"kind":"rubric"}` で見通しとして示し、まとめ（最後のふり返りの前）に `{"kind":"rubric","selfCheck":"public"}` で観点ごとのA/B/C自己評価欄を置く。自己評価はワークシートに入り、集計も見られる。
 - 利用者が紙のワークシート（PDF・画像）を渡して「スライドにして」と言ったら、`form` で入力欄を座標配置して1ページに再構成する。A4縦→16:9横では、項目を左・中・右の列や上下の帯に組み替え、見出しは色帯（`band`）、記入欄は入力欄（写真や絵は `drawing`）にする。項目名・順序は原本に合わせ、1つの入力欄の高さは44以上を目安にする。
+- **ページの型を混ぜて単調にしない。** 同じ型が3枚続かないようにし、内容に合った型を選ぶ（[spec-format.md](reference/spec-format.md)）。
+  - 数値・結論を印象づける → `statement`（大きな数字・ひと言）／2つの違い → `compare`（VS）／順番のある内容 → `steps`／全員参加の確認 → `quiz`（大きな選択肢タイル＋回答欄）
+  - 導入・展開・まとめの切り替わりには、場面の区切りページ（`section`）が自動で入る（`sectionSlides: false` で無効）。
+  - `question` は「帯」と「キャラクターの吹き出し」、`cards` は「並べる」と「ボックス（大小のタイル）」を自動で交互に使う（`variant` で固定、`variety: false` で無効）。
 - 1ページの情報量を絞る。文章は1ボックス3行以内を目安にし、長い説明はページを分ける。
 
 ## 3. 図とイラストを作る
