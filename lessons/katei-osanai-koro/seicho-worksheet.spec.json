@@ -1,0 +1,312 @@
+{
+  "title": "わたしの成長の振り返り",
+  "course": "家庭分野　6編2章　幼児の生活と家族",
+  "layout": "lesson-rows",
+  "theme": "pastel",
+  "mascot": "hiyoko",
+  "lessons": [
+    {
+      "title": "わたしの成長の振り返り",
+      "short": "わたしの成長の振り返り",
+      "worksheet": {
+        "title": "わたしの成長の振り返り",
+        "summarySlide": false
+      },
+      "phases": [
+        {
+          "name": "わたしの成長の振り返り",
+          "slides": [
+            {
+              "kind": "form",
+              "header": false,
+              "title": "わたしの成長の振り返り",
+              "fieldFont": 13,
+              "items": [
+                {
+                  "type": "text",
+                  "text": "わたしの成長の振り返り",
+                  "x": 16,
+                  "y": 4,
+                  "w": 620,
+                  "h": 42,
+                  "fontSize": 26,
+                  "bold": true
+                },
+                {
+                  "type": "mascot",
+                  "pose": "happy",
+                  "x": 904,
+                  "y": 2,
+                  "s": 46
+                },
+                {
+                  "type": "field",
+                  "x": 14,
+                  "y": 52,
+                  "w": 300,
+                  "h": 170,
+                  "stroke": "#d97a8c",
+                  "field": {
+                    "id": "g_photo",
+                    "label": "小さい頃の写真",
+                    "placeholder": "",
+                    "type": "drawing"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 14,
+                  "y": 228,
+                  "w": 300,
+                  "h": 58,
+                  "stroke": "#5f9e52",
+                  "field": {
+                    "id": "g_name",
+                    "label": "氏名",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 14,
+                  "y": 292,
+                  "w": 146,
+                  "h": 60,
+                  "stroke": "#5f9e52",
+                  "field": {
+                    "id": "g_birthday",
+                    "label": "生年月日",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 168,
+                  "y": 292,
+                  "w": 146,
+                  "h": 60,
+                  "stroke": "#5f9e52",
+                  "field": {
+                    "id": "g_birthtime",
+                    "label": "生まれた時間",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 14,
+                  "y": 358,
+                  "w": 146,
+                  "h": 60,
+                  "stroke": "#5f9e52",
+                  "field": {
+                    "id": "g_height",
+                    "label": "出生時の身長",
+                    "placeholder": "例：50 cm"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 168,
+                  "y": 358,
+                  "w": 146,
+                  "h": 60,
+                  "stroke": "#5f9e52",
+                  "field": {
+                    "id": "g_weight",
+                    "label": "出生時の体重",
+                    "placeholder": "例：3000 g"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 14,
+                  "y": 424,
+                  "w": 300,
+                  "h": 108,
+                  "stroke": "#d9b44a",
+                  "field": {
+                    "id": "g_namereason",
+                    "label": "名前の由来",
+                    "placeholder": "だれが、どんな願いを込めて付けた？"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 324,
+                  "y": 52,
+                  "w": 630,
+                  "h": 64,
+                  "stroke": "#d97a8c",
+                  "field": {
+                    "id": "g_age1to3",
+                    "label": "1〜3歳までの主なエピソード",
+                    "placeholder": "例：2歳ごろ、絵本を読んでもらうのが大好きだった"
+                  }
+                },
+                {
+                  "type": "band",
+                  "text": "保育園・幼稚園",
+                  "x": 324,
+                  "y": 122,
+                  "w": 310,
+                  "h": 24,
+                  "fill": "#efe8f7"
+                },
+                {
+                  "type": "band",
+                  "text": "小学校",
+                  "x": 644,
+                  "y": 122,
+                  "w": 310,
+                  "h": 24,
+                  "fill": "#fdebdc"
+                },
+                {
+                  "type": "field",
+                  "x": 324,
+                  "y": 150,
+                  "w": 310,
+                  "h": 58,
+                  "stroke": "#9b84c4",
+                  "field": {
+                    "id": "g_en_name",
+                    "label": "名称",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 324,
+                  "y": 212,
+                  "w": 310,
+                  "h": 96,
+                  "stroke": "#9b84c4",
+                  "field": {
+                    "id": "g_en_episode",
+                    "label": "エピソード",
+                    "placeholder": "印象に残っている出来事"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 324,
+                  "y": 312,
+                  "w": 310,
+                  "h": 78,
+                  "stroke": "#9b84c4",
+                  "field": {
+                    "id": "g_en_like",
+                    "label": "好きだった○○",
+                    "placeholder": "遊び・食べ物・歌など"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 644,
+                  "y": 150,
+                  "w": 310,
+                  "h": 58,
+                  "stroke": "#e0965f",
+                  "field": {
+                    "id": "g_es_name",
+                    "label": "名称",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 644,
+                  "y": 212,
+                  "w": 310,
+                  "h": 96,
+                  "stroke": "#e0965f",
+                  "field": {
+                    "id": "g_es_episode",
+                    "label": "エピソード",
+                    "placeholder": "印象に残っている出来事"
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 644,
+                  "y": 312,
+                  "w": 310,
+                  "h": 78,
+                  "stroke": "#e0965f",
+                  "field": {
+                    "id": "g_es_like",
+                    "label": "好きだった○○",
+                    "placeholder": "教科・遊び・本など"
+                  }
+                },
+                {
+                  "type": "band",
+                  "text": "中学生になって",
+                  "x": 324,
+                  "y": 398,
+                  "w": 630,
+                  "h": 24,
+                  "fill": "#e8f1fa"
+                },
+                {
+                  "type": "field",
+                  "x": 324,
+                  "y": 426,
+                  "w": 150,
+                  "h": 106,
+                  "stroke": "#6aa3c8",
+                  "field": {
+                    "id": "g_jh1",
+                    "label": "1年生の思い出",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 484,
+                  "y": 426,
+                  "w": 150,
+                  "h": 106,
+                  "stroke": "#6aa3c8",
+                  "field": {
+                    "id": "g_jh2",
+                    "label": "2年生の思い出",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 644,
+                  "y": 426,
+                  "w": 150,
+                  "h": 106,
+                  "stroke": "#6aa3c8",
+                  "field": {
+                    "id": "g_can",
+                    "label": "できるようになったこと",
+                    "placeholder": ""
+                  }
+                },
+                {
+                  "type": "field",
+                  "x": 804,
+                  "y": 426,
+                  "w": 150,
+                  "h": 106,
+                  "stroke": "#6aa3c8",
+                  "field": {
+                    "id": "g_now",
+                    "label": "今頑張っていること",
+                    "placeholder": ""
+                  }
+                }
+              ],
+              "notes": "A4縦のワークシート「わたしの成長の振り返り」を1枚のスライドに再配置したもの。入力欄はすべて今日のワークシートに入る。\n小さい頃の写真は「画像・手描き」の欄（クリックして画像を追加、またはペンで絵をかく）。写真は本人や家族が了解したものに限り、絵でもよいことを伝える。\n生まれた時間・出生時の身長や体重・名前の由来などは家庭で聞き取る内容のため、事前に配布しておくとよい。家庭環境に配慮し、わからない項目は空欄でよいこと、無理に書かなくてよいことを伝える。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

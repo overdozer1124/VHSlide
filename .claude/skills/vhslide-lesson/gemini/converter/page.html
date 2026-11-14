@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VHSlide 授業スライド変換</title>
+<style>
+:root{--bg:#f6f4ef;--card:#ffffff;--ink:#22262e;--sub:#5d6470;--line:#d9d5cc;--accent:#2b5fd9;--ok:#1f7a4d;--okbg:#e6f4ec;--ng:#b3261e;--ngbg:#fbe9e7;--busybg:#eef2fb}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#17191d;--card:#22252b;--ink:#eceef2;--sub:#a5abb6;--line:#3a3e46;--accent:#7ea2ff;--ok:#7fd1a4;--okbg:#1d3328;--ng:#ff9a90;--ngbg:#3a2220;--busybg:#232a3a}}
+:root[data-theme="dark"]{--bg:#17191d;--card:#22252b;--ink:#eceef2;--sub:#a5abb6;--line:#3a3e46;--accent:#7ea2ff;--ok:#7fd1a4;--okbg:#1d3328;--ng:#ff9a90;--ngbg:#3a2220;--busybg:#232a3a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "BIZ UDPGothic","Hiragino Sans","Noto Sans JP",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}
+.lead{color:var(--sub);margin:0 0 22px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+h2{font-size:18px;margin:0 0 8px;display:flex;gap:10px;align-items:center}
+.n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:15px;flex:none}
+p.help{margin:0 0 10px;color:var(--sub);font-size:14px}
+textarea{width:100%;min-height:220px;border:1px solid var(--line);border-radius:10px;padding:10px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+label{font-size:14px}
+select,input[type=file]{font:inherit;font-size:14px;max-width:100%}
+select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button{font:inherit;font-weight:700;border-radius:10px;padding:10px 20px;min-height:44px;cursor:pointer;border:2px solid var(--accent)}
+#build{background:var(--accent);color:#fff}
+#download{background:var(--card);color:var(--accent)}
+#download:disabled{opacity:.45;cursor:not-allowed}
+#copyFix{background:var(--card);color:var(--ng);border-color:var(--ng)}
+.status{white-space:pre-wrap;border-radius:10px;padding:12px 14px;margin-top:14px;font-size:15px}
+.status:empty{display:none}
+.status.ok{background:var(--okbg);color:var(--ok)}
+.status.error{background:var(--ngbg);color:var(--ng)}
+.status.busy{background:var(--busybg)}
+#imageList{font-size:13px;color:var(--sub);margin-top:6px;word-break:break-all}
+ol.steps{margin:6px 0 0;padding-left:1.4em;color:var(--sub);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>VHSlide 授業スライド変換</h1>
+<p class="lead">Gemini の Gem が書いた「レッスン仕様」から、VHSlide で開ける作品ファイル（.vhslide.json）を作ります。インターネットに送らず、このページの中だけで変換します。</p>
+
+<section>
+<h2><span class="n">1</span>Gemの返答を貼り付ける</h2>
+<p class="help">Gemの返答をそのまま貼り付けて構いません（```json の部分を自動で取り出します）。返答が何回かに分かれたときは、続けて全部貼り付けてください。</p>
+<textarea id="spec" spellcheck="false" placeholder='```json
+{ "title": "…", "lessons": [ … ] }
+```'></textarea>
+<div class="row" style="margin-top:8px"><label>またはファイルから：<input type="file" id="specFile" accept=".json,.txt,application/json,text/plain"></label></div>
+</section>
+
+<section>
+<h2><span class="n">2</span>画像ファイル（使うときだけ）</h2>
+<p class="help">仕様の中で「assets/figure1.png」のように画像ファイルを指定している場合は、その画像を選んでください（ファイル名で対応させます）。Gemが書いたSVGの図は自動で絵にするので不要です。</p>
+<input type="file" id="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+<div id="imageList"></div>
+</section>
+
+<section>
+<h2><span class="n">3</span>見た目（変えたいときだけ）</h2>
+<div class="row">
+<label>トーン <select id="theme"></select></label>
+<label>配置 <select id="layout"><option value="">Gemの指定どおり</option><option value="lesson-rows">1行＝1時間</option><option value="phase-grid">導入・展開・まとめを縦に</option></select></label>
+<label>キャラクター <select id="mascot"></select></label>
+<label><input type="checkbox" id="decor" checked> 背景の装飾</label>
+</div>
+</section>
+
+<section>
+<h2><span class="n">4</span>作成して保存</h2>
+<div class="row">
+<button id="build" type="button">作成する</button>
+<button id="download" type="button" disabled>ファイルを保存</button>
+<button id="copyFix" type="button" hidden>Gemへの修正依頼をコピー</button>
+</div>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+<ol class="steps">
+<li>保存した .vhslide.json を、VHSlide の「ファイル → 開く」で読み込みます。</li>
+<li><b>クラウドに保存</b>すると、ワークシートの入力欄が使えるようになります。</li>
+<li>発表するときの「表示チェック」で、文字の見切れがないか確認してください。</li>
+</ol>
+</section>
+</main>
+<script>/*APP*/</script>
+</body>
+</html>
