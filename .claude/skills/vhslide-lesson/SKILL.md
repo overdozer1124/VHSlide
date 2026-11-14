@@ -111,7 +111,7 @@ node "$SKILL/scripts/check.mjs" out/lesson.vhslide.json --out out/check
 
 `gemini/` に、このスキルを Gemini アプリで使うための一式がある。
 
-- **Gemini のスキル（推奨。Gem は廃止予定）**：`node gemini/build-skill.mjs` で `gemini/dist/vhslide-lesson-gemini-skill.zip` を作る。中身は `vhslide-lesson/SKILL.md`（`gemini/skill/SKILL.md`）、`scripts/build_deck.py`（`deck-core.mjs` の Python 移植。標準ライブラリだけで動く）、`assets/`（テーマの色・背景の装飾・アイコン・キャラクターを事前に画像化したもの）、`references/`・`examples/`。Gemini はコード実行で `build_deck.py` を動かし、.vhslide.json を渡す。
+- **Gemini のスキル（推奨。Gem は廃止予定）**：`node gemini/build-skill.mjs` で `gemini/dist/vhslide-lesson-gemini-skill.zip` を作る。中身は `vhslide-lesson/SKILL.md`（`gemini/skill/SKILL.md`）、`scripts/build_deck.py`（`deck-core.mjs` の Python 移植。標準ライブラリだけで動く）、`assets/`（テーマの色と、背景の装飾・アイコン・キャラクターを事前に画像化して1つにまとめた `images.json`。Gemini はファイル数が多いスキルを読み込めないため）、`references/`・`examples/`。Gemini はコード実行で `build_deck.py` を動かし、.vhslide.json を渡す。
 - **Gem＋変換ページ**：`node gemini/build-gem-pack.mjs` で `gemini/dist/vhslide-lesson-gemini.zip`。Gem がレッスン仕様JSONを書き、先生がブラウザーで開く変換ページ（`gemini/converter`、`deck-core.mjs` を共有）で変換する。コードを実行できないときの代わりにも使える。
 - **`deck-core.mjs` を変えたら、`gemini/skill/scripts/build_deck.py` にも同じ変更を入れる。** 確認は、同じ仕様を両方で組み立てて、UUID と画像データを除いた JSON が一致すること（`examples/` と `lessons/` の仕様で）。
 - テーマ・キャラクター・装飾・ページの型・仕様の書き方を変えたら、両方の zip を作り直して先生に渡す。Gemini 用の手順は `gemini/skill/SKILL.md`・`gemini/gem-instructions.md` にあり、このSKILL.mdの「設計の原則」を変えたらそちらにも反映する。

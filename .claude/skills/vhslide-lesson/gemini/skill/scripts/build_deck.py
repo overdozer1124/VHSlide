@@ -4,7 +4,7 @@
 usage: python build_deck.py <spec.json> <out.vhslide.json> [--layout lesson-rows|phase-grid]
                             [--theme name|theme.json] [--mascot kind|none] [--flat] [--no-fonts]
 
-Backdrops, icons and characters are pre-rendered under ../assets (only Python's standard library is needed).
+Backdrops, icons and characters are pre-rendered into ../assets/images.json (one file, as data URLs) (only Python's standard library is needed).
 Images in the spec: a file path (relative to the spec), a data: URL, or inline SVG markup. SVG is drawn with
 cairosvg when it is installed; otherwise a PNG with the same name next to an .svg file is used.
 """
@@ -299,9 +299,11 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                       text(body, i["x"], i["y"] + th + 4, i["w"], i["h"] - th - 4, fs, align=align, valign="top")]
 
     # ---------- pre-rendered images ----------
-    def asset(*parts):
-        p = os.path.join(ASSETS, *parts)
-        return data_url(p)[0] if os.path.exists(p) else None
+    def asset(group, name):
+        if "pack" not in state:
+            with open(os.path.join(ASSETS, "images.json"), encoding="utf-8") as f:
+                state["pack"] = json.load(f)
+        return state["pack"][group].get(name)
 
     custom_note = {"done": False}
 

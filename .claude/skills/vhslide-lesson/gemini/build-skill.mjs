@@ -15,7 +15,7 @@ import { svgToPng, closeRenderer } from "../scripts/render.mjs";
 const here = path.dirname(new URL(import.meta.url).pathname), skill = path.join(here, "..");
 const out = path.join(here, "dist", "vhslide-lesson");
 fs.rmSync(out, { recursive: true, force: true });
-for (const d of ["scripts", "references", "examples", "assets/backdrops", "assets/icons", "assets/mascots"]) fs.mkdirSync(path.join(out, d), { recursive: true });
+for (const d of ["scripts", "references", "examples", "assets"]) fs.mkdirSync(path.join(out, d), { recursive: true });
 const read = f => fs.readFileSync(path.join(skill, f), "utf8");
 const write = (f, s) => fs.writeFileSync(path.join(out, f), s);
 
@@ -23,23 +23,27 @@ const write = (f, s) => fs.writeFileSync(path.join(out, f), s);
 fs.copyFileSync(path.join(here, "skill", "scripts", "build_deck.py"), path.join(out, "scripts", "build_deck.py"));
 write("assets/themes.json", JSON.stringify(themes, null, 1));
 
-// 2. pre-rendered images (the same renderer and settings as the Node builder)
+// 2. pre-rendered images (the same renderer and settings as the Node builder), packed into ONE json file:
+// Gemini refuses skills with too many files.
+const pack = { backdrops: {}, icons: {}, mascots: {} };
+const url = (buf, type = "png") => `data:image/${type};base64,${buf.toString("base64")}`;
 let n = 0;
 for (const [name, t] of Object.entries(themes)) {
   const T = { ...structuredClone(t), name };
   if (T.decor)
     for (const kind of ["title", "section", "content", "plain"]) {
-      fs.writeFileSync(path.join(out, "assets/backdrops", `${name}-${kind}.jpg`), await svgToPng(decorSvg(T, kind), { scale: 1.25, type: "jpeg", quality: 84 })); n++;
+      pack.backdrops[`${name}-${kind}.jpg`] = url(await svgToPng(decorSvg(T, kind), { scale: 1.25, type: "jpeg", quality: 84 }), "jpeg"); n++;
     }
   for (const [role, ink] of [["accent", T.onAccent], ["primary", T.onPrimary], ["white", "#ffffff"]])
     for (const icon of ["question", "bulb", "flag"]) {
-      fs.writeFileSync(path.join(out, "assets/icons", `${name}-${icon}-${role}.png`), await svgToPng(iconSvg(icon, ink), { scale: 1, transparent: true })); n++;
+      pack.icons[`${name}-${icon}-${role}.png`] = url(await svgToPng(iconSvg(icon, ink), { scale: 1, transparent: true })); n++;
     }
   for (const kind of mascotKinds)
     for (const pose of ["think", "idea", "happy"])
-      fs.copyFileSync(path.join(skill, "assets/mascots", `${name}-${kind}-${pose}.png`), path.join(out, "assets/mascots", `${name}-${kind}-${pose}.png`));
+      pack.mascots[`${name}-${kind}-${pose}.png`] = url(fs.readFileSync(path.join(skill, "assets/mascots", `${name}-${kind}-${pose}.png`)));
 }
 await closeRenderer();
+write("assets/images.json", JSON.stringify(pack));
 console.log(`images: ${n} rendered + ${Object.keys(themes).length * mascotKinds.length * 3} characters`);
 
 // 3. SKILL.md and references
@@ -87,4 +91,5 @@ for (const f of fs.readdirSync(path.join(skill, "examples", "assets"), { withFil
 const zip = path.join(here, "dist", "vhslide-lesson-gemini-skill.zip");
 fs.rmSync(zip, { force: true });
 execFileSync("zip", ["-qr", "-X", zip, "vhslide-lesson"], { cwd: path.join(here, "dist") });
-console.log(`${zip} (${Math.round(fs.statSync(zip).size / 1024)}KB)`);
+const files = execFileSync("find", ["vhslide-lesson", "-type", "f"], { cwd: path.join(here, "dist") }).toString().trim().split("\n");
+console.log(`${zip} (${Math.round(fs.statSync(zip).size / 1024)}KB, ${files.length} files)\n${files.join("\n")}`);
