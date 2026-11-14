@@ -4,7 +4,7 @@
 usage: python build_deck.py <spec.json> <out.vhslide.json> [--layout lesson-rows|phase-grid]
                             [--theme name|theme.json] [--mascot kind|none] [--flat] [--no-fonts]
 
-Backdrops, icons and characters are pre-rendered into ../assets/images.json (one file, as data URLs) (only Python's standard library is needed).
+Backdrops, icons and characters are pre-rendered into ../assets/images.txt (one plain-text file: '@ group/name mime' lines followed by base64) (only Python's standard library is needed).
 Images in the spec: a file path (relative to the spec), a data: URL, or inline SVG markup. SVG is drawn with
 cairosvg when it is installed; otherwise a PNG with the same name next to an .svg file is used.
 """
@@ -113,6 +113,26 @@ def svg_to_png(svg):
     return cairosvg.svg2png(bytestring=svg.encode("utf-8"), scale=2)
 
 
+def read_images(path):
+    pack, key, mime, buf = {}, None, None, []
+
+    def flush():
+        if key:
+            g, name = key.split("/", 1)
+            pack.setdefault(g, {})[name] = f"data:{mime};base64,{''.join(buf)}"
+    with open(path, encoding="ascii") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("@ "):
+                flush()
+                _, key, mime = line.split(" ")
+                buf = []
+            elif line:
+                buf.append(line)
+    flush()
+    return pack
+
+
 THEMES = None  # build-skill.mjs writes the theme data here, so the skill needs no separate data file
 
 
@@ -151,9 +171,9 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
     sm = spec.get("mascot")
     mascot_arg = nn(mascot, sm if isinstance(sm, str) else (sm or {}).get("kind") if isinstance(sm, dict) else None, "onigiri")
     use_mascot = mascot_arg != "none"
-    has_images = os.path.exists(os.path.join(ASSETS, "images.json"))
+    has_images = os.path.exists(os.path.join(ASSETS, "images.txt"))
     if not has_images and (use_mascot or (not flat and spec.get("decor") is not False)):
-        warn("※ 画像のデータ（assets/images.json）が無いため、背景の装飾・アイコン・キャラクターなしで作ります。")
+        warn("※ 画像のデータ（assets/images.txt）が無いため、背景の装飾・アイコン・キャラクターなしで作ります。")
         use_mascot = False
     if not spec.get("title"):
         raise BuildError("title（作品名）がありません。")
@@ -312,8 +332,7 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         if not has_images:
             return None
         if "pack" not in state:
-            with open(os.path.join(ASSETS, "images.json"), encoding="utf-8") as f:
-                state["pack"] = json.load(f)
+            state["pack"] = read_images(os.path.join(ASSETS, "images.txt"))
         return state["pack"][group].get(name)
 
     custom_note = {"done": False}

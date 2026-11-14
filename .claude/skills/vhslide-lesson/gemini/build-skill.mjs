@@ -45,7 +45,11 @@ for (const [name, t] of Object.entries(themes)) {
       images.mascots[`${name}-${kind}-${pose}.png`] = url(fs.readFileSync(path.join(skill, "assets/mascots", `${name}-${kind}-${pose}.png`)));
 }
 await closeRenderer();
-write("assets/images.json", JSON.stringify(images));
+// plain text, short lines: "@ group/name mime" then the base64 data wrapped at 76 characters
+write("assets/images.txt", Object.entries(images).flatMap(([g, m]) => Object.entries(m).flatMap(([k, u]) => {
+  const [, mime, b64] = /^data:([^;]+);base64,(.*)$/s.exec(u);
+  return [`@ ${g}/${k} ${mime}`, ...b64.match(/.{1,76}/g)];
+})).join("\n") + "\n");
 console.log(`images: ${n} rendered + ${Object.keys(themes).length * mascotKinds.length * 3} characters`);
 
 // 3. SKILL.md and references
