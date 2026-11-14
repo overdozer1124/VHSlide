@@ -1006,6 +1006,15 @@ export function Canvas({
                         ? (event) => start(event, e, false, false)
                         : undefined
                     }
+                    onPoster={
+                      editable && onChange
+                        ? (image) =>
+                            onChange({
+                              ...e,
+                              embed: { ...e.embed!, poster: image },
+                            })
+                        : undefined
+                    }
                   />
                 ) : e.drawing ? (
                   <InkObject

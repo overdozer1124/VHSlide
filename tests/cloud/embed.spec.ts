@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { blank } from "../../src/model";
 const headers = { Origin: "http://127.0.0.1:3187" };
 async function signIn(page: Page, name: string) {
@@ -13,19 +16,39 @@ async function signIn(page: Page, name: string) {
   ).toBe(200);
 }
 
-async function savedEmbedUrl(page: Page, id: string) {
+async function savedEmbed(page: Page, id: string) {
   const backup = await page.request.get(`/api/decks/${id}/backup`);
   const deck = (await backup.json()).deck;
   const element = deck.slides[0].elements.find(
-    (e: { embed?: { url: string } }) => e.embed,
+    (e: { embed?: { url: string; poster?: string } }) => e.embed,
   );
-  return element?.embed?.url as string | undefined;
+  return element?.embed as
+    | { url: string; poster?: string }
+    | undefined;
 }
 
-test("host embeds a web app in a slide and a guest can open it", async ({
+// The framed app page served instead of example.com: a small DOM app with
+// the REAL embed bridge inlined, so the test covers the whole snapshot
+// protocol (request -> self-capture -> postMessage -> saved poster).
+const bridgePath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../textmine/assets/v1/embed-bridge.js",
+);
+const bridgeSource = existsSync(bridgePath)
+  ? readFileSync(bridgePath, "utf8")
+  : null;
+const framedApp = bridgeSource
+  ? `<!doctype html><html><head><meta charset="utf-8">
+<style>body{margin:0;font-family:sans-serif}h1{background:#2f6a45;color:#ffffff;padding:24px;margin:0}p{padding:16px;font-size:20px;color:#263d39}</style>
+</head><body><h1>テストアプリ</h1><p>これは埋め込み用の画面です。</p>
+<script>${bridgeSource}</script></body></html>`
+  : "";
+
+test("host embeds a web app, its thumbnail is captured once, guests just view", async ({
   page,
   browser,
 }, info) => {
+  test.skip(!bridgeSource, "textmine bridge build is missing");
   test.setTimeout(120_000);
   const context = await browser.newContext(info.project.use);
   const guest = await context.newPage();
@@ -55,6 +78,14 @@ test("host embeds a web app in a slide and a guest can open it", async ({
           })
         ).status(),
       ).toBe(200);
+
+    await page.route("https://example.com/app", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: framedApp,
+      });
+    });
 
     await page.goto(`/?room=${id}`);
     await page
@@ -90,26 +121,42 @@ test("host embeds a web app in a slide and a guest can open it", async ({
     await expect(
       frame.getByRole("button", { name: "アプリを操作する" }),
     ).toBeVisible();
-    await expect.poll(() => savedEmbedUrl(page, id)).toBe(
-      "https://example.com/app",
-    );
 
-    // The sidebar editor changes the URL.
+    // Placing the app captures its screen once (host editor only) and the
+    // poster is saved with the element.
+    await expect
+      .poll(async () => (await savedEmbed(page, id))?.poster ?? "", {
+        timeout: 30_000,
+      })
+      .toMatch(/^data:image\/jpeg;base64,/);
+    expect((await savedEmbed(page, id))?.url).toBe("https://example.com/app");
+
+    // Guest map: the captured image is the thumbnail; no live app loads.
+    await guest.goto(`/?room=${id}`);
+    const card = guest.locator(".slide-card").first();
+    await expect(
+      card.locator(".slide-embed-placeholder.has-poster img"),
+    ).toBeVisible();
+    await expect(card.locator("iframe")).toHaveCount(0);
+
+    // The sidebar editor changes the URL; the old poster goes with it.
     const sidebar = page.locator(".embed-sidebar-editor");
     await expect(sidebar).toBeVisible();
+    await expect(sidebar.locator(".embed-sidebar-poster")).toBeVisible();
     await sidebar.locator("input").fill("https://example.org/other");
     await sidebar.getByRole("button", { name: "URLを変更" }).click();
     await expect(sidebar).toContainText("URLを変更しました。");
-    await expect.poll(() => savedEmbedUrl(page, id)).toBe(
-      "https://example.org/other",
-    );
+    await expect
+      .poll(async () => (await savedEmbed(page, id))?.url)
+      .toBe("https://example.org/other");
+    expect((await savedEmbed(page, id))?.poster).toBeUndefined();
 
-    // Guest map: a placeholder, no live app in the thumbnail.
+    // Guest map now falls back to the plain marker (no poster for this URL).
     await guest.goto(`/?room=${id}`);
-    const card = guest.locator(".slide-card").first();
     await expect(card.locator(".slide-embed-placeholder")).toContainText(
       "example.org",
     );
+    await expect(card.locator(".slide-embed-placeholder img")).toHaveCount(0);
     await expect(card.locator("iframe")).toHaveCount(0);
 
     // Guest opens the slide: the app is live, with no editing shield.

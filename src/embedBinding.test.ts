@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   embedHostName,
+  isEmbedPoster,
   normalizeEmbedUrl,
   parseEmbedBinding,
 } from "./embedBinding";
+
+const TINY_JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
 import { blank, parseDeck, serializeDeck, type Element } from "./model";
 
 describe("normalizeEmbedUrl", () => {
@@ -42,6 +45,27 @@ describe("parseEmbedBinding", () => {
   });
 });
 
+describe("embed poster (captured thumbnail)", () => {
+  it("accepts a small JPEG data URL and rejects anything else", () => {
+    expect(
+      parseEmbedBinding({ url: "https://example.com", poster: TINY_JPEG }),
+    ).toEqual({ url: "https://example.com/", poster: TINY_JPEG });
+    expect(isEmbedPoster(TINY_JPEG)).toBe(true);
+    for (const bad of [
+      "data:image/png;base64,iVBORw0KGgo=",
+      "https://example.com/thumb.jpg",
+      `data:image/jpeg;base64,${"A".repeat(300_000)}`,
+      "data:image/jpeg;base64,not base64!!",
+      42,
+    ]) {
+      expect(isEmbedPoster(bad)).toBe(false);
+      expect(() =>
+        parseEmbedBinding({ url: "https://example.com", poster: bad }),
+      ).toThrow();
+    }
+  });
+});
+
 describe("embed elements in a deck", () => {
   const embedElement = {
     id: "embed-1",
@@ -71,6 +95,17 @@ describe("embed elements in a deck", () => {
     expect(parsed.slides[0].elements[0].embed).toEqual({
       url: "https://example.com/app",
     });
+  });
+
+  it("keeps the captured poster through a round trip", () => {
+    const element = {
+      ...embedElement,
+      embed: { url: "https://example.com/app", poster: TINY_JPEG },
+    } as unknown as Element;
+    const parsed = parseDeck(
+      serializeDeck(deckWith(element) as never),
+    );
+    expect(parsed.slides[0].elements[0].embed?.poster).toBe(TINY_JPEG);
   });
 
   it("rejects an element that also carries another binding", () => {

@@ -84,6 +84,17 @@ export function EmbedPanel({
       <p className="embed-panel-note">
         埋め込みを禁止しているサイトは、枠だけ表示されて中身が出ません。Scratch（TurboWarp）のプレイヤーのように、埋め込み用のURLが用意されているアプリが向いています。
       </p>
+      <details className="embed-bridge-help">
+        <summary>自分のアプリのサムネイルを出すには</summary>
+        <p>
+          自作アプリに次の1行を入れると、配置したときにアプリが自分の画面を撮影して渡し、全体マップのサムネイルにその画像が出るようになります（サムネイル表示でアプリ本体は読み込まれません）。
+        </p>
+        <code>
+          {
+            '<script src="https://vhslide-textmine.overdozer1124.workers.dev/v1/embed-bridge.js"></script>'
+          }
+        </code>
+      </details>
     </div>
   );
 }

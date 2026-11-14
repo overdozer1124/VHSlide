@@ -808,6 +808,30 @@ export function EmbedSidebarEditor({
       >
         URLを変更
       </button>
+      {element.embed?.poster ? (
+        <>
+          <img
+            className="embed-sidebar-poster"
+            src={element.embed.poster}
+            alt="サムネイル"
+          />
+          <button
+            type="button"
+            className="button outline"
+            onClick={() => {
+              savedRef.current = current;
+              onChange({ embed: { url: current } });
+              setMessage("サムネイルを消しました。開いたときに撮影し直します。");
+            }}
+          >
+            サムネイルを取り直す
+          </button>
+        </>
+      ) : (
+        <p className="embed-panel-note">
+          サムネイルはまだありません。橋渡しスクリプトを入れた自作アプリは、スライドを開いたときに自動で撮影されます。
+        </p>
+      )}
       <p className="embed-panel-note">
         埋め込みを禁止しているサイトは表示されません。
       </p>
