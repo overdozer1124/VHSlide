@@ -23,7 +23,7 @@ const write = (f, s) => fs.writeFileSync(path.join(out, f), s);
 // the theme data goes inside the script (fewer, text-only files: Gemini is strict about what a skill may hold)
 const py = fs.readFileSync(path.join(here, "skill", "scripts", "build_deck.py"), "utf8");
 if (!py.includes("\nTHEMES = None")) throw Error("build_deck.py: THEMES placeholder not found");
-write("scripts/build_deck.py", py.replace(/\nTHEMES = None[^\n]*/, `\nTHEMES = json.loads(${JSON.stringify(JSON.stringify(themes))})`));
+write("scripts/build_deck.py", py.replace(/\nTHEMES = None[^\n]*/, `\nTHEMES = json.loads(r"""\n${JSON.stringify(themes, null, 1)}\n""")`));
 
 // 2. pre-rendered images (the same renderer and settings as the Node builder), packed into ONE json file:
 // Gemini refuses skills with too many files.
