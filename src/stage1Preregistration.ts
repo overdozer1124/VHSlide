@@ -15,11 +15,10 @@ export type PreregSql = {
 };
 
 export class PreregistrationError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
+  status: number;
+  constructor(status: number, message: string) {
     super(message);
+    this.status = status;
     this.name = "PreregistrationError";
   }
 }
@@ -175,20 +174,72 @@ export function nodePreregSql(db: {
   prepare(sql: string): {
     get(...args: unknown[]): unknown;
     all(...args: unknown[]): unknown[];
-    run(...args: unknown[]): { changes: number };
+    run(...args: unknown[]): { changes?: number | bigint };
   };
 }): PreregSql {
   return {
     exec(query, ...args) {
-      return db.prepare(query).run(...args);
+      const result = db.prepare(query).run(...args);
+      return { changes: Number(result.changes ?? 0) };
     },
-    one(query, ...args) {
-      return db.prepare(query).get(...args) as
-        | Record<string, unknown>
-        | undefined;
+    one<T extends Record<string, unknown>>(
+      query: string,
+      ...args: (string | number | null)[]
+    ) {
+      return db.prepare(query).get(...args) as T | undefined;
     },
-    all(query, ...args) {
-      return db.prepare(query).all(...args) as Record<string, unknown>[];
+    all<T extends Record<string, unknown>>(
+      query: string,
+      ...args: (string | number | null)[]
+    ) {
+      return db.prepare(query).all(...args) as T[];
     },
   };
+}
+
+/** Adapter for Cloudflare Durable Object SqlStorage. */
+export function durablePreregSql(sql: {
+  exec(
+    query: string,
+    ...args: (string | number | null)[]
+  ): Iterable<Record<string, unknown>> & { rowsWritten?: number };
+}): PreregSql {
+  return {
+    exec(query, ...args) {
+      const cursor = sql.exec(query, ...args);
+      [...cursor];
+      return { changes: cursor.rowsWritten ?? 0 };
+    },
+    one<T extends Record<string, unknown>>(
+      query: string,
+      ...args: (string | number | null)[]
+    ) {
+      return [...sql.exec(query, ...args)][0] as T | undefined;
+    },
+    all<T extends Record<string, unknown>>(
+      query: string,
+      ...args: (string | number | null)[]
+    ) {
+      return [...sql.exec(query, ...args)] as T[];
+    },
+  };
+}
+
+/** School admin of the org, or users.is_super_admin. */
+export function canManageOrganizationPrereg(
+  sql: PreregSql,
+  userId: string,
+  organizationId: string,
+): boolean {
+  const superAdmin = sql.one<{ is_super_admin: number }>(
+    "SELECT is_super_admin FROM users WHERE id=?",
+    userId,
+  );
+  if (superAdmin?.is_super_admin) return true;
+  const member = sql.one<{ is_school_admin: number; status: string }>(
+    "SELECT is_school_admin, status FROM organization_members WHERE user_id=? AND organization_id=?",
+    userId,
+    organizationId,
+  );
+  return !!member && member.status === "有効" && !!member.is_school_admin;
 }

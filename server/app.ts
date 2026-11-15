@@ -70,6 +70,15 @@ import {
   generalDeckAccess,
   stage1FeaturesEnabled,
 } from "../src/stage1Capabilities.ts";
+import { writeAuditLog } from "../src/stage1Audit.ts";
+import {
+  bindPreregistrationsOnLogin,
+  cancelPreregistration,
+  canManageOrganizationPrereg,
+  createPreregistration,
+  nodePreregSql,
+  PreregistrationError,
+} from "../src/stage1Preregistration.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -654,15 +663,28 @@ export function createApplication(options: Options) {
             "Googleのサインインを確認できませんでした。もう一度お試しください。",
           );
         }
-        db.prepare(
-          "INSERT INTO users(id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
-        ).run(u.id, u.name, u.email);
         const raw = token();
-        db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
-          sha(raw),
-          u.id,
-          Date.now() + 7 * 86400_000,
-        );
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          db.prepare(
+            "INSERT INTO users(id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          ).run(u.id, u.name, u.email);
+          if (stage1On)
+            bindPreregistrationsOnLogin(nodePreregSql(db), {
+              userId: u.id,
+              email: u.email,
+              emailVerified: true,
+            });
+          db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
+            sha(raw),
+            u.id,
+            Date.now() + 7 * 86400_000,
+          );
+          db.exec("COMMIT");
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
         res.setHeader("Set-Cookie", cookie(raw, 7 * 86400));
         return json(res, 200, { user: u });
       }
@@ -679,6 +701,120 @@ export function createApplication(options: Options) {
         const u = user(req);
         claim(u);
         if (method !== "GET") rateLimit(`api:${u.id}`, 120);
+        const orgPrereg =
+          /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
+        if (stage1On && orgPrereg && method === "POST") {
+          const organizationId = decodeURIComponent(orgPrereg[1]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の事前登録を作成する権限がありません。",
+          );
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          insist(
+            typeof input.email === "string",
+            400,
+            "メールアドレスを確認してください。",
+          );
+          const plannedRole =
+            input.plannedRole === "teacher" || input.plannedRole === "student"
+              ? input.plannedRole
+              : input.plannedRole == null
+                ? null
+                : undefined;
+          insist(
+            plannedRole !== undefined,
+            400,
+            "予定の役割を確認してください。",
+          );
+          const id = randomUUID();
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const row = createPreregistration(nodePreregSql(db), {
+              id,
+              email: input.email,
+              organizationId,
+              plannedRole,
+              plannedIsSchoolAdmin: !!input.plannedIsSchoolAdmin,
+              plannedCanCreateSpace: !!input.plannedCanCreateSpace,
+              createdBy: u.id,
+              createdAt: now,
+            });
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "preregistration.create",
+                target: `preregistration:${id}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 201, { preregistration: row });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof PreregistrationError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const preregId = /^\/api\/preregistrations\/([^/]+)$/.exec(path);
+        if (stage1On && preregId && method === "DELETE") {
+          const id = decodeURIComponent(preregId[1]);
+          const existing = db
+            .prepare(
+              "SELECT organization_id FROM preregistrations WHERE id=?",
+            )
+            .get(id) as { organization_id: string } | undefined;
+          insist(existing, 404, "事前登録が見つかりません。");
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              existing.organization_id,
+            ),
+            403,
+            "この事前登録を取り消す権限がありません。",
+          );
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            insist(
+              cancelPreregistration(nodePreregSql(db), id),
+              409,
+              "この事前登録は取り消せません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "preregistration.cancel",
+                target: `preregistration:${id}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { ok: true });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
         if (path === "/api/trash" && method === "GET")
           return json(res, 200, {
             decks: db

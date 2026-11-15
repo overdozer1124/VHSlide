@@ -40,6 +40,15 @@ import {
   generalDeckAccess,
   stage1FeaturesEnabled,
 } from "../src/stage1Capabilities.ts";
+import { writeAuditLog } from "../src/stage1Audit.ts";
+import {
+  bindPreregistrationsOnLogin,
+  cancelPreregistration,
+  canManageOrganizationPrereg,
+  createPreregistration,
+  durablePreregSql,
+  PreregistrationError,
+} from "../src/stage1Preregistration.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -532,6 +541,12 @@ export class Directory extends DurableObject<Env> {
           user.name,
           user.email,
         );
+        if (stage1FeaturesEnabled(this.env))
+          bindPreregistrationsOnLogin(durablePreregSql(this.sql), {
+            userId: user.id,
+            email: user.email,
+            emailVerified: true,
+          });
         this.sql.exec(
           "INSERT INTO sessions VALUES(?,?,?)",
           hash,
@@ -546,6 +561,111 @@ export class Directory extends DurableObject<Env> {
     const identity = await this.identity(request),
       user = identity.user;
     if (path !== "/api/logout") await this.claim(user);
+    const orgPrereg =
+      /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
+    if (stage1FeaturesEnabled(this.env) && orgPrereg && method === "POST") {
+      const organizationId = decodeURIComponent(orgPrereg[1]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の事前登録を作成する権限がありません。",
+      );
+      const data = await input(request, 20_000);
+      insist(
+        typeof data.email === "string",
+        400,
+        "メールアドレスを確認してください。",
+      );
+      const plannedRole =
+        data.plannedRole === "teacher" || data.plannedRole === "student"
+          ? data.plannedRole
+          : data.plannedRole == null
+            ? null
+            : undefined;
+      insist(plannedRole !== undefined, 400, "予定の役割を確認してください。");
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const created = createPreregistration(durablePreregSql(this.sql), {
+            id,
+            email: data.email,
+            organizationId,
+            plannedRole,
+            plannedIsSchoolAdmin: !!data.plannedIsSchoolAdmin,
+            plannedCanCreateSpace: !!data.plannedCanCreateSpace,
+            createdBy: user.id,
+            createdAt: now,
+          });
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "preregistration.create",
+              target: `preregistration:${id}`,
+              createdAt: now,
+            },
+          );
+          return created;
+        });
+        return json({ preregistration: row }, 201);
+      } catch (error) {
+        if (error instanceof PreregistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const preregId = /^\/api\/preregistrations\/([^/]+)$/.exec(path);
+    if (stage1FeaturesEnabled(this.env) && preregId && method === "DELETE") {
+      const id = decodeURIComponent(preregId[1]);
+      const existing = one<{ organization_id: string }>(
+        this.sql,
+        "SELECT organization_id FROM preregistrations WHERE id=?",
+        id,
+      );
+      insist(existing, 404, "事前登録が見つかりません。");
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          existing.organization_id,
+        ),
+        403,
+        "この事前登録を取り消す権限がありません。",
+      );
+      const now = Date.now();
+      this.ctx.storage.transactionSync(() => {
+        insist(
+          cancelPreregistration(durablePreregSql(this.sql), id),
+          409,
+          "この事前登録は取り消せません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "preregistration.cancel",
+            target: `preregistration:${id}`,
+            createdAt: now,
+          },
+        );
+      });
+      return json({ ok: true });
+    }
     if (path === "/api/logout" && method === "POST") {
       this.sql.exec("DELETE FROM sessions WHERE hash=?", identity.session);
       const works = rows<{ deck: string }>(
