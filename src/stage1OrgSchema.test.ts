@@ -23,6 +23,9 @@ describe("stage1OrgSchema", () => {
     const first = applyStage1OrgMigration(adapter, 1_000);
     expect(first).toEqual({ applied: true, already: false });
     expect(adapter.tableColumns("users")).toContain("is_super_admin");
+    expect(adapter.tableColumns("organization_members")).toContain(
+      "generation",
+    );
     for (const table of [
       "organizations",
       "preregistrations",
@@ -89,5 +92,35 @@ describe("stage1OrgSchema", () => {
         is_super_admin: number;
       }).is_super_admin,
     ).toBe(1);
+  });
+
+  it("adds generation to organization_members created without the column", () => {
+    const db = open();
+    db.exec(`
+      CREATE TABLE organizations (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
+      CREATE TABLE organization_members (
+        user_id TEXT NOT NULL REFERENCES users(id),
+        organization_id TEXT NOT NULL REFERENCES organizations(id),
+        role TEXT,
+        is_school_admin INTEGER NOT NULL DEFAULT 0,
+        can_create_space INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY(user_id, organization_id)
+      );
+      CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL);
+      INSERT INTO schema_migrations VALUES('stage1_org_v1', 1);
+    `);
+    const adapter = nodeStage1OrgDb(db);
+    expect(adapter.tableColumns("organization_members")).not.toContain(
+      "generation",
+    );
+    const result = applyStage1OrgMigration(adapter, 3_000);
+    expect(result).toEqual({ applied: false, already: true });
+    expect(adapter.tableColumns("organization_members")).toContain(
+      "generation",
+    );
   });
 });

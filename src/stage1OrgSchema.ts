@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS organization_members (
   is_school_admin INTEGER NOT NULL DEFAULT 0 CHECK(is_school_admin IN (0,1)),
   can_create_space INTEGER NOT NULL DEFAULT 0 CHECK(can_create_space IN (0,1)),
   status TEXT NOT NULL CHECK(status IN ('有効','無効')),
+  generation INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   PRIMARY KEY(user_id, organization_id)
 );
@@ -82,6 +83,10 @@ export type Stage1OrgDb = {
  * - ALTER TABLE users DROP COLUMN is_super_admin (SQLite 3.35+);
  * - DELETE FROM schema_migrations WHERE id='stage1_org_v1'.
  * Existing user/deck/session rows are never rewritten by this migration.
+ *
+ * organization_members.generation follows design §5 (permanent invalidation).
+ * Fresh CREATE includes it; older procedure-1 drafts without the column get
+ * ALTER DEFAULT 1 on re-run (before realenv apply).
  */
 export function applyStage1OrgMigration(
   db: Stage1OrgDb,
@@ -91,6 +96,11 @@ export function applyStage1OrgMigration(
   if (!db.tableColumns("users").includes("is_super_admin")) {
     db.exec(
       "ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0",
+    );
+  }
+  if (!db.tableColumns("organization_members").includes("generation")) {
+    db.exec(
+      "ALTER TABLE organization_members ADD COLUMN generation INTEGER NOT NULL DEFAULT 1",
     );
   }
   if (db.migrationApplied(STAGE1_ORG_MIGRATION_ID)) {
