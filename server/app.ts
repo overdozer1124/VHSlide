@@ -22,6 +22,14 @@ import {
   groupCommand,
   GroupError,
 } from "../src/groups.ts";
+import {
+  addUserApp,
+  deleteUserApp,
+  listUserApps,
+  readUserAppHtml,
+  userAppSchema,
+  UserAppError,
+} from "../src/userApps.ts";
 import { featureVersion } from "../src/featureVersions.ts";
 import {
   expireFollow,
@@ -331,6 +339,7 @@ export function createApplication(options: Options) {
   db.exec(worksheetSchema);
   db.exec(webbingSchema);
   db.exec(groupSchema);
+  db.exec(userAppSchema);
   db.exec(
     "CREATE TABLE IF NOT EXISTS work_trash(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE, created INTEGER NOT NULL, purging INTEGER NOT NULL DEFAULT 0)",
   );
@@ -640,6 +649,23 @@ export function createApplication(options: Options) {
         }
         return json(res, 200, { user: current });
       }
+      // Uploaded user apps: public by unguessable id, isolated by the
+      // sandbox CSP below (opaque origin). Overrides the app CSP set above.
+      const pubApp = /^\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
+      if (pubApp && method === "GET") {
+        const html = readUserAppHtml(historySQL, pubApp[1]);
+        if (html === null) {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          return res.end("Not found");
+        }
+        res.setHeader(
+          "Content-Security-Policy",
+          "sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads",
+        );
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        return res.end(html);
+      }
       if (path === "/api/auth/google" && method === "POST") {
         insist(options.clientId, 503, "クラウド機能は準備中です。");
         rateLimit(
@@ -694,6 +720,35 @@ export function createApplication(options: Options) {
               )
               .all(u.id),
           });
+        if (path === "/api/user-apps" && method === "GET")
+          return json(res, 200, { apps: listUserApps(historySQL, u.id) });
+        if (path === "/api/user-apps" && method === "POST") {
+          const data = JSON.parse(
+            (await body(req, 24_000_000)).toString(),
+          );
+          rateLimit(`userapp:${u.id}`, 30);
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const apps = addUserApp(historySQL, u.id, data, Date.now());
+            db.exec("COMMIT");
+            return json(res, 201, { apps });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        const userAppDelete = /^\/api\/user-apps\/([a-f0-9-]{36})$/.exec(path);
+        if (userAppDelete && method === "DELETE") {
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const apps = deleteUserApp(historySQL, u.id, userAppDelete[1]);
+            db.exec("COMMIT");
+            return json(res, 200, { apps });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
         if (path === "/api/restores" && method === "GET")
           return json(res, 200, {
             jobs: db
@@ -2030,7 +2085,8 @@ export function createApplication(options: Options) {
         error instanceof JoinRequestError ||
         error instanceof SurveyError ||
         error instanceof WebbingError ||
-        error instanceof GroupError
+        error instanceof GroupError ||
+        error instanceof UserAppError
           ? error.status
           : error instanceof SyntaxError
             ? 400

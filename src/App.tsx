@@ -3671,7 +3671,8 @@ export default function App() {
       <ActivitiesPanel
         apps={
           <EmbedPanel
-            onEmbed={(url: string) => {
+            signedIn={!!cloud.user}
+            onEmbed={(url: string, label?: string) => {
               if (cloud.active && !cloud.isHost)
                 throw new Error("ホストだけがアプリを配置できます。");
               const current = latestWorkbook.current;
@@ -3695,7 +3696,7 @@ export default function App() {
                 stroke: "#587d59",
                 color: "#173d38",
                 fontSize: 20,
-                text: `アプリ：${embedHostName(binding.url)}`,
+                text: `アプリ：${label || embedHostName(binding.url)}`,
                 embed: binding,
               };
               const next = {

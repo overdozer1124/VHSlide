@@ -2,6 +2,7 @@ import { SurveyError } from "../src/surveys.ts";
 import { WebbingError } from "../src/webbing.ts";
 import { GroupError } from "../src/groups.ts";
 import { JoinRequestError } from "../src/joinRequests.ts";
+import { UserAppError } from "../src/userApps.ts";
 export interface Env {
   ASSETS: Fetcher;
   DIRECTORY: DurableObjectNamespace;
@@ -61,7 +62,8 @@ export function failure(error: unknown) {
     error instanceof JoinRequestError ||
     error instanceof SurveyError ||
     error instanceof WebbingError ||
-    error instanceof GroupError
+    error instanceof GroupError ||
+    error instanceof UserAppError
       ? error.status
       : error instanceof SyntaxError
         ? 400

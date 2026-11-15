@@ -1,4 +1,5 @@
 import { exerciseWorksheets } from "../support/worksheets.ts";
+import { exerciseUserApps } from "../support/userApps.ts";
 import { exerciseWorksheetMerge } from "../support/worksheetMerge.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
@@ -1622,6 +1623,12 @@ test("worksheets isolate accounts, enforce membership, validate fields and persi
     await app.close();
     await start();
   });
+});
+
+test("user apps register, upload, serve isolated and stay per-account", async () => {
+  const appsOwner = await signIn("student-901");
+  const appsOther = await signIn("student-902");
+  await exerciseUserApps(request, appsOwner, appsOther);
 });
 
 test("worksheet copy and merge move fields and answers between sheets", async () => {

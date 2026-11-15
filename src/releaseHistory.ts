@@ -8,6 +8,16 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.126.0",
+    date: "2026-11-15",
+    title: "自分のアプリを登録できるように",
+    changes: [
+      "アプリの埋め込みに「自分のアプリ」が加わりました。単体で動くHTMLファイルをアップロードするか、URLを登録すると、あなたのアカウントに保存され、どの作品からでも選んで配置できます。",
+      "アップロードしたアプリは、VHSlideのデータに触れられないよう隔離して配信されます。1ファイル10MBまで、登録は50件までです。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.125.0",
     date: "2026-11-14",
     title: "作品のファイルサイズ表示",

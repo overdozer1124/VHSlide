@@ -20,6 +20,13 @@ import {
   groupList,
   groupCommand,
 } from "../src/groups.ts";
+import {
+  addUserApp,
+  deleteUserApp,
+  listUserApps,
+  readUserAppHtml,
+  userAppSchema,
+} from "../src/userApps.ts";
 import { featureVersion } from "../src/featureVersions.ts";
 import {
   joinSchema,
@@ -125,6 +132,7 @@ export class Directory extends DurableObject<Env> {
     this.sql.exec(worksheetSchema);
     this.sql.exec(webbingSchema);
     this.sql.exec(groupSchema);
+    this.sql.exec(userAppSchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
     this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
@@ -486,6 +494,25 @@ export class Directory extends DurableObject<Env> {
         throw error;
       }
     }
+    // Uploaded user apps are public by unguessable id and served isolated:
+    // the sandbox CSP (no allow-same-origin) gives the document an opaque
+    // origin, so it can never reach this app's data or session.
+    const pubApp = /^\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
+    if (pubApp && method === "GET") {
+      const html = readUserAppHtml(
+        (query, ...args) => this.sql.exec(query, ...args),
+        pubApp[1],
+      );
+      if (html === null) return new Response("Not found", { status: 404 });
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Security-Policy":
+            "sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
     const origin = this.env.PUBLIC_ORIGIN || url.origin;
     const cookie = (raw: string, age: number) =>
       `vhslide_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${origin.startsWith("https:") ? "; Secure" : ""}`;
@@ -573,6 +600,41 @@ export class Directory extends DurableObject<Env> {
     if (lookupJoin && method === "GET")
       return json(
         joinState((q, ...a) => this.sql.exec(q, ...a), lookupJoin[1], user.id),
+      );
+    if (path === "/api/user-apps" && method === "GET")
+      return json({
+        apps: listUserApps(
+          (query, ...args) => this.sql.exec(query, ...args),
+          user.id,
+        ),
+      });
+    if (path === "/api/user-apps" && method === "POST") {
+      const data = await input(request, 24_000_000);
+      return this.ctx.storage.transactionSync(() => {
+        this.rate(`userapp:${user.id}`, 30);
+        return json(
+          {
+            apps: addUserApp(
+              (query, ...args) => this.sql.exec(query, ...args),
+              user.id,
+              data,
+              Date.now(),
+            ),
+          },
+          201,
+        );
+      });
+    }
+    const userAppDelete = /^\/api\/user-apps\/([a-f0-9-]{36})$/.exec(path);
+    if (userAppDelete && method === "DELETE")
+      return this.ctx.storage.transactionSync(() =>
+        json({
+          apps: deleteUserApp(
+            (query, ...args) => this.sql.exec(query, ...args),
+            user.id,
+            userAppDelete[1],
+          ),
+        }),
       );
     if (path === "/api/trash" && method === "GET")
       return json({
