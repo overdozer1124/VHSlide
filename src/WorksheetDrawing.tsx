@@ -5,12 +5,24 @@ import type {
   FocusEvent,
   PointerEvent,
 } from "react";
+import {
+  DRAWING_OBJECT_MAX_COUNT,
+  DRAWING_OBJECT_SRC_MAX,
+  DRAWING_STROKES_MAX,
+  drawingFlatSrc,
+  drawingValueToScene,
+  emptyDrawingScene,
+  isEmptyDrawingScene,
+  serializeDrawingScene,
+  type DrawingObject,
+  type DrawingScene,
+} from "./drawingScene";
 
 const MAX_DATA = 120000;
 const W = 960,
   H = 540;
 
-/** JPEG has no alpha channel: composite onto white first so untouched
+/** JPEG has no alpha channel: composite onto white so untouched
  * (transparent) areas save as white, never black. */
 function flatten(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const flat = document.createElement("canvas");
@@ -42,6 +54,65 @@ function encode(canvas: HTMLCanvasElement): string {
   throw new Error("画像を保存できる大きさに縮小できませんでした。");
 }
 
+/** Encode a canvas as one object's image, small enough to store. */
+function encodeObjectSrc(source: HTMLCanvasElement): string {
+  let current = flatten(source);
+  for (let step = 0; step < 8; step++) {
+    for (const quality of [0.82, 0.68, 0.55, 0.4]) {
+      const data = current.toDataURL("image/jpeg", quality);
+      if (data.length <= 60_000 || step >= 4) {
+        if (data.length <= DRAWING_OBJECT_SRC_MAX) return data;
+      }
+    }
+    const smaller = document.createElement("canvas");
+    smaller.width = Math.max(120, Math.round(current.width * 0.8));
+    smaller.height = Math.max(68, Math.round(current.height * 0.8));
+    smaller
+      .getContext("2d")!
+      .drawImage(current, 0, 0, smaller.width, smaller.height);
+    current = smaller;
+  }
+  return current.toDataURL("image/jpeg", 0.4);
+}
+
+/** Turn a loaded image into a storable object image (keeps transparency
+ * as PNG when it stays small, otherwise flattens to JPEG). */
+function imageToObjectSrc(image: HTMLImageElement): string {
+  const scale = Math.min(1, 560 / Math.max(image.width, image.height));
+  const w = Math.max(1, Math.round(image.width * scale));
+  const h = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, 0, 0, w, h);
+  let hasAlpha = false;
+  try {
+    const data = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < data.length; i += 4 * 211) {
+      if (data[i] < 250) {
+        hasAlpha = true;
+        break;
+      }
+    }
+  } catch {
+    hasAlpha = false;
+  }
+  if (hasAlpha) {
+    const png = canvas.toDataURL("image/png");
+    if (png.length <= 60_000) return png;
+  }
+  return encodeObjectSrc(canvas);
+}
+
+let objectCounter = 0;
+function newObjectId(): string {
+  objectCounter += 1;
+  return `o${Date.now().toString(36)}${objectCounter}`;
+}
+
+type Mode = "select" | "pen" | "eraser";
+
 export function WorksheetDrawing({
   label,
   value,
@@ -69,30 +140,47 @@ export function WorksheetDrawing({
       : 16 / 9;
   const cw = ratio >= 16 / 9 ? W : Math.round(H * ratio);
   const ch = ratio >= 16 / 9 ? Math.round(W / ratio) : H;
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const baseCanvas = useRef<HTMLCanvasElement>(null);
+  const strokeCanvas = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const pendingFile = useRef<File | null>(null);
   const lastEmitted = useRef<string | undefined>(undefined);
-  const generation = useRef(0);
-  const loadSeq = useRef(0);
+  const baseGen = useRef(0);
+  const strokeGen = useRef(0);
   // While the file dialog is up (and just after it closes) a stray focus
   // change or click must not end edit mode before the chosen file has been
   // handed over and decoded; guardUntil / loadingFile hold it open.
   const guardUntil = useRef(0);
   const loadingFile = useRef(false);
-  const drawing = useRef(false);
-  const history = useRef<{ data: string; hasContent: boolean }[]>([]);
-  const [tool, setTool] = useState<"pen" | "eraser">("pen");
+  const drawingStroke = useRef(false);
+  const strokesEmpty = useRef(true);
+  const history = useRef<string[]>([]);
+  const imageCache = useRef(new Map<string, HTMLImageElement>());
+  const sceneRef = useRef<DrawingScene>(emptyDrawingScene());
+  const dragRef = useRef<
+    | {
+        kind: "move" | "resize";
+        id: string;
+        handle?: string;
+        startX: number;
+        startY: number;
+        orig: DrawingObject;
+        historyPushed: boolean;
+      }
+    | undefined
+  >(undefined);
+  const [scene, setSceneState] = useState<DrawingScene>(emptyDrawingScene());
+  const [mode, setMode] = useState<Mode>("pen");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [canUndo, setCanUndo] = useState(false);
-  const [hasContent, setHasContent] = useState(!!value);
   const [ready, setReady] = useState(false);
-  // Until the learner clicks into the field, only the pasted/drawn image is
-  // shown: no toolbar, heading note or hint text competes with it for space.
+  // Until the learner clicks into the field, only the placed/drawn image
+  // is shown: no toolbar, heading note or hint text competes with it.
   const [active, setActive] = useState(false);
-  // Crop mode: a rectangle over the flattened picture; applying it
-  // zooms the chosen region to fill the whole field.
+  // Crop mode: a rectangle over the flattened picture; applying it turns
+  // the whole field into a single picture again.
   const [cropping, setCropping] = useState(false);
   const [rect, setRect] = useState({ x: 0, y: 0, w: 1, h: 1 });
   const cropOnOpen = useRef(false);
@@ -105,57 +193,156 @@ export function WorksheetDrawing({
       }
     | undefined
   >(undefined);
-  function paintBlank() {
-    const node = canvas.current;
+  const hasContent = !isEmptyDrawingScene(scene);
+  const selected =
+    scene.objects.find((o) => o.id === selectedId) ?? null;
+
+  function setScene(next: DrawingScene) {
+    sceneRef.current = next;
+    setSceneState(next);
+  }
+
+  function decodeImage(src: string): Promise<HTMLImageElement> {
+    const cached = imageCache.current.get(src);
+    if (cached) return Promise.resolve(cached);
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        imageCache.current.set(src, image);
+        resolve(image);
+      };
+      image.onerror = reject;
+      image.src = src;
+    });
+  }
+
+  async function paintBase(target: DrawingScene) {
+    const version = ++baseGen.current;
+    const node = baseCanvas.current;
     if (!node) return;
-    const ctx = node.getContext("2d")!;
+    const images = await Promise.all(
+      target.objects.map((o) => decodeImage(o.src).catch(() => null)),
+    );
+    if (version !== baseGen.current || !baseCanvas.current) return;
+    const ctx = baseCanvas.current.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, cw, ch);
-  }
-  function restore(data: string) {
-    const version = ++generation.current;
-    paintBlank();
-    if (!data) {
-      setReady(true);
-      return;
-    }
-    setReady(false);
-    const image = new Image();
-    image.onload = () => {
-      if (version === generation.current && canvas.current) {
-        canvas.current.getContext("2d")!.drawImage(image, 0, 0, cw, ch);
-        setReady(true);
-      }
-    };
-    image.onerror = () => {
-      if (version === generation.current)
-        setError(
-          "保存済みの画像を読み込めませんでした。再読み込みしてください。",
+    target.objects.forEach((object, i) => {
+      const image = images[i];
+      if (image)
+        ctx.drawImage(
+          image,
+          object.x * cw,
+          object.y * ch,
+          object.w * cw,
+          object.h * ch,
         );
-    };
-    image.src = data;
+    });
   }
+
+  function paintStrokes(target: DrawingScene) {
+    const version = ++strokeGen.current;
+    const node = strokeCanvas.current;
+    if (!node) return;
+    const ctx = node.getContext("2d")!;
+    ctx.clearRect(0, 0, cw, ch);
+    strokesEmpty.current = !target.strokes;
+    if (!target.strokes) return;
+    void decodeImage(target.strokes)
+      .then((image) => {
+        if (version !== strokeGen.current || !strokeCanvas.current) return;
+        strokeCanvas.current
+          .getContext("2d")!
+          .drawImage(image, 0, 0, cw, ch);
+      })
+      .catch(() => undefined);
+  }
+
+  async function paintAll(target: DrawingScene) {
+    await paintBase(target);
+    paintStrokes(target);
+  }
+
+  function composeFlatCanvas(): HTMLCanvasElement {
+    const off = document.createElement("canvas");
+    off.width = cw;
+    off.height = ch;
+    const ctx = off.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, cw, ch);
+    if (baseCanvas.current) ctx.drawImage(baseCanvas.current, 0, 0);
+    if (strokeCanvas.current) ctx.drawImage(strokeCanvas.current, 0, 0);
+    return off;
+  }
+
+  /** Store the scene: recompose the flat preview and hand it over. */
+  async function emit(target: DrawingScene) {
+    await paintBase(target);
+    try {
+      const flat = isEmptyDrawingScene(target)
+        ? ""
+        : encode(composeFlatCanvas());
+      const json = serializeDrawingScene(target, flat);
+      lastEmitted.current = json;
+      setError("");
+      onChange(json);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  function pushHistory() {
+    history.current.push(JSON.stringify(sceneRef.current));
+    if (history.current.length > 10) history.current.shift();
+    setCanUndo(true);
+  }
+
+  async function initFromValue(next: string) {
+    const initial = drawingValueToScene(next);
+    history.current = [];
+    setCanUndo(false);
+    setSelectedId(null);
+    setScene(initial);
+    setMode(initial.objects.length > 0 ? "select" : "pen");
+    setReady(false);
+    await paintAll(initial);
+    setReady(true);
+    if (pendingFile.current) {
+      const file = pendingFile.current;
+      pendingFile.current = null;
+      void load(file);
+    }
+  }
+
   useEffect(() => {
-    setHasContent(!!value);
     if (disabled || preview) {
       lastEmitted.current = undefined;
       setReady(false);
       return;
     }
-    // In view mode the saved value is rendered as an <img>; the canvas only
-    // needs restoring once the learner enters edit mode. The canvas is
-    // unmounted when edit mode closes, so the "already painted" marker
-    // must not survive into the next mount — otherwise re-entering would
-    // skip the restore and show (and then save) a blank canvas.
+    // In view mode the saved value is rendered as an <img>; the canvases
+    // only exist (and only need the scene) once the learner edits. They
+    // are unmounted when edit mode closes, so the "already emitted"
+    // marker must not survive into the next mount.
     if (!active) {
       lastEmitted.current = undefined;
       return;
     }
-    if (value !== lastEmitted.current) restore(value);
+    if (value !== lastEmitted.current) void initFromValue(value);
     return () => {
-      generation.current++;
+      baseGen.current++;
+      strokeGen.current++;
     };
-  }, [value, disabled, preview, active, cw, ch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, disabled, preview, active]);
+
+  // The canvases are sized by the frame aspect; repaint from the scene
+  // when it changes mid-edit (their bitmaps reset with the size).
+  useEffect(() => {
+    if (active) void paintAll(sceneRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cw, ch]);
+
   useEffect(() => {
     if (active && ready && cropOnOpen.current && hasContent) {
       cropOnOpen.current = false;
@@ -163,14 +350,10 @@ export function WorksheetDrawing({
       setCropping(true);
     }
   }, [active, ready, hasContent]);
+
   useEffect(() => {
     if (!active) return;
-    canvas.current?.focus({ preventScroll: true });
-    if (pendingFile.current) {
-      const file = pendingFile.current;
-      pendingFile.current = null;
-      load(file);
-    }
+    strokeCanvas.current?.focus({ preventScroll: true });
     // Leaving the field (click elsewhere) returns it to the image-only view.
     const onPointerDown = (event: globalThis.PointerEvent) => {
       if (loadingFile.current || Date.now() < guardUntil.current) return;
@@ -186,20 +369,124 @@ export function WorksheetDrawing({
     document.addEventListener("pointerdown", onPointerDown, true);
     return () =>
       document.removeEventListener("pointerdown", onPointerDown, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
-  function save() {
-    if (!canvas.current) return;
-    try {
-      const data = encode(canvas.current);
-      lastEmitted.current = data;
-      setHasContent(true);
-      setError("");
-      onChange(data);
-    } catch (e) {
-      setError((e as Error).message);
+
+  function captureStrokes(): string {
+    const node = strokeCanvas.current;
+    if (!node || strokesEmpty.current) return "";
+    let current: HTMLCanvasElement = node;
+    let data = current.toDataURL("image/png");
+    for (let step = 0; step < 4 && data.length > DRAWING_STROKES_MAX; step++) {
+      const smaller = document.createElement("canvas");
+      smaller.width = Math.max(240, Math.round(current.width * 0.75));
+      smaller.height = Math.max(135, Math.round(current.height * 0.75));
+      smaller
+        .getContext("2d")!
+        .drawImage(current, 0, 0, smaller.width, smaller.height);
+      current = smaller;
+      data = current.toDataURL("image/png");
+    }
+    return data;
+  }
+
+  async function load(file: File) {
+    if (
+      !/^image\/(png|jpeg|webp|gif)$/.test(file.type) ||
+      file.size > 10_000_000
+    ) {
+      setError("PNG・JPEG・WebP・GIFの10MB以下の画像を選んでください。");
+      setNotice("");
+      return;
+    }
+    if (sceneRef.current.objects.length >= DRAWING_OBJECT_MAX_COUNT) {
+      setError(`画像は${DRAWING_OBJECT_MAX_COUNT}枚までです。`);
+      return;
+    }
+    setNotice(`「${file.name}」を読み込み中…`);
+    loadingFile.current = true;
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      loadingFile.current = false;
+      setNotice("");
+      try {
+        const src = imageToObjectSrc(image);
+        const maxW = cw * 0.72;
+        const maxH = ch * 0.72;
+        const scale = Math.min(maxW / image.width, maxH / image.height);
+        const w = (image.width * scale) / cw;
+        const h = (image.height * scale) / ch;
+        const cascade = (sceneRef.current.objects.length % 4) * 0.035;
+        const object: DrawingObject = {
+          id: newObjectId(),
+          src,
+          x: Math.min(Math.max((1 - w) / 2 + cascade, 0), 1 - w),
+          y: Math.min(Math.max((1 - h) / 2 + cascade, 0), 1 - h),
+          w,
+          h,
+        };
+        pushHistory();
+        const next: DrawingScene = {
+          objects: [...sceneRef.current.objects, object],
+          strokes: sceneRef.current.strokes,
+        };
+        setScene(next);
+        setSelectedId(object.id);
+        setMode("select");
+        setError("");
+        void emit(next);
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      loadingFile.current = false;
+      setNotice("");
+      setError("画像を読み込めませんでした。");
+    };
+    image.src = url;
+  }
+
+  function paste(event: ClipboardEvent<HTMLElement>) {
+    const file = Array.from(event.clipboardData.items)
+      .find((item) => item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (file) {
+      event.preventDefault();
+      if (active) void load(file);
+      else {
+        pendingFile.current = file;
+        setActive(true);
+      }
     }
   }
+
+  function blur(event: FocusEvent<HTMLDivElement>) {
+    if (loadingFile.current || Date.now() < guardUntil.current) return;
+    const next = event.relatedTarget as Node | null;
+    // Focus lost to nowhere — e.g. a toolbar button that had focus
+    // became disabled (undo right after drawing) — is not the learner
+    // leaving the field; keep the editor open.
+    if (!next) return;
+    if (!event.currentTarget.contains(next)) setActive(false);
+  }
+
+  function drop(event: DragEvent<HTMLElement>) {
+    const file = Array.from(event.dataTransfer.files).find((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (file) {
+      event.preventDefault();
+      if (active) void load(file);
+      else {
+        pendingFile.current = file;
+        setActive(true);
+      }
+    }
+  }
+
   function cropPoint(event: PointerEvent<HTMLDivElement>) {
     const r = event.currentTarget.getBoundingClientRect();
     return {
@@ -207,22 +494,22 @@ export function WorksheetDrawing({
       y: Math.max(0, Math.min(1, (event.clientY - r.top) / r.height)),
     };
   }
+
   function applyCrop() {
-    const node = canvas.current;
-    if (!node || (rect.w >= 0.999 && rect.h >= 0.999)) {
+    if (rect.w >= 0.999 && rect.h >= 0.999) {
       setCropping(false);
       return;
     }
-    remember();
-    ++generation.current;
-    const off = document.createElement("canvas");
-    off.width = cw;
-    off.height = ch;
-    const octx = off.getContext("2d")!;
-    octx.fillStyle = "#ffffff";
-    octx.fillRect(0, 0, cw, ch);
-    octx.drawImage(
-      node,
+    pushHistory();
+    const flat = composeFlatCanvas();
+    const cropped = document.createElement("canvas");
+    cropped.width = cw;
+    cropped.height = ch;
+    const ctx = cropped.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(
+      flat,
       rect.x * cw,
       rect.y * ch,
       rect.w * cw,
@@ -232,136 +519,245 @@ export function WorksheetDrawing({
       cw,
       ch,
     );
-    const ctx = node.getContext("2d")!;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, cw, ch);
-    ctx.drawImage(off, 0, 0);
+    const next: DrawingScene = {
+      objects: [
+        {
+          id: newObjectId(),
+          src: encodeObjectSrc(cropped),
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+        },
+      ],
+      strokes: "",
+    };
+    setScene(next);
+    setSelectedId(null);
     setCropping(false);
-    save();
+    void emit(next);
   }
-  function remember() {
-    if (!canvas.current) return;
-    history.current.push({
-      data: flatten(canvas.current).toDataURL("image/jpeg", 0.6),
-      hasContent,
-    });
-    if (history.current.length > 10) history.current.shift();
-    setCanUndo(true);
+
+  function undo() {
+    const previous = history.current.pop();
+    setCanUndo(history.current.length > 0);
+    if (!previous) return;
+    const restored = JSON.parse(previous) as DrawingScene;
+    setScene(restored);
+    setSelectedId(null);
+    void emit(restored);
   }
-  function point(event: PointerEvent<HTMLCanvasElement>) {
+
+  function clearAll() {
+    pushHistory();
+    const next = emptyDrawingScene();
+    setScene(next);
+    setSelectedId(null);
+    paintStrokes(next);
+    void emit(next);
+  }
+
+  function removeSelected() {
+    if (!selected) return;
+    pushHistory();
+    const next: DrawingScene = {
+      objects: sceneRef.current.objects.filter((o) => o.id !== selected.id),
+      strokes: sceneRef.current.strokes,
+    };
+    setScene(next);
+    setSelectedId(null);
+    void emit(next);
+  }
+
+  function reorderSelected(step: 1 | -1) {
+    if (!selected) return;
+    const objects = [...sceneRef.current.objects];
+    const index = objects.findIndex((o) => o.id === selected.id);
+    const target = index + step;
+    if (index < 0 || target < 0 || target >= objects.length) return;
+    pushHistory();
+    [objects[index], objects[target]] = [objects[target], objects[index]];
+    const next: DrawingScene = { objects, strokes: sceneRef.current.strokes };
+    setScene(next);
+    void emit(next);
+  }
+
+  // --- Object dragging (select mode) -------------------------------------
+  function stagePoint(event: PointerEvent<HTMLElement>) {
+    const r = event.currentTarget.getBoundingClientRect();
+    return {
+      x: (event.clientX - r.left) / r.width,
+      y: (event.clientY - r.top) / r.height,
+    };
+  }
+
+  function hitDown(event: PointerEvent<HTMLDivElement>) {
+    if (!ready || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = (event.target as HTMLElement).dataset
+      .handle as string | undefined;
+    const p = stagePoint(event);
+    if (handle && selected) {
+      dragRef.current = {
+        kind: "resize",
+        id: selected.id,
+        handle,
+        startX: p.x,
+        startY: p.y,
+        orig: { ...selected },
+        historyPushed: false,
+      };
+    } else {
+      const objects = sceneRef.current.objects;
+      let hit: DrawingObject | undefined;
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const o = objects[i];
+        if (p.x >= o.x && p.x <= o.x + o.w && p.y >= o.y && p.y <= o.y + o.h) {
+          hit = o;
+          break;
+        }
+      }
+      if (!hit) {
+        setSelectedId(null);
+        return;
+      }
+      setSelectedId(hit.id);
+      dragRef.current = {
+        kind: "move",
+        id: hit.id,
+        startX: p.x,
+        startY: p.y,
+        orig: { ...hit },
+        historyPushed: false,
+      };
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function hitMove(event: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const p = stagePoint(event);
+    const dx = p.x - drag.startX;
+    const dy = p.y - drag.startY;
+    const orig = drag.orig;
+    let next: DrawingObject;
+    if (drag.kind === "move") {
+      next = {
+        ...orig,
+        x: Math.min(Math.max(orig.x + dx, -orig.w + 0.05), 1 - 0.05),
+        y: Math.min(Math.max(orig.y + dy, -orig.h + 0.05), 1 - 0.05),
+      };
+    } else {
+      // Resize keeping the picture's aspect; the opposite corner anchors.
+      const aspectPx = (orig.w * cw) / (orig.h * ch);
+      let w = orig.w;
+      if (drag.handle!.includes("e")) w = orig.w + dx;
+      if (drag.handle!.includes("w")) w = orig.w - dx;
+      w = Math.min(1.5, Math.max(0.05, w));
+      const h = Math.min(1.5, Math.max(0.02, (w * cw) / (aspectPx * ch)));
+      const x = drag.handle!.includes("w") ? orig.x + orig.w - w : orig.x;
+      const y = drag.handle!.includes("n") ? orig.y + orig.h - h : orig.y;
+      next = { ...orig, x, y, w, h };
+    }
+    // Snapshot for undo only once the drag actually changes something,
+    // so a plain click to select neither pollutes history nor re-saves.
+    if (!drag.historyPushed) {
+      pushHistory();
+      drag.historyPushed = true;
+    }
+    const updated: DrawingScene = {
+      objects: sceneRef.current.objects.map((o) =>
+        o.id === drag.id ? next : o,
+      ),
+      strokes: sceneRef.current.strokes,
+    };
+    setScene(updated);
+    void paintBase(updated);
+  }
+
+  function hitUp(event: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = undefined;
+    if (drag.historyPushed) void emit(sceneRef.current);
+  }
+
+  // --- Hand drawing (pen / eraser) ---------------------------------------
+  function strokePoint(event: PointerEvent<HTMLCanvasElement>) {
     const r = event.currentTarget.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(cw, ((event.clientX - r.left) * cw) / r.width)),
       y: Math.max(0, Math.min(ch, ((event.clientY - r.top) * ch) / r.height)),
     };
   }
-  function load(file: File) {
-    if (
-      !/^image\/(png|jpeg|webp|gif)$/.test(file.type) ||
-      file.size > 10_000_000
-    ) {
-      setError("PNG・JPEG・WebP・GIFの10MB以下の画像を選んでください。");
-      setNotice("");
-      return;
+
+  function strokeDown(event: PointerEvent<HTMLCanvasElement>) {
+    if (!ready || event.button !== 0 || drawingStroke.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    pushHistory();
+    drawingStroke.current = true;
+    strokesEmpty.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const ctx = event.currentTarget.getContext("2d")!;
+    const p = strokePoint(event);
+    if (mode === "eraser") {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+      ctx.fillStyle = "rgba(0,0,0,1)";
+      ctx.lineWidth = 24;
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = "#182b27";
+      ctx.fillStyle = "#182b27";
+      ctx.lineWidth = 4;
     }
-    setNotice(`「${file.name}」を読み込み中…`);
-    loadingFile.current = true;
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    const seq = ++loadSeq.current;
-    // A pending restore of the previous value must not repaint over the
-    // image being loaded.
-    ++generation.current;
-    setReady(false);
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      // A newer load superseded this one; let it win.
-      if (seq !== loadSeq.current) return;
-      loadingFile.current = false;
-      setNotice("");
-      // Compose the picture offscreen first, then emit it even if the edit
-      // view closed while the image was decoding (the file dialog and the
-      // focus changes around it can close the view), so an added image is
-      // never silently lost.
-      const composed = document.createElement("canvas");
-      composed.width = cw;
-      composed.height = ch;
-      const off = composed.getContext("2d")!;
-      off.fillStyle = "#ffffff";
-      off.fillRect(0, 0, cw, ch);
-      const fit = Math.min(cw / image.width, ch / image.height);
-      const width = image.width * fit,
-        height = image.height * fit;
-      off.drawImage(image, (cw - width) / 2, (ch - height) / 2, width, height);
-      const node = canvas.current;
-      if (node) {
-        remember();
-        const ctx = node.getContext("2d")!;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.drawImage(composed, 0, 0);
-      }
-      setReady(true);
-      try {
-        const data = encode(composed);
-        // Only when the visible canvas shows this same picture may the
-        // restore effect treat the value as already painted; otherwise
-        // re-entering edit mode restores it from the value.
-        if (node) lastEmitted.current = data;
-        setHasContent(true);
-        setError("");
-        onChange(data);
-      } catch (e) {
-        setError((e as Error).message);
-      }
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  }
+
+  function strokeMove(event: PointerEvent<HTMLCanvasElement>) {
+    if (!drawingStroke.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const p = strokePoint(event);
+    const ctx = event.currentTarget.getContext("2d")!;
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  }
+
+  function strokeEnd(event: PointerEvent<HTMLCanvasElement>) {
+    if (!drawingStroke.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    drawingStroke.current = false;
+    const ctx = event.currentTarget.getContext("2d")!;
+    ctx.globalCompositeOperation = "source-over";
+    const next: DrawingScene = {
+      objects: sceneRef.current.objects,
+      strokes: captureStrokes(),
     };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      if (seq === loadSeq.current) {
-        loadingFile.current = false;
-        setNotice("");
-        setReady(true);
-        setError("画像を読み込めませんでした。");
-      }
-    };
-    image.src = url;
+    setScene(next);
+    void emit(next);
   }
-  function paste(event: ClipboardEvent<HTMLElement>) {
-    const file = Array.from(event.clipboardData.items)
-      .find((item) => item.type.startsWith("image/"))
-      ?.getAsFile();
-    if (file) {
-      event.preventDefault();
-      if (active) load(file);
-      else {
-        pendingFile.current = file;
-        setActive(true);
-      }
-    }
-  }
-  function blur(event: FocusEvent<HTMLDivElement>) {
-    if (loadingFile.current || Date.now() < guardUntil.current) return;
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-      setActive(false);
-  }
-  function drop(event: DragEvent<HTMLElement>) {
-    const file = Array.from(event.dataTransfer.files).find((f) =>
-      f.type.startsWith("image/"),
-    );
-    if (file) {
-      event.preventDefault();
-      if (active) load(file);
-      else {
-        pendingFile.current = file;
-        setActive(true);
-      }
-    }
-  }
+
+  const flatSrc = drawingFlatSrc(value);
   if (disabled || preview)
-    return value ? (
+    return flatSrc ? (
       <img
         className="worksheet-drawing-image"
-        src={value}
+        src={flatSrc}
         alt={`${label}の画像・手描き回答`}
       />
     ) : (
@@ -382,8 +778,8 @@ export function WorksheetDrawing({
           onDragOver={(event) => event.preventDefault()}
           onDrop={drop}
         >
-          {value ? (
-            <img src={value} alt={`${label}の画像・手描き回答`} />
+          {flatSrc ? (
+            <img src={flatSrc} alt={`${label}の画像・手描き回答`} />
           ) : (
             <span>
               {placeholder?.trim()
@@ -409,6 +805,15 @@ export function WorksheetDrawing({
           if (cropping) setCropping(false);
           else setActive(false);
         }
+        if (
+          (event.key === "Delete" || event.key === "Backspace") &&
+          selected &&
+          mode === "select" &&
+          !cropping
+        ) {
+          event.preventDefault();
+          removeSelected();
+        }
       }}
       aria-busy={!ready}
     >
@@ -431,257 +836,252 @@ export function WorksheetDrawing({
           </>
         ) : (
           <>
-        <button
-          type="button"
-          aria-pressed={tool === "pen"}
-          onClick={() => setTool("pen")}
-        >
-          ペン
-        </button>
-        <button
-          type="button"
-          aria-pressed={tool === "eraser"}
-          onClick={() => setTool("eraser")}
-        >
-          消しゴム
-        </button>
-        <button
-          type="button"
-          disabled={!canUndo || !ready}
-          onClick={() => {
-            const previous = history.current.pop();
-            setCanUndo(history.current.length > 0);
-            if (previous) {
-              const version = ++generation.current;
-              setReady(false);
-              const image = new Image();
-              image.onload = () => {
-                if (!canvas.current || version !== generation.current) return;
-                canvas.current.getContext("2d")!.drawImage(image, 0, 0, cw, ch);
-                setReady(true);
-                if (previous.hasContent) save();
-                else {
-                  lastEmitted.current = "";
-                  setHasContent(false);
-                  onChange("");
-                }
-              };
-              image.src = previous.data;
-            }
-          }}
-        >
-          戻す
-        </button>
-        <label
-          className="worksheet-drawing-upload"
-          onClick={() => {
-            // The file dialog is about to open; hold edit mode open until
-            // the chosen file has been handed over (see guardUntil).
-            guardUntil.current = Date.now() + 5000;
-          }}
-        >
-          画像を追加
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            aria-label={`${label}に画像を追加`}
-            onClick={() => {
-              guardUntil.current = Date.now() + 5000;
-            }}
-            onChange={(e) => {
-              const file = e.currentTarget.files?.[0];
-              if (file) load(file);
-              e.currentTarget.value = "";
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          disabled={!hasContent || !ready}
-          onClick={() => {
-            remember();
-            ++generation.current;
-            paintBlank();
-            setHasContent(false);
-            lastEmitted.current = "";
-            onChange("");
-          }}
-        >
-          消去
-        </button>
-        <button
-          type="button"
-          disabled={!hasContent || !ready}
-          onClick={() => {
-            setRect({ x: 0, y: 0, w: 1, h: 1 });
-            setCropping(true);
-          }}
-        >
-          切り抜き
-        </button>
-        <button
-          type="button"
-          className="worksheet-drawing-done"
-          onClick={() => setActive(false)}
-        >
-          完了
-        </button>
+            <button
+              type="button"
+              aria-pressed={mode === "select"}
+              onClick={() => setMode("select")}
+            >
+              画像を動かす
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "pen"}
+              onClick={() => setMode("pen")}
+            >
+              ペン
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "eraser"}
+              onClick={() => setMode("eraser")}
+            >
+              消しゴム
+            </button>
+            <label
+              className="worksheet-drawing-upload"
+              onClick={() => {
+                // The file dialog is about to open; hold edit mode open
+                // until the chosen file has been handed over.
+                guardUntil.current = Date.now() + 5000;
+              }}
+            >
+              画像を追加
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                aria-label={`${label}に画像を追加`}
+                onClick={() => {
+                  guardUntil.current = Date.now() + 5000;
+                }}
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  if (file) void load(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!canUndo || !ready}
+              onClick={undo}
+            >
+              戻す
+            </button>
+            {selected && (
+              <>
+                <button type="button" onClick={removeSelected}>
+                  選んだ画像を削除
+                </button>
+                <button
+                  type="button"
+                  onClick={() => reorderSelected(1)}
+                >
+                  前面へ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => reorderSelected(-1)}
+                >
+                  背面へ
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              disabled={!hasContent || !ready}
+              onClick={clearAll}
+            >
+              消去
+            </button>
+            <button
+              type="button"
+              disabled={!hasContent || !ready}
+              onClick={() => {
+                setRect({ x: 0, y: 0, w: 1, h: 1 });
+                setCropping(true);
+              }}
+            >
+              切り抜き
+            </button>
+            <button
+              type="button"
+              className="worksheet-drawing-done"
+              onClick={() => setActive(false)}
+            >
+              完了
+            </button>
           </>
         )}
       </div>
       {notice && <p className="worksheet-drawing-notice">{notice}</p>}
       <div className="worksheet-drawing-stage">
-      <canvas
-        ref={canvas}
-        width={cw}
-        height={ch}
-        style={{ aspectRatio: `${cw} / ${ch}` }}
-        tabIndex={0}
-        aria-label={`${label}の手描き欄`}
-        onPointerDown={(e) => {
-          if (!ready || e.button !== 0 || drawing.current) return;
-          e.preventDefault();
-          e.stopPropagation();
-          ++generation.current;
-          remember();
-          drawing.current = true;
-          e.currentTarget.setPointerCapture(e.pointerId);
-          const ctx = e.currentTarget.getContext("2d")!,
-            p = point(e);
-          ctx.strokeStyle = tool === "pen" ? "#182b27" : "#ffffff";
-          ctx.fillStyle = ctx.strokeStyle;
-          ctx.lineWidth = tool === "pen" ? 4 : 24;
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-        }}
-        onPointerMove={(e) => {
-          if (!drawing.current) return;
-          e.preventDefault();
-          e.stopPropagation();
-          const p = point(e),
-            ctx = e.currentTarget.getContext("2d")!;
-          ctx.lineTo(p.x, p.y);
-          ctx.stroke();
-        }}
-        onPointerUp={(e) => {
-          if (!drawing.current) return;
-          e.preventDefault();
-          e.stopPropagation();
-          drawing.current = false;
-          save();
-        }}
-        onPointerCancel={() => {
-          if (drawing.current) {
-            drawing.current = false;
-            save();
-          }
-        }}
-      />
-      {cropping && (
-        <div
-          className="drawing-crop"
-          role="application"
-          aria-label={`${label}の切り抜き範囲`}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.setPointerCapture(e.pointerId);
-            const p = cropPoint(e);
-            const handle = (
-              e.target as HTMLElement
-            ).dataset.handle as string | undefined;
-            const inside =
-              p.x >= rect.x &&
-              p.x <= rect.x + rect.w &&
-              p.y >= rect.y &&
-              p.y <= rect.y + rect.h;
-            // While the frame covers the whole picture a drag draws a
-            // new selection; a smaller frame can be moved by dragging
-            // inside it, resized by its corners, or redrawn outside.
-            const whole = rect.w >= 0.999 && rect.h >= 0.999;
-            cropDrag.current = {
-              mode: handle ?? (inside && !whole ? "move" : "new"),
-              startX: p.x,
-              startY: p.y,
-              rect: { ...rect },
-            };
-            if (!handle && !inside) setRect({ x: p.x, y: p.y, w: 0, h: 0 });
+        <canvas
+          ref={baseCanvas}
+          className="worksheet-drawing-base"
+          width={cw}
+          height={ch}
+          style={{ aspectRatio: `${cw} / ${ch}` }}
+          aria-hidden="true"
+        />
+        <canvas
+          ref={strokeCanvas}
+          className="worksheet-drawing-stroke"
+          width={cw}
+          height={ch}
+          style={{
+            aspectRatio: `${cw} / ${ch}`,
+            pointerEvents: mode === "select" || cropping ? "none" : "auto",
           }}
-          onPointerMove={(e) => {
-            const d = cropDrag.current;
-            if (!d) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const p = cropPoint(e);
-            const dx = p.x - d.startX,
-              dy = p.y - d.startY,
-              r = { ...d.rect },
-              MIN = 0.08;
-            if (d.mode === "move") {
-              r.x = Math.max(0, Math.min(1 - r.w, r.x + dx));
-              r.y = Math.max(0, Math.min(1 - r.h, r.y + dy));
-            } else if (d.mode === "new") {
-              r.x = Math.min(d.startX, p.x);
-              r.y = Math.min(d.startY, p.y);
-              r.w = Math.abs(p.x - d.startX);
-              r.h = Math.abs(p.y - d.startY);
-            } else {
-              if (d.mode.includes("w")) {
-                const right = r.x + r.w;
-                r.x = Math.max(0, Math.min(right - MIN, r.x + dx));
-                r.w = right - r.x;
-              }
-              if (d.mode.includes("e")) {
-                r.w = Math.max(MIN, Math.min(1 - r.x, r.w + dx));
-              }
-              if (d.mode.includes("n")) {
-                const bottom = r.y + r.h;
-                r.y = Math.max(0, Math.min(bottom - MIN, r.y + dy));
-                r.h = bottom - r.y;
-              }
-              if (d.mode.includes("s")) {
-                r.h = Math.max(MIN, Math.min(1 - r.y, r.h + dy));
-              }
-            }
-            setRect(r);
-          }}
-          onPointerUp={() => {
-            const d = cropDrag.current;
-            cropDrag.current = undefined;
-            if (d?.mode === "new")
-              setRect((r) =>
-                r.w < 0.08 || r.h < 0.08 ? { x: 0, y: 0, w: 1, h: 1 } : r,
-              );
-          }}
-          onPointerCancel={() => {
-            cropDrag.current = undefined;
-          }}
-        >
+          tabIndex={0}
+          aria-label={`${label}の手描き欄`}
+          onPointerDown={strokeDown}
+          onPointerMove={strokeMove}
+          onPointerUp={strokeEnd}
+          onPointerCancel={strokeEnd}
+        />
+        {mode === "select" && !cropping && (
           <div
-            className="drawing-crop-rect"
-            style={{
-              left: `${rect.x * 100}%`,
-              top: `${rect.y * 100}%`,
-              width: `${rect.w * 100}%`,
-              height: `${rect.h * 100}%`,
+            className="worksheet-drawing-hit"
+            onPointerDown={hitDown}
+            onPointerMove={hitMove}
+            onPointerUp={hitUp}
+            onPointerCancel={hitUp}
+          >
+            {selected && (
+              <div
+                className="worksheet-drawing-selection"
+                style={{
+                  left: `${selected.x * 100}%`,
+                  top: `${selected.y * 100}%`,
+                  width: `${selected.w * 100}%`,
+                  height: `${selected.h * 100}%`,
+                }}
+              >
+                <span className="worksheet-drawing-handle is-nw" data-handle="nw" />
+                <span className="worksheet-drawing-handle is-ne" data-handle="ne" />
+                <span className="worksheet-drawing-handle is-sw" data-handle="sw" />
+                <span className="worksheet-drawing-handle is-se" data-handle="se" />
+              </div>
+            )}
+          </div>
+        )}
+        {cropping && (
+          <div
+            className="drawing-crop"
+            role="application"
+            aria-label={`${label}の切り抜き範囲`}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              const p = cropPoint(e);
+              const handle = (e.target as HTMLElement).dataset
+                .handle as string | undefined;
+              const inside =
+                p.x >= rect.x &&
+                p.x <= rect.x + rect.w &&
+                p.y >= rect.y &&
+                p.y <= rect.y + rect.h;
+              const whole = rect.w >= 0.999 && rect.h >= 0.999;
+              cropDrag.current = {
+                mode: handle ?? (inside && !whole ? "move" : "new"),
+                startX: p.x,
+                startY: p.y,
+                rect: { ...rect },
+              };
+              if (!handle && !inside)
+                setRect({ x: p.x, y: p.y, w: 0, h: 0 });
+            }}
+            onPointerMove={(e) => {
+              const d = cropDrag.current;
+              if (!d) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const p = cropPoint(e);
+              const dx = p.x - d.startX,
+                dy = p.y - d.startY,
+                r = { ...d.rect },
+                MIN = 0.08;
+              if (d.mode === "move") {
+                r.x = Math.max(0, Math.min(1 - r.w, r.x + dx));
+                r.y = Math.max(0, Math.min(1 - r.h, r.y + dy));
+              } else if (d.mode === "new") {
+                r.x = Math.min(d.startX, p.x);
+                r.y = Math.min(d.startY, p.y);
+                r.w = Math.abs(p.x - d.startX);
+                r.h = Math.abs(p.y - d.startY);
+              } else {
+                if (d.mode.includes("w")) {
+                  const right = r.x + r.w;
+                  r.x = Math.max(0, Math.min(right - MIN, r.x + dx));
+                  r.w = right - r.x;
+                }
+                if (d.mode.includes("e")) {
+                  r.w = Math.max(MIN, Math.min(1 - r.x, r.w + dx));
+                }
+                if (d.mode.includes("n")) {
+                  const bottom = r.y + r.h;
+                  r.y = Math.max(0, Math.min(bottom - MIN, r.y + dy));
+                  r.h = bottom - r.y;
+                }
+                if (d.mode.includes("s")) {
+                  r.h = Math.max(MIN, Math.min(1 - r.y, r.h + dy));
+                }
+              }
+              setRect(r);
+            }}
+            onPointerUp={() => {
+              const d = cropDrag.current;
+              cropDrag.current = undefined;
+              if (d?.mode === "new")
+                setRect((r) =>
+                  r.w < 0.08 || r.h < 0.08 ? { x: 0, y: 0, w: 1, h: 1 } : r,
+                );
+            }}
+            onPointerCancel={() => {
+              cropDrag.current = undefined;
             }}
           >
-            <span className="drawing-crop-handle is-nw" data-handle="nw" />
-            <span className="drawing-crop-handle is-ne" data-handle="ne" />
-            <span className="drawing-crop-handle is-sw" data-handle="sw" />
-            <span className="drawing-crop-handle is-se" data-handle="se" />
-            <span className="drawing-crop-handle is-n" data-handle="n" />
-            <span className="drawing-crop-handle is-e" data-handle="e" />
-            <span className="drawing-crop-handle is-s" data-handle="s" />
-            <span className="drawing-crop-handle is-w" data-handle="w" />
+            <div
+              className="drawing-crop-rect"
+              style={{
+                left: `${rect.x * 100}%`,
+                top: `${rect.y * 100}%`,
+                width: `${rect.w * 100}%`,
+                height: `${rect.h * 100}%`,
+              }}
+            >
+              <span className="drawing-crop-handle is-nw" data-handle="nw" />
+              <span className="drawing-crop-handle is-ne" data-handle="ne" />
+              <span className="drawing-crop-handle is-sw" data-handle="sw" />
+              <span className="drawing-crop-handle is-se" data-handle="se" />
+              <span className="drawing-crop-handle is-n" data-handle="n" />
+              <span className="drawing-crop-handle is-e" data-handle="e" />
+              <span className="drawing-crop-handle is-s" data-handle="s" />
+              <span className="drawing-crop-handle is-w" data-handle="w" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
       {error && <p role="alert">{error}</p>}
     </div>

@@ -544,7 +544,14 @@ test("keeps an added image even if editing ends while it is still loading", asyn
         const sheets = (
           await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
         ).worksheets;
-        return Object.values(sheets[0]?.own?.values ?? {})[0];
+        const v = Object.values(sheets[0]?.own?.values ?? {})[0] as
+          | string
+          | undefined;
+        try {
+          return (JSON.parse(v ?? "").flat as string) ?? "";
+        } catch {
+          return "";
+        }
       },
       { timeout: 30_000 },
     )
@@ -615,7 +622,14 @@ test("keeps edit mode open while a picked image is still loading", async ({
         const sheets = (
           await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
         ).worksheets;
-        return Object.values(sheets[0]?.own?.values ?? {})[0];
+        const v = Object.values(sheets[0]?.own?.values ?? {})[0] as
+          | string
+          | undefined;
+        try {
+          return (JSON.parse(v ?? "").flat as string) ?? "";
+        } catch {
+          return "";
+        }
       },
       { timeout: 30_000 },
     )
@@ -893,7 +907,16 @@ test("crops the picture in an image and drawing response field", async ({
     return sheet?.results?.responses?.[0]?.values?.[sheet.fields[0].id] ?? "";
   };
   await expect
-    .poll(savedValue, { timeout: 20_000 })
+    .poll(
+      async () => {
+        try {
+          return (JSON.parse(await savedValue()).flat as string) ?? "";
+        } catch {
+          return "";
+        }
+      },
+      { timeout: 20_000 },
+    )
     .toMatch(/^data:image\/jpeg/);
   const before = await savedValue();
   // Crop mode: drag a region over the picture, then apply it — the

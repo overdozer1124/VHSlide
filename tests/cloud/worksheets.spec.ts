@@ -1570,7 +1570,14 @@ test("students paste an image, draw, save privately, and the host views their an
     let saved = (
       await (await guest.request.get(`/api/decks/${id}/worksheets`)).json()
     ).worksheets[0].own.values[template.fields[0].id] as string;
-    expect(saved).toMatch(/^data:image\/jpeg;base64,/);
+    // The pasted picture is stored as a movable object in a scene value,
+    // with a flattened JPEG preview for display.
+    const savedScene = JSON.parse(saved);
+    expect(savedScene.flat).toMatch(/^data:image\/jpeg;base64,/);
+    expect(savedScene.objects).toHaveLength(1);
+    await modal(guest)
+      .getByRole("button", { name: "ペン", exact: true })
+      .click();
     const rect = (await canvas.boundingBox())!;
     await guest.mouse.move(
       rect.x + rect.width * 0.2,
@@ -1629,6 +1636,10 @@ test("students paste an image, draw, save privately, and the host views their an
       .locator(".editor-workspace .slide-worksheet")
       .getByLabel("自分の絵の手描き欄");
     await expect(slideCanvas).toBeVisible();
+    await guest
+      .locator(".editor-workspace .slide-worksheet")
+      .getByRole("button", { name: "ペン", exact: true })
+      .click();
     const slideRect = (await slideCanvas.boundingBox())!;
     await guest.mouse.move(
       slideRect.x + slideRect.width * 0.25,
@@ -1673,9 +1684,11 @@ test("students paste an image, draw, save privately, and the host views their an
     const gallery = (
       await (await other.request.get(`/api/decks/${id}/gallery`)).json()
     ).gallery;
-    expect(
+    const cardScene = JSON.parse(
       gallery.cards[0].worksheets[0].own.values[template.fields[0].id],
-    ).toMatch(/^data:image\/jpeg;base64,/);
+    );
+    expect(cardScene.flat).toMatch(/^data:image\/jpeg;base64,/);
+    expect(cardScene.objects.length).toBeGreaterThanOrEqual(1);
   } finally {
     await guestContext.close();
     await otherContext.close();
@@ -1730,10 +1743,18 @@ test("drawing field shows its guidance until an image is added", async ({
   });
   await expect
     .poll(
-      async () =>
-        (
+      async () => {
+        const v = (
           await (await page.request.get(`/api/decks/${id}/worksheets`)).json()
-        ).worksheets[0].own?.values[template.fields[0].id],
+        ).worksheets[0].own?.values[template.fields[0].id] as
+          | string
+          | undefined;
+        try {
+          return (JSON.parse(v ?? "").flat as string) ?? "";
+        } catch {
+          return "";
+        }
+      },
       { timeout: 15000 },
     )
     .toMatch(/^data:image\/jpeg;base64,/);

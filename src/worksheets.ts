@@ -1,4 +1,5 @@
 import type { HistorySQL } from "./historyStore.ts";
+import { validateDrawingValue } from "./drawingScene.ts";
 import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
 import { SurveyError } from "./surveys.ts";
 // The template default guidance for text fields. Drawing fields created
@@ -302,10 +303,7 @@ export function parseWorksheetValues(
     if (f.kind === "text") check(str(x, 2000), "記述欄は2000文字までです。");
     else if (f.kind === "drawing")
       check(
-        typeof x === "string" &&
-          (x === "" ||
-            (x.length <= 120000 &&
-              /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(x))),
+        validateDrawingValue(x),
         "画像・手描きの回答を確認してください。",
       );
     else if (f.kind === "checkbox")

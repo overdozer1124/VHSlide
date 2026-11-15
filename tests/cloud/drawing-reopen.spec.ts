@@ -78,15 +78,15 @@ test("reopening a drawing field shows the placed image and drawing on it does no
   });
   await expect
     .poll(() => savedValue(page, id, fieldId), { timeout: 15_000 })
-    .toMatch(/^data:image\/jpeg;base64,/);
+    .toMatch(/^\{/);
   const first = await savedValue(page, id, fieldId);
   await drawing.getByRole("button", { name: "完了", exact: true }).click();
   await expect(view.locator("img")).toBeVisible();
 
-  // Reopen: the editor canvas must show the placed picture again
+  // Reopen: the editor's base canvas must show the placed picture again
   // (an unpainted canvas is fully transparent; the picture is opaque).
   await view.click();
-  const canvas = modal(page).getByLabel("自分の絵の手描き欄");
+  const canvas = modal(page).locator(".worksheet-drawing-base");
   await expect(canvas).toBeVisible();
   await expect
     .poll(
@@ -110,6 +110,9 @@ test("reopening a drawing field shows the placed image and drawing on it does no
 
   // Draw on the reopened picture and finish: the saved image keeps its
   // white ground (never black) with the stroke on top.
+  await modal(page)
+    .getByRole("button", { name: "ペン", exact: true })
+    .click();
   const box = (await canvas.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
@@ -125,7 +128,7 @@ test("reopening a drawing field shows the placed image and drawing on it does no
   await expect
     .poll(() => savedValue(page, id, fieldId), { timeout: 15_000 })
     .not.toBe(first);
-  const second = await savedValue(page, id, fieldId);
+  const second = JSON.parse((await savedValue(page, id, fieldId))!).flat as string;
   const stats = await page.evaluate(async (src) => {
     const image = new Image();
     await new Promise((resolve, reject) => {

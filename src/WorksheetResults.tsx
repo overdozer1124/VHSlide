@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { drawingFlatSrc } from "./drawingScene";
 import type { WorksheetView } from "./worksheets";
 import { worksheetValueText } from "./worksheetCsv";
 import { surveyResponseTime } from "./surveyCsv";
@@ -13,16 +14,19 @@ function AnswerValue({
   values: WorksheetValues;
 }) {
   const value = values[field.id];
-  if (field.kind === "drawing" && typeof value === "string" && value)
-    return (
-      <a href={value} download="worksheet-answer.jpg" title="回答画像を保存">
-        <img
-          className="worksheet-drawing-image"
-          src={value}
-          alt={`${field.label}の画像・手描き回答`}
-        />
-      </a>
-    );
+  if (field.kind === "drawing" && typeof value === "string" && value) {
+    const flat = drawingFlatSrc(value);
+    if (flat)
+      return (
+        <a href={flat} download="worksheet-answer.jpg" title="回答画像を保存">
+          <img
+            className="worksheet-drawing-image"
+            src={flat}
+            alt={`${field.label}の画像・手描き回答`}
+          />
+        </a>
+      );
+  }
   return (
     worksheetValueText(field, values) || (
       <span className="worksheet-unanswered">未入力</span>
