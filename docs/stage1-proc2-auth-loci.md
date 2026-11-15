@@ -35,4 +35,4 @@
 3. ✅ Node／CF の `permissions` を `generalDeckAccess` へ寄せ（挙動は現行どおり。付与JSON不正は throw）
 4. ✅ `GET /api/decks/:id/capabilities`（`STAGE1_FEATURES` または Node の `stage1Features` オプション下のみ。未有効は 404。`isMember` は実所属を検索 — Muse 照合 6902361527）
 5. ⬜ 権限変更経路への audit 同一 TX 配線（任命・失効など手順3と接続する箇所）
-6. ⬜ 所属世代の増分・認可照合（列は手順1済み）
+6. ✅ `src/stage1Generation.ts` — 無効化時の世代+1、再有効化で世代を戻さない、照合ヘルパ。HTTP 配線は手順3の所属操作と同時
