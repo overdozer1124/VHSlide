@@ -28,6 +28,15 @@ export function ResponseField({
     binding.deckId === worksheets.deckId
       ? worksheets.sheets.find((s) => s.id === binding.worksheetId)
       : undefined;
+  // Static views (map and editor thumbnails) still show the viewer's own
+  // input, so a filled-in drawing field keeps its picture there too.
+  const previewSheet =
+    binding.source === "worksheet" &&
+    !sheet &&
+    worksheets.enabled &&
+    binding.deckId === worksheets.deckId
+      ? worksheets.sheets.find((s) => s.id === binding.worksheetId)
+      : undefined;
   const survey =
     binding.source === "survey" &&
     interactive &&
@@ -37,12 +46,14 @@ export function ResponseField({
       : undefined;
   const field =
     binding.source === "worksheet"
-      ? (sheet?.fields.find((f) => f.id === binding.field.id) ?? binding.field)
+      ? ((sheet ?? previewSheet)?.fields.find(
+          (f) => f.id === binding.field.id,
+        ) ?? binding.field)
       : undefined;
   const open = !!sheet && sheet.status === "open" && !worksheets.readOnly;
   const fieldStatus = answers.status("worksheet", sheet?.id ?? "");
   const values = {
-    ...sheet?.own?.values,
+    ...(sheet ?? previewSheet)?.own?.values,
     ...(!worksheets.readOnly && sheet
       ? answers.draft("worksheet", sheet.id)
       : {}),

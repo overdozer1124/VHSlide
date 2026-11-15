@@ -474,11 +474,17 @@ export function SlideWorksheet({
     interactive && ctx.enabled && binding.deckId === ctx.deckId
       ? ctx.sheets.find((s) => s.id === binding.worksheetId)
       : undefined;
+  // Static views (map and editor thumbnails) still show the viewer's own
+  // input, so a filled-in drawing field keeps its picture there too.
+  const ownSheet =
+    !live && ctx.enabled && binding.deckId === ctx.deckId
+      ? ctx.sheets.find((s) => s.id === binding.worksheetId)
+      : undefined;
   const edit =
     draft?.kind === "worksheet" && draft.elementId === element.id
       ? draft
       : undefined;
-  const sheet = edit?.value ?? live ?? binding;
+  const sheet = edit?.value ?? live ?? ownSheet ?? binding;
   return (
     <section
       className={`slide-worksheet ${interactive ? "is-interactive" : "is-preview"} ${onMoveStart ? "is-movable" : ""}`}
@@ -551,7 +557,7 @@ export function SlideWorksheet({
         <>
           <WorksheetInputs
             sheet={sheet}
-            values={{}}
+            values={ownSheet?.own?.values ?? {}}
             onChange={() => {}}
             disabled
             preview
@@ -559,7 +565,10 @@ export function SlideWorksheet({
           <p>
             {interactive
               ? "この開き方では入力できません。クラウドの共有作品から開くと、受付中に入力できます。"
-              : "プレビュー · 個人の入力内容は含みません。"}
+              : ownSheet?.own &&
+                  Object.keys(ownSheet.own.values).length > 0
+                ? "プレビュー · 自分の入力内容を表示しています。"
+                : "プレビュー · 個人の入力内容は含みません。"}
           </p>
         </>
       )}
