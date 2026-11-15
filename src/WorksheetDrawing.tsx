@@ -10,9 +10,22 @@ const MAX_DATA = 120000;
 const W = 960,
   H = 540;
 
+/** JPEG has no alpha channel: composite onto white first so untouched
+ * (transparent) areas save as white, never black. */
+function flatten(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const flat = document.createElement("canvas");
+  flat.width = canvas.width;
+  flat.height = canvas.height;
+  const ctx = flat.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, flat.width, flat.height);
+  ctx.drawImage(canvas, 0, 0);
+  return flat;
+}
+
 /** Keep individual private answer payloads below the worksheet API limit. */
 function encode(canvas: HTMLCanvasElement): string {
-  let current = canvas;
+  let current = flatten(canvas);
   for (let step = 0; step < 6; step++) {
     for (const quality of [0.72, 0.55, 0.4, 0.3]) {
       const data = current.toDataURL("image/jpeg", quality);
@@ -130,8 +143,14 @@ export function WorksheetDrawing({
       return;
     }
     // In view mode the saved value is rendered as an <img>; the canvas only
-    // needs restoring once the learner enters edit mode.
-    if (!active) return;
+    // needs restoring once the learner enters edit mode. The canvas is
+    // unmounted when edit mode closes, so the "already painted" marker
+    // must not survive into the next mount — otherwise re-entering would
+    // skip the restore and show (and then save) a blank canvas.
+    if (!active) {
+      lastEmitted.current = undefined;
+      return;
+    }
     if (value !== lastEmitted.current) restore(value);
     return () => {
       generation.current++;
@@ -223,7 +242,7 @@ export function WorksheetDrawing({
   function remember() {
     if (!canvas.current) return;
     history.current.push({
-      data: canvas.current.toDataURL("image/jpeg", 0.6),
+      data: flatten(canvas.current).toDataURL("image/jpeg", 0.6),
       hasContent,
     });
     if (history.current.length > 10) history.current.shift();
