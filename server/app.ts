@@ -62,12 +62,11 @@ import {
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
 import {
   AccessError,
-  defaultAccess,
-  hostAccess,
   parseAccess,
   parseComment,
 } from "../src/permissions.ts";
 import type { SlideComment } from "../src/permissions.ts";
+import { generalDeckAccess } from "../src/stage1Capabilities.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -340,11 +339,19 @@ export function createApplication(options: Options) {
     return found;
   }
   function permissions(id: string, user: string, owner: string) {
-    if (owner === user) return hostAccess();
     const grant = db
       .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
       .get(id, user) as { value: string } | undefined;
-    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+    const isMember = !!db
+      .prepare("SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?")
+      .get(id, user);
+    return generalDeckAccess({
+      deckId: id,
+      userId: user,
+      ownerId: owner,
+      isMember,
+      grantJson: grant?.value,
+    }).access;
   }
   function recipientList(id: string) {
     return (

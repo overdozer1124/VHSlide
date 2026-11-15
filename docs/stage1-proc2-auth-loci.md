@@ -32,6 +32,7 @@
 
 1. ✅ `src/stage1Capabilities.ts` — 一般作品の資格（host／grant／default）を共有化。`STAGE1_FEATURES` フラグ
 2. ✅ `src/stage1Audit.ts` — `audit_log` 必須書き込み（失敗で操作不成立）
-3. ⬜ 資格照会エンドポイント（検証環境フラグ下）
-4. ⬜ Node／CF の `member`/`access`/`permissions` を共有判定へ寄せる（挙動不変のリファクタ）
-5. ⬜ 所属世代の増分・認可照合（列は手順1済み）
+3. ✅ Node／CF の `permissions` を `generalDeckAccess` へ寄せ（挙動は現行どおり。付与JSON不正は throw）
+4. ⬜ 資格照会エンドポイント（検証環境フラグ下）
+5. ⬜ 権限変更経路への audit 同一 TX 配線（任命・失効など手順3と接続する箇所）
+6. ⬜ 所属世代の増分・認可照合（列は手順1済み）

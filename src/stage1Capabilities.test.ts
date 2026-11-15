@@ -47,6 +47,16 @@ describe("stage1Capabilities", () => {
       member: false,
       access: defaultAccess(),
     });
+
+    expect(() =>
+      generalDeckAccess({
+        deckId: "d1",
+        userId: "bob",
+        ownerId: "owner",
+        isMember: true,
+        grantJson: "{not-json",
+      }),
+    ).toThrow();
   });
 
   it("enables stage1 features only with an explicit flag", () => {

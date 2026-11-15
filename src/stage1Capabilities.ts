@@ -28,15 +28,13 @@ export function generalDeckAccess(input: {
   grantJson?: string | null;
 }): DeckCapability {
   const host = input.ownerId === input.userId;
+  // Match current Node/CF permissions(): owner → host; else grant → parseAccess
+  // (invalid grant JSON throws); else defaultAccess. Membership is recorded but
+  // does not change access resolution (grants can exist without membership checks here).
   let access: EditAccess = defaultAccess();
   if (host) access = hostAccess();
-  else if (input.grantJson) {
-    try {
-      access = parseAccess(JSON.parse(input.grantJson));
-    } catch {
-      access = defaultAccess();
-    }
-  }
+  else if (input.grantJson != null && input.grantJson !== "")
+    access = parseAccess(JSON.parse(input.grantJson));
   return {
     deckId: input.deckId,
     userId: input.userId,
