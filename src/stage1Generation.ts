@@ -72,6 +72,7 @@ export function invalidateOrganizationMember(
 
 /**
  * Re-activate membership (status + role only). Generation is never decreased.
+ * Returns undefined when no inactive membership was updated.
  */
 export function reactivateOrganizationMember(
   sql: GenerationSql,
@@ -79,12 +80,13 @@ export function reactivateOrganizationMember(
   organizationId: string,
   role: "teacher" | "student" | null,
 ): OrganizationMemberRow | undefined {
-  sql.exec(
+  const result = sql.exec(
     "UPDATE organization_members SET status='有効', role=? WHERE user_id=? AND organization_id=? AND status='無効'",
     role,
     userId,
     organizationId,
   );
+  if (!result.changes) return undefined;
   return sql.one<OrganizationMemberRow>(
     "SELECT user_id, organization_id, status, generation, role FROM organization_members WHERE user_id=? AND organization_id=?",
     userId,
@@ -96,17 +98,40 @@ export function reactivateOrganizationMember(
 export function nodeGenerationSql(db: {
   prepare(sql: string): {
     get(...args: unknown[]): unknown;
-    run(...args: unknown[]): { changes: number };
+    run(...args: unknown[]): { changes?: number | bigint };
   };
 }): GenerationSql {
   return {
     exec(query, ...args) {
-      return db.prepare(query).run(...args);
+      const result = db.prepare(query).run(...args);
+      return { changes: Number(result.changes ?? 0) };
     },
-    one(query, ...args) {
-      return db.prepare(query).get(...args) as
-        | Record<string, unknown>
-        | undefined;
+    one<T extends Record<string, unknown>>(
+      query: string,
+      ...args: (string | number | null)[]
+    ) {
+      return db.prepare(query).get(...args) as T | undefined;
+    },
+  };
+}
+
+export function durableGenerationSql(sql: {
+  exec(
+    query: string,
+    ...args: (string | number | null)[]
+  ): Iterable<Record<string, unknown>> & { rowsWritten?: number };
+}): GenerationSql {
+  return {
+    exec(query, ...args) {
+      const cursor = sql.exec(query, ...args);
+      [...cursor];
+      return { changes: cursor.rowsWritten ?? 0 };
+    },
+    one<T extends Record<string, unknown>>(
+      query: string,
+      ...args: (string | number | null)[]
+    ) {
+      return [...sql.exec(query, ...args)][0] as T | undefined;
     },
   };
 }

@@ -56,6 +56,11 @@ import {
   revokeSchoolAdmin,
   SchoolAdminError,
 } from "../src/stage1SchoolAdmin.ts";
+import {
+  durableGenerationSql,
+  invalidateOrganizationMember,
+  reactivateOrganizationMember,
+} from "../src/stage1Generation.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -766,6 +771,115 @@ export class Directory extends DurableObject<Env> {
           throw new HttpError(error.status, error.message);
         throw error;
       }
+    }
+    const memberInvalidate =
+      /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/invalidate$/.exec(
+        path,
+      );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      memberInvalidate &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(memberInvalidate[1]);
+      const targetUserId = decodeURIComponent(memberInvalidate[2]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を無効化する権限がありません。",
+      );
+      const now = Date.now();
+      const generation = this.ctx.storage.transactionSync(() => {
+        const next = invalidateOrganizationMember(
+          durableGenerationSql(this.sql),
+          targetUserId,
+          organizationId,
+        );
+        insist(
+          next !== undefined,
+          404,
+          "無効化できる有効な所属が見つかりません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "membership.invalidate",
+            target: `organization:${organizationId}:user:${targetUserId}`,
+            createdAt: now,
+          },
+        );
+        return next;
+      });
+      return json({ generation });
+    }
+    const memberReactivate =
+      /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/reactivate$/.exec(
+        path,
+      );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      memberReactivate &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(memberReactivate[1]);
+      const targetUserId = decodeURIComponent(memberReactivate[2]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を再有効化する権限がありません。",
+      );
+      const data = await input(request, 20_000);
+      const role =
+        data.role === "teacher" || data.role === "student"
+          ? data.role
+          : data.role == null
+            ? null
+            : undefined;
+      insist(role !== undefined, 400, "役割を確認してください。");
+      const now = Date.now();
+      const member = this.ctx.storage.transactionSync(() => {
+        const restored = reactivateOrganizationMember(
+          durableGenerationSql(this.sql),
+          targetUserId,
+          organizationId,
+          role,
+        );
+        insist(
+          restored,
+          404,
+          "再有効化できる無効な所属が見つかりません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "membership.reactivate",
+            target: `organization:${organizationId}:user:${targetUserId}`,
+            createdAt: now,
+          },
+        );
+        return restored;
+      });
+      return json({ member });
     }
     const preregId = /^\/api\/preregistrations\/([^/]+)$/.exec(path);
     if (stage1FeaturesEnabled(this.env) && preregId && method === "DELETE") {

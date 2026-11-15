@@ -86,6 +86,11 @@ import {
   revokeSchoolAdmin,
   SchoolAdminError,
 } from "../src/stage1SchoolAdmin.ts";
+import {
+  invalidateOrganizationMember,
+  nodeGenerationSql,
+  reactivateOrganizationMember,
+} from "../src/stage1Generation.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -896,6 +901,115 @@ export function createApplication(options: Options) {
             db.exec("ROLLBACK");
             if (error instanceof SchoolAdminError)
               throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const memberInvalidate =
+          /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/invalidate$/.exec(
+            path,
+          );
+        if (stage1On && memberInvalidate && method === "POST") {
+          const organizationId = decodeURIComponent(memberInvalidate[1]);
+          const targetUserId = decodeURIComponent(memberInvalidate[2]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の所属を無効化する権限がありません。",
+          );
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const generation = invalidateOrganizationMember(
+              nodeGenerationSql(db),
+              targetUserId,
+              organizationId,
+            );
+            insist(
+              generation !== undefined,
+              404,
+              "無効化できる有効な所属が見つかりません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "membership.invalidate",
+                target: `organization:${organizationId}:user:${targetUserId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { generation });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        const memberReactivate =
+          /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/reactivate$/.exec(
+            path,
+          );
+        if (stage1On && memberReactivate && method === "POST") {
+          const organizationId = decodeURIComponent(memberReactivate[1]);
+          const targetUserId = decodeURIComponent(memberReactivate[2]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の所属を再有効化する権限がありません。",
+          );
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          const role =
+            input.role === "teacher" || input.role === "student"
+              ? input.role
+              : input.role == null
+                ? null
+                : undefined;
+          insist(role !== undefined, 400, "役割を確認してください。");
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const member = reactivateOrganizationMember(
+              nodeGenerationSql(db),
+              targetUserId,
+              organizationId,
+              role,
+            );
+            insist(
+              member,
+              404,
+              "再有効化できる無効な所属が見つかりません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "membership.reactivate",
+                target: `organization:${organizationId}:user:${targetUserId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { member });
+          } catch (error) {
+            db.exec("ROLLBACK");
             throw error;
           }
         }

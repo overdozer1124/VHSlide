@@ -1,6 +1,6 @@
 # 手順3（登録制フロー B群）置き場の洗い出し
 
-作成: Cursor（2026-11-16）。状態遷移は実装設計書 §5 に従う。共有ヘルパの実装を進行中。
+作成: Cursor（2026-11-16）。状態遷移は実装設計書 §5 に従う。共有ヘルパと HTTP（`STAGE1_FEATURES`）まで配線済み。
 
 ## 現行の関連入口
 
@@ -16,7 +16,7 @@
 2. ✅ HTTP API（`POST /api/organizations/:id/preregistrations`・`DELETE /api/preregistrations/:id`、`STAGE1_FEATURES` 下、audit 同一 TX）
 3. ✅ ログイン経路への `bindPreregistrationsOnLogin` 配線（同一 TX）
 4. ✅ 学校管理者申請・スーパー管理者の確定／解除（`src/stage1SchoolAdmin.ts`、HTTP、audit 同一 TX。任命はスーパー管理者のみ。`planned_is_school_admin` からは任命しない）
-5. ⬜ 所属の無効化／再有効化 HTTP（世代ヘルパは手順2済み）
+5. ✅ 所属の無効化／再有効化 HTTP（`POST .../members/:userId/invalidate|reactivate`、学校管理者またはスーパー管理者、audit 同一 TX。世代は無効化で +1、再有効化では戻さない）
 
 ## 競合・拒否（設計どおり）
 

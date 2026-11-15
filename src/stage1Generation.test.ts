@@ -68,4 +68,12 @@ describe("stage1Generation", () => {
     expect(invalidateOrganizationMember(sql, "u1", "org1")).toBeUndefined();
     expect(readMemberGeneration(sql, "u1", "org1")).toBe(2);
   });
+
+  it("does not reactivate when already active", () => {
+    const db = open();
+    const sql = nodeGenerationSql(db);
+    expect(
+      reactivateOrganizationMember(sql, "u1", "org1", "teacher"),
+    ).toBeUndefined();
+  });
 });
