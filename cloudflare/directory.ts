@@ -1295,12 +1295,18 @@ export class Directory extends DurableObject<Env> {
         id,
         user.id,
       );
+      const isMember = !!one(
+        this.sql,
+        "SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?",
+        id,
+        user.id,
+      );
       return json(
         generalDeckAccess({
           deckId: id,
           userId: user.id,
           ownerId: work.owner,
-          isMember: true,
+          isMember,
           grantJson: grant?.value,
         }),
       );

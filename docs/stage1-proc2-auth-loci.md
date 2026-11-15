@@ -33,6 +33,6 @@
 1. ✅ `src/stage1Capabilities.ts` — 一般作品の資格（host／grant／default）を共有化。`STAGE1_FEATURES` フラグ
 2. ✅ `src/stage1Audit.ts` — `audit_log` 必須書き込み（失敗で操作不成立）
 3. ✅ Node／CF の `permissions` を `generalDeckAccess` へ寄せ（挙動は現行どおり。付与JSON不正は throw）
-4. ✅ `GET /api/decks/:id/capabilities`（`STAGE1_FEATURES` または Node の `stage1Features` オプション下のみ。未有効は 404）
+4. ✅ `GET /api/decks/:id/capabilities`（`STAGE1_FEATURES` または Node の `stage1Features` オプション下のみ。未有効は 404。`isMember` は実所属を検索 — Muse 照合 6902361527）
 5. ⬜ 権限変更経路への audit 同一 TX 配線（任命・失効など手順3と接続する箇所）
 6. ⬜ 所属世代の増分・認可照合（列は手順1済み）

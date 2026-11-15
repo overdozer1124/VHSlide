@@ -1451,6 +1451,9 @@ export function createApplication(options: Options) {
           const grant = db
             .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
             .get(id, u.id) as { value: string } | undefined;
+          const isMember = !!db
+            .prepare("SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?")
+            .get(id, u.id);
           return json(
             res,
             200,
@@ -1458,7 +1461,7 @@ export function createApplication(options: Options) {
               deckId: id,
               userId: u.id,
               ownerId: access.owner,
-              isMember: true,
+              isMember,
               grantJson: grant?.value,
             }),
           );

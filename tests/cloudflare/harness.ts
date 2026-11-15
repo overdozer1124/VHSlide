@@ -4,7 +4,12 @@ import { readFile } from "node:fs/promises";
 import { resolve, extname, dirname } from "node:path";
 
 /** Only test processes own this signing key. Production verifies Google's JWKS. */
-export async function harness(storage: string, origin: string, port?: number) {
+export async function harness(
+  storage: string,
+  origin: string,
+  port?: number,
+  extraBindings?: Record<string, string>,
+) {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
   const key = {
     ...(await exportJWK(publicKey)),
@@ -48,6 +53,7 @@ export async function harness(storage: string, origin: string, port?: number) {
         GOOGLE_SCHOOL_CLIENT_ID: "school.apps.googleusercontent.com",
         GOOGLE_SCHOOL_DOMAIN: "kaga.ed.jp",
         PUBLIC_ORIGIN: origin,
+        ...extraBindings,
       },
       durableObjects: {
         DIRECTORY: { className: "Directory", useSQLite: true },
