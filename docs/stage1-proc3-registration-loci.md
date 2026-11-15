@@ -15,7 +15,7 @@
 1. ✅ `src/stage1Preregistration.ts` — 有効作成／取消／ログイン時結びつけ（原子的・`planned_is_school_admin` は所属に載せない・無効所属なら取消）
 2. ✅ HTTP API（`POST /api/organizations/:id/preregistrations`・`DELETE /api/preregistrations/:id`、`STAGE1_FEATURES` 下、audit 同一 TX）
 3. ✅ ログイン経路への `bindPreregistrationsOnLogin` 配線（同一 TX）
-4. ⬜ 学校管理者申請・スーパー管理者の確定（audit 同一 TX）
+4. ✅ 学校管理者申請・スーパー管理者の確定／解除（`src/stage1SchoolAdmin.ts`、HTTP、audit 同一 TX。任命はスーパー管理者のみ。`planned_is_school_admin` からは任命しない）
 5. ⬜ 所属の無効化／再有効化 HTTP（世代ヘルパは手順2済み）
 
 ## 競合・拒否（設計どおり）

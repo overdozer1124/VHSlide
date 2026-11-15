@@ -79,6 +79,13 @@ import {
   nodePreregSql,
   PreregistrationError,
 } from "../src/stage1Preregistration.ts";
+import {
+  applyForSchoolAdmin,
+  decideSchoolAdminApplication,
+  nodeSchoolAdminSql,
+  revokeSchoolAdmin,
+  SchoolAdminError,
+} from "../src/stage1SchoolAdmin.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -764,6 +771,130 @@ export function createApplication(options: Options) {
           } catch (error) {
             db.exec("ROLLBACK");
             if (error instanceof PreregistrationError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const schoolAdminApply =
+          /^\/api\/organizations\/([^/]+)\/school-admin-applications$/.exec(
+            path,
+          );
+        if (stage1On && schoolAdminApply && method === "POST") {
+          const organizationId = decodeURIComponent(schoolAdminApply[1]);
+          const id = randomUUID();
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const row = applyForSchoolAdmin(nodeSchoolAdminSql(db), {
+              id,
+              organizationId,
+              applicantUserId: u.id,
+              createdAt: now,
+            });
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "school_admin.apply",
+                target: `school_admin_application:${id}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 201, { application: row });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof SchoolAdminError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const schoolAdminDecide =
+          /^\/api\/school-admin-applications\/([^/]+)\/decide$/.exec(path);
+        if (stage1On && schoolAdminDecide && method === "POST") {
+          const applicationId = decodeURIComponent(schoolAdminDecide[1]);
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          insist(
+            input.decision === "登録" || input.decision === "却下",
+            400,
+            "決定内容を確認してください。",
+          );
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const row = decideSchoolAdminApplication(nodeSchoolAdminSql(db), {
+              applicationId,
+              decision: input.decision,
+              decidedBy: u.id,
+              decidedAt: now,
+            });
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action:
+                  input.decision === "登録"
+                    ? "school_admin.appoint"
+                    : "school_admin.reject",
+                target: `school_admin_application:${applicationId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { application: row });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof SchoolAdminError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const schoolAdminRevoke =
+          /^\/api\/organizations\/([^/]+)\/school-admins\/([^/]+)$/.exec(path);
+        if (stage1On && schoolAdminRevoke && method === "DELETE") {
+          const organizationId = decodeURIComponent(schoolAdminRevoke[1]);
+          const targetUserId = decodeURIComponent(schoolAdminRevoke[2]);
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            insist(
+              revokeSchoolAdmin(nodeSchoolAdminSql(db), {
+                organizationId,
+                userId: targetUserId,
+                actorUserId: u.id,
+              }),
+              404,
+              "解除する学校管理者資格が見つかりません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "school_admin.revoke",
+                target: `organization:${organizationId}:user:${targetUserId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { ok: true });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof SchoolAdminError)
               throw new HttpError(error.status, error.message);
             throw error;
           }
