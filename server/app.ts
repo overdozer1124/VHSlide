@@ -44,6 +44,11 @@ import {
   digestBytes,
 } from "../src/backupProtocol.ts";
 import {
+  applyStage1OrgMigration,
+  nodeStage1OrgDb,
+  usersPublicColumns,
+} from "../src/stage1OrgSchema.ts";
+import {
   backupSnapshot,
   parseBackupSnapshot,
   restoredComments,
@@ -201,6 +206,8 @@ export function createApplication(options: Options) {
     if (!commentColumns.has(name))
       db.exec(`ALTER TABLE comments ADD COLUMN ${name} ${type}`);
 
+  applyStage1OrgMigration(nodeStage1OrgDb(db));
+
   db.exec(revisionSchema("node") + restoreSchema);
   db.exec(
     "CREATE TABLE IF NOT EXISTS restore_uploads(asset TEXT PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE, ready INTEGER NOT NULL CHECK(ready IN (0,1)))",
@@ -293,7 +300,7 @@ export function createApplication(options: Options) {
   function user(req: IncomingMessage): User {
     const found = db
       .prepare(
-        "SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?",
+        `SELECT ${usersPublicColumns} FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?`,
       )
       .get(sessionHash(req), Date.now()) as unknown as User | undefined;
     insist(found, 401, "Googleアカウントでサインインしてください。");
@@ -633,7 +640,7 @@ export function createApplication(options: Options) {
           );
         }
         db.prepare(
-          "INSERT INTO users VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          "INSERT INTO users(id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
         ).run(u.id, u.name, u.email);
         const raw = token();
         db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
@@ -813,7 +820,9 @@ export function createApplication(options: Options) {
           });
           db.exec("BEGIN IMMEDIATE");
           try {
-            db.prepare("INSERT INTO decks VALUES(?,?,?,?,?)").run(
+            db.prepare(
+              "INSERT INTO decks(id,owner,title,state,updated) VALUES(?,?,?,?,?)",
+            ).run(
               id,
               u.id,
               deck.title,
@@ -1057,7 +1066,7 @@ export function createApplication(options: Options) {
           const people = (
             db
               .prepare(
-                "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?",
+                `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?`,
               )
               .all(id, access.owner) as unknown as User[]
           ).map((p) => ({ ...p, access: permissions(id, p.id, access.owner) }));
@@ -1381,7 +1390,7 @@ export function createApplication(options: Options) {
         if (extra === "row-accounts" && method === "GET") {
           const people = db
             .prepare(
-              "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+              `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
             )
             .all(id)
             .map((value) => {
@@ -1406,7 +1415,7 @@ export function createApplication(options: Options) {
           return json(res, 200, {
             members: db
               .prepare(
-                "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+                `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
               )
               .all(id)
               .map((value) => {

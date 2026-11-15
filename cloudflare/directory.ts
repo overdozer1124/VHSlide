@@ -23,6 +23,11 @@ import {
   parseBackupSnapshot,
   BACKUP_METADATA_BYTES,
 } from "../src/backupData.ts";
+import {
+  applyStage1OrgMigration,
+  durableStage1OrgDb,
+  usersPublicColumns,
+} from "../src/stage1OrgSchema.ts";
 import { blank } from "../src/model.ts";
 import type { SlideComment } from "../src/permissions.ts";
 import {
@@ -99,9 +104,10 @@ export class Directory extends DurableObject<Env> {
       );
     this.sql.exec(joinSchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
-    this.sql
+      this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
       SELECT id,owner,'legacy:'||id,'',-1,title,'uploading',updated FROM decks WHERE status='restoring'`);
+    applyStage1OrgMigration(durableStage1OrgDb(this.sql));
   }
   private revision(id: string) {
     return (
@@ -144,7 +150,7 @@ export class Directory extends DurableObject<Env> {
     const session = raw ? await sha(raw) : "";
     const found = one<User & { expires: number }>(
       this.sql,
-      "SELECT users.*,sessions.expires FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?",
+      `SELECT ${usersPublicColumns},sessions.expires FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?`,
       session,
       Date.now(),
     );
@@ -506,7 +512,7 @@ export class Directory extends DurableObject<Env> {
         hash = await sha(raw);
       this.ctx.storage.transactionSync(() => {
         this.sql.exec(
-          "INSERT INTO users VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          "INSERT INTO users(id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
           user.id,
           user.name,
           user.email,
@@ -708,7 +714,7 @@ export class Directory extends DurableObject<Env> {
           "保存できる作品数の上限です（40作品）。",
         );
         this.sql.exec(
-          "INSERT INTO decks VALUES(?,?,?,?,?)",
+          "INSERT INTO decks(id,owner,title,updated,status) VALUES(?,?,?,?,?)",
           work.id,
           user.id,
           work.title,
@@ -924,7 +930,7 @@ export class Directory extends DurableObject<Env> {
       const people = () =>
         rows<User>(
           this.sql,
-          "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?",
+          `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?`,
           id,
           work.owner,
         ).map((p) => ({
@@ -1233,7 +1239,7 @@ export class Directory extends DurableObject<Env> {
     if (extra === "row-accounts" && method === "GET") {
       const members = rows<User>(
         this.sql,
-        "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+        `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
         id,
       ).map((member) => ({
         id: member.id,
@@ -1252,7 +1258,7 @@ export class Directory extends DurableObject<Env> {
       return json({
         members: rows<User>(
           this.sql,
-          "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+          `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
           id,
         ).map((member) => ({
           ...member,
