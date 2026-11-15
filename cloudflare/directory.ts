@@ -35,7 +35,11 @@ import {
   parseRecipients,
   sharedAccountNames,
 } from "../src/preSharing.ts";
-import { defaultAccess, hostAccess, parseAccess } from "../src/permissions.ts";
+import { parseAccess } from "../src/permissions.ts";
+import {
+  generalDeckAccess,
+  stage1FeaturesEnabled,
+} from "../src/stage1Capabilities.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -185,14 +189,25 @@ export class Directory extends DurableObject<Env> {
     return work;
   }
   private permissions(id: string, user: string, owner: string) {
-    if (owner === user) return hostAccess();
     const grant = one<{ value: string }>(
       this.sql,
       "SELECT value FROM grants WHERE deck=? AND user_id=?",
       id,
       user,
     );
-    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+    const isMember = !!one(
+      this.sql,
+      "SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?",
+      id,
+      user,
+    );
+    return generalDeckAccess({
+      deckId: id,
+      userId: user,
+      ownerId: owner,
+      isMember,
+      grantJson: grant?.value,
+    }).access;
   }
   private async claim(user: User) {
     const pending = rows<{ deck: string; email: string; value: string }>(
@@ -1268,6 +1283,34 @@ export class Directory extends DurableObject<Env> {
     }
     if (extra === "permissions" && method === "GET")
       return json({ access: this.permissions(id, user.id, work.owner) });
+    if (extra === "capabilities" && method === "GET") {
+      insist(
+        stage1FeaturesEnabled(this.env),
+        404,
+        "この機能は利用できません。",
+      );
+      const grant = one<{ value: string }>(
+        this.sql,
+        "SELECT value FROM grants WHERE deck=? AND user_id=?",
+        id,
+        user.id,
+      );
+      const isMember = !!one(
+        this.sql,
+        "SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?",
+        id,
+        user.id,
+      );
+      return json(
+        generalDeckAccess({
+          deckId: id,
+          userId: user.id,
+          ownerId: work.owner,
+          isMember,
+          grantJson: grant?.value,
+        }),
+      );
+    }
     if (extra?.startsWith("members/") && method === "PATCH") {
       this.access(id, user, true);
       const target = decodeURIComponent(extra.slice(8));

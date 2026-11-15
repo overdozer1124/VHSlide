@@ -1,6 +1,6 @@
 # 手順2（認可基盤 C1〜C3）置き場の洗い出し
 
-作成: Cursor（2026-11-16）。手順1移行下書きと並行した準備メモ。実装前の地図であり、コード変更はまだ入れない。
+作成: Cursor（2026-11-16）。手順1移行と並行。地図に加え、共有モジュールの第一弾を実装中。
 
 ## 現行の認可の入口（両サーバーで対になる）
 
@@ -28,9 +28,11 @@
 - 登録制フロー本体（手順3）
 - 初代登録経路（手順4）。運営者登録簿は `users.is_super_admin` とは別
 
-## 次の実装単位（提案）
+## 実装の進み（第一弾）
 
-1. 共有の資格判定モジュール（一般作品パス = 現行互換の回帰テスト付き）
-2. `audit_log` 書き込みヘルパ（必須・同一 TX）
-3. 資格照会エンドポイント（検証環境フラグ下）
-4. Node／CF の `member`/`access`/`permissions` を共有判定へ寄せる（挙動不変のリファクタ）
+1. ✅ `src/stage1Capabilities.ts` — 一般作品の資格（host／grant／default）を共有化。`STAGE1_FEATURES` フラグ
+2. ✅ `src/stage1Audit.ts` — `audit_log` 必須書き込み（失敗で操作不成立）
+3. ✅ Node／CF の `permissions` を `generalDeckAccess` へ寄せ（挙動は現行どおり。付与JSON不正は throw）
+4. ✅ `GET /api/decks/:id/capabilities`（`STAGE1_FEATURES` または Node の `stage1Features` オプション下のみ。未有効は 404。`isMember` は実所属を検索 — Muse 照合 6902361527）
+5. ⬜ 権限変更経路への audit 同一 TX 配線（任命・失効など手順3と接続する箇所）
+6. ✅ `src/stage1Generation.ts` — 無効化時の世代+1、再有効化で世代を戻さない、照合ヘルパ。HTTP 配線は手順3の所属操作と同時

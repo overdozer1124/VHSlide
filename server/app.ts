@@ -62,12 +62,14 @@ import {
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
 import {
   AccessError,
-  defaultAccess,
-  hostAccess,
   parseAccess,
   parseComment,
 } from "../src/permissions.ts";
 import type { SlideComment } from "../src/permissions.ts";
+import {
+  generalDeckAccess,
+  stage1FeaturesEnabled,
+} from "../src/stage1Capabilities.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -101,6 +103,8 @@ interface Options {
   /** Tests inject an identity verifier; production always verifies Google's signature. */
   verifyIdentity?: (credential: string) => Promise<User>;
   maxConnections?: number;
+  /** Verify-only stage 1 APIs. Prefer env STAGE1_FEATURES; tests may set this. */
+  stage1Features?: boolean;
 }
 interface Room {
   follow?: FollowState;
@@ -175,6 +179,9 @@ function imageMime(bytes: Buffer): string | undefined {
 
 export function createApplication(options: Options) {
   const origin = new URL(options.origin).origin;
+  const stage1On =
+    options.stage1Features === true ||
+    (options.stage1Features !== false && stage1FeaturesEnabled(process.env));
   mkdirSync(options.directory, { recursive: true });
   const db = new DatabaseSync(join(options.directory, "vhslide.sqlite"));
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
@@ -340,11 +347,19 @@ export function createApplication(options: Options) {
     return found;
   }
   function permissions(id: string, user: string, owner: string) {
-    if (owner === user) return hostAccess();
     const grant = db
       .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
       .get(id, user) as { value: string } | undefined;
-    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+    const isMember = !!db
+      .prepare("SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?")
+      .get(id, user);
+    return generalDeckAccess({
+      deckId: id,
+      userId: user,
+      ownerId: owner,
+      isMember,
+      grantJson: grant?.value,
+    }).access;
   }
   function recipientList(id: string) {
     return (
@@ -1431,6 +1446,26 @@ export function createApplication(options: Options) {
           return json(res, 200, {
             access: permissions(id, u.id, access.owner),
           });
+        if (extra === "capabilities" && method === "GET") {
+          insist(stage1On, 404, "この機能は利用できません。");
+          const grant = db
+            .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
+            .get(id, u.id) as { value: string } | undefined;
+          const isMember = !!db
+            .prepare("SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?")
+            .get(id, u.id);
+          return json(
+            res,
+            200,
+            generalDeckAccess({
+              deckId: id,
+              userId: u.id,
+              ownerId: access.owner,
+              isMember,
+              grantJson: grant?.value,
+            }),
+          );
+        }
         if (extra?.startsWith("members/") && method === "PATCH") {
           member(id, u, true);
           const target = decodeURIComponent(extra.slice(8));
