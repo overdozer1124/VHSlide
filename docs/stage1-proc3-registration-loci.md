@@ -1,6 +1,6 @@
 # 手順3（登録制フロー B群）置き場の洗い出し
 
-作成: Cursor（2026-11-16）。実装前の地図。状態遷移は実装設計書 §5 に従う。
+作成: Cursor（2026-11-16）。状態遷移は実装設計書 §5 に従う。共有ヘルパの実装を進行中。
 
 ## 現行の関連入口
 
@@ -10,13 +10,13 @@
 | セッション | cookie `vhslide_session` | 同 | 結びつけ後も同一セッションで所属が効くこと |
 | 学校用 Client ID | `schoolClientId` / `schoolDomain` | `GOOGLE_SCHOOL_*` | ログイン種別は資格に使わない（§5-3） |
 
-## 手順3で追加する操作（API 案・未実装）
+## 実装の進み
 
-1. 学校管理者: 自校の事前登録 CRUD（有効の作成、有効→取消）。`(email, organization_id)` の有効一意を守る
-2. ログイン時: email_verified なメール（小文字）で有効事前登録を消費 → `organization_members` 生成と `結びつけ済み` を同一 TX。`planned_is_school_admin` は所属に反映しない
-3. 学校管理者申請: `school_admin_applications` の申請中作成
-4. スーパー管理者のみ: 申請の登録／却下（`is_school_admin` 確定）。`audit_log` 必須書き込みと同一 TX
-5. 所属の無効化／再有効化: status と role のみ再有効化。世代番号は無効化実装時に追加
+1. ✅ `src/stage1Preregistration.ts` — 有効作成／取消／ログイン時結びつけ（原子的・`planned_is_school_admin` は所属に載せない・無効所属なら取消）
+2. ⬜ HTTP API（学校管理者の事前登録、`STAGE1_FEATURES` 下）
+3. ⬜ ログイン経路への `bindPreregistrationsOnLogin` 配線（同一 TX）
+4. ⬜ 学校管理者申請・スーパー管理者の確定（audit 同一 TX）
+5. ⬜ 所属の無効化／再有効化 HTTP（世代ヘルパは手順2済み）
 
 ## 競合・拒否（設計どおり）
 
