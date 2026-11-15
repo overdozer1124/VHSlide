@@ -7,6 +7,8 @@ export interface Env {
   GOOGLE_SCHOOL_CLIENT_ID?: string;
   GOOGLE_SCHOOL_DOMAIN?: string;
   PUBLIC_ORIGIN?: string;
+  /** Verify-only stage 1 feature gate (`1` / `true`). Never set on production. */
+  STAGE1_FEATURES?: string;
 }
 export interface User {
   id: string;
