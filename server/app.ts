@@ -651,7 +651,7 @@ export function createApplication(options: Options) {
       }
       // Uploaded user apps: public by unguessable id, isolated by the
       // sandbox CSP below (opaque origin). Overrides the app CSP set above.
-      const pubApp = /^\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
+      const pubApp = /^\/api\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
       if (pubApp && method === "GET") {
         const html = readUserAppHtml(historySQL, pubApp[1]);
         if (html === null) {

@@ -3,8 +3,8 @@ import { normalizeEmbedUrl } from "./embedBinding.ts";
 
 /**
  * アカウントに保存する「自分のアプリ」。URL登録と、単体HTMLファイルの
- * アップロードの2通りで追加できる。アップロードしたHTMLは /pub/apps/<id>
- * で配信される（推測できないID＋CSP sandbox で隔離）。
+ * アップロードの2通りで追加できる。アップロードしたHTMLは
+ * /api/pub/apps/<id> で配信される（推測できないID＋CSP sandbox で隔離）。
  */
 export class UserAppError extends Error {
   status: number;

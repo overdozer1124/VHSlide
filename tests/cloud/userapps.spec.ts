@@ -96,7 +96,7 @@ test("host registers own apps (URL and HTML upload) and places an upload", async
     await expect(page.locator(".activity-panel")).toBeHidden();
     const frame = page.locator(".slide-embed").first();
     const src = await frame.locator("iframe").getAttribute("src");
-    expect(src).toMatch(/\/pub\/apps\/[a-f0-9-]{36}$/);
+    expect(src).toMatch(/\/api\/pub\/apps\/[a-f0-9-]{36}$/);
 
     // The deck stores that URL, and the pub endpoint serves the HTML
     // itself under a sandbox CSP.

@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.126.1",
+    date: "2026-11-15",
+    title: "自分のアプリの配信を修正",
+    changes: [
+      "アップロードした自分のアプリが、本番環境で正しく開けるよう配信の仕組みを直しました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.126.0",
     date: "2026-11-15",
     title: "自分のアプリを登録できるように",

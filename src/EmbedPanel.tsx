@@ -65,7 +65,7 @@ export function EmbedPanel({
   };
   const appUrl = (app: UserApp) =>
     app.kind === "upload"
-      ? `${location.origin}/pub/apps/${app.id}`
+      ? `${location.origin}/api/pub/apps/${app.id}`
       : app.url;
 
   const mutate = async (init: RequestInit) => {

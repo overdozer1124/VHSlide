@@ -497,7 +497,7 @@ export class Directory extends DurableObject<Env> {
     // Uploaded user apps are public by unguessable id and served isolated:
     // the sandbox CSP (no allow-same-origin) gives the document an opaque
     // origin, so it can never reach this app's data or session.
-    const pubApp = /^\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
+    const pubApp = /^\/api\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
     if (pubApp && method === "GET") {
       const html = readUserAppHtml(
         (query, ...args) => this.sql.exec(query, ...args),

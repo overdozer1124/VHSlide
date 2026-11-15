@@ -22,8 +22,7 @@ export default {
       const response =
         url.pathname === "/healthz"
           ? Response.json({ ok: true })
-          : url.pathname.startsWith("/api/") ||
-              url.pathname.startsWith("/pub/")
+          : url.pathname.startsWith("/api/")
             ? await directory(env).fetch(request)
             : await env.ASSETS.fetch(request);
       if (response.status === 101) return response;
@@ -36,7 +35,7 @@ export default {
       );
       // Uploaded user apps carry their own sandbox CSP from the Directory;
       // stamping the app CSP here would break their inline scripts.
-      if (!url.pathname.startsWith("/pub/"))
+      if (!url.pathname.startsWith("/api/pub/"))
         result.headers.set(
           "Content-Security-Policy",
           `default-src 'self'; script-src 'self' https://accounts.google.com https://vhslide-textmine.overdozer1124.workers.dev; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob:; frame-src https: http:; connect-src 'self' ${origin.replace(/^http/, "ws")} https://accounts.google.com https://vhslide-textmine.overdozer1124.workers.dev; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,

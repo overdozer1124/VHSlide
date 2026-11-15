@@ -66,7 +66,7 @@ export async function exerciseUserApps(
   assert.equal(apps.length, 2);
   const upload = apps.find((a) => a.kind === "upload")!;
   assert.equal(upload.sizeBytes, new TextEncoder().encode(HTML).length);
-  const pub = await call(`/pub/apps/${upload.id}`, "GET", undefined, "");
+  const pub = await call(`/api/pub/apps/${upload.id}`, "GET", undefined, "");
   assert.equal(pub.status, 200);
   assert.match(pub.headers.get("content-type") ?? "", /text\/html/);
   assert.match(
@@ -75,7 +75,7 @@ export async function exerciseUserApps(
   );
   assert.ok((await pub.text()).includes("アップロード成功"));
   const missing = await call(
-    "/pub/apps/123e4567-e89b-12d3-a456-426614174000",
+    "/api/pub/apps/123e4567-e89b-12d3-a456-426614174000",
     "GET",
     undefined,
     "",
@@ -93,7 +93,7 @@ export async function exerciseUserApps(
   assert.equal(stolen.status, 200);
   assert.equal((await list(owner)).length, 2);
   const stillThere = await call(
-    `/pub/apps/${upload.id}`,
+    `/api/pub/apps/${upload.id}`,
     "GET",
     undefined,
     "",
@@ -114,6 +114,6 @@ export async function exerciseUserApps(
   );
   await call(`/api/user-apps/${upload.id}`, "DELETE", undefined, owner);
   assert.deepEqual(await list(owner), []);
-  const gone = await call(`/pub/apps/${upload.id}`, "GET", undefined, "");
+  const gone = await call(`/api/pub/apps/${upload.id}`, "GET", undefined, "");
   assert.equal(gone.status, 404);
 }
