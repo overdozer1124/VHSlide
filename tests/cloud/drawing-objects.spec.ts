@@ -208,3 +208,114 @@ test("placed images are movable, resizable objects that survive reopening", asyn
   expect(afterDelete.objects[0].id).toBe(settled.objects[0].id);
   expect(afterDelete.strokes.length).toBeGreaterThan(100);
 });
+
+test("a placed image is actually visible in the editor", async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page, "objects-visible-host");
+  const { id } = await (
+    await page.request.post("/api/decks", { headers, data: sample() })
+  ).json();
+  const template = worksheetTemplate("blank");
+  template.fields[0].kind = "drawing";
+  template.fields[0].label = "自分の絵";
+  const fieldId = template.fields[0].id;
+  const created = await page.request.post(`/api/decks/${id}/worksheets`, {
+    headers,
+    data: template,
+  });
+  const sheet = (await created.json()).worksheets[0];
+  await page.request.post(`/api/decks/${id}/worksheets/${sheet.id}/status`, {
+    headers,
+    data: { status: "open" },
+  });
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "フォーム", exact: true }).click();
+  await page
+    .getByRole("tab", { name: "ワークシート", exact: true })
+    .click();
+  await modal(page)
+    .getByRole("button", { name: "自分で入力", exact: true })
+    .click();
+  await modal(page)
+    .getByRole("button", { name: "自分の絵の画像・手描きを編集" })
+    .click();
+  const drawing = modal(page).locator(".worksheet-drawing");
+  // Add a solid red picture through the file input.
+  await drawing.evaluate(async (section) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 150;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#d42a1e";
+    ctx.fillRect(0, 0, 200, 150);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png"),
+    );
+    const input = section.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    )!;
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([blob!], "red.png", { type: "image/png" }));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect
+    .poll(async () => (await savedScene(page, id, fieldId))?.objects.length, {
+      timeout: 15_000,
+    })
+    .toBe(1);
+  // The handwriting layer above the picture must be transparent,
+  // otherwise it hides the picture behind a white sheet.
+  const strokeBackground = await drawing
+    .locator(".worksheet-drawing-stroke")
+    .evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(strokeBackground).toBe("rgba(0, 0, 0, 0)");
+  // And the composited stage really shows the red picture.
+  const scene = (await savedScene(page, id, fieldId))!;
+  const object = scene.objects[0];
+  const stage = drawing.locator(".worksheet-drawing-stage");
+  await stage.scrollIntoViewIfNeeded();
+  const shot = await stage.screenshot();
+  const mean = await page.evaluate(
+    async ({ data, rect }) => {
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = `data:image/png;base64,${data}`;
+      });
+      const off = document.createElement("canvas");
+      off.width = image.width;
+      off.height = image.height;
+      const ctx = off.getContext("2d")!;
+      ctx.drawImage(image, 0, 0);
+      const cx = (rect.x + rect.w / 2) * image.width;
+      const cy = (rect.y + rect.h / 2) * image.height;
+      let r = 0,
+        g = 0,
+        b = 0,
+        n = 0;
+      for (let dy = -8; dy <= 8; dy += 4)
+        for (let dx = -8; dx <= 8; dx += 4) {
+          const pixel = ctx.getImageData(
+            Math.round(cx + dx),
+            Math.round(cy + dy),
+            1,
+            1,
+          ).data;
+          r += pixel[0];
+          g += pixel[1];
+          b += pixel[2];
+          n++;
+        }
+      return { r: r / n, g: g / n, b: b / n };
+    },
+    {
+      data: shot.toString("base64"),
+      rect: { x: object.x, y: object.y, w: object.w, h: object.h },
+    },
+  );
+  expect(mean.r).toBeGreaterThan(150);
+  expect(mean.g).toBeLessThan(110);
+  expect(mean.b).toBeLessThan(110);
+});

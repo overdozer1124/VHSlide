@@ -7021,6 +7021,7 @@ h1 span {
 .worksheet-drawing { display:grid; gap:6px; min-width:0; }
 .worksheet-drawing-stage { position:relative; }
 .worksheet-drawing-stroke { position:absolute; inset:0; height:100%; }
+.worksheet-drawing canvas.worksheet-drawing-stroke { background:transparent; }
 .worksheet-drawing-hit { position:absolute; inset:0; touch-action:none; cursor:move; }
 .worksheet-drawing-selection { position:absolute; border:2px solid #2563eb; box-sizing:border-box; pointer-events:none; }
 .worksheet-drawing-handle { position:absolute; width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid #2563eb; box-sizing:border-box; pointer-events:auto; touch-action:none; cursor:nwse-resize; }

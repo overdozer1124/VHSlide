@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.127.1",
+    date: "2026-11-15",
+    title: "画像・手描き欄の編集画面で画像が表示されない問題を修正",
+    changes: [
+      "0.127.0の編集画面で、配置した画像が手描き用の透明な層に隠れて表示されなくなっていた問題を直しました。画像も手描きも、これまでどおり表示されます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.127.0",
     date: "2026-11-15",
     title: "画像・手描き欄で画像を自由に配置できるように",
