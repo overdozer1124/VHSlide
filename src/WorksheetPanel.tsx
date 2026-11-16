@@ -684,6 +684,10 @@ export function WorksheetPanel({
                                       kind === "single" || kind === "multiple"
                                         ? f.reason
                                         : undefined,
+                                    orderAsListed:
+                                      kind === "order"
+                                        ? f.orderAsListed
+                                        : undefined,
                                     radar:
                                       kind === "radar"
                                         ? {
@@ -757,9 +761,37 @@ export function WorksheetPanel({
                                   />
                                 </label>
                                 {f.kind === "order" && (
-                                  <p className="worksheet-order-note">
-                                    回答する人には項目が並べ替えて表示され、タップした順番がそのまま回答になります。
-                                  </p>
+                                  <>
+                                    <label>
+                                      並び替え前の表示
+                                      <select
+                                        aria-label={`入力欄${i + 1}の並び替え前の表示`}
+                                        value={
+                                          f.orderAsListed ? "asis" : "shuffle"
+                                        }
+                                        onChange={(e) =>
+                                          editField(f.id, {
+                                            orderAsListed:
+                                              e.target.value === "asis"
+                                                ? true
+                                                : undefined,
+                                          })
+                                        }
+                                      >
+                                        <option value="shuffle">
+                                          ランダムな順番で表示
+                                        </option>
+                                        <option value="asis">
+                                          入力した順番で表示
+                                        </option>
+                                      </select>
+                                    </label>
+                                    <p className="worksheet-order-note">
+                                      {f.orderAsListed
+                                        ? "回答する人には項目が入力した順番のまま表示され、タップした順番がそのまま回答になります。"
+                                        : "回答する人には項目がランダムな順番で表示され、タップした順番がそのまま回答になります。元の順番のまま表示されることはありません。"}
+                                    </p>
+                                  </>
                                 )}
                                 {(f.kind === "single" ||
                                   f.kind === "multiple") && (

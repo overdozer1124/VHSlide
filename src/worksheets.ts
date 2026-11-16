@@ -28,6 +28,7 @@ export type WorksheetField = {
   labelLayout?: "left";
   labelVertical?: boolean;
   labelCompact?: boolean;
+  orderAsListed?: boolean;
   widthPercent?: number;
   inputHeight?: number;
   fontSize?: number;
@@ -192,6 +193,11 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
           (typeof f.labelCompact === "boolean" && f.kind !== "checkbox")),
       "見出しの表示設定を確認してください。",
     );
+    check(
+      f.orderAsListed === undefined ||
+        (typeof f.orderAsListed === "boolean" && f.kind === "order"),
+      "並び替え前の表示設定を確認してください。",
+    );
     if (f.kind === "radar") {
       const radar = f.radar;
       const validLabels = (
@@ -238,6 +244,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       ...(f.labelLayout ? { labelLayout: f.labelLayout } : {}),
       ...(f.labelVertical ? { labelVertical: true } : {}),
       ...(f.labelCompact ? { labelCompact: true } : {}),
+      ...(f.orderAsListed ? { orderAsListed: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
       ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),
       ...(f.fontSize !== undefined ? { fontSize: f.fontSize } : {}),

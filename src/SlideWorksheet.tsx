@@ -67,9 +67,12 @@ function WorksheetOrder({
       n >= 0 &&
       n < field.options.length,
   );
-  const shuffled = useMemo(
-    () => shuffledOrder(field.id, field.options.length),
-    [field.id, field.options.length],
+  const poolOrder = useMemo(
+    () =>
+      field.orderAsListed
+        ? field.options.map((_, i) => i)
+        : shuffledOrder(field.id, field.options.length),
+    [field.id, field.options.length, field.orderAsListed],
   );
   if (disabled || preview) {
     if (preview && chosen.length === 0)
@@ -97,7 +100,7 @@ function WorksheetOrder({
       </div>
     );
   }
-  const pool = shuffled.filter((n) => !chosen.includes(n));
+  const pool = poolOrder.filter((n) => !chosen.includes(n));
   return (
     <div className="worksheet-order">
       <div className="worksheet-order-sequence">

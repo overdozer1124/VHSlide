@@ -128,6 +128,37 @@ describe("worksheets", () => {
         fields: [{ ...sheet.fields[0], reason: true }],
       }),
     ).toThrow();
+    const asListed = parseWorksheet({
+      ...sheet,
+      fields: [{ ...sheet.fields[0], orderAsListed: true }],
+    });
+    expect(asListed.fields[0].orderAsListed).toBe(true);
+    expect(parseWorksheet(asListed)).toEqual(asListed);
+    expect(
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], orderAsListed: false }],
+      }).fields[0].orderAsListed,
+    ).toBeUndefined();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [
+          {
+            ...sheet.fields[0],
+            kind: "text",
+            options: [],
+            orderAsListed: true,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], orderAsListed: "yes" as never }],
+      }),
+    ).toThrow();
     const id = parsed.fields[0].id;
     expect(parseWorksheetValues(parsed, {})[id]).toEqual([]);
     expect(parseWorksheetValues(parsed, { [id]: [2, 0, 3, 1] })[id]).toEqual([
