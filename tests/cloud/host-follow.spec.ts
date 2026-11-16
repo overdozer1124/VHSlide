@@ -154,6 +154,86 @@ test("step 2 receives page and map targets without replacing the guest editor", 
   }
 });
 
+test("guests stay on the followed page when follow ends", async ({
+  page,
+  browser,
+}, info) => {
+  const id = await scopeFixture(page, `${info.project.name}-stay-host`),
+    name = `${info.project.name}-stay-guest`;
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/recipients`, {
+        headers: { Origin: scopeOrigin },
+        data: {
+          recipients: [
+            {
+              email: `${name}@example.test`,
+              access: {
+                mode: "all",
+                comment: true,
+                rows: [],
+                columns: [],
+                slides: [],
+              },
+            },
+          ],
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const guest = await context.newPage();
+  const host = await controller(page, id);
+  try {
+    await scopeLogin(guest, name);
+    await guest.goto(`/?room=${id}`);
+    await expect(guest.locator(".cloud-presence")).toContainText(
+      "クラウドに保存済み",
+    );
+    await guest.locator(".thumbnail").first().click();
+    await expect(guest.locator(".workspace-flight")).toHaveCount(0);
+    await expect(guest.locator(".canvas-page-position")).toContainText(
+      "1.1",
+    );
+    const running = await host.send("start", {
+      mode: "page",
+      sheetId: "main",
+      pageId: "p11",
+    });
+    await expect(guest.locator(".host-follow-page")).toHaveAttribute(
+      "data-follow-page",
+      "p11",
+    );
+    await host.send("stop", undefined, running.sessionId);
+    await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
+    // The guest remains on the followed page instead of returning to 1.1.
+    await expect(guest.locator(".canvas-page-position")).toContainText(
+      "2.2",
+    );
+    await expect(
+      guest.locator(".editor-workspace .slide-canvas"),
+    ).toContainText("S2.2");
+    // A follow onto another sheet also lands the guest on that sheet's page.
+    const second = await host.send("start", {
+      mode: "page",
+      sheetId: "other",
+      pageId: "q00",
+    });
+    await expect(guest.locator(".host-follow-page")).toHaveAttribute(
+      "data-follow-page",
+      "q00",
+    );
+    await host.send("stop", undefined, second.sessionId);
+    await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
+    await expect(
+      guest.locator(".editor-workspace .slide-canvas"),
+    ).toContainText("OTHER");
+  } finally {
+    host.close();
+    await context.close();
+  }
+});
+
 test("step 3 host toggles once and guests cannot navigate, edit or leave following", async ({
   page,
   browser,
@@ -241,7 +321,8 @@ test("step 3 host toggles once and guests cannot navigate, edit or leave followi
     await toggle.click();
     await expect(guest.locator(".host-follow-overlay")).toHaveCount(0);
     expect(await original!.evaluate((n) => n.isConnected)).toBe(true);
-    await expect(guest.locator(".canvas-page-position")).toContainText("1.1");
+    // Follow ends with the guest staying on the followed page (2.2).
+    await expect(guest.locator(".canvas-page-position")).toContainText("2.2");
   } finally {
     await context.close();
   }

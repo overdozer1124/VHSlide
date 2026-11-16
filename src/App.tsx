@@ -2380,6 +2380,31 @@ export default function App() {
     }
     followWasActive.current = cloud.follow.active;
   }, [cloud.follow.active, groupShow]);
+  // When follow ends, a guest stays on the page they were shown instead of
+  // returning to the page they had open before follow started. A guest in
+  // the middle of editing text keeps the old behaviour: their live editor
+  // (caret and selection) is restored on their own page.
+  const guestFollowTarget = useRef<FollowTarget | undefined>(undefined);
+  useEffect(() => {
+    if (cloud.follow.active) {
+      guestFollowTarget.current = cloud.follow.target;
+      return;
+    }
+    const target = guestFollowTarget.current;
+    guestFollowTarget.current = undefined;
+    if (!target || !cloud.active || cloud.isHost) return;
+    if (document.querySelector(".editing-element")) return;
+    const book = latestWorkbook.current,
+      sheetSlides = book.slides.filter(
+        (s) => (s.sheetId ?? "main") === target.sheetId,
+      );
+    if (!sheetSlides.length) return;
+    const page =
+      sheetSlides.find((s) => s.id === target.pageId) ?? sheetSlides[0];
+    if (activeSheet(book).id !== target.sheetId)
+      setWorkbook({ ...book, activeSheetId: target.sheetId });
+    setActiveId(page.id);
+  }, [cloud.follow, cloud.active, cloud.isHost]);
   const viewFollowTarget: FollowTarget =
     view === "map"
       ? {
