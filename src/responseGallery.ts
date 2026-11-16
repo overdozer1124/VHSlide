@@ -94,8 +94,37 @@ export function galleryBuild(
         updated: Math.max(p?.updated ?? 0, r.updated),
       });
     }
+  // Cards follow the class account order — the recipients' rank, then
+  // member registration order — matching the worksheet results list,
+  // never the raw respondent ids.
+  const ranks = new Map<string, number>();
+  for (const row of sql(
+    "SELECT user_id,MIN(rank) AS rank FROM recipients WHERE deck=? AND user_id IS NOT NULL GROUP BY user_id",
+    deck,
+  ))
+    if (typeof row.user_id === "string" && typeof row.rank === "number")
+      ranks.set(row.user_id, row.rank);
+  const memberOrder = new Map<string, number>();
+  for (const row of sql("SELECT rowid,user_id FROM members WHERE deck=?", deck))
+    if (typeof row.user_id === "string" && typeof row.rowid === "number")
+      memberOrder.set(row.user_id, row.rowid);
+  const accountOrder = (a: string, b: string) => {
+    const rankA = ranks.get(a),
+      rankB = ranks.get(b);
+    if ((rankA === undefined) !== (rankB === undefined))
+      return rankA === undefined ? 1 : -1;
+    if (rankA !== undefined && rankB !== undefined && rankA !== rankB)
+      return rankA - rankB;
+    const memberA = memberOrder.get(a),
+      memberB = memberOrder.get(b);
+    if ((memberA === undefined) !== (memberB === undefined))
+      return memberA === undefined ? 1 : -1;
+    if (memberA !== undefined && memberB !== undefined && memberA !== memberB)
+      return memberA - memberB;
+    return a.localeCompare(b);
+  };
   const cards = [...people]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => accountOrder(a, b))
     .slice(0, 500)
     .map(([id, p], index): GalleryCard => {
       const aliases = config.aliases;
