@@ -138,7 +138,9 @@ try {
   await page.waitForTimeout(2000);
   const loadedTitle = await page.title().catch(() => "");
   const headerText = await page.locator("body").innerText();
-  if (!headerText.includes(deck.title.slice(0, 12)) && !loadedTitle.includes(deck.title.slice(0, 12)))
+  // Multi-sheet decks show the sheet name rather than the deck title.
+  const marks = [deck.title, ...(deck.sheets ?? []).map(s => s.name)].map(t => String(t).slice(0, 12)).filter(Boolean);
+  if (!marks.some(m => headerText.includes(m) || loadedTitle.includes(m)))
     throw Error("アプリでJSONを開けませんでした（ファイルの読み込み口が変わった可能性があります）。check.mjs の opener を確認してください。");
   await page.addStyleTag({ content: ".toast{display:none!important}" });
   const sheets = deck.sheets ?? [{ id: "main", name: "" }];

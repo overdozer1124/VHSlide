@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.129.1 (e5a16ff): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.134.0 (be7f9f4): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -76,13 +76,19 @@ function parseWorksheet(value) {
     );
     check(!sections || !!f.sectionId, "\u5165\u529B\u6B04\u306E\u30BB\u30AF\u30B7\u30E7\u30F3\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
     check(
-      str(f.label, 200) && f.label.trim() && str(f.placeholder, 200) && str(f.section, 200) && typeof f.wide === "boolean" && ["text", "checkbox", "single", "multiple", "radar", "drawing"].includes(
-        f.kind
-      ),
+      str(f.label, 200) && f.label.trim() && str(f.placeholder, 200) && str(f.section, 200) && typeof f.wide === "boolean" && [
+        "text",
+        "checkbox",
+        "single",
+        "multiple",
+        "radar",
+        "drawing",
+        "order"
+      ].includes(f.kind),
       "\u5165\u529B\u6B04\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
     );
     check(
-      Array.isArray(f.options) && (f.kind === "single" || f.kind === "multiple" ? f.options.length >= 2 && f.options.length <= 10 : f.options.length === 0) && f.options.every((o) => str(o, 100) && o.trim()) && new Set(f.options).size === f.options.length,
+      Array.isArray(f.options) && (f.kind === "single" || f.kind === "multiple" || f.kind === "order" ? f.options.length >= 2 && f.options.length <= 10 : f.options.length === 0) && f.options.every((o) => str(o, 100) && o.trim()) && new Set(f.options).size === f.options.length,
       "\u9078\u629E\u80A2\u306F\u91CD\u8907\u3057\u306A\u30442\u301C10\u9805\u76EE\u3067\u3059\u3002"
     );
     check(
@@ -96,6 +102,14 @@ function parseWorksheet(value) {
     check(
       f.hideLabel === void 0 || typeof f.hideLabel === "boolean" && f.kind !== "checkbox",
       "\u9805\u76EE\u540D\u306E\u8868\u793A\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    check(
+      (f.labelLayout === void 0 || f.labelLayout === "left" && f.kind !== "checkbox") && (f.labelVertical === void 0 || typeof f.labelVertical === "boolean" && f.kind !== "checkbox") && (f.labelCompact === void 0 || typeof f.labelCompact === "boolean" && f.kind !== "checkbox"),
+      "\u898B\u51FA\u3057\u306E\u8868\u793A\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    check(
+      f.orderAsListed === void 0 || typeof f.orderAsListed === "boolean" && f.kind === "order",
+      "\u4E26\u3073\u66FF\u3048\u524D\u306E\u8868\u793A\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
     );
     if (f.kind === "radar") {
       const radar = f.radar;
@@ -121,6 +135,10 @@ function parseWorksheet(value) {
       ...f.reason ? { reason: true } : {},
       ...f.aggregatePublic ? { aggregatePublic: true } : {},
       ...f.hideLabel ? { hideLabel: true } : {},
+      ...f.labelLayout ? { labelLayout: f.labelLayout } : {},
+      ...f.labelVertical ? { labelVertical: true } : {},
+      ...f.labelCompact ? { labelCompact: true } : {},
+      ...f.orderAsListed ? { orderAsListed: true } : {},
       ...f.widthPercent !== void 0 ? { widthPercent: f.widthPercent } : {},
       ...f.inputHeight !== void 0 ? { inputHeight: f.inputHeight } : {},
       ...f.fontSize !== void 0 ? { fontSize: f.fontSize } : {},

@@ -79,6 +79,7 @@
 | `flow` | `lead` `items[{top, bottom, note}]` `footer` | 「A → B」の対応図 |
 | `points` | `items[[項目, 説明]]` `note{title, body}` | ポイントの一覧 |
 | `board` | `task` `items[[見出し, 内容]]` | 板書例 |
+| （共通） | `buttons: [{text, to, w?}]`（見出しの右上に置く移動ボタン。`to` はページの `id`）、lesson の `mapButton: {text, to}`（その時間のすべてのページに同じボタンを付ける。`to` のページ自身・表紙・区切りには付かない。ページ側で `mapButton: false` にすると外せる） | 自由進度学習の「学習マップへ戻る」など |
 | （共通） | `id`（ページID。`link` の行き先にする）`backdrop`（このページだけ背景にする画像のパス。`false` で背景なし）`backdropKind`（`title`／`section`／`content`／`plain`）`header: false` | すべてのページ |
 | `section` | `number` `name` `minutes` `lead`（ふつうは自動。各場面の始まりに入る。`sectionSlides: false` で無効） | 場面の区切り |
 | `statement` | `big`（大きな数字・言葉）`caption` `note` `bigSize` | 1枚1メッセージ。印象に残す数値・結論 |
@@ -98,3 +99,15 @@
 ```
 
 使えるキー：`decor`（{style, headerBand, top, titleInk, titleDark, sectionInk, sectionNum, heroFrom, heroTo}）`shadow`（false で影なし）`icons`（false でアイコンなし）`font`（本文の書体）`headingFont`（見出しの書体）— sans／serif／mono／rounded（丸ゴシック）／klee（教科書風）／yomogi（手書き風）／ud（UDゴシック）／brush（筆文字）／shippori（見出し明朝）、`bg` `surface` `ink` `sub` `primary` `onPrimary` `primarySoft` `accent` `onAccent` `accentSoft` `line` `muted` `chart[]` `header`（band/underline/tab/chalk/gingham/brutal/bento/notebook/board/magazine/minimal）`card`（fill/strip/outline/brutal/bento/sticky）`tiles`（タイルの色の並び）`card`（fill/strip/outline）`mascot{body, outline, wrap, cheek, think, idea}`。色は必ず `#rrggbb`。
+
+## 自由進度学習（単元内自由進度・マイプラン型）の組み方
+
+一斉授業の「導入→展開→まとめ」を1本の道として並べると、子供が順番を選べない。次のように組む。
+
+- `layout: "phase-grid"` にし、lessons を「共通（計画）」「教科A」「教科B」…に分ける（シートが分かれ、ワークシートも教科ごとになる）。`sectionSlides: false`。
+- 各教科の phases は **ミッションごとに1行**（行名＝ミッション名）。1行目に「学習マップ」（`form`）を置き、各ミッション名の四角に `link`（行き先＝各ミッションの最初のページの `id`）と「完了」のチェック欄（`type: "checkbox"`）を並べる。
+- lesson に `mapButton: {"text": "学習マップへ", "to": "<学習マップのid>"}` を付け、どのページからも戻れるようにする。
+- 共通シートに「マイプランシート」（`form`）：時間ごとの「計画」と「振り返り・計画の修正」の欄。計画を直すことを前向きに書く。
+- ミッションのページは、やること（`prompt`）、ヒント（教科書のページ・場所・掲示物・お助け動画）、記録の欄。パワーアップ（発展）とチェックテストも行として置く。
+- ルーブリックは教科ごと（観点は評価規準のア・イ・ウ）。学習マップの次に見通し、最後の行に自己評価。
+- 例：`lessons/jiyu-shindo-myplan/`（6年 国語・算数のマイプラン・タイム）

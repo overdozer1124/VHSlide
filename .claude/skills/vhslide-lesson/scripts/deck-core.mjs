@@ -701,7 +701,9 @@ for (const [li, L] of lessons.entries()) {
         const cycle = { question: ["band", "bubble"], cards: ["grid", "bento"] }[S.kind];
         if (cycle) S._auto = cycle[(variety[S.kind] = (variety[S.kind] ?? -1) + 1) % cycle.length];
       }
-      const meta = (si === 0 || (sectionOn && si === 1)) && P.minutes ? `${P.name} ${P.minutes}分` : P.name;
+      // Navigation buttons (e.g. "学習マップへ" on every mission page of a self-paced unit): S.buttons, or the lesson's mapButton.
+      const buttons = S.buttons ?? (L.mapButton && S.mapButton !== false && S.id !== L.mapButton.to && S.kind !== "title" && S.kind !== "section" ? [L.mapButton] : []);
+      const meta = buttons.length ? undefined : (si === 0 || (sectionOn && si === 1)) && P.minutes ? `${P.name} ${P.minutes}分` : P.name;
       let els, top = 0;
       if (S.kind === "title") els = await kinds.title(S, L);
       else if (S.kind === "section" || S.header === false) els = await kinds[S.kind](S, L, 0); // the slide draws its own heading
@@ -710,6 +712,11 @@ for (const [li, L] of lessons.entries()) {
         top = h.top;
         els = [...h.els, ...(await kinds[S.kind](S, L, top))];
       }
+      buttons.forEach((b, k) => {
+        const bw = b.w ?? 150, bx = W - 14 - (k + 1) * bw - k * 8, by = b.y ?? 14;
+        els.push({ ...rect(bx, by, bw, 38, b.fill ?? T.accent, { shape: "rounded", stroke: "#ffffff", strokeWidth: 2 }), link: { slideId: b.to } },
+          { ...text(b.text, bx, by, bw, 38, b.fontSize ?? 15, { color: b.color ?? T.onAccent, bold: true, align: "center", valign: "middle", min: 12 }), link: { slideId: b.to } });
+      });
       const bdKind = S.backdropKind ?? (S.kind === "title" ? "title" : S.kind === "section" ? "section" : S.header === false ? "plain" : "content");
       const bd = S.backdrop ? (await loadImg(S.backdrop)).src : S.backdrop === false ? undefined : await backdrop(bdKind);
       if (bd) els.unshift({ id: nid("bg"), type: "image", x: 0, y: 0, w: W, h: H, src: bd, altText: "" });
@@ -752,6 +759,10 @@ for (const p of slides) for (const e of p.elements)
   if (!(e.x >= 0 && e.x <= W && e.y >= 0 && e.y <= H && e.w >= 20 && e.h >= 20 && e.x + e.w <= W + 0.1 && e.y + e.h <= H + 0.1))
     throw Error(`範囲外の要素: ${p.id} ${e.type} (${e.x},${e.y},${e.w},${e.h})`);
 // Every sheet needs a (0,0) page; with slides on sheets, the top level also needs one at (0,0).
+const slideIds = new Set(slides.map(p => p.id));
+if (slideIds.size !== slides.length) throw Error(`ページの id が重複しています: ${[...new Set(slides.map(p => p.id).filter((v, i, a) => a.indexOf(v) !== i))].join("、")}`);
+for (const p of slides) for (const e of p.elements)
+  if (e.link?.slideId && !slideIds.has(e.link.slideId)) throw Error(`リンク先のページ「${e.link.slideId}」がありません（${p.title}）。ページの id を確かめてください。`);
 for (const s of sheets) if (!slides.some(p => (p.sheetId ?? "main") === s.id && p.x === 0 && p.y === 0)) throw Error(`シート「${s.name}」の左上(0,0)にページがありません。`);
 return deck;
 }

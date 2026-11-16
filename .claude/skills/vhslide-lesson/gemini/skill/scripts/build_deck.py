@@ -1259,7 +1259,9 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                     if cycle:
                         variety[S["kind"]] = variety.get(S["kind"], -1) + 1
                         S["_auto"] = cycle[variety[S["kind"]] % len(cycle)]
-                meta = f"{P.get('name')} {jstr(P.get('minutes'))}分" if (si == 0 or (section_on and si == 1)) and P.get("minutes") else P.get("name")
+                mb = L.get("mapButton")
+                buttons = S.get("buttons") if S.get("buttons") is not None else ([mb] if mb and S.get("mapButton") is not False and S.get("id") != mb.get("to") and S["kind"] not in ("title", "section") else [])
+                meta = None if buttons else f"{P.get('name')} {jstr(P.get('minutes'))}分" if (si == 0 or (section_on and si == 1)) and P.get("minutes") else P.get("name")
                 if S["kind"] == "title":
                     els = k_title(S, L)
                 elif S["kind"] == "section" or S.get("header") is False:
@@ -1267,6 +1269,11 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                 else:
                     h_els, top = header(nn(S.get("tag"), P.get("name")), nn(S.get("heading"), S.get("title"), ""), meta)
                     els = h_els + kinds[S["kind"]](S, L, top)
+                for k, b in enumerate(buttons):
+                    bw = nn(b.get("w"), 150)
+                    bx, by = W - 14 - (k + 1) * bw - k * 8, nn(b.get("y"), 14)
+                    els.append({**rect(bx, by, bw, 38, nn(b.get("fill"), T["accent"]), shape="rounded", stroke="#ffffff", strokeWidth=2), "link": {"slideId": b["to"]}})
+                    els.append({**text(b.get("text"), bx, by, bw, 38, nn(b.get("fontSize"), 15), color=nn(b.get("color"), T["onAccent"]), bold=True, align="center", valign="middle", min=12), "link": {"slideId": b["to"]}})
                 bd_kind = nn(S.get("backdropKind"), "title" if S["kind"] == "title" else "section" if S["kind"] == "section" else "plain" if S.get("header") is False else "content")
                 if S.get("backdrop"):
                     bd = load_img(S["backdrop"])["src"]
@@ -1312,6 +1319,14 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         for e in p["elements"]:
             if not (0 <= e["x"] <= W and 0 <= e["y"] <= H and e["w"] >= 20 and e["h"] >= 20 and e["x"] + e["w"] <= W + 0.1 and e["y"] + e["h"] <= H + 0.1):
                 raise BuildError(f"範囲外の要素: {p['id']} {e['type']} ({e['x']},{e['y']},{e['w']},{e['h']})")
+    ids = {p["id"] for p in slides}
+    if len(ids) != len(slides):
+        dup = sorted({p["id"] for p in slides if sum(q["id"] == p["id"] for q in slides) > 1})
+        raise BuildError(f"ページの id が重複しています: {'、'.join(dup)}")
+    for p in slides:
+        for e in p["elements"]:
+            if e.get("link") and e["link"].get("slideId") and e["link"]["slideId"] not in ids:
+                raise BuildError(f"リンク先のページ「{e['link']['slideId']}」がありません（{p['title']}）。ページの id を確かめてください。")
     for s in sheets:
         if not any(nn(p.get("sheetId"), "main") == s["id"] and p["x"] == 0 and p["y"] == 0 for p in slides):
             raise BuildError(f"シート「{s['name']}」の左上(0,0)にページがありません。")
