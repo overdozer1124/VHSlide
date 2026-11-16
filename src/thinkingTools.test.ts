@@ -1,0 +1,258 @@
+import { describe, it, expect } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+import type { HistorySQL } from "./historyStore";
+import { groupSchema, groupCommand } from "./groups";
+import {
+  thinkingSchema,
+  thinkingList,
+  thinkingCommand,
+  parseThinkingDefinition,
+  ThinkingError,
+} from "./thinkingTools";
+
+function fixture() {
+  const db = new DatabaseSync(":memory:");
+  db.exec(
+    "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT)",
+  );
+  db.exec(groupSchema);
+  db.exec(thinkingSchema);
+  db.prepare("INSERT INTO decks VALUES(?)").run("deck");
+  for (const [id, name] of [
+    ["host", "先生"],
+    ["ana", "あな"],
+    ["bob", "ぼぶ"],
+    ["eve", "いぶ"],
+  ])
+    db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+  const sql: HistorySQL = (query, ...args) => db.prepare(query).all(...args);
+  return { db, sql };
+}
+function fails(fn: () => unknown, status: number) {
+  try {
+    fn();
+  } catch (e) {
+    expect(e).toBeInstanceOf(ThinkingError);
+    expect((e as ThinkingError).status).toBe(status);
+    return;
+  }
+  throw new Error("expected the command to fail");
+}
+const axisDef = {
+  title: "賛成と自信",
+  xMin: "反対",
+  xMax: "賛成",
+  yMin: "自信がない",
+  yMax: "自信がある",
+  scenes: [
+    { id: "s1", label: "読む前" },
+    { id: "s2", label: "話し合いの後" },
+  ],
+  reason: true,
+};
+function createTool(
+  sql: HistorySQL,
+  overrides: Record<string, unknown> = {},
+): string {
+  const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+    template: "axis2",
+    unit: "individual",
+    definition: axisDef,
+    ...overrides,
+  });
+  return created!.createdId!;
+}
+function open(sql: HistorySQL, id: string) {
+  thinkingCommand(sql, "deck", "host", true, "status", id, {
+    status: "open",
+  });
+}
+
+describe("thinking tool definitions", () => {
+  it("validates definitions per template", () => {
+    expect(parseThinkingDefinition("axis2", axisDef).definition.scenes).toHaveLength(2);
+    expect(() =>
+      parseThinkingDefinition("axis2", { ...axisDef, yMax: "" }),
+    ).toThrow();
+    expect(() =>
+      parseThinkingDefinition("ratio", { title: "気持ち", nameA: "言いたい" }),
+    ).toThrow();
+    expect(
+      parseThinkingDefinition("ratio", {
+        title: "気持ち",
+        nameA: "言いたい",
+        nameB: "黙っていたい",
+      }).definition.nameB,
+    ).toBe("黙っていたい");
+    expect(() =>
+      parseThinkingDefinition("axis1", {
+        title: "数直線",
+        xMin: "0",
+        xMax: "10",
+        scenes: Array.from({ length: 11 }, (_, i) => ({
+          id: `s${i}`,
+          label: `場面${i}`,
+        })),
+      }),
+    ).toThrow();
+  });
+});
+
+describe("thinking points", () => {
+  it("keeps individual points private and per scene", () => {
+    const { sql } = fixture();
+    const id = createTool(sql);
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "point", id, {
+          scene: "s1",
+          value: { x: 0.5, y: 0.5 },
+        }),
+      409,
+    );
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s1",
+      value: { x: 0.2, y: 0.8 },
+      reason: "なんとなく賛成",
+    });
+    const mine = thinkingList(sql, "deck", "ana", false);
+    expect(mine[0].points).toHaveLength(1);
+    expect(mine[0].points[0].value).toEqual({ x: 0.2, y: 0.8 });
+    expect(mine[0].points[0].reason).toBe("なんとなく賛成");
+    // Another student sees the tool but none of ana's points.
+    const bobs = thinkingList(sql, "deck", "bob", false);
+    expect(bobs[0].points).toHaveLength(0);
+    // The host sees everything.
+    expect(thinkingList(sql, "deck", "host", true)[0].points).toHaveLength(1);
+    // Teacher scene mode: students write only into the current scene.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "point", id, {
+          scene: "s2",
+          value: { x: 0.1, y: 0.1 },
+        }),
+      409,
+    );
+    thinkingCommand(sql, "deck", "host", true, "scene", id, { scene: "s2" });
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s2",
+      value: { x: 0.9, y: 0.9 },
+    });
+    expect(thinkingList(sql, "deck", "ana", false)[0].points).toHaveLength(2);
+    // Only the author (or host) clears an individual point.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "clear", id, {
+          scene: "s1",
+          owner: "ana",
+        }),
+      403,
+    );
+  });
+
+  it("shares one point per group and locks concurrent edits", () => {
+    const { sql } = fixture();
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    groupCommand(sql, "deck", "ana", false, "join", undefined, {
+      groupId: thinkingGroups(sql)[0],
+    });
+    groupCommand(sql, "deck", "bob", false, "join", undefined, {
+      groupId: thinkingGroups(sql)[0],
+    });
+    groupCommand(sql, "deck", "eve", false, "join", undefined, {
+      groupId: thinkingGroups(sql)[1],
+    });
+    const id = createTool(sql, { unit: "group" });
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s1",
+      value: { x: 0.3, y: 0.3 },
+    });
+    // Bob is in the same group: he sees the point, but ana holds the lock.
+    const bobs = thinkingList(sql, "deck", "bob", false);
+    expect(bobs[0].points).toHaveLength(1);
+    expect(bobs[0].points[0].authorName).toBe("あな");
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "point", id, {
+          scene: "s1",
+          value: { x: 0.4, y: 0.4 },
+        }),
+      409,
+    );
+    // Eve is in another group: no point, and writing is refused.
+    expect(thinkingList(sql, "deck", "eve", false)[0].points).toHaveLength(0);
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "eve", false, "point", id, {
+          scene: "s1",
+          value: { x: 0.4, y: 0.4 },
+          owner: thinkingGroups(sql)[0],
+        }),
+      403,
+    );
+  });
+
+  it("shares one point with the whole class", () => {
+    const { sql } = fixture();
+    const id = createTool(sql, { unit: "class" });
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s1",
+      value: { x: 0.6, y: 0.2 },
+    });
+    const bobs = thinkingList(sql, "deck", "bob", false);
+    expect(bobs[0].points).toHaveLength(1);
+    expect(bobs[0].points[0].owner).toBe("");
+    // The author id is not handed to classmates, the name is.
+    expect(bobs[0].points[0].authorId).toBe("");
+    expect(bobs[0].points[0].authorName).toBe("あな");
+  });
+
+  it("guards host operations and edits after answers exist", () => {
+    const { sql } = fixture();
+    const id = createTool(sql);
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "status", id, {
+          status: "open",
+        }),
+      403,
+    );
+    fails(
+      () => thinkingCommand(sql, "deck", "ana", false, "delete", id, {}),
+      403,
+    );
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s1",
+      value: { x: 0.5, y: 0.5 },
+    });
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "edit", id, {
+          unit: "class",
+          definition: axisDef,
+        }),
+      409,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "edit", id, {
+          definition: { ...axisDef, scenes: [{ id: "s2", label: "後" }] },
+        }),
+      409,
+    );
+    thinkingCommand(sql, "deck", "host", true, "delete", id, {});
+    expect(thinkingList(sql, "deck", "host", true)).toHaveLength(0);
+  });
+});
+
+function thinkingGroups(sql: HistorySQL): string[] {
+  return [...sql("SELECT id FROM deck_groups ORDER BY sort,id")].map(
+    (r) => r.id as string,
+  );
+}
