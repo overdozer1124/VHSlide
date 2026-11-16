@@ -3,7 +3,7 @@ import { collectForeignForms, rewriteFormBindings } from "./formAdoption";
 import { api } from "./cloud";
 
 type Item = { id: string };
-type Kind = "worksheets" | "surveys";
+type Kind = "worksheets" | "surveys" | "thinking";
 
 /** Stage imported forms as drafts until their pages are safely inserted. */
 export async function prepareImportedForms(deck: Deck, destination: string) {
@@ -11,6 +11,7 @@ export async function prepareImportedForms(deck: Deck, destination: string) {
   const created: { kind: Kind; id: string }[] = [];
   const worksheets = new Map<string, string>();
   const surveys = new Map<string, string>();
+  const thinking = new Map<string, string>();
   async function removeDrafts() {
     await Promise.allSettled(
       created.map(({ kind, id }) =>
@@ -66,8 +67,25 @@ export async function prepareImportedForms(deck: Deck, destination: string) {
       result.surveys.forEach((s) => knownSurveys.add(s.id));
       surveys.set(survey.key, added[0].id);
     }
+    for (const tool of plan.thinking) {
+      const result = await api<{ createdId?: string }>(
+        `/api/decks/${destination}/thinking`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            template: tool.template,
+            unit: tool.unit,
+            definition: tool.definition,
+          }),
+        },
+      );
+      if (!result.createdId)
+        throw new Error("追加した思考ツールを特定できませんでした。");
+      created.push({ kind: "thinking", id: result.createdId });
+      thinking.set(tool.key, result.createdId);
+    }
     return {
-      deck: rewriteFormBindings(deck, destination, worksheets, surveys),
+      deck: rewriteFormBindings(deck, destination, worksheets, surveys, thinking),
       cleanup: removeDrafts,
       async activate() {
         const result = await Promise.allSettled(

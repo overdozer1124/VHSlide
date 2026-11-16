@@ -22,6 +22,9 @@ import { GroupsProvider } from "./GroupsContext";
 import { DeckPollProvider } from "./deckPoll";
 import { WebbingPanel } from "./WebbingPanel";
 import { parseWebbingBinding } from "./webbingBinding";
+import { ThinkingPanel } from "./ThinkingPanel";
+import { parseThinkingBinding } from "./thinkingBinding";
+import type { ThinkingView } from "./thinkingTools";
 import { EmbedPanel } from "./EmbedPanel";
 import { embedHostName, parseEmbedBinding } from "./embedBinding";
 import type { WebbingView } from "./webbing";
@@ -3888,6 +3891,70 @@ export default function App() {
               setView("editor");
               notify(
                 "ウェビングマップをスライドに配置しました。全員が同じマップに書き込めます。",
+              );
+            }}
+          />
+        }
+        thinking={
+          <ThinkingPanel
+            host={cloud.isHost}
+            onEmbed={(tool: ThinkingView) => {
+              if (!cloud.active || !cloud.isHost || tool.status === "draft")
+                throw new Error("ホストが受付を開始してから配置してください。");
+              const current = latestWorkbook.current;
+              const target = current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              );
+              if (!target || target.elements.length >= 200)
+                throw new Error(
+                  "配置先のページを確認してください。1ページ200要素までです。",
+                );
+              const element: Element = {
+                id: uid(),
+                type: "shape",
+                shape: "rounded",
+                x: 60,
+                y: 50,
+                w: 840,
+                h: 440,
+                fill: "#ffffff",
+                stroke: "#7a6a9a",
+                color: "#2e2440",
+                fontSize: 24,
+                text: `思考ツール：${tool.definition.title}`,
+                thinking: parseThinkingBinding({
+                  deckId: cloud.active.id,
+                  toolId: tool.id,
+                  title: tool.definition.title,
+                  template: tool.template,
+                  unit: tool.unit,
+                  definition: tool.definition,
+                }),
+              };
+              const next = {
+                ...current,
+                slides: current.slides.map((s) =>
+                  s.id === target.id
+                    ? { ...s, elements: [...s.elements, element] }
+                    : s,
+                ),
+              };
+              if (
+                !commitWorkbook(parseDeck(serializeDeck(next)), current, true)
+              )
+                throw new Error("思考ツールを配置できませんでした。");
+              if (view === "present") {
+                setSpeakerLaunch(undefined);
+                setPresentation(undefined);
+                setObjectTrail([]);
+                setPendingPresentationLink(undefined);
+                if (document.fullscreenElement)
+                  void document.exitFullscreen().catch(() => {});
+              }
+              setSelected(element.id);
+              setView("editor");
+              notify(
+                "思考ツールをスライドに配置しました。生徒が点を置いて考えを表せます。",
               );
             }}
           />
