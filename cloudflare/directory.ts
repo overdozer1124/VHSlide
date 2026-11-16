@@ -40,6 +40,27 @@ import {
   generalDeckAccess,
   stage1FeaturesEnabled,
 } from "../src/stage1Capabilities.ts";
+import { writeAuditLog } from "../src/stage1Audit.ts";
+import {
+  bindPreregistrationsOnLogin,
+  cancelPreregistration,
+  canManageOrganizationPrereg,
+  createPreregistration,
+  durablePreregSql,
+  PreregistrationError,
+} from "../src/stage1Preregistration.ts";
+import {
+  applyForSchoolAdmin,
+  decideSchoolAdminApplication,
+  durableSchoolAdminSql,
+  revokeSchoolAdmin,
+  SchoolAdminError,
+} from "../src/stage1SchoolAdmin.ts";
+import {
+  durableGenerationSql,
+  invalidateOrganizationMember,
+  reactivateOrganizationMember,
+} from "../src/stage1Generation.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -532,6 +553,12 @@ export class Directory extends DurableObject<Env> {
           user.name,
           user.email,
         );
+        if (stage1FeaturesEnabled(this.env))
+          bindPreregistrationsOnLogin(durablePreregSql(this.sql), {
+            userId: user.id,
+            email: user.email,
+            emailVerified: true,
+          });
         this.sql.exec(
           "INSERT INTO sessions VALUES(?,?,?)",
           hash,
@@ -546,6 +573,356 @@ export class Directory extends DurableObject<Env> {
     const identity = await this.identity(request),
       user = identity.user;
     if (path !== "/api/logout") await this.claim(user);
+    const orgPrereg =
+      /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
+    if (stage1FeaturesEnabled(this.env) && orgPrereg && method === "POST") {
+      const organizationId = decodeURIComponent(orgPrereg[1]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の事前登録を作成する権限がありません。",
+      );
+      const data = await input(request, 20_000);
+      insist(
+        typeof data.email === "string",
+        400,
+        "メールアドレスを確認してください。",
+      );
+      const plannedRole =
+        data.plannedRole === "teacher" || data.plannedRole === "student"
+          ? data.plannedRole
+          : data.plannedRole == null
+            ? null
+            : undefined;
+      insist(plannedRole !== undefined, 400, "予定の役割を確認してください。");
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const created = createPreregistration(durablePreregSql(this.sql), {
+            id,
+            email: data.email,
+            organizationId,
+            plannedRole,
+            plannedIsSchoolAdmin: !!data.plannedIsSchoolAdmin,
+            plannedCanCreateSpace: !!data.plannedCanCreateSpace,
+            createdBy: user.id,
+            createdAt: now,
+          });
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "preregistration.create",
+              target: `preregistration:${id}`,
+              createdAt: now,
+            },
+          );
+          return created;
+        });
+        return json({ preregistration: row }, 201);
+      } catch (error) {
+        if (error instanceof PreregistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const schoolAdminApply =
+      /^\/api\/organizations\/([^/]+)\/school-admin-applications$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      schoolAdminApply &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(schoolAdminApply[1]);
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const created = applyForSchoolAdmin(durableSchoolAdminSql(this.sql), {
+            id,
+            organizationId,
+            applicantUserId: user.id,
+            createdAt: now,
+          });
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "school_admin.apply",
+              target: `school_admin_application:${id}`,
+              createdAt: now,
+            },
+          );
+          return created;
+        });
+        return json({ application: row }, 201);
+      } catch (error) {
+        if (error instanceof SchoolAdminError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const schoolAdminDecide =
+      /^\/api\/school-admin-applications\/([^/]+)\/decide$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      schoolAdminDecide &&
+      method === "POST"
+    ) {
+      const applicationId = decodeURIComponent(schoolAdminDecide[1]);
+      const data = await input(request, 20_000);
+      insist(
+        data.decision === "登録" || data.decision === "却下",
+        400,
+        "決定内容を確認してください。",
+      );
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const decided = decideSchoolAdminApplication(
+            durableSchoolAdminSql(this.sql),
+            {
+              applicationId,
+              decision: data.decision,
+              decidedBy: user.id,
+              decidedAt: now,
+            },
+          );
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action:
+                data.decision === "登録"
+                  ? "school_admin.appoint"
+                  : "school_admin.reject",
+              target: `school_admin_application:${applicationId}`,
+              createdAt: now,
+            },
+          );
+          return decided;
+        });
+        return json({ application: row });
+      } catch (error) {
+        if (error instanceof SchoolAdminError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const schoolAdminRevoke =
+      /^\/api\/organizations\/([^/]+)\/school-admins\/([^/]+)$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      schoolAdminRevoke &&
+      method === "DELETE"
+    ) {
+      const organizationId = decodeURIComponent(schoolAdminRevoke[1]);
+      const targetUserId = decodeURIComponent(schoolAdminRevoke[2]);
+      const now = Date.now();
+      try {
+        this.ctx.storage.transactionSync(() => {
+          insist(
+            revokeSchoolAdmin(durableSchoolAdminSql(this.sql), {
+              organizationId,
+              userId: targetUserId,
+              actorUserId: user.id,
+            }),
+            404,
+            "解除する学校管理者資格が見つかりません。",
+          );
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "school_admin.revoke",
+              target: `organization:${organizationId}:user:${targetUserId}`,
+              createdAt: now,
+            },
+          );
+        });
+        return json({ ok: true });
+      } catch (error) {
+        if (error instanceof SchoolAdminError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const memberInvalidate =
+      /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/invalidate$/.exec(
+        path,
+      );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      memberInvalidate &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(memberInvalidate[1]);
+      const targetUserId = decodeURIComponent(memberInvalidate[2]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を無効化する権限がありません。",
+      );
+      const now = Date.now();
+      const generation = this.ctx.storage.transactionSync(() => {
+        const next = invalidateOrganizationMember(
+          durableGenerationSql(this.sql),
+          targetUserId,
+          organizationId,
+        );
+        insist(
+          next !== undefined,
+          404,
+          "無効化できる有効な所属が見つかりません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "membership.invalidate",
+            target: `organization:${organizationId}:user:${targetUserId}`,
+            createdAt: now,
+          },
+        );
+        return next;
+      });
+      return json({ generation });
+    }
+    const memberReactivate =
+      /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/reactivate$/.exec(
+        path,
+      );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      memberReactivate &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(memberReactivate[1]);
+      const targetUserId = decodeURIComponent(memberReactivate[2]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を再有効化する権限がありません。",
+      );
+      const data = await input(request, 20_000);
+      const role =
+        data.role === "teacher" || data.role === "student"
+          ? data.role
+          : data.role == null
+            ? null
+            : undefined;
+      insist(role !== undefined, 400, "役割を確認してください。");
+      const now = Date.now();
+      const member = this.ctx.storage.transactionSync(() => {
+        const restored = reactivateOrganizationMember(
+          durableGenerationSql(this.sql),
+          targetUserId,
+          organizationId,
+          role,
+        );
+        insist(
+          restored,
+          404,
+          "再有効化できる無効な所属が見つかりません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "membership.reactivate",
+            target: `organization:${organizationId}:user:${targetUserId}`,
+            createdAt: now,
+          },
+        );
+        return restored;
+      });
+      return json({ member });
+    }
+    const preregId = /^\/api\/preregistrations\/([^/]+)$/.exec(path);
+    if (stage1FeaturesEnabled(this.env) && preregId && method === "DELETE") {
+      const id = decodeURIComponent(preregId[1]);
+      const existing = one<{ organization_id: string }>(
+        this.sql,
+        "SELECT organization_id FROM preregistrations WHERE id=?",
+        id,
+      );
+      insist(existing, 404, "事前登録が見つかりません。");
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          existing.organization_id,
+        ),
+        403,
+        "この事前登録を取り消す権限がありません。",
+      );
+      const now = Date.now();
+      this.ctx.storage.transactionSync(() => {
+        insist(
+          cancelPreregistration(durablePreregSql(this.sql), id),
+          409,
+          "この事前登録は取り消せません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "preregistration.cancel",
+            target: `preregistration:${id}`,
+            createdAt: now,
+          },
+        );
+      });
+      return json({ ok: true });
+    }
     if (path === "/api/logout" && method === "POST") {
       this.sql.exec("DELETE FROM sessions WHERE hash=?", identity.session);
       const works = rows<{ deck: string }>(

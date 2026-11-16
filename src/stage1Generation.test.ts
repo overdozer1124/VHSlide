@@ -68,4 +68,43 @@ describe("stage1Generation", () => {
     expect(invalidateOrganizationMember(sql, "u1", "org1")).toBeUndefined();
     expect(readMemberGeneration(sql, "u1", "org1")).toBe(2);
   });
+
+  it("does not reactivate when already active", () => {
+    const db = open();
+    const sql = nodeGenerationSql(db);
+    expect(
+      reactivateOrganizationMember(sql, "u1", "org1", "teacher"),
+    ).toBeUndefined();
+  });
+
+  it("clears school-admin and create-space flags on reactivate", () => {
+    const db = open();
+    db.prepare(
+      "UPDATE organization_members SET is_school_admin=1, can_create_space=1 WHERE user_id=? AND organization_id=?",
+    ).run("u1", "org1");
+    const sql = nodeGenerationSql(db);
+    expect(invalidateOrganizationMember(sql, "u1", "org1")).toBe(2);
+    expect(
+      Number(
+        (
+          db
+            .prepare(
+              "SELECT is_school_admin FROM organization_members WHERE user_id=? AND organization_id=?",
+            )
+            .get("u1", "org1") as { is_school_admin: number }
+        ).is_school_admin,
+      ),
+    ).toBe(1);
+    reactivateOrganizationMember(sql, "u1", "org1", "teacher");
+    const row = db
+      .prepare(
+        "SELECT status, generation, role, is_school_admin, can_create_space FROM organization_members WHERE user_id=? AND organization_id=?",
+      )
+      .get("u1", "org1") as Record<string, unknown>;
+    expect(row.status).toBe("有効");
+    expect(Number(row.generation)).toBe(2);
+    expect(row.role).toBe("teacher");
+    expect(Number(row.is_school_admin)).toBe(0);
+    expect(Number(row.can_create_space)).toBe(0);
+  });
 });
