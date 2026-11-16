@@ -45,6 +45,9 @@ test("host bulk axes synchronize and scoped participants keep their original row
       other.getByRole("button", { name: "行・列を一括操作", exact: true }),
     ).toHaveCount(0);
     await page
+      .getByRole("button", { name: "マップの表示設定", exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "行・列を一括操作", exact: true })
       .click();
     const panel = page.getByRole("region", {
@@ -102,6 +105,9 @@ test("host bulk axes synchronize and scoped participants keep their original row
     await expect(page.locator(".slide-card")).toHaveCount(13);
     await expect(page.locator('[data-page-id="p00"]')).toBeVisible();
     await page
+      .getByRole("button", { name: "マップの表示設定", exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "行・列を一括操作", exact: true })
       .click();
     await page
@@ -143,6 +149,9 @@ test("a selected row keeps its identity when another host window inserts a row",
       "クラウドに保存済み",
     );
     await page
+      .getByRole("button", { name: "マップの表示設定", exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "行・列を一括操作", exact: true })
       .click();
     const panel = page.getByRole("region", { name: "行・列の一括操作" });
@@ -150,6 +159,9 @@ test("a selected row keeps its identity when another host window inserts a row",
       .getByRole("button", { name: "2行目を選択", exact: true })
       .click();
     await expect(panel.getByLabel("一括操作の開始番号")).toHaveValue("2");
+    await second
+      .getByRole("button", { name: "マップの表示設定", exact: true })
+      .click();
     await second
       .getByRole("button", { name: "行・列を一括操作", exact: true })
       .click();
@@ -180,10 +192,16 @@ test("a selected row keeps its identity when another host window inserts a row",
       0,
     );
     await page
+      .getByRole("button", { name: "マップの表示設定", exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "行・列を一括操作", exact: true })
       .click();
     await page
       .getByRole("button", { name: "2行目を選択", exact: true })
+      .click();
+    await second
+      .getByRole("button", { name: "マップの表示設定", exact: true })
       .click();
     await second
       .getByRole("button", { name: "行・列を一括操作", exact: true })

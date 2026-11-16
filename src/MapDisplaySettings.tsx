@@ -10,6 +10,7 @@ export function MapDisplaySettings({
   onFit,
   steps,
   onSteps,
+  onBatch,
   children,
 }: {
   numbers: boolean;
@@ -18,6 +19,7 @@ export function MapDisplaySettings({
   onFit: () => void;
   steps: number[];
   onSteps: (steps: number[]) => void;
+  onBatch?: () => void;
   children?: ReactNode;
 }) {
   return (
@@ -70,6 +72,21 @@ export function MapDisplaySettings({
             onApply={onSteps}
             onDone={close}
           />
+          {onBatch && (
+            <div className="map-display-section">
+              <h4>シート全体の操作</h4>
+              <button
+                className="button outline map-batch-trigger"
+                title="このシート全体の行・列を追加・削除"
+                onClick={() => {
+                  onBatch();
+                  close();
+                }}
+              >
+                行・列を一括操作
+              </button>
+            </div>
+          )}
         </div>
       )}
     </Palette>

@@ -30,6 +30,8 @@ import {
   Search,
   Filter,
   Columns2,
+  LocateFixed,
+  RotateCcw,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
 import { bounds, W, H } from "./model";
@@ -387,7 +389,8 @@ function MapViewComponent({
   const defaultScale = closestZoom(zoomSteps) / 100;
   const largestScale = levels[levels.length - 1];
   const below = (current: number) =>
-    [...levels].reverse().find((level) => level < current - 0.0001) ?? 0;
+    [...levels].reverse().find((level) => level < current - 0.0001) ??
+    levels[0];
   const above = (current: number) =>
     levels.find((level) => level > current + 0.0001) ?? largestScale;
   const smallerScale = below(scale),
@@ -1061,7 +1064,7 @@ function MapViewComponent({
         trackpadStarted.current = true;
         const a = anchor.current!,
           grid = gridRef.current!;
-        if (numbers && sample.direction === "in") return endPreview();
+        if (numbers) return endPreview();
         if (
           !filterOpen &&
           a.scale === largestScale &&
@@ -1089,7 +1092,7 @@ function MapViewComponent({
         }
         return;
       }
-      if (numbers && sample.direction === "in") return;
+      if (numbers) return;
       const a = anchor.current!;
       let ratio = Math.max(0.12, Math.min(5, sample.ratio));
       const next = sample.direction === "in" ? smallerScale : largerScale;
@@ -1137,6 +1140,12 @@ function MapViewComponent({
       const a = anchor.current!;
       if (!sample.direction) {
         release({ dx: 0, dy: 0, ratio: 1 }, scale, endPreview);
+        return;
+      }
+      // The numbered overview is entered and left only from the display
+      // settings; a pinch never crosses its boundary.
+      if (!a.scale) {
+        endPreview();
         return;
       }
       if (
@@ -1277,6 +1286,15 @@ function MapViewComponent({
   function zoomTo(choose: (current: number) => number) {
     onScale(choose(settle()));
   }
+  function locateActive() {
+    activeCard.current?.scrollIntoView({
+      block: "center",
+      inline: "center",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    });
+  }
   function zoomOut() {
     zoomTo(below);
   }
@@ -1290,7 +1308,8 @@ function MapViewComponent({
     onScale(
       [...levels]
         .reverse()
-        .find((level) => cols * (242 * level + 2 + 24) <= width) ?? 0,
+        .find((level) => cols * (242 * level + 2 + 24) <= width) ??
+        levels[0],
     );
     scrollRef.current.scrollLeft = 0;
   }
@@ -1407,23 +1426,7 @@ function MapViewComponent({
                 <MousePointer2 size={16} aria-hidden="true" />
                 選択
               </button>
-              {headingEditable && visible && (
-                <button
-                  className="quiet map-batch-trigger"
-                  onClick={() => {
-                    setBatchSelection(undefined);
-                    setBatchSelectionLost(false);
-                    setBatchOpen(true);
-                    selection.close();
-                    setFilterOpen(false);
-                    onMove(undefined);
-                  }}
-                  title="このシート全体の行・列を追加・削除"
-                >
-                  行・列を一括操作
-                </button>
-              )}
-              {filtered && (
+              {filtered && !lockedFilter && (
                 <button
                   className="quiet"
                   onClick={() => {
@@ -1479,6 +1482,14 @@ function MapViewComponent({
                   <Search size={15} />
                 </button>
               </form>
+              <button
+                className="quiet map-locate"
+                aria-label="いまのページを表示"
+                onClick={locateActive}
+              >
+                <LocateFixed size={16} />
+                いまのページ
+              </button>
               <div
                 className="map-zoom"
                 role="group"
@@ -1488,7 +1499,7 @@ function MapViewComponent({
                   className="icon-button"
                   aria-label="マップを縮小"
                   title="マップを縮小"
-                  disabled={numbers}
+                  disabled={numbers || scale === levels[0]}
                   onClick={zoomOut}
                 >
                   <ZoomOut size={17} />
@@ -1497,15 +1508,23 @@ function MapViewComponent({
                   className="map-scale-reset"
                   aria-label={`表示サイズを${Math.round(defaultScale * 100)}%に戻す`}
                   title={`標準の${Math.round(defaultScale * 100)}%に戻す`}
+                  disabled={numbers}
                   onClick={() => zoomTo(() => defaultScale)}
                 >
-                  {numbers ? "番号" : `${Math.round(scale * 100)}%`}
+                  {numbers ? (
+                    "番号"
+                  ) : (
+                    <>
+                      <RotateCcw size={13} aria-hidden="true" />
+                      {Math.round(scale * 100)}%
+                    </>
+                  )}
                 </button>
                 <button
                   className="icon-button"
                   aria-label="マップを拡大"
                   title="マップを拡大"
-                  disabled={scale === largestScale}
+                  disabled={numbers || scale === largestScale}
                   onClick={zoomIn}
                 >
                   <ZoomIn size={17} />
@@ -1517,15 +1536,18 @@ function MapViewComponent({
                   onNumbers={() =>
                     zoomTo((current) => (current === 0 ? levels[0] : 0))
                   }
-                  onLocate={() =>
-                    activeCard.current?.scrollIntoView({
-                      block: "center",
-                      inline: "center",
-                      behavior: matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches
-                        ? "instant"
-                        : "smooth",
-                    })
+                  onLocate={locateActive}
+                  onBatch={
+                    headingEditable
+                      ? () => {
+                          setBatchSelection(undefined);
+                          setBatchSelectionLost(false);
+                          setBatchOpen(true);
+                          selection.close();
+                          setFilterOpen(false);
+                          onMove(undefined);
+                        }
+                      : undefined
                   }
                   onFit={fitColumns}
                   steps={zoomSteps}
@@ -1716,7 +1738,23 @@ function MapViewComponent({
         )}
         {filtered && (
           <div className="filtered-note">
-            元の行・列はカード下部に表示 · 配置を変えるには絞り込みを解除
+            {lockedFilter ? (
+              <>先生の設定で、自分の担当ページだけを表示しています</>
+            ) : (
+              <>
+                元の並びは変わっていません。元の行・列はカード下部に表示 ·
+                配置を変えるには絞り込みを解除
+                <button
+                  className="quiet filtered-note-clear"
+                  onClick={() => {
+                    setFilter(undefined);
+                    setFilterOpen(false);
+                  }}
+                >
+                  フィルタを解除
+                </button>
+              </>
+            )}
             {scope.issues.length > 0 && (
               <span role="status"> {scope.issues.join(" ")}</span>
             )}
@@ -2205,6 +2243,11 @@ function MapViewComponent({
                                     発表の先頭
                                   </span>
                                 )}
+                              {detailed && !filterOpen && s.id === activeId && (
+                                <span className="start-badge current-badge">
+                                  いまのページ
+                                </span>
+                              )}
                             </button>
                             {detailed && (
                               <div className="card-footer">
@@ -2234,7 +2277,7 @@ function MapViewComponent({
                                       <MoreHorizontal size={14} />
                                     </button>
                                     <button
-                                      disabled={readOnly}
+                                      disabled={readOnly || !footerEditable(s)}
                                       style={{
                                         display:
                                           filtered || filterOpen
@@ -2252,7 +2295,7 @@ function MapViewComponent({
                                     </button>
                                     <button
                                       className="card-tool delete"
-                                      disabled={readOnly}
+                                      disabled={readOnly || !footerEditable(s)}
                                       aria-label={`${s.title}を削除`}
                                       onClick={() => onDelete(s.id)}
                                     >

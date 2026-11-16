@@ -512,6 +512,12 @@ h1 span {
   border-radius: 3px;
   color: #5d7b50;
 }
+.start-badge.current-badge {
+  left: 10px;
+  right: auto;
+  background: #35618e;
+  color: #fff;
+}
 .card-footer {
   height: 36px;
   display: flex;
@@ -2523,6 +2529,10 @@ h1 span {
   border-radius: 5px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
 }
 .map-scale-reset:hover {
   background: #edf3e9;
@@ -6588,6 +6598,10 @@ h1 span {
 /* Map preferences are form controls, separate from the three direct zoom buttons. */
 .mapping .map-toolbar > .tool-button {display:inline-flex;gap:6px;white-space:nowrap;font-size:14px;padding:5px 9px;}
 .map-display-settings {display:flex;flex-direction:column;gap:8px;padding:6px 12px 14px;}
+.map-display-section {border-top:1px solid #e3e9de;margin-top:4px;padding-top:10px;}
+.map-display-section h4 {margin:0 0 8px;font-size:12px;font-weight:700;color:#5c7564;}
+.map-display-section > button {width:100%;justify-content:flex-start;gap:8px;}
+.filtered-note .filtered-note-clear {margin-left:10px;text-decoration:underline;font-size:inherit;}
 .map-display-settings > button {width:100%;justify-content:flex-start;gap:8px;}
 .map-display-settings > [aria-pressed=true], .map-display-settings > [aria-checked=true] {background:#e5f0dc;border:1px solid #8fab7f;}
 .map-display-settings .map-row-accounts {display:flex;align-items:center;gap:8px;padding:10px;font-size:14px;border:1px solid #dce3df;border-radius:8px;}
