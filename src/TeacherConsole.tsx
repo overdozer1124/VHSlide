@@ -14,6 +14,8 @@ import { api, type CloudWorkspace } from "./cloud";
 import type { FollowTarget } from "./hostFollow";
 import { useWorksheets } from "./WorksheetContext";
 import { useWebbing } from "./WebbingContext";
+import { useThinking } from "./ThinkingContext";
+import { ThinkingResults } from "./ThinkingResults";
 import { useGroups } from "./GroupsContext";
 import type { WebbingNode } from "./webbing";
 import { WebbingMini } from "./WebbingMini";
@@ -39,7 +41,7 @@ import {
   fieldAnswered,
 } from "./teacherConsole";
 
-type ConsoleMode = "list" | "fields" | "slides" | "groups";
+type ConsoleMode = "list" | "fields" | "slides" | "groups" | "thinking";
 
 /**
  * Host-only monitoring view for use in a separate tab while another tab
@@ -377,6 +379,7 @@ function ConsoleMain({
 }) {
   const ctx = useWorksheets();
   const webbingCtx = useWebbing();
+  const thinkingCtx = useThinking();
   const visible = usePageVisible();
   useEffect(() => {
     if (!webbingCtx.enabled || !visible) return;
@@ -387,6 +390,15 @@ function ConsoleMain({
     );
     return () => clearInterval(timer);
   }, [webbingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!thinkingCtx.enabled || !visible) return;
+    void thinkingCtx.refresh().catch(() => {});
+    const timer = setInterval(
+      () => void thinkingCtx.refresh().catch(() => {}),
+      5000,
+    );
+    return () => clearInterval(timer);
+  }, [thinkingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const [worksheetId, setWorksheetId] = useState("");
   const [downloading, setDownloading] = useState(false);
   const alive = useRef(true);
@@ -448,6 +460,9 @@ function ConsoleMain({
     ...(webbingCtx.maps.length
       ? [{ key: "groups" as ConsoleMode, label: "グループ別マップ" }]
       : []),
+    ...(thinkingCtx.tools.length
+      ? [{ key: "thinking" as ConsoleMode, label: "思考ツール" }]
+      : []),
   ];
   const showHead =
     (mode === "list" || mode === "fields") && ctx.enabled && !!sheet;
@@ -503,6 +518,8 @@ function ConsoleMain({
           groupShow={groupShow}
           onGroupShow={onGroupShow}
         />
+      ) : mode === "thinking" ? (
+        <ConsoleThinking />
       ) : !ctx.enabled ? (
         <p className="console-note">
           クラウドの作品を開くと、ワークシートの回答がここに表示されます。
@@ -1156,6 +1173,41 @@ function ConsoleStudentSlides({
       )}
         </>
       )}
+    </div>
+  );
+}
+
+/** Thinking tools in the console: the same distribution / playback /
+ * trajectory view as the form panel's results, kept fresh by the
+ * console's 5-second refresh so the host can watch points move
+ * during the lesson. */
+function ConsoleThinking() {
+  const thinkingCtx = useThinking();
+  const [toolId, setToolId] = useState("");
+  const tool =
+    thinkingCtx.tools.find((t) => t.id === toolId) ?? thinkingCtx.tools[0];
+  if (!tool)
+    return (
+      <p className="console-note">
+        思考ツールはまだありません。「フォーム」の「思考ツール」から作成できます。
+      </p>
+    );
+  return (
+    <div className="console-thinking">
+      {thinkingCtx.tools.length > 1 && (
+        <select
+          aria-label="思考ツールを選ぶ"
+          value={tool.id}
+          onChange={(e) => setToolId(e.target.value)}
+        >
+          {thinkingCtx.tools.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.definition.title}
+            </option>
+          ))}
+        </select>
+      )}
+      <ThinkingResults key={tool.id} tool={tool} />
     </div>
   );
 }

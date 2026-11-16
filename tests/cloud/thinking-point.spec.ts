@@ -301,3 +301,52 @@ test("a group point is shared inside the group only", async ({
   await ctxB.close();
   await ctxC.close();
 });
+
+test("the console thinking tab shows the class distribution", async (
+  { page, browser },
+  info,
+) => {
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-console-host`);
+  const guestName = `${info.project.name}-console-student`;
+  await addGuest(page, id, guestName);
+  const toolId = await createTool(page, id, {
+    template: "axis2",
+    unit: "individual",
+    definition: {
+      title: "賛成と自信",
+      xMin: "反対",
+      xMax: "賛成",
+      yMin: "自信がない",
+      yMax: "自信がある",
+      scale: "none",
+      scenes: [{ id: "s1", label: "場面1" }],
+      sceneMode: "teacher",
+      reason: false,
+    },
+  });
+
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  expect(
+    (
+      await student.request.post(
+        `/api/decks/${id}/thinking/${toolId}/point`,
+        { headers, data: { scene: "s1", value: { x: 0.3, y: 0.6 } } },
+      )
+    ).status(),
+  ).toBe(200);
+  await context.close();
+
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "授業コンソール" }).click();
+  const console_ = page.getByRole("region", { name: "授業コンソール" });
+  await console_.getByRole("tab", { name: "思考ツール" }).click();
+  await expect(
+    console_.locator(".thinking-results-surface .thinking-point.is-other"),
+  ).toHaveCount(1, { timeout: 20_000 });
+  await expect(console_.locator(".thinking-results-count")).toContainText(
+    "1",
+  );
+});
