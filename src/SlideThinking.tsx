@@ -119,7 +119,16 @@ function ThinkingSurface({
         : (sceneSel ?? tool.scene ?? def.scenes[0]?.id ?? "");
   const myPoints = tool.points.filter((p) => p.owner === myOwner);
   const myPoint = myPoints.find((p) => p.scene === scene);
-  const lock = tool.locks.find((l) => l.owner === myOwner && l.scene === scene);
+  // Lock expiry is time-based and does not move the poll version, so the
+  // client re-checks the expiry itself once a second.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const lock = tool.locks.find(
+    (l) => l.owner === myOwner && l.scene === scene && l.expires > nowTick,
+  );
   const lockedByOther = !!lock && lock.userId !== ctx.userId;
   const canEdit =
     interactive &&
@@ -168,6 +177,19 @@ function ThinkingSurface({
       /* the fresh list shows the outcome */
     }
   }
+  // Reasons autosave shortly after typing stops (like worksheet text);
+  // blur alone is unreliable inside the canvas, which keeps focus.
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  useEffect(() => {
+    if (reason === undefined || !shownValue) return;
+    if (reason === (myPoint?.reason ?? "")) return;
+    const t = setTimeout(() => {
+      void commitRef.current(shownValue, reason);
+    }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reason, shownValue, myPoint?.reason]);
 
   if (tool.unit === "group" && !tool.myGroupId && !ctx.host) {
     return (

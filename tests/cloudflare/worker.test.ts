@@ -1587,16 +1587,46 @@ test("webbing maps share one map, enforce authorship and edit locks, and persist
 });
 
 test("thinking tools place per-scene points, keep individual points private, lock class points and persist across restart", async () => {
-  const id = await create();
-  await joinRoom(id, friend);
-  const other = await create();
+  // Fresh identities: the shared owner/friend/stranger mutation rate
+  // budgets are nearly exhausted by the earlier exercises in this file.
+  const tOwner = await login("thinking-owner");
+  const tFriend = await login("thinking-friend");
+  const tStranger = await login("thinking-stranger");
+  const id = await create(sample(), tOwner);
+  // joinRoom() is wired to the shared owner, so join with tOwner as host.
+  const inviteRes = await request(
+    `/api/decks/${id}/invite`,
+    "POST",
+    undefined,
+    tOwner,
+  );
+  assert.equal(inviteRes.status, 200);
+  const token = new URL(
+    ((await inviteRes.json()) as { url: string }).url,
+  ).searchParams.get("join");
+  await acceptAndApprove(request, id, token, tFriend, tOwner);
+  const { user: tFriendUser } = (await (
+    await request("/api/session", "GET", undefined, tFriend)
+  ).json()) as { user: { id: string } };
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/members/${encodeURIComponent(tFriendUser.id)}`,
+        "PATCH",
+        { mode: "all", comment: true, rows: [], columns: [], slides: [] },
+        tOwner,
+      )
+    ).status,
+    200,
+  );
+  const other = await create(sample(), tOwner);
   await exerciseThinking(
     request,
     id,
     other,
-    owner,
-    friend,
-    stranger,
+    tOwner,
+    tFriend,
+    tStranger,
     async () => {
       await mf.dispose();
       mf = fixture.start();
