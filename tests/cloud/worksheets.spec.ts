@@ -1528,6 +1528,7 @@ test("students paste an image, draw, save privately, and the host views their an
     await guest.mouse.down();
     await guest.mouse.move(emptyRect.x + 50, emptyRect.y + 50);
     await guest.mouse.up();
+    await modal(guest).getByRole("button", { name: /ツール/ }).click();
     await expect(
       modal(guest).getByRole("button", { name: "戻す", exact: true }),
     ).toBeEnabled();
@@ -1575,6 +1576,7 @@ test("students paste an image, draw, save privately, and the host views their an
     const savedScene = JSON.parse(saved);
     expect(savedScene.flat).toMatch(/^data:image\/jpeg;base64,/);
     expect(savedScene.objects).toHaveLength(1);
+    await modal(guest).getByRole("button", { name: /ツール/ }).click();
     await modal(guest)
       .getByRole("button", { name: "ペン", exact: true })
       .click();
@@ -1636,6 +1638,10 @@ test("students paste an image, draw, save privately, and the host views their an
       .locator(".editor-workspace .slide-worksheet")
       .getByLabel("自分の絵の手描き欄");
     await expect(slideCanvas).toBeVisible();
+    await guest
+      .locator(".editor-workspace .slide-worksheet")
+      .getByRole("button", { name: /ツール/ })
+      .click();
     await guest
       .locator(".editor-workspace .slide-worksheet")
       .getByRole("button", { name: "ペン", exact: true })

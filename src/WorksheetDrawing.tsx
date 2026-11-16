@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   ClipboardEvent,
   DragEvent,
@@ -151,6 +151,7 @@ export function WorksheetDrawing({
   // change or click must not end edit mode before the chosen file has been
   // handed over and decoded; guardUntil / loadingFile hold it open.
   const guardUntil = useRef(0);
+  const fileInputId = useId();
   const loadingFile = useRef(false);
   const drawingStroke = useRef(false);
   const strokesEmpty = useRef(true);
@@ -182,6 +183,7 @@ export function WorksheetDrawing({
   // Crop mode: a rectangle over the flattened picture; applying it turns
   // the whole field into a single picture again.
   const [cropping, setCropping] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [rect, setRect] = useState({ x: 0, y: 0, w: 1, h: 1 });
   const cropOnOpen = useRef(false);
   const cropDrag = useRef<
@@ -802,7 +804,8 @@ export function WorksheetDrawing({
       onBlur={blur}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
-          if (cropping) setCropping(false);
+          if (toolsOpen) setToolsOpen(false);
+          else if (cropping) setCropping(false);
           else setActive(false);
         }
         if (
@@ -817,6 +820,21 @@ export function WorksheetDrawing({
       }}
       aria-busy={!ready}
     >
+      <input
+        id={fileInputId}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        aria-label={`${label}に画像を追加`}
+        hidden
+        onClick={() => {
+          guardUntil.current = Date.now() + 5000;
+        }}
+        onChange={(e) => {
+          const file = e.currentTarget.files?.[0];
+          if (file) void load(file);
+          e.currentTarget.value = "";
+        }}
+      />
       <div className="worksheet-drawing-toolbar">
         {cropping ? (
           <>
@@ -838,90 +856,17 @@ export function WorksheetDrawing({
           <>
             <button
               type="button"
-              aria-pressed={mode === "select"}
-              onClick={() => setMode("select")}
+              aria-haspopup="true"
+              aria-expanded={toolsOpen}
+              onClick={() => setToolsOpen((open) => !open)}
             >
-              画像を動かす
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === "pen"}
-              onClick={() => setMode("pen")}
-            >
-              ペン
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === "eraser"}
-              onClick={() => setMode("eraser")}
-            >
-              消しゴム
-            </button>
-            <label
-              className="worksheet-drawing-upload"
-              onClick={() => {
-                // The file dialog is about to open; hold edit mode open
-                // until the chosen file has been handed over.
-                guardUntil.current = Date.now() + 5000;
-              }}
-            >
-              画像を追加
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                aria-label={`${label}に画像を追加`}
-                onClick={() => {
-                  guardUntil.current = Date.now() + 5000;
-                }}
-                onChange={(e) => {
-                  const file = e.currentTarget.files?.[0];
-                  if (file) void load(file);
-                  e.currentTarget.value = "";
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={!canUndo || !ready}
-              onClick={undo}
-            >
-              戻す
-            </button>
-            {selected && (
-              <>
-                <button type="button" onClick={removeSelected}>
-                  選んだ画像を削除
-                </button>
-                <button
-                  type="button"
-                  onClick={() => reorderSelected(1)}
-                >
-                  前面へ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => reorderSelected(-1)}
-                >
-                  背面へ
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              disabled={!hasContent || !ready}
-              onClick={clearAll}
-            >
-              消去
-            </button>
-            <button
-              type="button"
-              disabled={!hasContent || !ready}
-              onClick={() => {
-                setRect({ x: 0, y: 0, w: 1, h: 1 });
-                setCropping(true);
-              }}
-            >
-              切り抜き
+              ツール：
+              {mode === "select"
+                ? "画像を動かす"
+                : mode === "pen"
+                  ? "ペン"
+                  : "消しゴム"}
+              {toolsOpen ? " ▲" : " ▼"}
             </button>
             <button
               type="button"
@@ -933,8 +878,125 @@ export function WorksheetDrawing({
           </>
         )}
       </div>
+      {toolsOpen && !cropping && (
+        <div
+          className="worksheet-drawing-tools"
+          role="group"
+          aria-label="画像・手描きのツール"
+        >
+            <button
+              type="button"
+              aria-pressed={mode === "select"}
+              onClick={() => {
+                setMode("select");
+                setToolsOpen(false);
+              }}
+            >
+              画像を動かす
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "pen"}
+              onClick={() => {
+                setMode("pen");
+                setToolsOpen(false);
+              }}
+            >
+              ペン
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "eraser"}
+              onClick={() => {
+                setMode("eraser");
+                setToolsOpen(false);
+              }}
+            >
+              消しゴム
+            </button>
+            <label
+              className="worksheet-drawing-upload"
+              htmlFor={fileInputId}
+              onClick={() => {
+                // The file dialog is about to open; hold edit mode open
+                // until the chosen file has been handed over.
+                guardUntil.current = Date.now() + 5000;
+                setToolsOpen(false);
+              }}
+            >
+              画像を追加
+            </label>
+            <button
+              type="button"
+              disabled={!canUndo || !ready}
+              onClick={() => {
+                undo();
+                setToolsOpen(false);
+              }}
+            >
+              戻す
+            </button>
+            {selected && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeSelected();
+                    setToolsOpen(false);
+                  }}
+                >
+                  選んだ画像を削除
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    reorderSelected(1);
+                    setToolsOpen(false);
+                  }}
+                >
+                  前面へ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    reorderSelected(-1);
+                    setToolsOpen(false);
+                  }}
+                >
+                  背面へ
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              disabled={!hasContent || !ready}
+              onClick={() => {
+                clearAll();
+                setToolsOpen(false);
+              }}
+            >
+              消去
+            </button>
+            <button
+              type="button"
+              disabled={!hasContent || !ready}
+              onClick={() => {
+                setRect({ x: 0, y: 0, w: 1, h: 1 });
+                setCropping(true);
+                setToolsOpen(false);
+              }}
+            >
+              切り抜き
+            </button>
+        </div>
+      )}
       {notice && <p className="worksheet-drawing-notice">{notice}</p>}
-      <div className="worksheet-drawing-stage">
+      <div
+        className="worksheet-drawing-stage"
+        onPointerDown={() => {
+          if (toolsOpen) setToolsOpen(false);
+        }}
+      >
         <canvas
           ref={baseCanvas}
           className="worksheet-drawing-base"

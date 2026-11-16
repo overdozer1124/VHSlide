@@ -589,6 +589,7 @@ test("keeps edit mode open while a picked image is still loading", async ({
   // Pick a very large photo and immediately click outside the field, as
   // the closing file dialog's click can land on the page in some
   // environments; edit mode must survive until the image has loaded.
+  await field.getByRole("button", { name: /ツール/ }).click();
   await field.evaluate(async (section) => {
     const canvas = document.createElement("canvas");
     canvas.width = 12000;
@@ -636,6 +637,7 @@ test("keeps edit mode open while a picked image is still loading", async ({
     .toMatch(/^data:image\/jpeg;base64,/);
   // The editor stayed open through the load, and shows the added image.
   await expect(field.getByLabel("大きな画像の手描き欄")).toBeVisible();
+  await field.getByRole("button", { name: /ツール/ }).click();
   await expect(
     field.getByRole("button", { name: "消去", exact: true }),
   ).toBeEnabled();
@@ -921,6 +923,7 @@ test("crops the picture in an image and drawing response field", async ({
   const before = await savedValue();
   // Crop mode: drag a region over the picture, then apply it — the
   // chosen region is zoomed to fill the field and saved as the answer.
+  await field.getByRole("button", { name: /ツール/ }).click();
   await field.getByRole("button", { name: "切り抜き", exact: true }).click();
   const crop = field.locator(".drawing-crop");
   await expect(crop).toBeVisible();
@@ -947,6 +950,7 @@ test("crops the picture in an image and drawing response field", async ({
   // still in edit mode after applying, so crop again by dragging the
   // right edge handle inward.
   const cropped = await savedValue();
+  await field.getByRole("button", { name: /ツール/ }).click();
   await field.getByRole("button", { name: "切り抜き", exact: true }).click();
   const handle = field.locator(".drawing-crop-handle.is-e");
   await expect(handle).toBeVisible();

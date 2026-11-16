@@ -157,6 +157,7 @@ test("placed images are movable, resizable objects that survive reopening", asyn
     .toBeGreaterThan(beforeResize.objects[1].w + 0.03);
 
   // Handwriting still lands on its own layer above the images.
+  await drawing.getByRole("button", { name: /ツール/ }).click();
   await drawing.getByRole("button", { name: "ペン", exact: true }).click();
   const stage = drawing.locator(".worksheet-drawing-stage");
   await stage.scrollIntoViewIfNeeded();
@@ -196,6 +197,7 @@ test("placed images are movable, resizable objects that survive reopening", asyn
   ).toBeVisible();
 
   // Delete just that object; the other image and the strokes remain.
+  await drawing.getByRole("button", { name: /ツール/ }).click();
   await drawing
     .getByRole("button", { name: "選んだ画像を削除", exact: true })
     .click();

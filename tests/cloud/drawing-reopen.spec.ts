@@ -110,6 +110,7 @@ test("reopening a drawing field shows the placed image and drawing on it does no
 
   // Draw on the reopened picture and finish: the saved image keeps its
   // white ground (never black) with the stroke on top.
+  await modal(page).getByRole("button", { name: /ツール/ }).click();
   await modal(page)
     .getByRole("button", { name: "ペン", exact: true })
     .click();
