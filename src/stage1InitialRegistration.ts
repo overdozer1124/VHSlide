@@ -310,6 +310,14 @@ export function performOperatorAction(
   }
   if (action.type === "revoke") {
     const subject = requireSubject(action.subject, "失効する運営者");
+    if (
+      !sql.one("SELECT subject FROM stage1_operators WHERE subject=?", subject)
+    ) {
+      throw new InitialRegistrationError(
+        404,
+        "失効する運営者が見つかりません。",
+      );
+    }
     const count = sql.one<{ n: number }>(
       "SELECT COUNT(*) AS n FROM stage1_operators",
     );
@@ -334,12 +342,6 @@ export function performOperatorAction(
   if (action.type === "rotate") {
     const oldSubject = requireSubject(action.oldSubject, "現在の運営者");
     const newSubject = requireSubject(action.newSubject, "新しい運営者");
-    if (sameSecret(oldSubject, newSubject)) {
-      throw new InitialRegistrationError(
-        400,
-        "新しい運営者が現在の運営者と同じです。",
-      );
-    }
     if (
       sql.one(
         "SELECT subject FROM stage1_operators WHERE subject=?",

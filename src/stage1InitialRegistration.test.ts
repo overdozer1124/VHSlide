@@ -188,6 +188,51 @@ describe("platform approval", () => {
         .all(),
     ).toEqual([{ purpose: "bootstrap" }, { purpose: "full-replace" }]);
   });
+
+  it("rejects a replay of a consumed full-replace operation", () => {
+    const db = open();
+    nonce(db, "nonce-bootstrap-1");
+    platform(db);
+    const replaced = {
+      nonce: "nonce-replace-001",
+      operationId: "operation-replace",
+      subject: "raw-sub-replacement",
+      auditId: "audit-replace",
+      presented: {
+        purpose: "full-replace",
+        envId: "verify-env",
+        oneTime: "one-time-secret",
+      },
+      expected: {
+        ...expected,
+        purpose: "full-replace" as const,
+        subject: "raw-sub-replacement",
+      },
+    };
+    nonce(db, replaced.nonce);
+    platform(db, replaced);
+    nonce(db, "nonce-replace-replay");
+    expect(() =>
+      platform(db, {
+        ...replaced,
+        nonce: "nonce-replace-replay",
+        auditId: "audit-replace-replay",
+      }),
+    ).toThrow(/実施済み/);
+    expect(
+      db
+        .prepare(
+          "SELECT value FROM stage1_operator_meta WHERE key='generation'",
+        )
+        .get(),
+    ).toEqual({ value: "2" });
+    expect(db.prepare("SELECT subject FROM stage1_operators").get()).toEqual({
+      subject: "raw-sub-replacement",
+    });
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM stage1_operator_completion").get(),
+    ).toEqual({ n: 2 });
+  });
 });
 
 describe("in-app operator actions", () => {
@@ -302,7 +347,116 @@ describe("in-app operator actions", () => {
         { type: "revoke", subject: "raw-sub-operator", expectedGeneration: 1 },
         "nonce-revoke-0001",
       ),
-    ).toThrow(/最後の運営者/);
+    ).toThrow(expect.objectContaining({ status: 409 }));
+    let absent: unknown;
+    try {
+      act(
+        db,
+        { type: "revoke", subject: "raw-sub-absent", expectedGeneration: 1 },
+        "nonce-revoke-absent",
+      );
+    } catch (error) {
+      absent = error;
+    }
+    expect(absent).toMatchObject({ status: 404 });
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM stage1_operators").get(),
+    ).toEqual({ n: 1 });
+  });
+
+  it("returns 404 for an unknown revoke target even when another operator exists", () => {
+    const db = ready();
+    act(
+      db,
+      { type: "add", subject: "raw-sub-second", expectedGeneration: 1 },
+      "nonce-add-second1",
+    );
+    let absent: unknown;
+    try {
+      act(
+        db,
+        { type: "revoke", subject: "raw-sub-absent", expectedGeneration: 2 },
+        "nonce-revoke-absent2",
+      );
+    } catch (error) {
+      absent = error;
+    }
+    expect(absent).toMatchObject({ status: 404 });
+    expect(
+      db.prepare("SELECT subject FROM stage1_operators ORDER BY subject").all(),
+    ).toEqual([{ subject: "raw-sub-operator" }, { subject: "raw-sub-second" }]);
+  });
+
+  it("rejects rotating an operator onto the same subject with 409", () => {
+    const db = ready();
+    let error: unknown;
+    try {
+      act(
+        db,
+        {
+          type: "rotate",
+          oldSubject: "raw-sub-operator",
+          newSubject: "raw-sub-operator",
+          expectedGeneration: 1,
+        },
+        "nonce-rotate-same1",
+      );
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(InitialRegistrationError);
+    expect(error).toMatchObject({ status: 409 });
+    expect(db.prepare("SELECT subject FROM stage1_operators").get()).toEqual({
+      subject: "raw-sub-operator",
+    });
+  });
+
+  it("rolls back registry and super-admin changes when the audit write fails", () => {
+    const db = ready();
+    db.prepare(
+      "INSERT INTO audit_log(id, actor_user_id, action, target, created_at) VALUES(?,?,?,?,?)",
+    ).run("audit-nonce-add-fail-01", null, "seed", "seed", 1);
+    db.prepare(
+      "INSERT INTO audit_log(id, actor_user_id, action, target, created_at) VALUES(?,?,?,?,?)",
+    ).run("audit-nonce-bind-fail-01", null, "seed", "seed", 1);
+    expect(() =>
+      act(
+        db,
+        { type: "add", subject: "raw-sub-extra", expectedGeneration: 1 },
+        "nonce-add-fail-01",
+      ),
+    ).toThrow(/監査ログ/);
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM stage1_operators").get(),
+    ).toEqual({ n: 1 });
+    expect(
+      db
+        .prepare(
+          "SELECT value FROM stage1_operator_meta WHERE key='generation'",
+        )
+        .get(),
+    ).toEqual({ value: "1" });
+    expect(() =>
+      act(
+        db,
+        {
+          type: "bind",
+          subject: "raw-sub-admin",
+          operationId: "bind-op-fail01",
+        },
+        "nonce-bind-fail-01",
+      ),
+    ).toThrow(/監査ログ/);
+    expect(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM users WHERE is_super_admin=1")
+        .get(),
+    ).toEqual({ n: 0 });
+    expect(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM stage1_super_admin_registration")
+        .get(),
+    ).toEqual({ n: 0 });
   });
 });
 
