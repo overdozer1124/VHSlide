@@ -9,6 +9,7 @@ export async function harness(
   origin: string,
   port?: number,
   extraBindings?: Record<string, string>,
+  scriptPath?: string,
 ) {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
   const key = {
@@ -17,11 +18,16 @@ export async function harness(
     alg: "RS256",
     use: "sig",
   };
-  const sign = (id: string, audience = "test.apps.googleusercontent.com") =>
+  const sign = (
+    id: string,
+    audience = "test.apps.googleusercontent.com",
+    claims?: { nonce?: string },
+  ) =>
     new SignJWT({
       email: `${id}@example.test`,
       email_verified: true,
       name: id === "friend" ? "児童 友だち" : id,
+      ...(claims?.nonce ? { nonce: claims.nonce } : {}),
     })
       .setProtectedHeader({ alg: "RS256", kid: key.kid })
       .setSubject(id)
@@ -43,7 +49,7 @@ export async function harness(
       .persist();
     return new Miniflare({
       modules: true,
-      scriptPath: audit?.scriptPath ?? ".wrangler-build/index.js",
+      scriptPath: audit?.scriptPath ?? scriptPath ?? ".wrangler-build/index.js",
       ...(audit ? { modulesRoot: dirname(audit.scriptPath) } : {}),
       compatibilityDate: "2026-08-01",
       host: "127.0.0.1",

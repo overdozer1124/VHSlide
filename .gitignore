@@ -8,6 +8,7 @@ playwright-report/
 data/
 .wrangler/
 .wrangler-build/
+.wrangler-platform-temporary/
 .env
 .env.*
 !.env.example
