@@ -59,8 +59,7 @@ export function CloudPanel({
     dialog = useRef<HTMLElement>(null),
     closeButton = useRef<HTMLButtonElement>(null);
   const [tab, setTab] = useState<"library" | "sharing">(
-    initialTab ??
-      (cloud.active && !cloud.needsAttention ? "sharing" : "library"),
+    initialTab ?? "library",
   );
   const [trashOpen, setTrashOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);

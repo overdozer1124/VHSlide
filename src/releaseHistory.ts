@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.128.1",
+    date: "2026-11-16",
+    title: "クラウド画面は作品一覧から開くように",
+    changes: [
+      "「クラウド」ボタンの画面が、開いている作品があると共有管理から開かれていましたが、つねに作品一覧から開かれるようにしました。共有管理は上のタブで切り替えて使えます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.128.0",
     date: "2026-11-16",
     title: "オブジェクトの移動・サイズ変更で、他のオブジェクトに吸着するように",

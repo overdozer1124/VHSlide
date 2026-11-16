@@ -188,6 +188,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await saved(page);
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: "共有管理", exact: true }).click();
   await page
     .getByRole("button", { name: "共同編集の招待リンクを作る", exact: true })
     .click();
@@ -428,6 +429,7 @@ test("two users sign in, join by invitation, edit the same text, reconnect, and 
     expect(fullExport.slides).toHaveLength(6);
     expect(fullExport.sheets).toHaveLength(2);
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
+    await page.getByRole("tab", { name: "共有管理", exact: true }).click();
     await expect(
       page.getByRole("button", {
         name: `${name}-friendの参加を解除`,
@@ -460,6 +462,7 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: "共有管理", exact: true }).click();
   await button(page, "共同編集の招待リンクを作る").click();
   const invite = await page
     .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
@@ -538,6 +541,7 @@ test("host selects editing scopes visually, guests stay read-only elsewhere and 
     ).toHaveAttribute("readonly", "");
     await button(other, "横のページ一覧を閉じる").click();
     await page.getByRole("button", { name: "クラウド", exact: true }).click();
+    await page.getByRole("tab", { name: "共有管理", exact: true }).click();
     await button(page, `${guest}の編集権限を設定`).click();
     await page
       .getByRole("combobox", { name: "編集の権限", exact: true })
@@ -573,6 +577,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: "共有管理", exact: true }).click();
   await button(page, "共同編集の招待リンクを作る").click();
   const invite = await page
     .getByRole("textbox", { name: "共同編集の招待リンク", exact: true })
@@ -630,6 +635,7 @@ test("pasted accounts receive ordered rows before joining, open without an invit
   await page.reload();
   await saved(page);
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: "共有管理", exact: true }).click();
   await button(page, "共有するアカウントを追加").click();
   await expect(page.locator(".pre-share-account")).toHaveCount(2);
   await expect(
@@ -831,6 +837,7 @@ test("host edits shared map headings and row account names update vertically for
   await button(page, "この作品をクラウドに保存").click();
   await saved(page);
   await page.getByRole("button", { name: "クラウド", exact: true }).click();
+  await page.getByRole("tab", { name: "共有管理", exact: true }).click();
   await button(page, "共有するアカウントを追加").click();
   await page
     .getByRole("textbox", { name: "事前共有するメールアドレス", exact: true })
