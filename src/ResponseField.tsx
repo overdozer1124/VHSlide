@@ -152,28 +152,11 @@ export function ResponseField({
           )}
         </>
       )}
-      {interactive && field && sheet && (
-        open ? (
-          fieldStatus.error ? (
-            <p className="answer-inline-status is-error" role="alert">
-              {`未保存：${fieldStatus.error}`}
-            </p>
-          ) : null
-        ) : (
-          <small>
-            {worksheets.readOnly
-              ? "この開き方では入力できません。"
-              : sheet.status === "draft"
-                ? "先生が受付を始めると入力できます。"
-                : "受付は終了しました。"}
-          </small>
-        )
-      )}
-      {interactive && !sheet && !survey && (
-        <small>
-          この開き方では入力できません。クラウドの共有作品から開くと、受付中に入力できます。
-        </small>
-      )}
+      {interactive && field && sheet && fieldStatus.error ? (
+        <p className="answer-inline-status is-error" role="alert">
+          {`未保存：${fieldStatus.error}`}
+        </p>
+      ) : null}
     </section>
   );
 }
