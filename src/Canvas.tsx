@@ -17,6 +17,11 @@ import {
   anchorPoint,
 } from "./structureData";
 import { resizeSelectionFromHandle } from "./structuredEditing";
+import {
+  collectSnapTargets,
+  snapMoveDelta,
+  snapResizeDelta,
+} from "./snapGuides";
 import { RichTextView } from "./RichTextView";
 import { ImageGraphic } from "./ImageTools";
 import type { TextController } from "./TextSelectionControls";
@@ -369,7 +374,7 @@ export function Canvas({
       window.removeEventListener("blur", blur);
     };
   });
-  const [guides, setGuides] = useState({ x: false, y: false });
+  const [guides, setGuides] = useState<{ x?: number; y?: number }>({});
   const touchTap = useRef<{
     element: Element;
     pointerId: number;
@@ -431,7 +436,7 @@ export function Canvas({
     drag.current = null;
     touchTap.current = null;
     setDrafts([]);
-    setGuides({ x: false, y: false });
+    setGuides({});
     clearDwell();
     setGhostPoint(null);
   }
@@ -537,26 +542,56 @@ export function Canvas({
       return;
     }
     if (d.groupResize) {
-      setDrafts(resizeSelectionFromHandle(d.group, d.direction, dx, dy));
+      const snapped = snapResizeDelta(
+        elementBounds(d.group),
+        d.direction,
+        dx,
+        dy,
+        collectSnapTargets(
+          rendered,
+          new Set(d.group.map((e) => e.id)),
+        ),
+        true,
+      );
+      setGuides({ x: snapped.guideX, y: snapped.guideY });
+      setDrafts(
+        resizeSelectionFromHandle(d.group, d.direction, snapped.dx, snapped.dy),
+      );
       return;
     }
     if (d.resize) {
+      const snapped = snapResizeDelta(
+        elementBounds([d.element]),
+        d.direction,
+        dx,
+        dy,
+        collectSnapTargets(rendered, new Set([d.element.id])),
+        d.aspectLocked,
+      );
+      setGuides({ x: snapped.guideX, y: snapped.guideY });
       setDrafts([
-        resizeElementFromHandle(d.element, d.direction, dx, dy, d.aspectLocked),
+        resizeElementFromHandle(
+          d.element,
+          d.direction,
+          snapped.dx,
+          snapped.dy,
+          d.aspectLocked,
+        ),
       ]);
       return;
     }
     const b = elementBounds(d.group);
-    const gx = Math.abs(b.x + dx + b.w / 2 - W / 2) < 7,
-      gy = Math.abs(b.y + dy + b.h / 2 - H / 2) < 7;
-    setGuides({ x: gx, y: gy });
-    setDrafts(
-      translateElements(
-        d.group,
-        gx ? W / 2 - b.x - b.w / 2 : dx,
-        gy ? H / 2 - b.y - b.h / 2 : dy,
+    const snapped = snapMoveDelta(
+      b,
+      dx,
+      dy,
+      collectSnapTargets(
+        rendered,
+        new Set(d.group.map((e) => e.id)),
       ),
     );
+    setGuides({ x: snapped.guideX, y: snapped.guideY });
+    setDrafts(translateElements(d.group, snapped.dx, snapped.dy));
   }
   function end(event: React.PointerEvent) {
     if (marquee.current?.pointerId === event.pointerId) {
@@ -640,7 +675,7 @@ export function Canvas({
     }
     drag.current = null;
     setDrafts([]);
-    setGuides({ x: false, y: false });
+    setGuides({});
     clearDwell();
     setGhostPoint(null);
   }
@@ -1279,8 +1314,12 @@ export function Canvas({
             }}
           />
         )}
-        {guides.x && <div className="guide vertical" />}
-        {guides.y && <div className="guide horizontal" />}
+        {guides.x !== undefined && (
+          <div className="guide vertical" style={{ left: guides.x }} />
+        )}
+        {guides.y !== undefined && (
+          <div className="guide horizontal" style={{ top: guides.y }} />
+        )}
       </div>
       {cropEdit && (
         <div className="crop-mode-bar" role="toolbar" aria-label="切り抜き">

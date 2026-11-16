@@ -1290,12 +1290,10 @@ h1 span {
 }
 .guide.vertical {
   height: 100%;
-  left: 50%;
   border-left: 1px dashed #e58d9e;
 }
 .guide.horizontal {
   width: 100%;
-  top: 50%;
   border-top: 1px dashed #e58d9e;
 }
 .inspector {
