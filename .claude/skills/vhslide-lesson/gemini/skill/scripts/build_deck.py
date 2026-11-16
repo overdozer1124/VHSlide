@@ -575,10 +575,11 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
             ws["sectionIds"].append(sec)
             sid = f"s{len(ws['sectionIds'])}"
         choice = kind in ("single", "multiple")
-        dropped = [n for n, v in (("選択肢", f.get("options")), ("理由欄", f.get("reason")), ("集計の公開", f.get("public"))) if v]
-        if not choice and dropped:
-            warn(f"※ 入力欄「{f.get('label')}」は選択式ではないため、{'・'.join(dropped)}を外しました。")
-        opts = list(dict.fromkeys(jstr(o) for o in (f.get("options") or []))) if choice else []
+        listed = choice or kind == "order"
+        dropped = [n for n, v in (("選択肢", f.get("options") and not listed), ("理由欄", f.get("reason") and not choice), ("集計の公開", f.get("public") and not choice)) if v]
+        if dropped:
+            warn(f"※ 入力欄「{f.get('label')}」は{'並べ替え' if kind == 'order' else '選択式ではない'}ため、{'・'.join(dropped)}を外しました。")
+        opts = list(dict.fromkeys(jstr(o) for o in (f.get("options") or []))) if listed else []
         wf = {"id": fid, "label": f.get("label"), "kind": kind, "options": opts, "placeholder": nn(f.get("placeholder"), ""),
               "section": sec, "sectionId": sid, "wide": True}
         if f.get("reason") and choice:
@@ -587,8 +588,21 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
             wf["aggregatePublic"] = True
         if f.get("height"):
             wf["inputHeight"] = f["height"]
-        if f.get("hideLabel") and kind != "checkbox":
+        label_ok = kind != "checkbox"
+        if f.get("hideLabel") and label_ok:
             wf["hideLabel"] = True
+        if f.get("labelLeft") and label_ok:
+            wf["labelLayout"] = "left"
+        if f.get("labelVertical") and f.get("labelLeft") and label_ok:
+            wf["labelVertical"] = True
+        if f.get("labelCompact") and label_ok:
+            wf["labelCompact"] = True
+        if kind == "order" and f.get("asListed"):
+            wf["orderAsListed"] = True
+        if kind == "radar" and f.get("radar"):
+            wf["radar"] = f["radar"]
+        if kind == "order" and not 2 <= len(opts) <= 10:
+            raise BuildError(f"並べ替えの入力欄「{f.get('label')}」の項目（options）は、正しい順番で2〜10個にしてください。")
         ws["fields"].append(wf)
         if kind == "drawing" and (h < 120 or w < 160):
             warn(f"※ 画像・手描きの入力欄「{f.get('label')}」が小さく、描いたり貼ったりしにくくなります（幅160・高さ120以上を推奨）。")
@@ -1071,6 +1085,9 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                 els += [rect(it["x"], it["y"], it["w"], it["h"], nn(col(it.get("fill")), T["primarySoft"])),
                         text(it.get("text"), it["x"] + 6, it["y"], it["w"] - 12, it["h"], nn(it.get("fontSize"), 15), bold=True, align=nn(it.get("align"), "center"),
                              valign="middle", color=nn(col(it.get("color")), T["ink"]), min=12, heading=True, font=it.get("font"))]
+            elif t == "app":
+                els.append({**rect(it["x"], it["y"], it["w"], it["h"], nn(col(it.get("fill")), "#ffffff"), shape="rect", stroke=nn(col(it.get("stroke")), T["line"]), strokeWidth=1),
+                            "embed": {"url": it["url"]}})
             elif t == "mascot":
                 els += mascot_el(nn(it.get("pose"), "idea"), it["x"], it["y"], nn(it.get("s"), 48))
             elif t == "chart":

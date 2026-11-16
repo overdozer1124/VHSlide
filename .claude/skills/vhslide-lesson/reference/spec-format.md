@@ -59,9 +59,10 @@
   "options": ["選択肢"], "reason": true, "public": true, "height": 140, "hideLabel": false }
 ```
 
-- `type`：`text`（既定）／`single`（1つ選ぶ）／`multiple`（複数選ぶ）／`checkbox`／`drawing`（画像・手描き：生徒が画像を貼り付けたり、ペンで書き込んだりできる）。0.109以降は枠いっぱいに表示され、クリックで道具が開く。0.109より前の版では見出し・道具ボタン・幅いっぱいの16:9キャンバスが並ぶため、古い版でも使えるよう枠の高さは「幅×0.56＋90」以上にしておく（足りないとビルドが警告する）。説明の欄とは横に並べると収まりやすい。選択肢は2〜10個。
+- `type`：`text`（既定）／`single`（1つ選ぶ）／`multiple`（複数選ぶ）／`order`（並べ替え：`options` に **正しい順番** で2〜10項目。生徒には並べ替えて表示され、タップした順に並べて答える。`asListed: true` で入力した順のまま表示）／`radar`（レーダーチャート：`radar: {axes: [3〜10個], series: [1〜4個], min, max}`）／`checkbox`／`drawing`（画像・手描き：生徒が画像を貼り付けたり、ペンで書き込んだりできる）。0.109以降は枠いっぱいに表示され、クリックで道具が開く。0.109より前の版では見出し・道具ボタン・幅いっぱいの16:9キャンバスが並ぶため、古い版でも使えるよう枠の高さは「幅×0.56＋90」以上にしておく（足りないとビルドが警告する）。説明の欄とは横に並べると収まりやすい。選択肢は2〜10個。
+- 見出しの置き方（0.131〜、チェック欄以外）：`labelLeft: true`（見出しを入力欄の左に置く。高さの低い欄でも書く場所が広い。名前・日付・短い記入欄に）、`labelVertical: true`（`labelLeft` と一緒に。見出しを縦書きの細い帯にする）、`labelCompact: true`（見出しを上に置いたまま小さく詰める）。
 - `hideLabel`：スライド上の回答欄で項目名を表示しない（VHSlide 0.106〜。チェック欄には使えない）。`placeholder` は画像・手描き欄では「貼り付け前の案内文」になる（0.107〜）。
-- `reason`：選択式に理由欄を付ける。`public`：選択の集計を公開する。**`reason`・`public`・`options` は `single`・`multiple` の欄だけ**（VHSlide がほかの欄では読み込まない。付いていてもビルドが外して警告する。選択肢は重複不可）。`height`：ワークシート全体表示での入力欄の高さ（32〜400）。
+- `reason`：選択式に理由欄を付ける。`public`：選択の集計を公開する。**`reason`・`public` は `single`・`multiple` の欄だけ、`options` は `single`・`multiple`・`order` の欄だけ**（VHSlide がほかの欄では読み込まない。付いていてもビルドが外して警告する。選択肢は重複不可）。`height`：ワークシート全体表示での入力欄の高さ（32〜400）。
 - `id` は1時間の中で重複不可（英数字・`_`・`-`）。省略時は q1, q2…。1時間40個まで。
 
 ## スライドの種類
@@ -87,7 +88,7 @@
 | `steps` | `lead` `items[{title, body}]`（2〜5）`field` | 番号つきの手順 |
 | `quiz` | `prompt` `choices[]`（2〜4）`id` `label` `reason`（既定true）`public`（既定true） | 大きな選択肢タイルと回答欄 |
 | `rubric` | `lead` `selfCheck`（`true`＝観点ごとの A/B/C 自己評価欄、`"public"`＝集計も公開）`split` `fontSize`。内容は lesson.rubric（`rubric` キーで上書き可） | ルーブリック（見通し・自己評価） |
-| `form` | `items[]`（座標で自由配置。`{type:"field", field, x, y, w, h, fontSize, stroke}`／`{type:"band", text, x, y, w, h, fill, color}`／`{type:"text", ...}`／`{type:"card", title, text, tone}`／`{type:"chart", chart}`／`{type:"table", table}`／`{type:"image", image, alt}`／`{type:"shape", shape, fill, stroke, text, vertical, link}`（吹き出し・星・矢印など。`link` に別ページの `id` を書くとボタンになる。`vertical: true` で縦書き）／`{type:"mascot", pose, x, y, s}`）`fieldFont` `stroke`。`header: false` で見出し帯を省き、ページ全体を使う（見出しありなら要素は y≧100 程度に置く）。グラフを2つ並べるなど、既定の型にない構図にも使う。色は #rrggbb かテーマの色名（例：`primarySoft`） | 紙のワークシートを1枚に再配置する、入力欄の多いページ |
+| `form` | `items[]`（座標で自由配置。`{type:"field", field, x, y, w, h, fontSize, stroke}`／`{type:"band", text, x, y, w, h, fill, color}`／`{type:"text", ...}`／`{type:"card", title, text, tone}`／`{type:"chart", chart}`／`{type:"table", table}`／`{type:"image", image, alt}`／`{type:"shape", shape, fill, stroke, text, vertical, link}`（吹き出し・星・矢印など。`link` に別ページの `id` を書くとボタンになる。`vertical: true` で縦書き）／`{type:"mascot", pose, x, y, s}`／`{type:"app", url, x, y, w, h}`（Webアプリの埋め込み。生徒が自分の端末でスライドの中のまま操作できる。https のURL。埋め込みを禁止しているサイトは表示されない）`fieldFont` `stroke`。`header: false` で見出し帯を省き、ページ全体を使う（見出しありなら要素は y≧100 程度に置く）。グラフを2つ並べるなど、既定の型にない構図にも使う。色は #rrggbb かテーマの色名（例：`primarySoft`） | 紙のワークシートを1枚に再配置する、入力欄の多いページ |
 | `custom` | `elements[]`（VHSlide の要素をそのまま） | 上で表せないもの・新機能の利用 |
 
 `tone` は `plain`／`primary`／`accent`。グラフのラベルは短く（6字以内が目安）。長いと折り返す。

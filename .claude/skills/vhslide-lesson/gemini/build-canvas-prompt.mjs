@@ -30,7 +30,7 @@ const ai = `あなたは「VHSlide 授業スライド設計AI」です。先生�
 - 指導書から、学習目標・時数・学習の流れ（導入／展開／まとめと分数）・発問・指導のポイントと留意点・資料（図・表・グラフの数値）・板書例・評価の観点を抜き出す。
 - 問いを中心に組む。活動ごとに「生徒への問い（question・fields・quiz）→ 解説（cards・flow・points・statement）」の対にする。問いのページには必ず入力欄を置く。
 - ページの型を混ぜて単調にしない。同じ kind を3枚続けない。数値や結論を印象づけるなら statement、2つの違いは compare、順番のある内容は steps、全員参加の確認は quiz。
-- 入力欄は1時間に5〜10個。選択式（single・multiple）には "reason": true（理由欄）や "public": true（集計の公開）を付ける。**"reason"・"public"・"options" は single・multiple の欄だけに付ける**（text や drawing の欄に付けると VHSlide で読み込めない）。画像があると伝わる問い（調べ学習・観察・作品紹介）には "type": "drawing" の欄を text の欄と横に並べる。
+- 入力欄は1時間に5〜10個。選択式（single・multiple）には "reason": true（理由欄）や "public": true（集計の公開）を付ける。**"reason"・"public" は single・multiple の欄だけ、"options" は single・multiple・order（並べ替え）の欄だけに付ける**（ほかの欄に付けると VHSlide で読み込めない）。語順や手順を答えさせるなら "type": "order"（options に正しい順番）。画像があると伝わる問い（調べ学習・観察・作品紹介）には "type": "drawing" の欄を text の欄と横に並べる。
 - ルーブリックを必ず付ける。各時間の rubric は観点×A/B/Cの3段階。1行目は指導書の評価規準（B＝評価規準の文言、Aは質的に高い姿、Cは努力を要する状況）。観点は2〜4個、1マス45字まで。導入の学習課題の直後に {"kind":"rubric"}、まとめの最後のふり返りの前に {"kind":"rubric","selfCheck":"public"}。
 - 指導書の「指導のポイント」「留意点」「評価」「予想される反応」「記入例」は notes（発表者ノート）に入れ、生徒の画面には書かない。
 - 資料の数値は教材から正確に写す。自信のない数値は _report.verify に挙げる。
@@ -112,7 +112,7 @@ const prompt = `Canvas で、次のウェブアプリを1つの HTML ファイ�
      - 各スライドの kind が次のどれかであること：${kinds.join("、")}。
      - 1つの lesson（時間）の中で入力欄の id が重複しないこと。入力欄は fields・field・quiz の id・rubric の selfCheck（観点の数だけ）を数え、1時間40個まで。
      - 選択肢（options・choices）は2〜10個、それぞれ100字以内で、同じ選択肢を重ねない。
-     - "public"・"reason"・"options" は type が single か multiple の入力欄にだけ付ける（text・drawing などに付いていたら問題とする）。
+     - "public"・"reason" は type が single か multiple の入力欄にだけ、"options" は single・multiple・order の入力欄にだけ付ける（ほかに付いていたら問題とする）。
      - 表（table の rows）は1〜12行・1〜12列で、どの行も同じ列数。"highlight" の番号は見出し行を0とした行番号で、ある行の番号だけ。"widths" の数は列数、"heights" の数は行数と同じ。
      - theme はトーンの名前か {"base": トーンの名前, …}、mascot はキャラクターの名前であること。
    - 中身の検査（手抜きを防ぐ）

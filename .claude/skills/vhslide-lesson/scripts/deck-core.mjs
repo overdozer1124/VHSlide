@@ -184,17 +184,27 @@ function field(f, x, y, w, h, fs = 18, opts = {}) {
   if (ws.fields.some(g => g.id === id)) throw Error(`入力欄のIDが重複しています: ${id}`);
   const sectionTitle = ws.section;
   const sectionId = `s${ws.sectionIds.indexOf(sectionTitle) + 1 || ws.sectionIds.push(sectionTitle)}`;
-  // VHSlide accepts options, a reason box and public results only on choice fields: drop them elsewhere instead of failing.
-  const choice = kind === "single" || kind === "multiple";
-  if (!choice && (f.reason || f.public || f.options?.length))
-    warn(`※ 入力欄「${f.label}」は選択式ではないため、${[f.options?.length && "選択肢", f.reason && "理由欄", f.public && "集計の公開"].filter(Boolean).join("・")}を外しました。`);
+  // VHSlide accepts a reason box and public results only on choice fields, and options only on choice and order (並べ替え) fields:
+  // drop them elsewhere instead of failing.
+  const choice = kind === "single" || kind === "multiple", listed = choice || kind === "order";
+  const dropped = [!listed && f.options?.length && "選択肢", !choice && f.reason && "理由欄", !choice && f.public && "集計の公開"].filter(Boolean);
+  if (dropped.length) warn(`※ 入力欄「${f.label}」は${kind === "order" ? "並べ替え" : "選択式ではない"}ため、${dropped.join("・")}を外しました。`);
+  const labelOk = kind !== "checkbox";
   const wf = {
-    id, label: f.label, kind, options: choice ? [...new Set((f.options ?? []).map(String))] : [], placeholder: f.placeholder ?? "",
+    id, label: f.label, kind, options: listed ? [...new Set((f.options ?? []).map(String))] : [], placeholder: f.placeholder ?? "",
     section: sectionTitle, sectionId, wide: true,
     ...(f.reason && choice ? { reason: true } : {}), ...(f.public && choice ? { aggregatePublic: true } : {}),
     ...(f.height ? { inputHeight: f.height } : {}),
-    ...(f.hideLabel && kind !== "checkbox" ? { hideLabel: true } : {}),
+    ...(f.hideLabel && labelOk ? { hideLabel: true } : {}),
+    // 0.131: label beside the box (for low boxes), optionally vertical; or a tighter label above.
+    ...(f.labelLeft && labelOk ? { labelLayout: "left" } : {}),
+    ...(f.labelVertical && f.labelLeft && labelOk ? { labelVertical: true } : {}),
+    ...(f.labelCompact && labelOk ? { labelCompact: true } : {}),
+    // 0.133–0.134: 並べ替え. options are the correct order; asListed shows them unshuffled.
+    ...(kind === "order" && f.asListed ? { orderAsListed: true } : {}),
+    ...(kind === "radar" && f.radar ? { radar: f.radar } : {}),
   };
+  if (kind === "order" && (wf.options.length < 2 || wf.options.length > 10)) throw Error(`並べ替えの入力欄「${f.label}」の項目（options）は、正しい順番で2〜10個にしてください。`);
   ws.fields.push(wf);
   // Since VHSlide 0.106.4 the drawing canvas follows the frame's shape; just avoid frames too small to draw in.
   if (kind === "drawing" && (h < 120 || w < 160))
@@ -573,6 +583,7 @@ const kinds = {
       const before = els.length;
       if (t === "field") els.push(field(it.field, it.x, it.y, it.w, it.h, it.fontSize ?? s.fieldFont ?? 14, { stroke: col(it.stroke ?? s.stroke) }));
       else if (t === "band") els.push(rect(it.x, it.y, it.w, it.h, col(it.fill) ?? T.primarySoft), text(it.text, it.x + 6, it.y, it.w - 12, it.h, it.fontSize ?? 15, { bold: true, align: it.align ?? "center", valign: "middle", color: col(it.color) ?? T.ink, min: 12, heading: true, font: it.font }));
+      else if (t === "app") els.push({ ...rect(it.x, it.y, it.w, it.h, col(it.fill) ?? "#ffffff", { shape: "rect", stroke: col(it.stroke) ?? T.line, strokeWidth: 1 }), embed: { url: it.url } });
       else if (t === "mascot") els.push(...(await mascotEl(it.pose ?? "idea", it.x, it.y, it.s ?? 48)));
       else if (t === "chart") els.push(chartEl(it.chart, it.x, it.y, it.w, it.h));
       else if (t === "table") els.push(...tableEl(it.table, it.x, it.y, it.w, it.h));
