@@ -14,7 +14,11 @@ function AnswerValue({
   values: WorksheetValues;
 }) {
   const value = values[field.id];
-  if (field.kind === "drawing" && typeof value === "string" && value) {
+  if (
+    (field.kind === "drawing" || field.kind === "free") &&
+    typeof value === "string" &&
+    value
+  ) {
     const flat = drawingFlatSrc(value);
     if (flat)
       return (
@@ -162,7 +166,9 @@ export function WorksheetResults({
             <p className="worksheet-result-count">
               {filtered.length}人を表示 / 保存した参加者 {responses.length}人 ·
               CSVには検索に関係なく全員・全項目を保存します。
-              {sheet.fields.some((f) => f.kind === "drawing") &&
+              {sheet.fields.some(
+                (f) => f.kind === "drawing" || f.kind === "free",
+              ) &&
                 " 画像は一覧から個別に保存できます。CSVには画像の有無を記録します。"}
             </p>
           )}

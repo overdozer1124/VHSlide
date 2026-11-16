@@ -17,11 +17,20 @@
 
 export interface DrawingObject {
   id: string;
+  /** 画像オブジェクトの画像。テキストオブジェクトでは ""。 */
   src: string;
+  /** テキストオブジェクトの文字。これがあるものがテキストオブジェクト。 */
+  text?: string;
+  /** テキストの大きさ（キャンバス高さに対する割合）。テキスト用。 */
+  size?: number;
   x: number;
   y: number;
   w: number;
   h: number;
+}
+
+export function isTextObject(o: DrawingObject): boolean {
+  return o.text !== undefined;
 }
 
 export interface DrawingScene {
@@ -33,8 +42,13 @@ export interface DrawingScene {
 export const DRAWING_VALUE_MAX = 480_000;
 export const DRAWING_FLAT_MAX = 120_000;
 export const DRAWING_OBJECT_MAX_COUNT = 6;
+export const DRAWING_OBJECT_TOTAL_MAX = 12;
 export const DRAWING_OBJECT_SRC_MAX = 120_000;
 export const DRAWING_STROKES_MAX = 80_000;
+export const DRAWING_TEXT_MAX = 1000;
+export const DRAWING_TEXT_SIZE_DEFAULT = 0.09;
+export const DRAWING_TEXT_SIZE_MIN = 0.03;
+export const DRAWING_TEXT_SIZE_MAX = 0.4;
 
 export const LEGACY_JPEG_PATTERN =
   /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/;
@@ -75,20 +89,30 @@ export function parseDrawingScene(value: string): DrawingScene | null {
   for (const item of record.objects) {
     if (!item || typeof item !== "object") return null;
     const o = item as Record<string, unknown>;
-    if (
-      typeof o.id !== "string" ||
-      typeof o.src !== "string" ||
-      !OBJECT_SRC_PATTERN.test(o.src)
-    )
-      return null;
-    objects.push({
+    if (typeof o.id !== "string") return null;
+    const geometry = {
       id: o.id.slice(0, 40),
-      src: o.src,
       x: clamp(finite(o.x, 0), -0.5, 1),
       y: clamp(finite(o.y, 0), -0.5, 1),
       w: clamp(finite(o.w, 1), 0.02, 1.5),
       h: clamp(finite(o.h, 1), 0.02, 1.5),
-    });
+    };
+    if (typeof o.text === "string") {
+      objects.push({
+        ...geometry,
+        src: "",
+        text: o.text.slice(0, DRAWING_TEXT_MAX),
+        size: clamp(
+          finite(o.size, DRAWING_TEXT_SIZE_DEFAULT),
+          DRAWING_TEXT_SIZE_MIN,
+          DRAWING_TEXT_SIZE_MAX,
+        ),
+      });
+      continue;
+    }
+    if (typeof o.src !== "string" || !OBJECT_SRC_PATTERN.test(o.src))
+      return null;
+    objects.push({ ...geometry, src: o.src });
   }
   const strokes =
     typeof record.strokes === "string" && STROKES_PATTERN.test(record.strokes)
@@ -164,14 +188,26 @@ export function validateDrawingValue(value: unknown): boolean {
     return false;
   if (
     !Array.isArray(record.objects) ||
-    record.objects.length > DRAWING_OBJECT_MAX_COUNT
+    record.objects.length > DRAWING_OBJECT_TOTAL_MAX
   )
     return false;
   for (const item of record.objects) {
     if (!item || typeof item !== "object") return false;
     const o = item as Record<string, unknown>;
     if (typeof o.id !== "string" || o.id.length > 40) return false;
-    if (
+    if (o.text !== undefined) {
+      if (
+        typeof o.text !== "string" ||
+        o.text.length > DRAWING_TEXT_MAX ||
+        (o.src !== undefined && o.src !== "") ||
+        (o.size !== undefined &&
+          (typeof o.size !== "number" ||
+            !Number.isFinite(o.size) ||
+            o.size < DRAWING_TEXT_SIZE_MIN ||
+            o.size > DRAWING_TEXT_SIZE_MAX))
+      )
+        return false;
+    } else if (
       typeof o.src !== "string" ||
       o.src.length > DRAWING_OBJECT_SRC_MAX ||
       !OBJECT_SRC_PATTERN.test(o.src)

@@ -7043,6 +7043,7 @@ h1 span {
 .worksheet-drawing canvas.worksheet-drawing-stroke { background:transparent; }
 .worksheet-drawing-hit { position:absolute; inset:0; touch-action:none; cursor:move; }
 .worksheet-drawing-selection { position:absolute; border:2px solid #2563eb; box-sizing:border-box; pointer-events:none; }
+.worksheet-drawing-text-editor { position:absolute; box-sizing:border-box; padding:2px 4px; border:2px solid #2563eb; background:rgba(255,255,255,0.94); color:#182b27; font-family:inherit; resize:none; overflow:hidden; z-index:3; }
 .worksheet-drawing-handle { position:absolute; width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid #2563eb; box-sizing:border-box; pointer-events:auto; touch-action:none; cursor:nwse-resize; }
 .worksheet-drawing-handle.is-nw { left:0; top:0; transform:translate(-50%,-50%); }
 .worksheet-drawing-handle.is-ne { right:0; top:0; transform:translate(50%,-50%); cursor:nesw-resize; }

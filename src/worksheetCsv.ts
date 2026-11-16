@@ -32,6 +32,10 @@ export function worksheetValueText(
       ? value
         ? "画像・手描きの回答あり"
         : ""
+      : field.kind === "free"
+        ? value
+          ? "手描き・文字の回答あり"
+          : ""
       : field.kind === "checkbox"
         ? value === true
           ? "はい"

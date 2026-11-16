@@ -42,6 +42,48 @@ describe("worksheets", () => {
     });
     expect(text.fields[0].placeholder).toBe("ここに自分の考えを入力");
   });
+  it("round-trips free fields and validates free answers as drawing scenes", () => {
+    const sheet = worksheetTemplate("blank");
+    sheet.fields[0].kind = "free";
+    sheet.fields[0].placeholder = "ここに自分の考えを入力";
+    const parsed = parseWorksheet(sheet);
+    expect(parsed.fields[0].kind).toBe("free");
+    // The legacy text default is cleared like for drawing fields.
+    expect(parsed.fields[0].placeholder).toBe("");
+    expect(parseWorksheet(parsed)).toEqual(parsed);
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], options: ["a", "b"] }],
+      }),
+    ).toThrow();
+    const id = parsed.fields[0].id;
+    expect(parseWorksheetValues(parsed, {})[id]).toBe("");
+    const sceneValue = JSON.stringify({
+      v: 2,
+      flat: "data:image/jpeg;base64,/9j/AAAA",
+      objects: [
+        {
+          id: "t",
+          src: "",
+          text: "まとめ",
+          size: 0.1,
+          x: 0.1,
+          y: 0.1,
+          w: 0.4,
+          h: 0.2,
+        },
+      ],
+      strokes: "",
+    });
+    expect(parseWorksheetValues(parsed, { [id]: sceneValue })[id]).toBe(
+      sceneValue,
+    );
+    expect(() =>
+      parseWorksheetValues(parsed, { [id]: "ただの文字列" }),
+    ).toThrow();
+    expect(() => parseWorksheetValues(parsed, { [id]: 42 })).toThrow();
+  });
   it("round-trips the hide-label setting and rejects it for checkbox fields", () => {
     const sheet = worksheetTemplate("blank");
     sheet.fields[0].kind = "drawing";

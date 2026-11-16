@@ -16,6 +16,7 @@ export type WorksheetField = {
     | "multiple"
     | "radar"
     | "drawing"
+    | "free"
     | "order";
   options: string[];
   placeholder: string;
@@ -154,6 +155,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
           "multiple",
           "radar",
           "drawing",
+          "free",
           "order",
         ].includes(f.kind),
       "入力欄の設定を確認してください。",
@@ -232,7 +234,8 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       kind: f.kind,
       options: [...f.options],
       placeholder:
-        f.kind === "drawing" && f.placeholder === TEXT_PLACEHOLDER_DEFAULT
+        (f.kind === "drawing" || f.kind === "free") &&
+        f.placeholder === TEXT_PLACEHOLDER_DEFAULT
           ? ""
           : f.placeholder,
       section: f.section,
@@ -330,7 +333,7 @@ export function parseWorksheetValues(
   for (const f of sheet.fields) {
     const x =
       (Object.hasOwn(v, f.id) ? v[f.id] : undefined) ??
-      (f.kind === "text" || f.kind === "drawing"
+      (f.kind === "text" || f.kind === "drawing" || f.kind === "free"
         ? ""
         : f.kind === "checkbox"
           ? false
@@ -341,6 +344,8 @@ export function parseWorksheetValues(
         validateDrawingValue(x),
         "画像・手描きの回答を確認してください。",
       );
+    else if (f.kind === "free")
+      check(validateDrawingValue(x), "自由入力の回答を確認してください。");
     else if (f.kind === "checkbox")
       check(typeof x === "boolean", "チェック項目が不正です。");
     else if (f.kind === "radar")

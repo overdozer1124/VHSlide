@@ -314,7 +314,7 @@ export function WorksheetInputs({
                             disabled={disabled || !!onEdit}
                             onChange={(value) => change(f.id, value)}
                           />
-                        ) : f.kind === "drawing" ? (
+                        ) : f.kind === "drawing" || f.kind === "free" ? (
                           <WorksheetDrawing
                             label={f.label}
                             value={
@@ -326,6 +326,7 @@ export function WorksheetInputs({
                             preview={preview}
                             aspect={drawingAspect}
                             placeholder={f.placeholder || undefined}
+                            allowText={f.kind === "free"}
                             onChange={(value) => change(f.id, value)}
                           />
                         ) : onEdit && f.kind === "text" ? (

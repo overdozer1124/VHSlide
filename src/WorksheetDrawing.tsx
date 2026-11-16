@@ -8,11 +8,17 @@ import type {
 import {
   DRAWING_OBJECT_MAX_COUNT,
   DRAWING_OBJECT_SRC_MAX,
+  DRAWING_OBJECT_TOTAL_MAX,
   DRAWING_STROKES_MAX,
+  DRAWING_TEXT_MAX,
+  DRAWING_TEXT_SIZE_DEFAULT,
+  DRAWING_TEXT_SIZE_MAX,
+  DRAWING_TEXT_SIZE_MIN,
   drawingFlatSrc,
   drawingValueToScene,
   emptyDrawingScene,
   isEmptyDrawingScene,
+  isTextObject,
   serializeDrawingScene,
   type DrawingObject,
   type DrawingScene,
@@ -111,6 +117,46 @@ function newObjectId(): string {
   return `o${Date.now().toString(36)}${objectCounter}`;
 }
 
+/** Draw a text object onto the base canvas: wrapped to its frame and
+ * clipped by it, in the same ink colour as the pen. */
+function drawTextObject(
+  ctx: CanvasRenderingContext2D,
+  o: DrawingObject,
+  cw: number,
+  ch: number,
+) {
+  const fontPx = (o.size ?? DRAWING_TEXT_SIZE_DEFAULT) * ch;
+  const x = o.x * cw,
+    y = o.y * ch,
+    w = o.w * cw,
+    h = o.h * ch;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.font = `${fontPx}px sans-serif`;
+  ctx.fillStyle = "#182b27";
+  ctx.textBaseline = "top";
+  const lineHeight = fontPx * 1.25;
+  const maxLines = Math.max(1, Math.ceil(h / lineHeight) + 1);
+  const lines: string[] = [];
+  for (const raw of (o.text ?? "").split("\n")) {
+    let line = "";
+    for (const char of raw) {
+      if (line && ctx.measureText(line + char).width > w) {
+        lines.push(line);
+        line = char;
+      } else line += char;
+    }
+    lines.push(line);
+    if (lines.length >= maxLines) break;
+  }
+  lines
+    .slice(0, maxLines)
+    .forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+  ctx.restore();
+}
+
 type Mode = "select" | "pen" | "eraser";
 
 export function WorksheetDrawing({
@@ -121,6 +167,7 @@ export function WorksheetDrawing({
   onChange,
   aspect,
   placeholder,
+  allowText = false,
 }: {
   label: string;
   value: string;
@@ -133,6 +180,9 @@ export function WorksheetDrawing({
   // frame's aspect so a pasted image fills the frame instead of being
   // composed into a fixed 16:9 picture that only fills part of it.
   aspect?: number;
+  // Free fields additionally let the learner place editable text boxes
+  // on the canvas, next to images and hand drawing.
+  allowText?: boolean;
 }) {
   const ratio =
     aspect && Number.isFinite(aspect) && aspect > 0
@@ -184,6 +234,14 @@ export function WorksheetDrawing({
   // the whole field into a single picture again.
   const [cropping, setCropping] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const editingTextRef = useRef<string | null>(null);
+  function setEditingText(id: string | null) {
+    editingTextRef.current = id;
+    setEditingTextId(id);
+  }
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageH, setStageH] = useState(0);
   const [rect, setRect] = useState({ x: 0, y: 0, w: 1, h: 1 });
   const cropOnOpen = useRef(false);
   const cropDrag = useRef<
@@ -198,6 +256,10 @@ export function WorksheetDrawing({
   const hasContent = !isEmptyDrawingScene(scene);
   const selected =
     scene.objects.find((o) => o.id === selectedId) ?? null;
+  const editingObject =
+    editingTextId != null
+      ? (scene.objects.find((o) => o.id === editingTextId) ?? null)
+      : null;
 
   function setScene(next: DrawingScene) {
     sceneRef.current = next;
@@ -223,13 +285,19 @@ export function WorksheetDrawing({
     const node = baseCanvas.current;
     if (!node) return;
     const images = await Promise.all(
-      target.objects.map((o) => decodeImage(o.src).catch(() => null)),
+      target.objects.map((o) =>
+        isTextObject(o) ? null : decodeImage(o.src).catch(() => null),
+      ),
     );
     if (version !== baseGen.current || !baseCanvas.current) return;
     const ctx = baseCanvas.current.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, cw, ch);
     target.objects.forEach((object, i) => {
+      if (isTextObject(object)) {
+        drawTextObject(ctx, object, cw, ch);
+        return;
+      }
       const image = images[i];
       if (image)
         ctx.drawImage(
@@ -304,6 +372,7 @@ export function WorksheetDrawing({
     history.current = [];
     setCanUndo(false);
     setSelectedId(null);
+    setEditingText(null);
     setScene(initial);
     setMode(initial.objects.length > 0 ? "select" : "pen");
     setReady(false);
@@ -345,6 +414,15 @@ export function WorksheetDrawing({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cw, ch]);
 
+  // The text-editing overlay sizes its font from the stage's real height.
+  useEffect(() => {
+    if (!active) return;
+    const measure = () => setStageH(stageRef.current?.clientHeight ?? 0);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [active, cw, ch]);
+
   useEffect(() => {
     if (active && ready && cropOnOpen.current && hasContent) {
       cropOnOpen.current = false;
@@ -364,6 +442,7 @@ export function WorksheetDrawing({
         event.target instanceof Node &&
         !container.current.contains(event.target)
       ) {
+        finishTextEdit();
         setCropping(false);
         setActive(false);
       }
@@ -400,7 +479,11 @@ export function WorksheetDrawing({
       setNotice("");
       return;
     }
-    if (sceneRef.current.objects.length >= DRAWING_OBJECT_MAX_COUNT) {
+    if (
+      sceneRef.current.objects.filter((o) => !isTextObject(o)).length >=
+        DRAWING_OBJECT_MAX_COUNT ||
+      sceneRef.current.objects.length >= DRAWING_OBJECT_TOTAL_MAX
+    ) {
       setError(`画像は${DRAWING_OBJECT_MAX_COUNT}枚までです。`);
       return;
     }
@@ -584,8 +667,105 @@ export function WorksheetDrawing({
     void emit(next);
   }
 
+  // --- Text objects (free fields) -----------------------------------------
+  function addText() {
+    if (sceneRef.current.objects.length >= DRAWING_OBJECT_TOTAL_MAX) {
+      setError(
+        `画像と文字は合わせて${DRAWING_OBJECT_TOTAL_MAX}個までです。`,
+      );
+      return;
+    }
+    pushHistory();
+    const cascade = (sceneRef.current.objects.length % 4) * 0.035;
+    const object: DrawingObject = {
+      id: newObjectId(),
+      src: "",
+      text: "",
+      size: DRAWING_TEXT_SIZE_DEFAULT,
+      x: Math.min(0.26 + cascade, 0.5),
+      y: Math.min(0.36 + cascade, 0.7),
+      w: 0.48,
+      h: 0.24,
+    };
+    const next: DrawingScene = {
+      objects: [...sceneRef.current.objects, object],
+      strokes: sceneRef.current.strokes,
+    };
+    setScene(next);
+    setSelectedId(object.id);
+    setMode("select");
+    setToolsOpen(false);
+    setError("");
+    setEditingText(object.id);
+    void paintBase(next);
+  }
+
+  function startTextEdit(object: DrawingObject) {
+    pushHistory();
+    setSelectedId(object.id);
+    setMode("select");
+    setToolsOpen(false);
+    setEditingText(object.id);
+  }
+
+  function updateEditingText(text: string) {
+    const id = editingTextRef.current;
+    if (!id) return;
+    const next: DrawingScene = {
+      objects: sceneRef.current.objects.map((o) =>
+        o.id === id ? { ...o, text } : o,
+      ),
+      strokes: sceneRef.current.strokes,
+    };
+    setScene(next);
+    void paintBase(next);
+  }
+
+  /** Close the text editor: an untouched box disappears, anything typed
+   * is saved with the scene. */
+  function finishTextEdit() {
+    const id = editingTextRef.current;
+    if (!id) return;
+    setEditingText(null);
+    let next = sceneRef.current;
+    const object = next.objects.find((o) => o.id === id);
+    if (object && isTextObject(object) && !(object.text ?? "").trim()) {
+      next = {
+        objects: next.objects.filter((o) => o.id !== id),
+        strokes: next.strokes,
+      };
+      setScene(next);
+      setSelectedId(null);
+    }
+    void emit(next);
+  }
+
+  function resizeSelectedText(factor: number) {
+    if (!selected || !isTextObject(selected)) return;
+    pushHistory();
+    const size = Math.min(
+      DRAWING_TEXT_SIZE_MAX,
+      Math.max(
+        DRAWING_TEXT_SIZE_MIN,
+        (selected.size ?? DRAWING_TEXT_SIZE_DEFAULT) * factor,
+      ),
+    );
+    const next: DrawingScene = {
+      objects: sceneRef.current.objects.map((o) =>
+        o.id === selected.id ? { ...o, size } : o,
+      ),
+      strokes: sceneRef.current.strokes,
+    };
+    setScene(next);
+    void emit(next);
+  }
+
   // --- Object dragging (select mode) -------------------------------------
-  function stagePoint(event: PointerEvent<HTMLElement>) {
+  function stagePoint(event: {
+    clientX: number;
+    clientY: number;
+    currentTarget: HTMLElement;
+  }) {
     const r = event.currentTarget.getBoundingClientRect();
     return {
       x: (event.clientX - r.left) / r.width,
@@ -653,6 +833,19 @@ export function WorksheetDrawing({
         x: Math.min(Math.max(orig.x + dx, -orig.w + 0.05), 1 - 0.05),
         y: Math.min(Math.max(orig.y + dy, -orig.h + 0.05), 1 - 0.05),
       };
+    } else if (isTextObject(orig)) {
+      // Text frames resize freely; the opposite edge anchors.
+      let w = orig.w;
+      let h = orig.h;
+      if (drag.handle!.includes("e")) w = orig.w + dx;
+      if (drag.handle!.includes("w")) w = orig.w - dx;
+      if (drag.handle!.includes("s")) h = orig.h + dy;
+      if (drag.handle!.includes("n")) h = orig.h - dy;
+      w = Math.min(1.5, Math.max(0.05, w));
+      h = Math.min(1.5, Math.max(0.03, h));
+      const x = drag.handle!.includes("w") ? orig.x + orig.w - w : orig.x;
+      const y = drag.handle!.includes("n") ? orig.y + orig.h - h : orig.y;
+      next = { ...orig, x, y, w, h };
     } else {
       // Resize keeping the picture's aspect; the opposite corner anchors.
       const aspectPx = (orig.w * cw) / (orig.h * ch);
@@ -763,7 +956,9 @@ export function WorksheetDrawing({
         alt={`${label}の画像・手描き回答`}
       />
     ) : (
-      <div className="worksheet-drawing-placeholder">画像・手描きの回答欄</div>
+      <div className="worksheet-drawing-placeholder">
+        {allowText ? "手描き・文字の回答欄" : "画像・手描きの回答欄"}
+      </div>
     );
   if (!active)
     return (
@@ -786,7 +981,9 @@ export function WorksheetDrawing({
             <span>
               {placeholder?.trim()
                 ? placeholder
-                : "クリックして画像を貼り付け・手描き"}
+                : allowText
+                  ? "クリックして手描き・文字・画像で入力"
+                  : "クリックして画像を貼り付け・手描き"}
             </span>
           )}
         </button>
@@ -803,6 +1000,14 @@ export function WorksheetDrawing({
       onDrop={drop}
       onBlur={blur}
       onKeyDown={(event) => {
+        // While a text box is being edited its keys belong to the text.
+        if (editingTextId) {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            finishTextEdit();
+          }
+          return;
+        }
         if (event.key === "Escape") {
           if (toolsOpen) setToolsOpen(false);
           else if (cropping) setCropping(false);
@@ -862,7 +1067,9 @@ export function WorksheetDrawing({
             >
               ツール：
               {mode === "select"
-                ? "画像を動かす"
+                ? allowText
+                  ? "動かす"
+                  : "画像を動かす"
                 : mode === "pen"
                   ? "ペン"
                   : "消しゴム"}
@@ -892,8 +1099,17 @@ export function WorksheetDrawing({
                 setToolsOpen(false);
               }}
             >
-              画像を動かす
+              {allowText ? "動かす" : "画像を動かす"}
             </button>
+            {allowText && (
+              <button
+                type="button"
+                disabled={!ready}
+                onClick={addText}
+              >
+                文字を追加
+              </button>
+            )}
             <button
               type="button"
               aria-pressed={mode === "pen"}
@@ -938,6 +1154,34 @@ export function WorksheetDrawing({
             </button>
             {selected && (
               <>
+                {isTextObject(selected) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startTextEdit(selected)}
+                    >
+                      文字を編集
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resizeSelectedText(1.25);
+                        setToolsOpen(false);
+                      }}
+                    >
+                      文字を大きく
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resizeSelectedText(0.8);
+                        setToolsOpen(false);
+                      }}
+                    >
+                      文字を小さく
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -945,7 +1189,9 @@ export function WorksheetDrawing({
                     setToolsOpen(false);
                   }}
                 >
-                  選んだ画像を削除
+                  {isTextObject(selected)
+                    ? "選んだ文字を削除"
+                    : "選んだ画像を削除"}
                 </button>
                 <button
                   type="button"
@@ -993,6 +1239,7 @@ export function WorksheetDrawing({
       {notice && <p className="worksheet-drawing-notice">{notice}</p>}
       <div
         className="worksheet-drawing-stage"
+        ref={stageRef}
         onPointerDown={() => {
           if (toolsOpen) setToolsOpen(false);
         }}
@@ -1028,6 +1275,21 @@ export function WorksheetDrawing({
             onPointerMove={hitMove}
             onPointerUp={hitUp}
             onPointerCancel={hitUp}
+            onDoubleClick={(event) => {
+              if (!allowText) return;
+              const p = stagePoint(event);
+              const hit = [...sceneRef.current.objects]
+                .reverse()
+                .find(
+                  (o) =>
+                    isTextObject(o) &&
+                    p.x >= o.x &&
+                    p.x <= o.x + o.w &&
+                    p.y >= o.y &&
+                    p.y <= o.y + o.h,
+                );
+              if (hit) startTextEdit(hit);
+            }}
           >
             {selected && (
               <div
@@ -1046,6 +1308,29 @@ export function WorksheetDrawing({
               </div>
             )}
           </div>
+        )}
+        {editingObject && (
+          <textarea
+            className="worksheet-drawing-text-editor"
+            aria-label={`${label}の文字を入力`}
+            style={{
+              left: `${editingObject.x * 100}%`,
+              top: `${editingObject.y * 100}%`,
+              width: `${editingObject.w * 100}%`,
+              height: `${editingObject.h * 100}%`,
+              fontSize: `${
+                (editingObject.size ?? DRAWING_TEXT_SIZE_DEFAULT) *
+                (stageH || ch)
+              }px`,
+              lineHeight: 1.25,
+            }}
+            value={editingObject.text ?? ""}
+            maxLength={DRAWING_TEXT_MAX}
+            autoFocus
+            onChange={(event) => updateEditingText(event.target.value)}
+            onBlur={finishTextEdit}
+            onPointerDown={(event) => event.stopPropagation()}
+          />
         )}
         {cropping && (
           <div

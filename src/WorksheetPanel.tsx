@@ -655,7 +655,8 @@ export function WorksheetPanel({
                                   editField(f.id, {
                                     kind,
                                     placeholder:
-                                      kind === "drawing" &&
+                                      (kind === "drawing" ||
+                                        kind === "free") &&
                                       f.placeholder ===
                                         TEXT_PLACEHOLDER_DEFAULT
                                         ? ""
@@ -716,6 +717,9 @@ export function WorksheetPanel({
                               >
                                 <option value="text">記述欄</option>
                                 <option value="drawing">画像・手描き</option>
+                                <option value="free">
+                                  自由入力（手描き＋文字）
+                                </option>
                                 <option value="checkbox">チェック欄</option>
                                 <option value="single">単一選択</option>
                                 <option value="multiple">複数選択</option>
@@ -727,11 +731,15 @@ export function WorksheetPanel({
                                 </option>
                               </select>
                             </label>
-                            {(f.kind === "text" || f.kind === "drawing") && (
+                            {(f.kind === "text" ||
+                              f.kind === "drawing" ||
+                              f.kind === "free") && (
                               <label>
                                 {f.kind === "drawing"
                                   ? "貼り付け前の案内文"
-                                  : "入力例"}
+                                  : f.kind === "free"
+                                    ? "入力前の案内文"
+                                    : "入力例"}
                                 <input
                                   maxLength={200}
                                   value={f.placeholder}

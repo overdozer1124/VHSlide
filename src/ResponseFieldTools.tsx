@@ -10,7 +10,8 @@ import type { SurveyView } from "./surveys";
 import { api } from "./cloud";
 export function makeResponseElement(binding: ResponseFieldBinding): Element {
   const drawing =
-    binding.source === "worksheet" && binding.field.kind === "drawing";
+    binding.source === "worksheet" &&
+    (binding.field.kind === "drawing" || binding.field.kind === "free");
   return {
     id: crypto.randomUUID(),
     type: "shape",
@@ -372,7 +373,7 @@ export function ResponseFieldTools({
           kind: create
             ? kind === "checkbox" || kind === "order"
               ? "multiple"
-              : kind === "drawing"
+              : kind === "drawing" || kind === "free"
                 ? "text"
                 : kind
             : (survey?.kind ?? "text"),
@@ -446,7 +447,9 @@ export function ResponseFieldTools({
                     setSource(e.target.value as typeof source);
                     if (
                       e.target.value === "survey" &&
-                      (kind === "checkbox" || kind === "drawing")
+                      (kind === "checkbox" ||
+                        kind === "drawing" ||
+                        kind === "free")
                     )
                       setKind(kind === "checkbox" ? "multiple" : "text");
                     setRecord("");
@@ -543,6 +546,7 @@ export function ResponseFieldTools({
                       [
                         ["text", "記述", "自分の考えを文章で"],
                         ["drawing", "画像・手描き", "画像の貼り付けと描画"],
+                        ["free", "自由入力", "手描きと文字で説明"],
                         ["checkbox", "チェック", "あてはまるかを確認"],
                         ["single", "単一選択", "選択肢から1つ"],
                         ["multiple", "複数選択", "選択肢から複数"],
@@ -554,6 +558,7 @@ export function ResponseFieldTools({
                           source === "worksheet" ||
                           (value !== "checkbox" &&
                             value !== "drawing" &&
+                            value !== "free" &&
                             value !== "order"),
                       )
                       .map(([value, title, description]) => (
@@ -580,7 +585,8 @@ export function ResponseFieldTools({
                   </label>
                 ) : (
                   kind !== "checkbox" &&
-                  kind !== "drawing" && (
+                  kind !== "drawing" &&
+                  kind !== "free" && (
                     <label>
                       選択肢（1行1項目）
                       <textarea
