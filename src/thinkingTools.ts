@@ -113,11 +113,6 @@ function cleanLabel(value: unknown, label: string, max = MAX_LABEL): string {
   );
   return (value as string).trim().replace(/\s+/g, " ");
 }
-function optLabel(value: unknown, label: string, max = MAX_LABEL): string {
-  if (value === undefined || value === "") return "";
-  return cleanLabel(value, label, max);
-}
-
 const TEMPLATES: ThinkingTemplate[] = ["axis2", "axis1", "emotion", "ratio"];
 const UNITS: ThinkingUnit[] = ["individual", "group", "class"];
 
@@ -141,9 +136,16 @@ export function parseThinkingDefinition(
     "思考ツールの設定を確認してください。",
   );
   const title = cleanLabel(value.title, "ツールの名前", 60);
-  const scenesRaw = value.scenes === undefined ? [] : value.scenes;
   insist(
-    Array.isArray(scenesRaw) && scenesRaw.length <= MAX_SCENES,
+    value.scenes === undefined || Array.isArray(value.scenes),
+    400,
+    "場面の設定を確認してください。",
+  );
+  const scenesRaw: unknown[] = Array.isArray(value.scenes)
+    ? value.scenes
+    : [];
+  insist(
+    scenesRaw.length <= MAX_SCENES,
     400,
     `場面は${MAX_SCENES}個までです。`,
   );

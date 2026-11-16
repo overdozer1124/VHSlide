@@ -17,6 +17,12 @@ import {
   WebbingError,
 } from "../src/webbing.ts";
 import {
+  thinkingSchema,
+  thinkingList,
+  thinkingCommand,
+  ThinkingError,
+} from "../src/thinkingTools.ts";
+import {
   groupSchema,
   groupList,
   groupCommand,
@@ -339,6 +345,7 @@ export function createApplication(options: Options) {
   db.exec(worksheetSchema);
   db.exec(webbingSchema);
   db.exec(groupSchema);
+  db.exec(thinkingSchema);
   db.exec(userAppSchema);
   db.exec(
     "CREATE TABLE IF NOT EXISTS work_trash(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE, created INTEGER NOT NULL, purging INTEGER NOT NULL DEFAULT 0)",
@@ -1079,6 +1086,15 @@ export function createApplication(options: Options) {
                   ...groupList(historySQL, id, u.id, host),
                 };
             }
+            const tv = url.searchParams.get("tv");
+            if (tv !== null) {
+              const version = featureVersion(historySQL, id, "thinking");
+              if (tv === "" || Number(tv) !== version)
+                out.thinking = {
+                  version,
+                  thinking: thinkingList(historySQL, id, u.id, host),
+                };
+            }
             db.exec("COMMIT");
             return json(res, 200, out);
           } catch (error) {
@@ -1314,6 +1330,76 @@ export function createApplication(options: Options) {
             db.exec("COMMIT");
             return json(res, 200, {
               webbing,
+              ...(extraResult?.createdId
+                ? { createdId: extraResult.createdId }
+                : {}),
+            });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        if (extra === "thinking" || extra?.startsWith("thinking/")) {
+          insist(
+            ["GET", "POST", "DELETE"].includes(method),
+            405,
+            "この操作には対応していません。",
+          );
+          const route =
+            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit))?)?$/.exec(
+              extra,
+            );
+          insist(
+            route &&
+              (method === "GET"
+                ? extra === "thinking"
+                : method === "DELETE"
+                  ? !!route[1] && !route[2]
+                  : extra === "thinking" || !!route[2]),
+            404,
+            "思考ツールの操作が見つかりません。",
+          );
+          const value =
+            method === "POST"
+              ? JSON.parse((await body(req, 12000)).toString())
+              : {};
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            if (method === "GET") {
+              const v = url.searchParams.get("v");
+              if (v !== null) {
+                const version = featureVersion(historySQL, id, "thinking");
+                const thinking =
+                  String(version) === v
+                    ? undefined
+                    : thinkingList(historySQL, id, u.id, host);
+                db.exec("COMMIT");
+                return json(
+                  res,
+                  200,
+                  thinking
+                    ? { thinking, version }
+                    : { unchanged: true, version },
+                );
+              }
+            }
+            let extraResult: { createdId?: string } | undefined;
+            if (method !== "GET")
+              extraResult = thinkingCommand(
+                historySQL,
+                id,
+                u.id,
+                host,
+                method === "DELETE" ? "delete" : (route![2] ?? "create"),
+                route![1],
+                value,
+              );
+            const thinking = thinkingList(historySQL, id, u.id, host);
+            db.exec("COMMIT");
+            return json(res, 200, {
+              thinking,
               ...(extraResult?.createdId
                 ? { createdId: extraResult.createdId }
                 : {}),
@@ -2086,6 +2172,7 @@ export function createApplication(options: Options) {
         error instanceof SurveyError ||
         error instanceof WebbingError ||
         error instanceof GroupError ||
+        error instanceof ThinkingError ||
         error instanceof UserAppError
           ? error.status
           : error instanceof SyntaxError

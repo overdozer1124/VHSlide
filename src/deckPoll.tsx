@@ -10,11 +10,12 @@ import { usePageVisible } from "./usePageVisible";
  * whose change counter moved. That keeps the cloud request count at
  * one per tick instead of one per feature, while unchanged features
  * still cost the server almost nothing (see featureVersions.ts). */
-export type PollFeature = "worksheets" | "webbing" | "groups";
+export type PollFeature = "worksheets" | "webbing" | "groups" | "thinking";
 const PARAM: Record<PollFeature, string> = {
   worksheets: "wv",
   webbing: "mv",
   groups: "gv",
+  thinking: "tv",
 };
 type Sink = {
   onData: (payload: any) => void;
@@ -31,6 +32,7 @@ export class DeckPoller {
     worksheets: null,
     webbing: null,
     groups: null,
+    thinking: null,
   };
   private sinks = new Map<PollFeature, Sink>();
   private wants = new Map<PollFeature, number>();

@@ -4,6 +4,7 @@ import { exerciseWorksheetMerge } from "../support/worksheetMerge.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import { exerciseWebbing } from "../support/webbing.ts";
+import { exerciseThinking } from "../support/thinking.ts";
 import { exerciseDeckPoll } from "../support/poll.ts";
 import { exerciseGalleryCounts } from "../support/gallery.ts";
 import {
@@ -1572,6 +1573,24 @@ test("webbing maps share one map, enforce authorship and edit locks, and persist
   await joinRoom(id, friend);
   const other = await create();
   await exerciseWebbing(
+    request,
+    id,
+    other,
+    owner,
+    friend,
+    stranger,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+  );
+});
+
+test("thinking tools place per-scene points, keep individual points private, lock class points and persist across restart", async () => {
+  const id = await create();
+  await joinRoom(id, friend);
+  const other = await create();
+  await exerciseThinking(
     request,
     id,
     other,

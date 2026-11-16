@@ -1,5 +1,6 @@
 import { SurveyError } from "../src/surveys.ts";
 import { WebbingError } from "../src/webbing.ts";
+import { ThinkingError } from "../src/thinkingTools.ts";
 import { GroupError } from "../src/groups.ts";
 import { JoinRequestError } from "../src/joinRequests.ts";
 import { UserAppError } from "../src/userApps.ts";
@@ -62,6 +63,7 @@ export function failure(error: unknown) {
     error instanceof JoinRequestError ||
     error instanceof SurveyError ||
     error instanceof WebbingError ||
+    error instanceof ThinkingError ||
     error instanceof GroupError ||
     error instanceof UserAppError
       ? error.status
