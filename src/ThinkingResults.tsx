@@ -36,7 +36,6 @@ export function ThinkingResults({ tool }: { tool: ThinkingView }) {
   const scene = scenes[Math.min(sceneIdx, scenes.length - 1)];
 
   const nameOf = (p: ThinkingPoint): string => {
-    if (tool.unit === "class") return "全体";
     if (tool.unit === "group")
       return (
         groupsCtx.groups.find((g) => g.id === p.owner)?.name || p.authorName

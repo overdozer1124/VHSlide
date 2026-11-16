@@ -105,11 +105,7 @@ function ThinkingSurface({
   const groupsCtx = useGroups();
   const def = tool.definition;
   const myOwner =
-    tool.unit === "individual"
-      ? (ctx.userId ?? "")
-      : tool.unit === "group"
-        ? (tool.myGroupId ?? "")
-        : "";
+    tool.unit === "group" ? (tool.myGroupId ?? "") : (ctx.userId ?? "");
   const [sceneSel, setSceneSel] = useState<string | undefined>(undefined);
   const scene =
     def.scenes.length === 0
@@ -146,12 +142,14 @@ function ThinkingSurface({
   useEffect(() => {
     setDraft(undefined);
     setReason(undefined);
+    setNotice("");
   }, [scene, tool.id]);
   useEffect(() => {
     if (draft && myPoint && JSON.stringify(myPoint.value) === JSON.stringify(draft))
       setDraft(undefined);
   }, [myPoint, draft]);
 
+  const [notice, setNotice] = useState("");
   async function commit(value: ThinkingPointValue, nextReason?: string) {
     try {
       await ctx.command(tool.id, "point", {
@@ -162,9 +160,22 @@ function ThinkingSurface({
           : {}),
         ...(tool.unit === "group" ? { owner: myOwner } : {}),
       });
-    } catch {
+      setNotice("");
+    } catch (e) {
       setDraft(undefined);
+      // A 409 here is almost always a classmate's edit lock: say so
+      // instead of silently snapping the point back (review 🟡5).
+      if ((e as { status?: number }).status === 409)
+        setNotice((e as Error).message);
     }
+  }
+  /** Group points are shared: take the edit lock when a drag starts,
+   * not only when the point is dropped (review 🟡5). */
+  function beginSharedEdit() {
+    if (tool.unit !== "group" || !canEdit) return;
+    void ctx
+      .command(tool.id, "lock", { scene, owner: myOwner })
+      .catch(() => {});
   }
   async function clearPoint() {
     setDraft(undefined);
@@ -181,6 +192,19 @@ function ThinkingSurface({
   // blur alone is unreliable inside the canvas, which keeps focus.
   const commitRef = useRef(commit);
   commitRef.current = commit;
+  // Arrow keys: update the draft immediately but send only once the
+  // keys settle (~0.5s), like the reason autosave — one request per
+  // keypress would hit the rate limit on a long hold (review 🟡4).
+  const keyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  function commitKeys(value: ThinkingPointValue) {
+    setDraft(value);
+    if (keyTimer.current) clearTimeout(keyTimer.current);
+    keyTimer.current = setTimeout(() => {
+      void commitRef.current(value);
+    }, 500);
+  }
   useEffect(() => {
     if (reason === undefined || !shownValue) return;
     if (reason === (myPoint?.reason ?? "")) return;
@@ -210,10 +234,9 @@ function ThinkingSurface({
     );
   }
 
-  const others =
-    ctx.host && tool.unit !== "class"
-      ? tool.points.filter((p) => p.scene === scene && p.owner !== myOwner)
-      : [];
+  const others = ctx.host
+    ? tool.points.filter((p) => p.scene === scene && p.owner !== myOwner)
+    : [];
   const ghosts = myPoints
     .filter((p) => p.scene !== scene)
     .sort(
@@ -263,6 +286,7 @@ function ThinkingSurface({
           value={shownValue}
           canEdit={canEdit}
           ghosts={ghosts}
+          onDragStart={beginSharedEdit}
           onCommit={(v) => {
             setDraft(v);
             void commit(v);
@@ -278,11 +302,14 @@ function ThinkingSurface({
           others={others}
           onDraft={setDraft}
           onCommit={(v) => void commit(v)}
+          onKeyCommit={commitKeys}
+          onDragStart={beginSharedEdit}
         />
       )}
       {lockedByOther && (
         <p className="thinking-lock-note">{lock.name}さんが編集中です</p>
       )}
+      {notice && <p className="thinking-lock-note">{notice}</p>}
       {def.reason && (
         <div
           className="thinking-reason"
@@ -331,6 +358,8 @@ function AxisSurface({
   others,
   onDraft,
   onCommit,
+  onKeyCommit,
+  onDragStart,
 }: {
   tool: ThinkingView;
   value?: ThinkingPointValue;
@@ -339,6 +368,8 @@ function AxisSurface({
   others: ThinkingPoint[];
   onDraft: (v: ThinkingPointValue) => void;
   onCommit: (v: ThinkingPointValue) => void;
+  onKeyCommit: (v: ThinkingPointValue) => void;
+  onDragStart: () => void;
 }) {
   const def = tool.definition;
   const two = tool.template === "axis2";
@@ -390,6 +421,7 @@ function AxisSurface({
             e.stopPropagation();
             dragging.current = true;
             (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+            onDragStart();
             onDraft(fromEvent(e));
           }}
           onPointerMove={(e) => {
@@ -491,8 +523,7 @@ function AxisSurface({
                 if (next) {
                   e.preventDefault();
                   e.stopPropagation();
-                  onDraft(next);
-                  onCommit(next);
+                  onKeyCommit(next);
                 }
               }}
             />
@@ -524,12 +555,14 @@ function RatioSurface({
   value,
   canEdit,
   ghosts,
+  onDragStart,
   onCommit,
 }: {
   tool: ThinkingView;
   value?: ThinkingPointValue;
   canEdit: boolean;
   ghosts: ThinkingPoint[];
+  onDragStart: () => void;
   onCommit: (v: ThinkingPointValue) => void;
 }) {
   const def = tool.definition;
@@ -560,6 +593,7 @@ function RatioSurface({
           e.stopPropagation();
           dragging.current = true;
           (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          onDragStart();
           setLocal(fromEvent(e).v);
         }}
         onPointerMove={(e) => {

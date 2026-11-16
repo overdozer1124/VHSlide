@@ -8,7 +8,7 @@ import { parseSurveyBinding } from "./surveyBinding.ts";
 import type { SurveyBinding } from "./surveyBinding.ts";
 import { parseWebbingBinding } from "./webbingBinding.ts";
 import type { WebbingBinding } from "./webbingBinding.ts";
-import { parseThinkingBinding } from "./thinkingBinding.ts";
+import { parseThinkingBindingLenient } from "./thinkingBinding.ts";
 import type { ThinkingBinding } from "./thinkingBinding.ts";
 import { parseEmbedBinding } from "./embedBinding.ts";
 import type { EmbedBinding } from "./embedBinding.ts";
@@ -735,7 +735,7 @@ export function parseDeck(input: string): Deck {
             e.embed !== undefined
           )
             fail();
-          base.thinking = parseThinkingBinding(e.thinking);
+          base.thinking = parseThinkingBindingLenient(e.thinking);
         }
         if (e.embed !== undefined) {
           if (

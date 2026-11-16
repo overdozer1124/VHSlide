@@ -1598,14 +1598,25 @@ test("webbing maps share one map, enforce authorship and edit locks, and persist
   });
 });
 
-test("thinking tools place per-scene points, keep individual points private, lock class points and persist across restart", async () => {
+test("thinking tools place per-scene points, keep individual and class points per-student, share group points inside the group and persist across restart", async () => {
   const id = await create();
   await invite(id, bob);
+  const carol = await signIn("student-974");
+  await invite(id, carol);
   const other = await create();
-  await exerciseThinking(request, id, other, alice, bob, eve, async () => {
-    await app.close();
-    await start();
-  });
+  await exerciseThinking(
+    request,
+    id,
+    other,
+    alice,
+    bob,
+    eve,
+    async () => {
+      await app.close();
+      await start();
+    },
+    carol,
+  );
 });
 
 test("deck poll returns only the features whose version moved", async () => {

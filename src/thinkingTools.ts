@@ -267,7 +267,13 @@ function loadTool(
 }
 
 /** The owner key a point write/read uses for this actor and tool. The
- * host may name an owner explicitly (demonstration/moderation). */
+ * host may name an owner explicitly (demonstration/moderation).
+ * Individual and class tools both key points by the actor themself:
+ * a class tool differs from an individual one in intent (its points
+ * feed the shared distribution the host shows), not in ownership —
+ * participants only ever receive their own point (review 2026-11-17,
+ * user decision; plan §4.1.3 / decision 2). Only group tools share one
+ * point per owner key. */
 function resolveOwner(
   sql: HistorySQL,
   deck: string,
@@ -276,14 +282,13 @@ function resolveOwner(
   host: boolean,
   requested: unknown,
 ): string {
-  if (tool.unit === "individual") {
+  if (tool.unit === "individual" || tool.unit === "class") {
     if (typeof requested === "string" && requested !== "" && requested !== actor)
       insist(host, 403, "ほかの人の点は変更できません。");
     return typeof requested === "string" && requested !== "" && host
       ? requested
       : actor;
   }
-  if (tool.unit === "class") return "";
   // group
   if (host && typeof requested === "string" && requested !== "") {
     const exists = [
@@ -307,8 +312,8 @@ function visibleOwners(
   host: boolean,
 ): { owners: string[] | null; myGroupId?: string } {
   if (host) return { owners: null };
-  if (tool.unit === "individual") return { owners: [actor] };
-  if (tool.unit === "class") return { owners: [""] };
+  if (tool.unit === "individual" || tool.unit === "class")
+    return { owners: [actor] };
   const mine = effectiveGroupId(sql, deck, actor);
   return { owners: mine ? [mine] : [], myGroupId: mine };
 }
@@ -330,49 +335,77 @@ export function thinkingList(
     .map((row) => {
       const tool = readTool(row);
       const { owners, myGroupId } = visibleOwners(sql, deck, tool, actor, host);
-      const points = [
-        ...sql(
-          "SELECT p.*,u.name AS author_name FROM thinking_points p LEFT JOIN users u ON u.id=p.author WHERE p.tool=? ORDER BY p.updated,p.owner",
-          tool.id,
-        ),
-      ]
-        .filter((p) => owners === null || owners.includes(p.owner as string))
-        .map((p): ThinkingPoint => {
-          let value: ThinkingPointValue = {};
-          try {
-            value = JSON.parse(p.value as string) as ThinkingPointValue;
-          } catch {
-            value = {};
-          }
-          return {
-            owner: p.owner as string,
-            scene: p.scene as string,
-            value,
-            reason: p.reason as string,
-            // Author identity is only for the host and same-group members;
-            // a class point keeps the name (attribution) but not the id.
-            authorId: host || tool.unit === "group" ? (p.author as string) : "",
-            authorName: (p.author_name as string) || "名前未登録",
-            updated: p.updated as number,
-          };
-        });
-      const locks = [
-        ...sql(
-          "SELECT owner,scene,user,name,expires FROM thinking_locks WHERE tool=? AND expires>?",
-          tool.id,
-          now,
-        ),
-      ]
-        .filter((l) => owners === null || owners.includes(l.owner as string))
-        .map(
-          (l): ThinkingLock => ({
-            owner: l.owner as string,
-            scene: l.scene as string,
-            userId: l.user as string,
-            name: l.name as string,
-            expires: l.expires as number,
-          }),
-        );
+      // Participants read only their own owners' rows: the owner filter
+      // belongs in SQL (the points primary key starts with
+      // (tool, owner, scene)), never read-everything-then-filter — on
+      // Cloudflare every poll would otherwise re-read the whole class
+      // (review 2026-11-17 🔴3). Author names/ids are returned only to
+      // the host and to same-group members (plan §4.1.8), so the users
+      // join is only needed for those viewers.
+      const showAuthor = host || tool.unit === "group";
+      const ownerClause =
+        owners === null
+          ? ""
+          : owners.length === 0
+            ? " AND 1=0"
+            : ` AND p.owner IN (${owners.map(() => "?").join(",")})`;
+      const points = (
+        owners !== null && owners.length === 0
+          ? []
+          : [
+              ...sql(
+                showAuthor
+                  ? `SELECT p.*,u.name AS author_name FROM thinking_points p LEFT JOIN users u ON u.id=p.author WHERE p.tool=?${ownerClause} ORDER BY p.updated,p.owner`
+                  : `SELECT p.* FROM thinking_points p WHERE p.tool=?${ownerClause} ORDER BY p.updated,p.owner`,
+                tool.id,
+                ...(owners ?? []),
+              ),
+            ]
+      ).map((p): ThinkingPoint => {
+        let value: ThinkingPointValue = {};
+        try {
+          value = JSON.parse(p.value as string) as ThinkingPointValue;
+        } catch {
+          value = {};
+        }
+        return {
+          owner: p.owner as string,
+          scene: p.scene as string,
+          value,
+          reason: p.reason as string,
+          authorId: showAuthor ? (p.author as string) : "",
+          authorName: showAuthor
+            ? (p.author_name as string) || "名前未登録"
+            : "",
+          updated: p.updated as number,
+        };
+      });
+      const lockOwnerClause =
+        owners === null
+          ? ""
+          : owners.length === 0
+            ? " AND 1=0"
+            : ` AND owner IN (${owners.map(() => "?").join(",")})`;
+      const locks = (
+        owners !== null && owners.length === 0
+          ? []
+          : [
+              ...sql(
+                `SELECT owner,scene,user,name,expires FROM thinking_locks WHERE tool=? AND expires>?${lockOwnerClause}`,
+                tool.id,
+                now,
+                ...(owners ?? []),
+              ),
+            ]
+      ).map(
+        (l): ThinkingLock => ({
+          owner: l.owner as string,
+          scene: l.scene as string,
+          userId: l.user as string,
+          name: l.name as string,
+          expires: l.expires as number,
+        }),
+      );
       return { ...tool, points, locks, ...(myGroupId ? { myGroupId } : {}) };
     });
 }
@@ -409,7 +442,7 @@ function takeLock(
   actor: string,
   now: number,
 ) {
-  if (tool.unit === "individual") return;
+  if (tool.unit === "individual" || tool.unit === "class") return;
   const lock = activeLock(sql, tool.id, owner, scene, now);
   insist(
     !lock || lock.user === actor,
@@ -679,7 +712,7 @@ export function thinkingCommand(
       ),
     ][0];
     insist(existing, 404, "その点は既に消えています。");
-    if (!host && tool.unit !== "individual") {
+    if (!host && tool.unit === "group") {
       const lock = activeLock(sql, tool.id, owner, scene, now);
       insist(
         existing.author === actor || (lock && lock.user === actor),
@@ -687,7 +720,7 @@ export function thinkingCommand(
         "その点を消せるのは、書いた人か編集中の人だけです。",
       );
     }
-    if (!host && tool.unit === "individual")
+    if (!host && tool.unit !== "group")
       insist(existing.author === actor, 403, "ほかの人の点は消せません。");
     sql(
       "DELETE FROM thinking_points WHERE tool=? AND owner=? AND scene=?",

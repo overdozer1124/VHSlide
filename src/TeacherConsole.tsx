@@ -381,24 +381,19 @@ function ConsoleMain({
   const webbingCtx = useWebbing();
   const thinkingCtx = useThinking();
   const visible = usePageVisible();
+  // Webbing and thinking share one 5s timer: both refreshes go through
+  // the same deck poller, and two timers drifting apart would poll
+  // twice per interval (review 2026-11-17 🟡7).
   useEffect(() => {
-    if (!webbingCtx.enabled || !visible) return;
-    void webbingCtx.refresh().catch(() => {});
-    const timer = setInterval(
-      () => void webbingCtx.refresh().catch(() => {}),
-      5000,
-    );
+    if (!visible || (!webbingCtx.enabled && !thinkingCtx.enabled)) return;
+    const refreshBoth = () => {
+      if (webbingCtx.enabled) void webbingCtx.refresh().catch(() => {});
+      if (thinkingCtx.enabled) void thinkingCtx.refresh().catch(() => {});
+    };
+    refreshBoth();
+    const timer = setInterval(refreshBoth, 5000);
     return () => clearInterval(timer);
-  }, [webbingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!thinkingCtx.enabled || !visible) return;
-    void thinkingCtx.refresh().catch(() => {});
-    const timer = setInterval(
-      () => void thinkingCtx.refresh().catch(() => {}),
-      5000,
-    );
-    return () => clearInterval(timer);
-  }, [thinkingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [webbingCtx.enabled, thinkingCtx.enabled, visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const [worksheetId, setWorksheetId] = useState("");
   const [downloading, setDownloading] = useState(false);
   const alive = useRef(true);

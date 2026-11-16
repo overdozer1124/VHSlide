@@ -153,8 +153,7 @@ export function ThinkingPanel({
                   : tool.status === "closed"
                     ? "受付終了"
                     : "下書き"}
-                {tool.unit !== "class" &&
-                  ` · ${new Set(tool.points.map((p) => p.owner)).size}件`}
+                {` · ${new Set(tool.points.map((p) => p.owner)).size}件`}
               </span>
             </header>
             {host && (
@@ -380,8 +379,13 @@ function ThinkingToolForm({
         >
           <option value="individual">個人（1人1つの点）</option>
           <option value="group">班（班で1つの点）</option>
-          <option value="class">全体（全員で1つの点）</option>
+          <option value="class">全体（一人ひとりが自分の点）</option>
         </select>
+        {unit === "class" && (
+          <span className="thinking-form-note">
+            「全体」は、みんなの点の分布を先生の画面で見せる前提の単位です。生徒には自分の点だけが見えます（「個人」との違いは、その前提があるかどうかです）。
+          </span>
+        )}
         {hasPoints && (
           <span className="thinking-form-note">
             回答があるため、単位は変更できません。

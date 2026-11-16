@@ -23,8 +23,11 @@ const AXIS = {
 
 /**
  * Thinking tools (point kind): host-only management, per-scene points,
- * individual privacy, class lock behaviour, poll version integration and
- * durable restart. Runs against both servers.
+ * individual privacy, per-student class points, group sharing inside
+ * the group only, permission denials for a second student (review
+ * 🔴2), poll version integration and durable restart. Runs against
+ * both servers. `guest2` is a second deck member; when empty, the
+ * two-student denial checks are skipped.
  */
 export async function exerciseThinking(
   call: Call,
@@ -34,6 +37,7 @@ export async function exerciseThinking(
   guest: string,
   stranger: string,
   restart: () => Promise<void>,
+  guest2 = "",
 ) {
   const base = `/api/decks/${id}/thinking`;
   const list = async (who = owner): Promise<ThinkingView[]> => {
@@ -125,6 +129,27 @@ export async function exerciseThinking(
     guest,
     400,
   );
+  // A second student never receives the first student's individual
+  // points, and writing or clearing under someone else's owner is 403.
+  if (guest2) {
+    const othersView = await list(guest2);
+    assert.equal(
+      othersView.find((t) => t.id === toolId)?.points.length,
+      0,
+    );
+    await write(
+      `/${toolId}/point`,
+      { scene: "s2", value: { x: 0.5, y: 0.5 }, owner: "another-student" },
+      guest2,
+      403,
+    );
+    await write(
+      `/${toolId}/clear`,
+      { scene: "s2", owner: "another-student" },
+      guest2,
+      403,
+    );
+  }
   // The poll carries the thinking version: empty asks for the list, the
   // returned version suppresses it.
   const poll1 = await (
@@ -141,8 +166,11 @@ export async function exerciseThinking(
     )
   ).json();
   assert.equal(poll2.thinking, undefined);
-  // Class unit: one shared point; the lock keeps a second writer out and
-  // only the author (or host) clears it.
+  // Class unit (review 🔴1): every student places their own point.
+  // There is no shared point and no lock — a second writer is not
+  // blocked, each participant receives only their own point with no
+  // author identity attached, and the host receives everyone's points
+  // with names for the distribution.
   const classCreated = await (
     await write("", {
       template: "axis1",
@@ -153,22 +181,102 @@ export async function exerciseThinking(
   const classId: string = classCreated.createdId;
   await write(`/${classId}/status`, { status: "open" });
   await write(`/${classId}/point`, { scene: "", value: { v: 0.4 } });
+  await write(`/${classId}/point`, { scene: "", value: { v: 0.8 } }, guest);
+  const guestClass = (await list(guest)).find((t) => t.id === classId);
+  assert.equal(guestClass?.points.length, 1);
+  assert.equal(guestClass?.points[0].value.v, 0.8);
+  assert.equal(guestClass?.points[0].authorId, "");
+  assert.equal(guestClass?.points[0].authorName, "");
+  assert.equal(guestClass?.locks.length, 0);
+  if (guest2) {
+    const g2Class = (await list(guest2)).find((t) => t.id === classId);
+    assert.equal(g2Class?.points.length, 0);
+  }
+  const hostClass = (await list()).find((t) => t.id === classId);
+  assert.equal(hostClass?.points.length, 2);
+  assert.ok(hostClass?.points.every((p) => p.authorName !== ""));
+  // Clearing under someone else's owner is refused; your own clears.
   await write(
-    `/${classId}/point`,
-    { scene: "", value: { v: 0.8 } },
+    `/${classId}/clear`,
+    { scene: "", owner: "another-student" },
     guest,
-    409,
+    403,
   );
-  await write(`/${classId}/clear`, { scene: "" }, guest, 403);
+  await write(`/${classId}/clear`, { scene: "" }, guest);
+  assert.equal(
+    (await list()).find((t) => t.id === classId)?.points.length,
+    1,
+  );
   await write(`/${classId}/clear`, { scene: "" });
   assert.equal(
     (await list()).find((t) => t.id === classId)?.points.length,
     0,
   );
+  // Group unit (review 🔴2): a point is shared inside its group only.
+  // A student in no group sees nothing and cannot write; a student in
+  // another group neither receives the point nor writes under its
+  // owner, while same-group members see the author's name.
+  const groupsBase = `/api/decks/${id}/groups`;
+  const groupCall = async (
+    path: string,
+    value: unknown,
+    who = owner,
+    status = 200,
+  ) => {
+    const r = await call(groupsBase + path, "POST", value, who);
+    assert.equal(r.status, status, await r.clone().text());
+    return r;
+  };
+  await groupCall("", { names: ["1班", "2班"] });
+  const groupView = await (
+    await call(groupsBase, "GET", undefined, guest)
+  ).json();
+  const [g1, g2] = groupView.groups;
+  const groupCreated = await (
+    await write("", {
+      template: "emotion",
+      unit: "group",
+      definition: { title: "班の気持ち", xMin: "いや", xMax: "よい" },
+    })
+  ).json();
+  const groupToolId: string = groupCreated.createdId;
+  await write(`/${groupToolId}/status`, { status: "open" });
+  assert.equal(
+    (await list(guest)).find((t) => t.id === groupToolId)?.points.length,
+    0,
+  );
+  await write(
+    `/${groupToolId}/point`,
+    { scene: "", value: { v: 0.5 } },
+    guest,
+    409,
+  );
+  await groupCall("/join", { groupId: g1.id }, guest);
+  if (guest2) await groupCall("/join", { groupId: g2.id }, guest2);
+  await write(`/${groupToolId}/point`, { scene: "", value: { v: 0.3 } }, guest);
+  const g1View = (await list(guest)).find((t) => t.id === groupToolId);
+  assert.equal(g1View?.points.length, 1);
+  assert.equal(g1View?.points[0].owner, g1.id);
+  assert.notEqual(g1View?.points[0].authorName, "");
+  if (guest2) {
+    const g2View = (await list(guest2)).find((t) => t.id === groupToolId);
+    assert.equal(g2View?.points.length, 0);
+    await write(
+      `/${groupToolId}/point`,
+      { scene: "", value: { v: 0.9 }, owner: g1.id },
+      guest2,
+      403,
+    );
+    await write(`/${groupToolId}/point`, { scene: "", value: { v: 0.9 } }, guest2);
+    assert.equal(
+      (await list(guest2)).find((t) => t.id === groupToolId)?.points.length,
+      1,
+    );
+  }
   // Data survives a restart.
   await restart();
   const after = await list();
-  assert.equal(after.length, 2);
+  assert.equal(after.length, 3);
   assert.equal(
     after.find((t) => t.id === toolId)?.points.length,
     2,
@@ -176,5 +284,5 @@ export async function exerciseThinking(
   // Deleting is host-only and removes the tool.
   await write(`/${classId}`, {}, guest, 403, "DELETE");
   await write(`/${classId}`, {}, owner, 200, "DELETE");
-  assert.equal((await list()).length, 1);
+  assert.equal((await list()).length, 2);
 }

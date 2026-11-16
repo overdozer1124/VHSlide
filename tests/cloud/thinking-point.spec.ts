@@ -161,7 +161,7 @@ test("individual axis points stay per-scene with ghosts and reasons", async ({
   await context.close();
 });
 
-test("a class point is shared and locked while one person edits", async ({
+test("a class tool gives every student their own point", async ({
   page,
   browser,
 }, info) => {
@@ -182,6 +182,7 @@ test("a class point is shared and locked while one person edits", async ({
   await page.goto(`/?room=${id}`);
   await placeTool(page, "クラスの気持ち");
   // Placement leaves the host in the editor on that slide already.
+  // The host's click places the host's own point.
   await clickSurface(page, 0.4, 0.5);
   await expect
     .poll(async () => (await pointsOf(page, id, toolId)).length)
@@ -192,28 +193,26 @@ test("a class point is shared and locked while one person edits", async ({
   await scopeLogin(student, guestName);
   await student.goto(`/?room=${id}`);
   await openSlide(student);
-  await expect(student.locator(".slide-thinking.is-interactive .thinking-lock-note")).toBeVisible({
-    timeout: 20_000,
-  });
-  await clickSurface(student, 0.9, 0.5);
-  const locked = await pointsOf(student, id, toolId);
-  expect(locked.length).toBe(1);
-  expect(Math.abs((locked[0].value.v ?? 0) - 0.4)).toBeLessThan(0.08);
-
-  // The host clears the point; the student can then place it.
-  await page.getByRole("button", { name: "この場面の点を消す" }).click();
-  await expect
-    .poll(async () => (await pointsOf(page, id, toolId)).length)
-    .toBe(0);
-  await expect(student.locator(".slide-thinking.is-interactive .thinking-lock-note")).toHaveCount(0, {
-    timeout: 20_000,
-  });
+  // No shared point and no lock: the student receives no points yet
+  // (the host's point is not handed out) and sees no lock note.
+  await expect(
+    student.locator(".slide-thinking.is-interactive .thinking-lock-note"),
+  ).toHaveCount(0);
+  expect((await pointsOf(student, id, toolId)).length).toBe(0);
+  // The student places their own point; it is not blocked by the host's.
   await clickSurface(student, 0.7, 0.5);
+  await expect(
+    student.locator(".slide-thinking.is-interactive .thinking-point.is-mine"),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(async () => (await pointsOf(student, id, toolId)).length)
+    .toBe(1);
+  const mine = (await pointsOf(student, id, toolId))[0];
+  expect(Math.abs((mine.value.v ?? 0) - 0.7)).toBeLessThan(0.08);
+  // The host receives both points — the class distribution.
   await expect
     .poll(async () => (await pointsOf(page, id, toolId)).length)
-    .toBe(1);
-  const moved = (await pointsOf(page, id, toolId))[0];
-  expect(Math.abs((moved.value.v ?? 0) - 0.7)).toBeLessThan(0.08);
+    .toBe(2);
   await context.close();
 });
 

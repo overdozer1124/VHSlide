@@ -9,6 +9,10 @@ import {
   parseThinkingDefinition,
   ThinkingError,
 } from "./thinkingTools";
+import {
+  parseThinkingBinding,
+  parseThinkingBindingLenient,
+} from "./thinkingBinding";
 
 function fixture() {
   const db = new DatabaseSync(":memory:");
@@ -196,7 +200,7 @@ describe("thinking points", () => {
     );
   });
 
-  it("shares one point with the whole class", () => {
+  it("gives every student their own point in a class tool", () => {
     const { sql } = fixture();
     const id = createTool(sql, { unit: "class" });
     open(sql, id);
@@ -204,12 +208,47 @@ describe("thinking points", () => {
       scene: "s1",
       value: { x: 0.6, y: 0.2 },
     });
+    // Bob places his own point: no shared point, no lock conflict.
+    thinkingCommand(sql, "deck", "bob", false, "point", id, {
+      scene: "s1",
+      value: { x: 0.1, y: 0.9 },
+    });
+    // Each participant receives only their own point, keyed by themself,
+    // with no author identity and no locks attached.
     const bobs = thinkingList(sql, "deck", "bob", false);
     expect(bobs[0].points).toHaveLength(1);
-    expect(bobs[0].points[0].owner).toBe("");
-    // The author id is not handed to classmates, the name is.
+    expect(bobs[0].points[0].owner).toBe("bob");
+    expect(bobs[0].points[0].value).toEqual({ x: 0.1, y: 0.9 });
     expect(bobs[0].points[0].authorId).toBe("");
-    expect(bobs[0].points[0].authorName).toBe("あな");
+    expect(bobs[0].points[0].authorName).toBe("");
+    expect(bobs[0].locks).toHaveLength(0);
+    const anas = thinkingList(sql, "deck", "ana", false);
+    expect(anas[0].points).toHaveLength(1);
+    expect(anas[0].points[0].owner).toBe("ana");
+    // The host sees everyone's points, with names, for the distribution.
+    const hosts = thinkingList(sql, "deck", "host", true);
+    expect(hosts[0].points).toHaveLength(2);
+    expect(
+      hosts[0].points.map((p) => p.authorName).sort(),
+    ).toEqual(["あな", "ぼぶ"]);
+    // Nobody can write or clear another student's point.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "point", id, {
+          scene: "s1",
+          value: { x: 0.5, y: 0.5 },
+          owner: "ana",
+        }),
+      403,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "clear", id, {
+          scene: "s1",
+          owner: "ana",
+        }),
+      403,
+    );
   });
 
   it("guards host operations and edits after answers exist", () => {
@@ -248,6 +287,30 @@ describe("thinking points", () => {
     );
     thinkingCommand(sql, "deck", "host", true, "delete", id, {});
     expect(thinkingList(sql, "deck", "host", true)).toHaveLength(0);
+  });
+});
+
+describe("thinking binding forward compatibility", () => {
+  it("keeps an unknown template as a quiet preview when opening a deck", () => {
+    const binding = {
+      deckId: "123e4567-e89b-42d3-a456-426614174000",
+      toolId: "123e4567-e89b-42d3-a456-426614174001",
+      title: "ベン図",
+      template: "venn",
+      unit: "individual",
+      definition: { title: "ベン図" },
+    };
+    // The strict parser (form adoption) still rejects what it cannot
+    // validate; the lenient one (opening a deck) must not.
+    expect(() => parseThinkingBinding(binding)).toThrow();
+    const lenient = parseThinkingBindingLenient(binding);
+    expect(lenient.template).toBe("venn");
+    expect(lenient.title).toBe("ベン図");
+    expect(lenient.definition.scenes).toEqual([]);
+    // Identity problems stay fatal even for the lenient parser.
+    expect(() =>
+      parseThinkingBindingLenient({ ...binding, toolId: "x" }),
+    ).toThrow();
   });
 });
 
