@@ -13,7 +13,7 @@
 
 ## 経路
 
-1. プラットフォーム経路（初期投入／全面復旧）は `applyPlatformApproval`。通常の Worker／Node には載せず、`/platform/apply` と `/admin/*` は 404。一時ビルド用の wrangler 設定は置いていない。使い捨ての値は照合するだけで保存しない。
+1. プラットフォーム経路（初期投入／全面復旧）は `applyPlatformApproval`。通常の Worker／Node には載せず、`/platform/apply` と `/admin/*` は Worker が先に受けて 404 を返す（`run_worker_first`）。一時ビルド用の wrangler 設定は置いていない。使い捨ての値は照合するだけで保存しない。
 2. 常設のアプリ内ルートは `STAGE1_FEATURES` が有効なときだけ。`POST /api/stage1/operators/nonce` のあと、ID トークンの nonce と `vhslide_admin_ctx` を消費する。
    - `.../operators/verify|add|revoke|rotate`
    - `.../super-admin/bind|recover`
