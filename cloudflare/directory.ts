@@ -108,7 +108,7 @@ interface Work {
 
 /** Private account directory. Only the Worker and other bound objects can call it. */
 export class Directory extends DurableObject<Env> {
-  private sql: SqlStorage;
+  protected sql: SqlStorage;
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;

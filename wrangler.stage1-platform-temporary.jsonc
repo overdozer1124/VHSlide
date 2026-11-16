@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // One-operation temporary build for the verify Worker.
+  // Upload with `wrangler versions upload` only. Do not deploy or activate.
+  // Never point this file at production Worker name "vhslide".
+  "name": "vhslide-stage1-product-verify",
+  "main": "cloudflare/platform-temporary.ts",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/healthz", "/platform/apply", "/admin/*"],
+  },
+  "vars": {
+    "GOOGLE_CLIENT_ID": "187339871113-2j074eot6i41e2ts1g3129ch87vhjru1.apps.googleusercontent.com",
+    "GOOGLE_SCHOOL_CLIENT_ID": "142634110367-rongbdrtm1u416ch26orar134m50ttbi.apps.googleusercontent.com",
+    "GOOGLE_SCHOOL_DOMAIN": "kaga.ed.jp",
+    "PUBLIC_ORIGIN": "https://vhslide-stage1-product-verify.overdozer1124.workers.dev",
+    "STAGE1_FEATURES": "1",
+    "STAGE1_ENV_ID": "vhslide-stage1-product-verify",
+    "STAGE1_PURPOSE": "bootstrap",
+    "STAGE1_OPERATION_ID": "op-bootstrap-verify-20261116",
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "DIRECTORY", "class_name": "Directory" },
+      { "name": "ROOMS", "class_name": "SlideRoom" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Directory", "SlideRoom"] },
+  ],
+}
