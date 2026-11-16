@@ -69,6 +69,45 @@ describe("worksheets", () => {
       }),
     ).toThrow();
   });
+  it("round-trips the label layout settings and rejects them for checkbox fields", () => {
+    const sheet = worksheetTemplate("blank");
+    sheet.fields[0].labelLayout = "left";
+    sheet.fields[0].labelVertical = true;
+    sheet.fields[0].labelCompact = true;
+    const parsed = parseWorksheet(sheet);
+    expect(parsed.fields[0].labelLayout).toBe("left");
+    expect(parsed.fields[0].labelVertical).toBe(true);
+    expect(parsed.fields[0].labelCompact).toBe(true);
+    expect(parseWorksheet(parsed)).toEqual(parsed);
+    const plain = parseWorksheet({
+      ...sheet,
+      fields: [
+        {
+          ...sheet.fields[0],
+          labelLayout: undefined,
+          labelVertical: false,
+          labelCompact: false,
+        },
+      ],
+    });
+    expect(plain.fields[0].labelLayout).toBeUndefined();
+    expect(plain.fields[0].labelVertical).toBeUndefined();
+    expect(plain.fields[0].labelCompact).toBeUndefined();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [
+          { ...sheet.fields[0], kind: "checkbox", labelLayout: "left" },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], labelLayout: "right" as never }],
+      }),
+    ).toThrow();
+  });
   it("validates image answers as bounded JPEG data and keeps empty answers compatible", () => {
     const sheet = worksheetTemplate("blank");
     sheet.fields[0].kind = "drawing";

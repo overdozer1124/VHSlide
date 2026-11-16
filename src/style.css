@@ -6975,6 +6975,13 @@ h1 span {
 .worksheet-field>label:not(.worksheet-check) { display:block;font-weight:700;margin-bottom:4px; }
 .worksheet-field textarea { display:block;width:100%;box-sizing:border-box;background:#fffdfa!important;color:#29323b;border:1px solid #e4a36e!important;border-radius:8px;padding:7px 10px;font:inherit;resize:none;min-height:38px; }
 .worksheet-field textarea { height:var(--field-input-height,auto); min-height:var(--field-input-height,38px); }
+.worksheet-field.label-compact>label.worksheet-input-label { font-size:.85em;line-height:1.25;margin-bottom:1px; }
+.worksheet-field.label-left { display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 8px; }
+.worksheet-field.label-left>label.worksheet-input-label { margin-bottom:0;padding-top:6px;max-width:40%;overflow-wrap:anywhere; }
+.worksheet-field.label-left.label-compact>label.worksheet-input-label { padding-top:2px; }
+.worksheet-field.label-left>:is(textarea,fieldset,.worksheet-drawing,.worksheet-radar,.form-draft-options) { flex:1 1 10em;min-width:0; }
+.worksheet-field.label-left .worksheet-reason { flex:1 0 100%; }
+.worksheet-field.label-vertical>label.worksheet-input-label { writing-mode:vertical-rl;max-height:100%;overflow:hidden; }
 .worksheet-field fieldset,.worksheet-field .worksheet-check { min-height:var(--field-input-height,0px); box-sizing:border-box; }
 .worksheet-layout-settings { margin:10px 0; padding:10px; border:1px solid #d7e4da; border-radius:8px; }
 .worksheet-layout-settings summary { cursor:pointer; font-weight:600; }
@@ -7099,6 +7106,8 @@ h1 span {
 .worksheet-positioned-content .worksheet-group-fields { display:block; flex:1; min-height:0; }
 .worksheet-positioned-content .worksheet-field { display:flex; flex-direction:column; height:100%; box-sizing:border-box; }
 .worksheet-positioned-content .worksheet-field textarea { flex:1; min-height:38px; height:auto; }
+.worksheet-positioned-content .worksheet-field.label-left { flex-direction:row; }
+.worksheet-positioned-content .worksheet-field.label-left>label.worksheet-input-label { padding-top:2px; }
 .worksheet-positioned-content .worksheet-group > h4 { margin-bottom:4px; }
 .worksheet-modal-layout-wrap.is-editing .worksheet-positioned-field { border:1px solid #7da38b; background:#fff; border-radius:7px; padding:32px 6px 14px; }
 .worksheet-layout-handle { position:absolute; left:0; right:0; top:0; height:30px; display:flex; align-items:center; gap:6px; background:#e5f0e8; overflow:hidden; font-size:12px; }
@@ -7239,6 +7248,18 @@ h1 span {
 }
 .response-field .worksheet-field textarea {
   height: calc(100% - 2em);
+}
+.response-field .worksheet-field.label-left {
+  flex-direction: row;
+}
+.response-field .worksheet-field.label-left textarea {
+  height: 100%;
+}
+.response-field .worksheet-field.label-compact textarea {
+  height: calc(100% - 1.4em);
+}
+.response-field .worksheet-field.label-left.label-compact textarea {
+  height: 100%;
 }
 .response-field.hide-label .worksheet-field > span:first-child {
   position: absolute;

@@ -662,6 +662,18 @@ export function WorksheetPanel({
                                       kind === "checkbox"
                                         ? undefined
                                         : f.hideLabel,
+                                    labelLayout:
+                                      kind === "checkbox"
+                                        ? undefined
+                                        : f.labelLayout,
+                                    labelVertical:
+                                      kind === "checkbox"
+                                        ? undefined
+                                        : f.labelVertical,
+                                    labelCompact:
+                                      kind === "checkbox"
+                                        ? undefined
+                                        : f.labelCompact,
                                     aggregatePublic:
                                       kind === "single" || kind === "multiple"
                                         ? f.aggregatePublic
@@ -918,6 +930,63 @@ export function WorksheetPanel({
                                   />
                                 </label>
                               </div>
+                              {f.kind !== "checkbox" && (
+                                <div className="worksheet-layout-controls">
+                                  <label>
+                                    見出しの位置
+                                    <select
+                                      aria-label={`入力欄${i + 1}の見出しの位置`}
+                                      value={f.labelLayout ?? "top"}
+                                      onChange={(event) =>
+                                        editField(f.id, {
+                                          labelLayout:
+                                            event.target.value === "left"
+                                              ? "left"
+                                              : undefined,
+                                          labelVertical:
+                                            event.target.value === "left"
+                                              ? f.labelVertical
+                                              : undefined,
+                                        })
+                                      }
+                                    >
+                                      <option value="top">上</option>
+                                      <option value="left">左</option>
+                                    </select>
+                                  </label>
+                                  {f.labelLayout === "left" && (
+                                    <label>
+                                      <input
+                                        type="checkbox"
+                                        aria-label={`入力欄${i + 1}の見出しを縦書きにする`}
+                                        checked={!!f.labelVertical}
+                                        onChange={(event) =>
+                                          editField(f.id, {
+                                            labelVertical:
+                                              event.target.checked ||
+                                              undefined,
+                                          })
+                                        }
+                                      />{" "}
+                                      見出しを縦書き
+                                    </label>
+                                  )}
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`入力欄${i + 1}の見出しを詰める`}
+                                      checked={!!f.labelCompact}
+                                      onChange={(event) =>
+                                        editField(f.id, {
+                                          labelCompact:
+                                            event.target.checked || undefined,
+                                        })
+                                      }
+                                    />{" "}
+                                    見出しを詰める
+                                  </label>
+                                </div>
+                              )}
                             </details>
                             <div className="worksheet-editor-actions">
                               <button

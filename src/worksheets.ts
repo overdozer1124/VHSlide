@@ -18,6 +18,9 @@ export type WorksheetField = {
   reason?: boolean;
   aggregatePublic?: boolean;
   hideLabel?: boolean;
+  labelLayout?: "left";
+  labelVertical?: boolean;
+  labelCompact?: boolean;
   widthPercent?: number;
   inputHeight?: number;
   fontSize?: number;
@@ -167,6 +170,15 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         (typeof f.hideLabel === "boolean" && f.kind !== "checkbox"),
       "項目名の表示設定を確認してください。",
     );
+    check(
+      (f.labelLayout === undefined ||
+        (f.labelLayout === "left" && f.kind !== "checkbox")) &&
+        (f.labelVertical === undefined ||
+          (typeof f.labelVertical === "boolean" && f.kind !== "checkbox")) &&
+        (f.labelCompact === undefined ||
+          (typeof f.labelCompact === "boolean" && f.kind !== "checkbox")),
+      "見出しの表示設定を確認してください。",
+    );
     if (f.kind === "radar") {
       const radar = f.radar;
       const validLabels = (
@@ -210,6 +222,9 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       ...(f.reason ? { reason: true } : {}),
       ...(f.aggregatePublic ? { aggregatePublic: true } : {}),
       ...(f.hideLabel ? { hideLabel: true } : {}),
+      ...(f.labelLayout ? { labelLayout: f.labelLayout } : {}),
+      ...(f.labelVertical ? { labelVertical: true } : {}),
+      ...(f.labelCompact ? { labelCompact: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
       ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),
       ...(f.fontSize !== undefined ? { fontSize: f.fontSize } : {}),
