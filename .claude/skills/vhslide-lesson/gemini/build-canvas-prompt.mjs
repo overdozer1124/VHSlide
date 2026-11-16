@@ -173,6 +173,10 @@ AI は、アプリの中から Gemini（Canvas のアプリから使える Gemin
 ${reader}`;
 fs.writeFileSync(path.join(here, "dist", "Canvasへの指示_読み取りだけ.txt"), readerOnly);
 
+// shared with build-muse-pack.mjs
+fs.mkdirSync(path.join(here, "dist", "shared"), { recursive: true });
+for (const [f, t] of Object.entries({ "ai.txt": aiAll, "reader.txt": reader })) fs.writeFileSync(path.join(here, "dist", "shared", f), t);
+
 const out = path.join(here, "dist", "Canvasへの指示.txt");
 fs.writeFileSync(out, prompt);
 console.log(`${out} (${Math.round(Buffer.byteLength(prompt) / 1024)}KB, ${prompt.length} characters)`);

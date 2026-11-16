@@ -39,11 +39,11 @@ ol.steps{margin:6px 0 0;padding-left:1.4em;color:var(--sub);font-size:14px}
 <body>
 <main>
 <h1>VHSlide 授業スライド変換</h1>
-<p class="lead">Gemini の Gem が書いた「レッスン仕様」から、VHSlide で開ける作品ファイル（.vhslide.json）を作ります。インターネットに送らず、このページの中だけで変換します。</p>
+<p class="lead">AI（Muse・Gemini など）が書いた「レッスン仕様」から、VHSlide で開ける作品ファイル（.vhslide.json）を作ります。インターネットに送らず、このページの中だけで変換します。</p>
 
 <section>
-<h2><span class="n">1</span>Gemの返答を貼り付ける</h2>
-<p class="help">Gemの返答をそのまま貼り付けて構いません（```json の部分を自動で取り出します）。返答が何回かに分かれたときは、続けて全部貼り付けてください。</p>
+<h2><span class="n">1</span>AIの返答を貼り付ける</h2>
+<p class="help">AIの返答をそのまま貼り付けて構いません（```json の部分を自動で取り出します）。返答が何回かに分かれたときは、続けて全部貼り付けてください。</p>
 <textarea id="spec" spellcheck="false" placeholder='```json
 { "title": "…", "lessons": [ … ] }
 ```'></textarea>
@@ -52,7 +52,7 @@ ol.steps{margin:6px 0 0;padding-left:1.4em;color:var(--sub);font-size:14px}
 
 <section>
 <h2><span class="n">2</span>画像ファイル（使うときだけ）</h2>
-<p class="help">仕様の中で「assets/figure1.png」のように画像ファイルを指定している場合は、その画像を選んでください（ファイル名で対応させます）。Gemが書いたSVGの図は自動で絵にするので不要です。</p>
+<p class="help">仕様の中で「assets/figure1.png」のように画像ファイルを指定している場合は、その画像を選んでください（ファイル名で対応させます）。AIが書いたSVGの図は自動で絵にするので不要です。</p>
 <input type="file" id="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
 <div id="imageList"></div>
 </section>
@@ -61,7 +61,7 @@ ol.steps{margin:6px 0 0;padding-left:1.4em;color:var(--sub);font-size:14px}
 <h2><span class="n">3</span>見た目（変えたいときだけ）</h2>
 <div class="row">
 <label>トーン <select id="theme"></select></label>
-<label>配置 <select id="layout"><option value="">Gemの指定どおり</option><option value="lesson-rows">1行＝1時間</option><option value="phase-grid">導入・展開・まとめを縦に</option></select></label>
+<label>配置 <select id="layout"><option value="">AIの指定どおり</option><option value="lesson-rows">1行＝1時間</option><option value="phase-grid">導入・展開・まとめを縦に</option></select></label>
 <label>キャラクター <select id="mascot"></select></label>
 <label><input type="checkbox" id="decor" checked> 背景の装飾</label>
 </div>
@@ -72,7 +72,7 @@ ol.steps{margin:6px 0 0;padding-left:1.4em;color:var(--sub);font-size:14px}
 <div class="row">
 <button id="build" type="button">作成する</button>
 <button id="download" type="button" disabled>ファイルを保存</button>
-<button id="copyFix" type="button" hidden>Gemへの修正依頼をコピー</button>
+<button id="copyFix" type="button" hidden>AIへの修正依頼をコピー</button>
 </div>
 <div id="status" class="status" role="status" aria-live="polite"></div>
 <ol class="steps">

@@ -1,4 +1,4 @@
-// Browser converter: lesson spec JSON (written by the Gemini Gem) → VHSlide deck JSON.
+// Browser converter: lesson spec JSON (written by an AI assistant) → VHSlide deck JSON.
 // Bundled into one offline HTML file by gemini/build-converter.mjs.
 import { buildDeck } from "../../scripts/deck-core.mjs";
 import { themes } from "../../scripts/themes.mjs";
@@ -39,8 +39,8 @@ const io = {
   },
 };
 
-// ---------- reading what the Gem wrote ----------
-/** Accepts a whole Gem reply: one or more ```json blocks, or bare JSON objects one after another. */
+// ---------- reading what the AI wrote ----------
+/** Accepts a whole AI reply: one or more ```json blocks, or bare JSON objects one after another. */
 function extractSpecs(text) {
   const blocks = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map(m => m[1]);
   const sources = blocks.length ? blocks : [text];
@@ -58,11 +58,11 @@ function extractSpecs(text) {
       else if (ch === "{") { if (depth++ === 0) start = i; }
       else if (ch === "}" && --depth === 0) {
         const piece = t.slice(start, i + 1);
-        try { out.push(JSON.parse(piece)); } catch (e) { throw Error(`JSONの書き方に誤りがあります（${e.message}）。Gemに「JSONの文法を直して」と伝えてください。`); }
+        try { out.push(JSON.parse(piece)); } catch (e) { throw Error(`JSONの書き方に誤りがあります（${e.message}）。AIに「JSONの文法を直して」と伝えてください。`); }
       }
     }
   }
-  if (!out.length) throw Error("レッスン仕様のJSONが見つかりません。Gemの返答（```json で始まる部分）を貼り付けてください。");
+  if (!out.length) throw Error("レッスン仕様のJSONが見つかりません。AIの返答（```json で始まる部分）を貼り付けてください。");
   return out;
 }
 /** Merge a spec split over several replies: later parts add lessons (or phases to the last lesson). */
@@ -95,8 +95,8 @@ function fillSelect(sel, items, def) {
   for (const [v, label] of items) { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.append(o); }
   sel.value = def;
 }
-fillSelect($("theme"), [["", "Gemの指定どおり"], ...Object.entries(themes).map(([k, t]) => [k, `${k}：${t.label}`])], "");
-fillSelect($("mascot"), [["", "Gemの指定どおり"], ...mascotKinds.map(k => [k, k]), ["none", "なし"]], "");
+fillSelect($("theme"), [["", "AIの指定どおり"], ...Object.entries(themes).map(([k, t]) => [k, `${k}：${t.label}`])], "");
+fillSelect($("mascot"), [["", "AIの指定どおり"], ...mascotKinds.map(k => [k, k]), ["none", "なし"]], "");
 
 $("specFile").addEventListener("change", async e => {
   const f = e.target.files[0]; if (f) $("spec").value = await f.text();
@@ -135,7 +135,7 @@ $("build").addEventListener("click", async () => {
   } catch (e) {
     status("error", `作れませんでした：${e.message}`);
     $("copyFix").hidden = false;
-    $("copyFix").onclick = () => navigator.clipboard.writeText(`変換ページで次のエラーが出ました。レッスン仕様JSONを直して、全体をもう一度出力してください。\n${e.message}`).then(() => { $("copyFix").textContent = "コピーしました"; setTimeout(() => ($("copyFix").textContent = "Gemへの修正依頼をコピー"), 2000); });
+    $("copyFix").onclick = () => navigator.clipboard.writeText(`変換ページで次のエラーが出ました。レッスン仕様JSONを直して、全体をもう一度出力してください。\n${e.message}`).then(() => { $("copyFix").textContent = "コピーしました"; setTimeout(() => ($("copyFix").textContent = "AIへの修正依頼をコピー"), 2000); });
   }
 });
 $("download").addEventListener("click", () => {
