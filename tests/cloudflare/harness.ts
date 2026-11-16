@@ -17,11 +17,16 @@ export async function harness(
     alg: "RS256",
     use: "sig",
   };
-  const sign = (id: string, audience = "test.apps.googleusercontent.com") =>
+  const sign = (
+    id: string,
+    audience = "test.apps.googleusercontent.com",
+    claims?: { nonce?: string },
+  ) =>
     new SignJWT({
       email: `${id}@example.test`,
       email_verified: true,
       name: id === "friend" ? "児童 友だち" : id,
+      ...(claims?.nonce ? { nonce: claims.nonce } : {}),
     })
       .setProtectedHeader({ alg: "RS256", kid: key.kid })
       .setSubject(id)

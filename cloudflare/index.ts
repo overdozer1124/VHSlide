@@ -11,6 +11,11 @@ export default {
       if (url.origin !== origin)
         return new Response("Not found", { status: 404 });
       if (
+        url.pathname === "/platform/apply" ||
+        url.pathname.startsWith("/admin/")
+      )
+        return new Response("Not found", { status: 404 });
+      if (
         (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) ||
           request.headers.get("Upgrade")?.toLowerCase() === "websocket") &&
         request.headers.get("Origin") !== origin

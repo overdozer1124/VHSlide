@@ -49,6 +49,14 @@ import {
   usersPublicColumns,
 } from "../src/stage1OrgSchema.ts";
 import {
+  InitialRegistrationError,
+  applyStage1OperatorMigration,
+  issueAdminNonce,
+  nodeOperatorSql,
+  operatorActionFromBody,
+  performOperatorAction,
+} from "../src/stage1InitialRegistration.ts";
+import {
   backupSnapshot,
   parseBackupSnapshot,
   restoredComments,
@@ -60,11 +68,7 @@ import {
   sharedAccountNames,
 } from "../src/preSharing.ts";
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
-import {
-  AccessError,
-  parseAccess,
-  parseComment,
-} from "../src/permissions.ts";
+import { AccessError, parseAccess, parseComment } from "../src/permissions.ts";
 import type { SlideComment } from "../src/permissions.ts";
 import {
   generalDeckAccess,
@@ -123,9 +127,15 @@ interface Options {
   schoolDomain?: string;
   /** Tests inject an identity verifier; production always verifies Google's signature. */
   verifyIdentity?: (credential: string) => Promise<User>;
+  /** Operator routes require a fresh Google ID token and its nonce. */
+  verifyOperatorCredential?: (
+    credential: string,
+  ) => Promise<{ sub: string; nonce: string }>;
   maxConnections?: number;
   /** Verify-only stage 1 APIs. Prefer env STAGE1_FEATURES; tests may set this. */
   stage1Features?: boolean;
+  /** Environment id recorded on the first super-admin registration. */
+  stage1EnvId?: string;
 }
 interface Room {
   follow?: FollowState;
@@ -235,6 +245,7 @@ export function createApplication(options: Options) {
       db.exec(`ALTER TABLE comments ADD COLUMN ${name} ${type}`);
 
   applyStage1OrgMigration(nodeStage1OrgDb(db));
+  applyStage1OperatorMigration(nodeStage1OrgDb(db));
 
   db.exec(revisionSchema("node") + restoreSchema);
   db.exec(
@@ -319,6 +330,26 @@ export function createApplication(options: Options) {
         name: String(payload.name ?? payload.email).slice(0, 100),
       };
     });
+  const verifyOperatorCredential =
+    options.verifyOperatorCredential ??
+    (async (credential: string) => {
+      const { payload } = await jwtVerify(credential, googleKeys, {
+        audience: [options.clientId, options.schoolClientId].filter(
+          (value): value is string => !!value,
+        ),
+        issuer: ["https://accounts.google.com", "accounts.google.com"],
+        algorithms: ["RS256"],
+      });
+      insist(
+        payload.email_verified === true &&
+          typeof payload.sub === "string" &&
+          typeof payload.nonce === "string",
+        401,
+        "確認用の番号が無効です。",
+      );
+      return { sub: payload.sub, nonce: payload.nonce };
+    });
+  const stage1EnvId = options.stage1EnvId || process.env.STAGE1_ENV_ID || "";
   function sessionHash(req: IncomingMessage) {
     const raw = /(?:^|;\s*)vhslide_session=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
       req.headers.cookie ?? "",
@@ -638,6 +669,10 @@ export function createApplication(options: Options) {
         );
       if (path === "/healthz" && method === "GET")
         return json(res, 200, { ok: true });
+      if (path === "/platform/apply" || path.startsWith("/admin/"))
+        throw new HttpError(404, "見つかりません。");
+      if (path.startsWith("/api/stage1/") && !stage1On)
+        throw new HttpError(404, "見つかりません。");
       if (path === "/api/config" && method === "GET")
         return json(res, 200, {
           clientId: options.clientId,
@@ -708,6 +743,80 @@ export function createApplication(options: Options) {
             peer.ws.close(4001, "サインアウトしました。");
         res.setHeader("Set-Cookie", cookie("", 0));
         return json(res, 200, { ok: true });
+      }
+      if (
+        stage1On &&
+        path === "/api/stage1/operators/nonce" &&
+        method === "POST"
+      ) {
+        const nonceValue = token();
+        const ctx = token();
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          issueAdminNonce(nodeOperatorSql(db), {
+            nonce: nonceValue,
+            ctxHash: sha(ctx),
+            expiresAt: Date.now() + 5 * 60_000,
+          });
+          db.exec("COMMIT");
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+        res.setHeader(
+          "Set-Cookie",
+          `vhslide_admin_ctx=${ctx}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300${origin.startsWith("https:") ? "; Secure" : ""}`,
+        );
+        return json(res, 200, { nonce: nonceValue });
+      }
+      const operatorKind =
+        /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
+          path,
+        );
+      if (stage1On && operatorKind && method === "POST") {
+        const kind = operatorKind[1] || operatorKind[2];
+        const input = JSON.parse((await body(req, 20_000)).toString()) as {
+          credential?: unknown;
+        } & Record<string, unknown>;
+        insist(
+          typeof input.credential === "string",
+          400,
+          "サインイン情報を確認できません。",
+        );
+        let operator: { sub: string; nonce: string };
+        try {
+          operator = await verifyOperatorCredential(input.credential);
+        } catch (error) {
+          if (error instanceof HttpError) throw error;
+          throw new HttpError(
+            401,
+            "Googleのサインインを確認できませんでした。",
+          );
+        }
+        const ctx =
+          /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+            req.headers.cookie ?? "",
+          )?.[1] ?? null;
+        const action = operatorActionFromBody(kind, input);
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          const result = performOperatorAction(nodeOperatorSql(db), {
+            action,
+            actor: operator.sub,
+            nonce: operator.nonce,
+            ctxHash: ctx ? sha(ctx) : null,
+            now: Date.now(),
+            envId: stage1EnvId,
+            auditId: randomBytes(16).toString("hex"),
+          });
+          db.exec("COMMIT");
+          return json(res, 200, result);
+        } catch (error) {
+          db.exec("ROLLBACK");
+          if (error instanceof InitialRegistrationError)
+            throw new HttpError(error.status, error.message);
+          throw error;
+        }
       }
       if (path.startsWith("/api/")) {
         const u = user(req);
@@ -987,11 +1096,7 @@ export function createApplication(options: Options) {
               organizationId,
               role,
             );
-            insist(
-              member,
-              404,
-              "再有効化できる無効な所属が見つかりません。",
-            );
+            insist(member, 404, "再有効化できる無効な所属が見つかりません。");
             writeAuditLog(
               {
                 exec(query, ...args) {
@@ -1017,9 +1122,7 @@ export function createApplication(options: Options) {
         if (stage1On && preregId && method === "DELETE") {
           const id = decodeURIComponent(preregId[1]);
           const existing = db
-            .prepare(
-              "SELECT organization_id FROM preregistrations WHERE id=?",
-            )
+            .prepare("SELECT organization_id FROM preregistrations WHERE id=?")
             .get(id) as { organization_id: string } | undefined;
           insist(existing, 404, "事前登録が見つかりません。");
           insist(
@@ -2112,7 +2215,9 @@ export function createApplication(options: Options) {
     } catch (error) {
       if (res.headersSent) return res.end();
       const status =
-        error instanceof HttpError || error instanceof JoinRequestError
+        error instanceof HttpError ||
+        error instanceof JoinRequestError ||
+        error instanceof InitialRegistrationError
           ? error.status
           : error instanceof SyntaxError
             ? 400

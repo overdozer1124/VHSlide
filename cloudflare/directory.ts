@@ -28,6 +28,14 @@ import {
   durableStage1OrgDb,
   usersPublicColumns,
 } from "../src/stage1OrgSchema.ts";
+import {
+  InitialRegistrationError,
+  applyStage1OperatorMigration,
+  durableOperatorSql,
+  issueAdminNonce,
+  operatorActionFromBody,
+  performOperatorAction,
+} from "../src/stage1InitialRegistration.ts";
 import { blank } from "../src/model.ts";
 import type { SlideComment } from "../src/permissions.ts";
 import {
@@ -129,10 +137,11 @@ export class Directory extends DurableObject<Env> {
       );
     this.sql.exec(joinSchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
-      this.sql
+    this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
       SELECT id,owner,'legacy:'||id,'',-1,title,'uploading',updated FROM decks WHERE status='restoring'`);
     applyStage1OrgMigration(durableStage1OrgDb(this.sql));
+    applyStage1OperatorMigration(durableStage1OrgDb(this.sql));
   }
   private revision(id: string) {
     return (
@@ -447,6 +456,10 @@ export class Directory extends DurableObject<Env> {
     const url = new URL(request.url),
       path = url.pathname,
       method = request.method;
+    if (path === "/platform/apply" || path.startsWith("/admin/"))
+      throw new HttpError(404, "見つかりません。");
+    if (path.startsWith("/api/stage1/") && !stage1FeaturesEnabled(this.env))
+      throw new HttpError(404, "見つかりません。");
     if (path === "/internal/authorize" && method === "POST") {
       const data = await input(request);
       const active = one(
@@ -498,6 +511,87 @@ export class Directory extends DurableObject<Env> {
       } catch (error) {
         if (error instanceof HttpError && error.status === 401)
           return json({ user: null });
+        throw error;
+      }
+    }
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/operators/nonce" &&
+      method === "POST"
+    ) {
+      const nonceValue = randomToken();
+      const ctx = randomToken();
+      issueAdminNonce(durableOperatorSql(this.sql), {
+        nonce: nonceValue,
+        ctxHash: await sha(ctx),
+        expiresAt: Date.now() + 5 * 60_000,
+      });
+      const secure = (this.env.PUBLIC_ORIGIN || url.origin).startsWith("https:")
+        ? "; Secure"
+        : "";
+      return json({ nonce: nonceValue }, 200, {
+        "Set-Cookie": `vhslide_admin_ctx=${ctx}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300${secure}`,
+      });
+    }
+    const operatorKind =
+      /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
+        path,
+      );
+    if (stage1FeaturesEnabled(this.env) && operatorKind && method === "POST") {
+      const kind = operatorKind[1] || operatorKind[2];
+      const data = await input(request);
+      insist(
+        typeof data.credential === "string",
+        400,
+        "サインイン情報を確認できません。",
+      );
+      let operator: { sub: string; nonce: string };
+      try {
+        const { payload } = await jwtVerify(data.credential, keys, {
+          audience: [
+            this.env.GOOGLE_CLIENT_ID,
+            this.env.GOOGLE_SCHOOL_CLIENT_ID,
+          ].filter((value): value is string => !!value),
+          issuer: ["https://accounts.google.com", "accounts.google.com"],
+          algorithms: ["RS256"],
+        });
+        insist(
+          payload.email_verified === true &&
+            typeof payload.sub === "string" &&
+            typeof payload.nonce === "string",
+          401,
+          "確認用の番号が無効です。",
+        );
+        operator = { sub: payload.sub, nonce: payload.nonce };
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw new HttpError(401, "Googleのサインインを確認できませんでした。");
+      }
+      const ctx =
+        /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+          request.headers.get("Cookie") || "",
+        )?.[1] ?? null;
+      const ctxHash = ctx ? await sha(ctx) : null;
+      try {
+        const action = operatorActionFromBody(
+          kind,
+          data as Record<string, unknown>,
+        );
+        const result = this.ctx.storage.transactionSync(() =>
+          performOperatorAction(durableOperatorSql(this.sql), {
+            action,
+            actor: operator.sub,
+            nonce: operator.nonce,
+            ctxHash,
+            now: Date.now(),
+            envId: this.env.STAGE1_ENV_ID || "",
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json(result);
+      } catch (error) {
+        if (error instanceof InitialRegistrationError)
+          throw new HttpError(error.status, error.message);
         throw error;
       }
     }
@@ -573,8 +667,9 @@ export class Directory extends DurableObject<Env> {
     const identity = await this.identity(request),
       user = identity.user;
     if (path !== "/api/logout") await this.claim(user);
-    const orgPrereg =
-      /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
+    const orgPrereg = /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(
+      path,
+    );
     if (stage1FeaturesEnabled(this.env) && orgPrereg && method === "POST") {
       const organizationId = decodeURIComponent(orgPrereg[1]);
       insist(
@@ -858,11 +953,7 @@ export class Directory extends DurableObject<Env> {
           organizationId,
           role,
         );
-        insist(
-          restored,
-          404,
-          "再有効化できる無効な所属が見つかりません。",
-        );
+        insist(restored, 404, "再有効化できる無効な所属が見つかりません。");
         writeAuditLog(
           {
             exec: (query, ...args) => {

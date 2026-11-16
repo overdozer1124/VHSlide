@@ -9,6 +9,8 @@ export interface Env {
   PUBLIC_ORIGIN?: string;
   /** Verify-only stage 1 feature gate (`1` / `true`). Never set on production. */
   STAGE1_FEATURES?: string;
+  /** Environment id for the first super-admin registration. Verify worker only. */
+  STAGE1_ENV_ID?: string;
 }
 export interface User {
   id: string;

@@ -18,6 +18,7 @@
     "GOOGLE_SCHOOL_DOMAIN": "kaga.ed.jp",
     "PUBLIC_ORIGIN": "https://vhslide-stage1-product-verify.overdozer1124.workers.dev",
     "STAGE1_FEATURES": "1",
+    "STAGE1_ENV_ID": "vhslide-stage1-product-verify",
   },
   "durable_objects": {
     "bindings": [

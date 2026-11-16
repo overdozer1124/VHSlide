@@ -1,0 +1,27 @@
+# 手順4（初代登録 A群）置き場
+
+作成: Cursor（2026-11-16）。実施計画 §2 の A＋C。主体は生の sub を保存する（所有者判断）。監査は同一トランザクションで必須。
+
+## 分離
+
+| もの           | 置き場                                 | 認可                                                             |
+| -------------- | -------------------------------------- | ---------------------------------------------------------------- |
+| 運営者登録簿   | `stage1_operators.subject`（生の sub） | 製品セッションでは操作できない                                   |
+| スーパー管理者 | `users.is_super_admin`                 | 運営者登録簿にいる主体の新しい ID トークンだけが付与・復旧できる |
+| 初代の履歴     | `stage1_super_admin_registration`      | 環境ごとに1件。復旧では書き換えない                              |
+| 復旧の履歴     | `stage1_super_admin_recovery`          | 追加のみ                                                         |
+
+## 経路
+
+1. プラットフォーム経路（初期投入／全面復旧）は `applyPlatformApproval`。通常の Worker／Node には載せず、`/platform/apply` と `/admin/*` は 404。一時ビルド用の wrangler 設定は置いていない。使い捨ての値は照合するだけで保存しない。
+2. 常設のアプリ内ルートは `STAGE1_FEATURES` が有効なときだけ。`POST /api/stage1/operators/nonce` のあと、ID トークンの nonce と `vhslide_admin_ctx` を消費する。
+   - `.../operators/verify|add|revoke|rotate`
+   - `.../super-admin/bind|recover`
+3. 登録簿が空の間は、アプリ内ルートは運営者不在で拒否する。初代運営者はプラットフォーム経路でしか入れない。
+4. 移行 ID は `stage1_operator_v1`。起動時に手順1のあとで冪等適用する。
+
+## まだ載せていないもの
+
+- 一時ビルドの配置と、検証 Worker 上での初代運営者の実投入（承認内容の固定が別作業）
+- 運営ルートの画面
+- 本番 `vhslide` への有効化
