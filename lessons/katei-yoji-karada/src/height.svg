@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="400" viewBox="0 0 560 400">
+<rect width="560" height="400" fill="#fffaf6"/>
+<g font-family="IPAPGothic, sans-serif" font-size="15" fill="#7a7078">
+<line x1="60" y1="370" x2="540" y2="370" stroke="#d97a8c" stroke-width="2"/>
+<line x1="60" y1="270" x2="540" y2="270" stroke="#f3c9d2" stroke-dasharray="6 6"/><text x="10" y="275">50cm</text>
+<line x1="60" y1="170" x2="540" y2="170" stroke="#f3c9d2" stroke-dasharray="6 6"/><text x="5" y="175">100cm</text>
+<line x1="60" y1="70" x2="540" y2="70" stroke="#f3c9d2" stroke-dasharray="6 6"/><text x="5" y="75">150cm</text>
+</g>
+<!-- 1-2歳: ~80cm tall (160px), head 1/4.5 -->
+<g transform="translate(140,210)">
+<circle cx="0" cy="18" r="18" fill="#ffe27a" stroke="#4a3f45" stroke-width="2.5"/>
+<rect x="-17" y="38" width="34" height="62" rx="12" fill="#f7a8b8" stroke="#4a3f45" stroke-width="2.5"/>
+<rect x="-14" y="98" width="11" height="60" rx="5" fill="#6aa3c8" stroke="#4a3f45" stroke-width="2"/>
+<rect x="3" y="98" width="11" height="60" rx="5" fill="#6aa3c8" stroke="#4a3f45" stroke-width="2"/>
+</g>
+<!-- 4-5歳: ~108cm (216px), head 1/5.5 -->
+<g transform="translate(270,154)">
+<circle cx="0" cy="20" r="20" fill="#ffe27a" stroke="#4a3f45" stroke-width="2.5"/>
+<rect x="-20" y="42" width="40" height="76" rx="13" fill="#7cb46b" stroke="#4a3f45" stroke-width="2.5"/>
+<rect x="-17" y="116" width="14" height="100" rx="6" fill="#6aa3c8" stroke="#4a3f45" stroke-width="2"/>
+<rect x="3" y="116" width="14" height="100" rx="6" fill="#6aa3c8" stroke="#4a3f45" stroke-width="2"/>
+</g>
+<!-- 中学生: ~155cm (310px), head 1/7 -->
+<g transform="translate(420,60)">
+<circle cx="0" cy="22" r="22" fill="#ffe27a" stroke="#4a3f45" stroke-width="2.5"/>
+<rect x="-25" y="46" width="50" height="114" rx="15" fill="#e6a23c" stroke="#4a3f45" stroke-width="2.5"/>
+<rect x="-21" y="158" width="18" height="152" rx="7" fill="#6aa3c8" stroke="#4a3f45" stroke-width="2"/>
+<rect x="3" y="158" width="18" height="152" rx="7" fill="#6aa3c8" stroke="#4a3f45" stroke-width="2"/>
+</g>
+<g font-family="IPAPGothic, sans-serif" font-size="18" font-weight="700" fill="#3f3a44" text-anchor="middle">
+<text x="140" y="395">1〜2歳</text><text x="270" y="395">4〜5歳</text><text x="420" y="395">中学生</text>
+</g>
+</svg>
