@@ -126,7 +126,9 @@ export function WorksheetPanel({
         if (!field.label.trim())
           throw new Error(`入力欄 ${index + 1} の項目名を入力してください。`);
         if (
-          (field.kind === "single" || field.kind === "multiple") &&
+          (field.kind === "single" ||
+            field.kind === "multiple" ||
+            field.kind === "order") &&
           (field.options.length < 2 ||
             field.options.length > 10 ||
             field.options.some((o) => !o.trim()) ||
@@ -700,7 +702,9 @@ export function WorksheetPanel({
                                         : undefined,
                                     ...(kind === "radar" ? { wide: true } : {}),
                                     options:
-                                      kind === "single" || kind === "multiple"
+                                      kind === "single" ||
+                                      kind === "multiple" ||
+                                      kind === "order"
                                         ? ["はい", "いいえ"]
                                         : [],
                                   });
@@ -711,6 +715,9 @@ export function WorksheetPanel({
                                 <option value="checkbox">チェック欄</option>
                                 <option value="single">単一選択</option>
                                 <option value="multiple">複数選択</option>
+                                <option value="order">
+                                  順番を選ぶ（並べ替え）
+                                </option>
                                 <option value="radar">
                                   数値とレーダーチャート
                                 </option>
@@ -732,10 +739,14 @@ export function WorksheetPanel({
                                 />
                               </label>
                             )}
-                            {(f.kind === "single" || f.kind === "multiple") && (
+                            {(f.kind === "single" ||
+                              f.kind === "multiple" ||
+                              f.kind === "order") && (
                               <>
                                 <label>
-                                  選択肢（1行1項目・2〜10項目）
+                                  {f.kind === "order"
+                                    ? "項目（1行1項目・2〜10項目）"
+                                    : "選択肢（1行1項目・2〜10項目）"}
                                   <textarea
                                     value={f.options.join("\n")}
                                     onChange={(e) =>
@@ -745,19 +756,30 @@ export function WorksheetPanel({
                                     }
                                   />
                                 </label>
-                                <label>
-                                  <input
-                                    type="checkbox"
-                                    checked={!!f.reason}
-                                    disabled={existingField(f.id) && !!f.reason}
-                                    onChange={(e) =>
-                                      editField(f.id, {
-                                        reason: e.target.checked || undefined,
-                                      })
-                                    }
-                                  />{" "}
-                                  選択した理由を書く欄を追加
-                                </label>
+                                {f.kind === "order" && (
+                                  <p className="worksheet-order-note">
+                                    回答する人には項目が並べ替えて表示され、タップした順番がそのまま回答になります。
+                                  </p>
+                                )}
+                                {(f.kind === "single" ||
+                                  f.kind === "multiple") && (
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      checked={!!f.reason}
+                                      disabled={
+                                        existingField(f.id) && !!f.reason
+                                      }
+                                      onChange={(e) =>
+                                        editField(f.id, {
+                                          reason:
+                                            e.target.checked || undefined,
+                                        })
+                                      }
+                                    />{" "}
+                                    選択した理由を書く欄を追加
+                                  </label>
+                                )}
                               </>
                             )}
                             {f.kind === "radar" && f.radar && (

@@ -118,7 +118,9 @@ export function WorksheetSidebarEditor({
           : undefined,
       ...(kind === "radar" ? { wide: true } : {}),
       options:
-        kind === "single" || kind === "multiple" ? ["はい", "いいえ"] : [],
+        kind === "single" || kind === "multiple" || kind === "order"
+          ? ["はい", "いいえ"]
+          : [],
     });
   }
   function move(index: number, direction: -1 | 1) {
@@ -147,7 +149,9 @@ export function WorksheetSidebarEditor({
     try {
       draft.fields.forEach((field, index) => {
         if (
-          (field.kind === "single" || field.kind === "multiple") &&
+          (field.kind === "single" ||
+            field.kind === "multiple" ||
+            field.kind === "order") &&
           (field.options.length < 2 ||
             field.options.length > 10 ||
             field.options.some((o) => !o.trim()) ||
@@ -163,7 +167,7 @@ export function WorksheetSidebarEditor({
         `/api/decks/${deckId}/worksheets/${base.id}/edit`,
         {
           method: "POST",
-          body: JSON.stringify({ expected: base, definition }),
+          body: JSON.stringify({ expected: definitionFrom(base), definition }),
         },
       );
       worksheets.update(data.worksheets);
@@ -175,7 +179,7 @@ export function WorksheetSidebarEditor({
           id: saved.id,
           deckId,
           elementId,
-          expected: base,
+          expected: definitionFrom(base),
           value: {
             title: saved.title,
             description: saved.description,
@@ -282,6 +286,7 @@ export function WorksheetSidebarEditor({
                   <option value="checkbox">チェック欄</option>
                   <option value="single">単一選択</option>
                   <option value="multiple">複数選択</option>
+                  <option value="order">順番を選ぶ（並べ替え）</option>
                   <option value="radar">数値とレーダーチャート</option>
                 </select>
               </label>
@@ -297,10 +302,14 @@ export function WorksheetSidebarEditor({
                   />
                 </label>
               )}
-              {(f.kind === "single" || f.kind === "multiple") && (
+              {(f.kind === "single" ||
+                f.kind === "multiple" ||
+                f.kind === "order") && (
                 <>
                   <label>
-                    選択肢（1行1項目・2〜10項目）
+                    {f.kind === "order"
+                      ? "項目（1行1項目・2〜10項目）"
+                      : "選択肢（1行1項目・2〜10項目）"}
                     <textarea
                       value={f.options.join("\n")}
                       onChange={(e) =>
@@ -310,19 +319,26 @@ export function WorksheetSidebarEditor({
                       }
                     />
                   </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={!!f.reason}
-                      disabled={existing(f.id) && !!f.reason}
-                      onChange={(e) =>
-                        editField(f.id, {
-                          reason: e.target.checked || undefined,
-                        })
-                      }
-                    />{" "}
-                    選択した理由を書く欄を追加
-                  </label>
+                  {f.kind === "order" && (
+                    <p className="worksheet-order-note">
+                      回答する人には項目が並べ替えて表示され、タップした順番がそのまま回答になります。
+                    </p>
+                  )}
+                  {(f.kind === "single" || f.kind === "multiple") && (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={!!f.reason}
+                        disabled={existing(f.id) && !!f.reason}
+                        onChange={(e) =>
+                          editField(f.id, {
+                            reason: e.target.checked || undefined,
+                          })
+                        }
+                      />{" "}
+                      選択した理由を書く欄を追加
+                    </label>
+                  )}
                 </>
               )}
               {f.kind === "radar" && f.radar && (
@@ -663,7 +679,11 @@ export function SurveySidebarEditor({
         {
           method: "POST",
           body: JSON.stringify({
-            expected: base,
+            expected: {
+              question: base.question,
+              kind: base.kind,
+              options: base.options,
+            },
             question,
             options: base.kind === "text" ? [] : options,
           }),

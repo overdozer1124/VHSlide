@@ -108,6 +108,54 @@ describe("worksheets", () => {
       }),
     ).toThrow();
   });
+  it("round-trips ordering fields and validates ordering answers", () => {
+    const sheet = worksheetTemplate("blank");
+    sheet.fields[0].kind = "order";
+    sheet.fields[0].options = ["I", "am", "a", "student"];
+    const parsed = parseWorksheet(sheet);
+    expect(parsed.fields[0].kind).toBe("order");
+    expect(parsed.fields[0].options).toEqual(["I", "am", "a", "student"]);
+    expect(parseWorksheet(parsed)).toEqual(parsed);
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], options: ["I"] }],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...sheet.fields[0], reason: true }],
+      }),
+    ).toThrow();
+    const id = parsed.fields[0].id;
+    expect(parseWorksheetValues(parsed, {})[id]).toEqual([]);
+    expect(parseWorksheetValues(parsed, { [id]: [2, 0, 3, 1] })[id]).toEqual([
+      2, 0, 3, 1,
+    ]);
+    expect(parseWorksheetValues(parsed, { [id]: [1, 0] })[id]).toEqual([1, 0]);
+    expect(() => parseWorksheetValues(parsed, { [id]: [0, 0] })).toThrow();
+    expect(() => parseWorksheetValues(parsed, { [id]: [4] })).toThrow();
+    expect(() => parseWorksheetValues(parsed, { [id]: "0,1" })).toThrow();
+    const csv = worksheetCsv({
+      ...parsed,
+      id: "sheet",
+      created: 0,
+      status: "open",
+      results: {
+        responses: [
+          {
+            respondentId: "u",
+            name: "生徒",
+            email: "",
+            updated: 0,
+            values: { [id]: [0, 1, 2, 3] },
+          },
+        ],
+      },
+    });
+    expect(csv).toContain("I → am → a → student");
+  });
   it("validates image answers as bounded JPEG data and keeps empty answers compatible", () => {
     const sheet = worksheetTemplate("blank");
     sheet.fields[0].kind = "drawing";

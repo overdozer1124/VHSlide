@@ -91,7 +91,9 @@ export async function body(request: Request, maximum: number) {
       insist(
         length <= maximum,
         413,
-        `送信データは${Math.floor(maximum / 1_000_000)}MBまでです。`,
+        maximum >= 1_000_000
+          ? `送信データは${Math.floor(maximum / 1_000_000)}MBまでです。`
+          : `送信データは${Math.floor(maximum / 1_000)}KBまでです。`,
       );
       chunks.push(value);
     }

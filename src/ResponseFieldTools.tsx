@@ -112,7 +112,7 @@ export function ResponseFieldTools({
             kind,
             placeholder,
             options:
-              kind === "single" || kind === "multiple"
+              kind === "single" || kind === "multiple" || kind === "order"
                 ? options.split("\n").map((s) => s.trim())
                 : [],
             section: "",
@@ -332,7 +332,7 @@ export function ResponseFieldTools({
         label: label || "質問・項目名",
         kind,
         options:
-          kind === "single" || kind === "multiple"
+          kind === "single" || kind === "multiple" || kind === "order"
             ? previewOptions.length
               ? previewOptions
               : ["選択肢1", "選択肢2"]
@@ -370,7 +370,7 @@ export function ResponseFieldTools({
             ? label || "質問・項目名"
             : (survey?.question ?? "アンケートを選択してください"),
           kind: create
-            ? kind === "checkbox"
+            ? kind === "checkbox" || kind === "order"
               ? "multiple"
               : kind === "drawing"
                 ? "text"
@@ -546,12 +546,15 @@ export function ResponseFieldTools({
                         ["checkbox", "チェック", "あてはまるかを確認"],
                         ["single", "単一選択", "選択肢から1つ"],
                         ["multiple", "複数選択", "選択肢から複数"],
+                        ["order", "順番を選ぶ", "項目を順番に並べる"],
                       ] as const
                     )
                       .filter(
                         ([value]) =>
                           source === "worksheet" ||
-                          (value !== "checkbox" && value !== "drawing"),
+                          (value !== "checkbox" &&
+                            value !== "drawing" &&
+                            value !== "order"),
                       )
                       .map(([value, title, description]) => (
                         <button

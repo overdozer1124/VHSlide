@@ -9,7 +9,14 @@ export const TEXT_PLACEHOLDER_DEFAULT = "ここに自分の考えを入力";
 export type WorksheetField = {
   id: string;
   label: string;
-  kind: "text" | "checkbox" | "single" | "multiple" | "radar" | "drawing";
+  kind:
+    | "text"
+    | "checkbox"
+    | "single"
+    | "multiple"
+    | "radar"
+    | "drawing"
+    | "order";
   options: string[];
   placeholder: string;
   section: string;
@@ -139,14 +146,20 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
         str(f.placeholder, 200) &&
         str(f.section, 200) &&
         typeof f.wide === "boolean" &&
-        ["text", "checkbox", "single", "multiple", "radar", "drawing"].includes(
-          f.kind,
-        ),
+        [
+          "text",
+          "checkbox",
+          "single",
+          "multiple",
+          "radar",
+          "drawing",
+          "order",
+        ].includes(f.kind),
       "入力欄の設定を確認してください。",
     );
     check(
       Array.isArray(f.options) &&
-        (f.kind === "single" || f.kind === "multiple"
+        (f.kind === "single" || f.kind === "multiple" || f.kind === "order"
           ? f.options.length >= 2 && f.options.length <= 10
           : f.options.length === 0) &&
         f.options.every((o) => str(o, 100) && o.trim()) &&

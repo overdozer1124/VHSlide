@@ -39,7 +39,9 @@ export function worksheetValueText(
         : field.kind === "text"
           ? String(value ?? "")
           : Array.isArray(value)
-            ? value.map((i) => (i === null ? "" : field.options[i])).join(" / ")
+            ? value
+                .map((i) => (i === null ? "" : field.options[i]))
+                .join(field.kind === "order" ? " → " : " / ")
             : "";
   const reason = field.reason
     ? String(values[worksheetReasonKey(field.id)] ?? "")

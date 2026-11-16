@@ -7615,6 +7615,19 @@ html[data-host-follow="active"] .app-shell .response-field-launch {visibility:hi
 .response-field .answer-inline-status { margin:6px 0 0; color:#687d70; font-size:12px; line-height:1.4; }
 .response-field .answer-inline-status.is-error { color:#ad3429; font-weight:700; }
 .answer-clear-choice { background:none; border:0; color:#687d70; font-size:12px; text-decoration:underline; cursor:pointer; padding:2px 0; }
+.worksheet-order { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.worksheet-order-sequence { display:flex; flex-wrap:wrap; gap:6px; align-items:center; flex-basis:100%; min-height:34px; padding:5px 7px; border:1.5px dashed #b9c8bd; border-radius:8px; background:#fbfdfb; }
+.worksheet-order-pool { display:flex; flex-wrap:wrap; gap:6px; align-items:center; flex-basis:100%; }
+.worksheet-order-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1.5px solid #9db8a6; border-radius:999px; background:#fff; color:#243528; font:inherit; font-size:.92em; cursor:pointer; }
+.worksheet-order-chip:hover { background:#eef5ef; }
+.worksheet-order-chip.chosen { background:#35618e; border-color:#35618e; color:#fff; }
+.worksheet-order-chip.static { cursor:default; background:#eef5ef; }
+.worksheet-order-chip.muted { cursor:default; color:#687d70; border-color:#ccd8cf; }
+.worksheet-order-chip b { display:inline-flex; align-items:center; justify-content:center; min-width:1.35em; height:1.35em; border-radius:50%; background:rgba(255,255,255,.28); font-size:.82em; padding:0 2px; }
+.worksheet-order-chip.static b { background:#35618e; color:#fff; }
+.worksheet-order-hint { color:#687d70; font-size:.88em; }
+.worksheet-order-unanswered { color:#687d70; font-size:.88em; }
+.worksheet-order-note { margin:2px 0 0; color:#687d70; font-size:12px; }
 .compact-answer .answer-inline-status { margin:4px 0 0; color:#687d70; font-size:12px; line-height:1.4; }
 .compact-answer .answer-inline-status.is-error { color:#ad3429; font-weight:700; }
 @media(max-width:700px) { .form-edit-bar { padding:6px 8px; } .form-edit-bar span { flex-basis:100%; } }

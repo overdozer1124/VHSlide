@@ -13,7 +13,9 @@ const field = (
   wide,
   placeholder: kind === "text" ? TEXT_PLACEHOLDER_DEFAULT : "",
   options:
-    kind === "single" || kind === "multiple" ? ["選択肢1", "選択肢2"] : [],
+    kind === "single" || kind === "multiple" || kind === "order"
+      ? ["選択肢1", "選択肢2"]
+      : [],
 });
 export const worksheetTemplateNames = {
   reason: "理由と工夫",

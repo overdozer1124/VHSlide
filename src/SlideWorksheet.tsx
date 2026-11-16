@@ -4,7 +4,7 @@ import { WorksheetDrawing } from "./WorksheetDrawing";
 import { WorksheetModalLayout } from "./WorksheetModalLayout";
 import type { FormDraft } from "./formEditing";
 import { canDragForm } from "./formDrag";
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import type { PointerEvent } from "react";
 import type { Element } from "./model";
 import type {
@@ -21,6 +21,120 @@ import {
   worksheetFieldGroups,
   worksheetScoreFieldsForLayout,
 } from "./worksheetSections";
+/** Deterministic shuffle of the item pool for an ordering field. The same
+ * field always shows the same pool order, so re-renders never move items
+ * around while a student is answering. If the shuffle happens to reproduce
+ * the listed order, the first two items swap so the pool never starts out
+ * already solved. */
+export function shuffledOrder(fieldId: string, count: number): number[] {
+  let h = 2166136261;
+  for (let i = 0; i < fieldId.length; i++) {
+    h ^= fieldId.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let state = h >>> 0;
+  const next = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  const order = Array.from({ length: count }, (_, i) => i);
+  for (let i = count - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  if (count >= 2 && order.every((v, i) => v === i))
+    [order[0], order[1]] = [order[1], order[0]];
+  return order;
+}
+
+function WorksheetOrder({
+  field,
+  value,
+  disabled,
+  preview,
+  onChange,
+}: {
+  field: WorksheetField;
+  value: unknown;
+  disabled?: boolean;
+  preview?: boolean;
+  onChange: (value: number[]) => void;
+}) {
+  const chosen = (Array.isArray(value) ? value : []).filter(
+    (n): n is number =>
+      typeof n === "number" &&
+      Number.isInteger(n) &&
+      n >= 0 &&
+      n < field.options.length,
+  );
+  const shuffled = useMemo(
+    () => shuffledOrder(field.id, field.options.length),
+    [field.id, field.options.length],
+  );
+  if (disabled || preview) {
+    if (preview && chosen.length === 0)
+      return (
+        <div className="worksheet-order">
+          {field.options.map((option, i) => (
+            <span key={i} className="worksheet-order-chip muted">
+              {option}
+            </span>
+          ))}
+        </div>
+      );
+    return (
+      <div className="worksheet-order">
+        {chosen.length === 0 ? (
+          <span className="worksheet-order-unanswered">（未回答）</span>
+        ) : (
+          chosen.map((n, i) => (
+            <span key={n} className="worksheet-order-chip static">
+              <b>{i + 1}</b>
+              {field.options[n]}
+            </span>
+          ))
+        )}
+      </div>
+    );
+  }
+  const pool = shuffled.filter((n) => !chosen.includes(n));
+  return (
+    <div className="worksheet-order">
+      <div className="worksheet-order-sequence">
+        {chosen.length === 0 && (
+          <span className="worksheet-order-hint">
+            下の項目を、順番に選んでください
+          </span>
+        )}
+        {chosen.map((n, i) => (
+          <button
+            type="button"
+            key={n}
+            className="worksheet-order-chip chosen"
+            title="タップで取り消し"
+            onClick={() => onChange(chosen.filter((x) => x !== n))}
+          >
+            <b>{i + 1}</b>
+            {field.options[n]}
+          </button>
+        ))}
+      </div>
+      <div className="worksheet-order-pool">
+        {pool.map((n) => (
+          <button
+            type="button"
+            key={n}
+            className="worksheet-order-chip"
+            onClick={() => onChange([...chosen, n])}
+          >
+            {field.options[n]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function WorksheetInputs({
   sheet,
   values,
@@ -226,7 +340,11 @@ export function WorksheetInputs({
                             {f.options.map((option, i) => (
                               <div key={i}>
                                 <span aria-hidden="true">
-                                  {f.kind === "single" ? "○" : "□"}
+                                  {f.kind === "single"
+                                    ? "○"
+                                    : f.kind === "order"
+                                      ? `${i + 1}.`
+                                      : "□"}
                                 </span>
                                 <FormDraftInput
                                   label={`選択肢${i + 1}を編集`}
@@ -252,6 +370,14 @@ export function WorksheetInputs({
                             value={String(values[f.id] ?? "")}
                             disabled={disabled}
                             onChange={(e) => change(f.id, e.target.value)}
+                          />
+                        ) : f.kind === "order" ? (
+                          <WorksheetOrder
+                            field={f}
+                            value={values[f.id]}
+                            disabled={disabled}
+                            preview={preview}
+                            onChange={(value) => change(f.id, value, true)}
                           />
                         ) : (
                           <>
