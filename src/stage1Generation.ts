@@ -72,6 +72,7 @@ export function invalidateOrganizationMember(
 
 /**
  * Re-activate membership (status + role only). Generation is never decreased.
+ * Clears is_school_admin and can_create_space (design §5: those do not revive).
  * Returns undefined when no inactive membership was updated.
  */
 export function reactivateOrganizationMember(
@@ -81,7 +82,9 @@ export function reactivateOrganizationMember(
   role: "teacher" | "student" | null,
 ): OrganizationMemberRow | undefined {
   const result = sql.exec(
-    "UPDATE organization_members SET status='有効', role=? WHERE user_id=? AND organization_id=? AND status='無効'",
+    `UPDATE organization_members
+     SET status='有効', role=?, is_school_admin=0, can_create_space=0
+     WHERE user_id=? AND organization_id=? AND status='無効'`,
     role,
     userId,
     organizationId,

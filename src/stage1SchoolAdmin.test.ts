@@ -121,4 +121,33 @@ describe("stage1SchoolAdmin", () => {
       }),
     ).toThrow(SchoolAdminError);
   });
+
+  it("refuses appointment when membership is inactive", () => {
+    const { db, sql } = open();
+    db.prepare(
+      `INSERT INTO organization_members(user_id,organization_id,role,is_school_admin,can_create_space,status,generation,created_at)
+       VALUES(?,?,?,?,?,?,?,?)`,
+    ).run("u1", "org1", "teacher", 0, 0, "無効", 2, 1);
+    applyForSchoolAdmin(sql, {
+      id: "app1",
+      organizationId: "org1",
+      applicantUserId: "u1",
+    });
+    expect(() =>
+      decideSchoolAdminApplication(sql, {
+        applicationId: "app1",
+        decision: "登録",
+        decidedBy: "super",
+      }),
+    ).toThrow(/再有効化/);
+    expect(
+      (
+        db
+          .prepare(
+            "SELECT status FROM school_admin_applications WHERE id=?",
+          )
+          .get("app1") as { status: string }
+      ).status,
+    ).toBe("申請中");
+  });
 });

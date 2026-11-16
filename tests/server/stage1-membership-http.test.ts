@@ -71,7 +71,7 @@ before(async () => {
   db.prepare(
     `INSERT INTO organization_members(user_id,organization_id,role,is_school_admin,can_create_space,status,generation,created_at)
      VALUES(?,?,?,?,?,?,?,?)`,
-  ).run("member", "org1", "student", 0, 0, "有効", 1, Date.now());
+  ).run("member", "org1", "student", 1, 1, "有効", 1, Date.now());
   db.close();
 });
 after(async () => {
@@ -125,6 +125,16 @@ test("membership invalidate/reactivate bumps generation and writes audit", async
   assert.equal(restoredBody.member.role, "teacher");
 
   const after = new DatabaseSync(join(directory, "vhslide.sqlite"));
+  const flags = after
+    .prepare(
+      "SELECT is_school_admin, can_create_space FROM organization_members WHERE user_id=? AND organization_id=?",
+    )
+    .get("member", "org1") as {
+    is_school_admin: number;
+    can_create_space: number;
+  };
+  assert.equal(Number(flags.is_school_admin), 0);
+  assert.equal(Number(flags.can_create_space), 0);
   assert.ok(
     after
       .prepare("SELECT 1 AS ok FROM audit_log WHERE action=?")

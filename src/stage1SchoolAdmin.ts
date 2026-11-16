@@ -96,6 +96,20 @@ export function decideSchoolAdminApplication(
   if (app.status !== "申請中")
     throw new SchoolAdminError(409, "この申請はすでに処理済みです。");
   const decidedAt = input.decidedAt ?? Date.now();
+  // 登録: 無効所属は復活させない（設計 §5 — 再有効化は別経路）。状態更新より先に判定する。
+  let existingMember: { status: string } | undefined;
+  if (input.decision === "登録") {
+    existingMember = sql.one<{ status: string }>(
+      "SELECT status FROM organization_members WHERE user_id=? AND organization_id=?",
+      app.applicant_user_id,
+      app.organization_id,
+    );
+    if (existingMember && existingMember.status !== "有効")
+      throw new SchoolAdminError(
+        409,
+        "所属が無効です。任命の前に所属の再有効化を行ってください。",
+      );
+  }
   const updated = sql.exec(
     "UPDATE school_admin_applications SET status=?, decided_by=?, decided_at=? WHERE id=? AND status='申請中'",
     input.decision,
@@ -106,12 +120,7 @@ export function decideSchoolAdminApplication(
   if (!updated.changes)
     throw new SchoolAdminError(409, "この申請はすでに処理済みです。");
   if (input.decision === "登録") {
-    const member = sql.one<{ status: string }>(
-      "SELECT status FROM organization_members WHERE user_id=? AND organization_id=?",
-      app.applicant_user_id,
-      app.organization_id,
-    );
-    if (!member) {
+    if (!existingMember) {
       sql.exec(
         `INSERT INTO organization_members(
           user_id, organization_id, role, is_school_admin, can_create_space,
@@ -123,7 +132,7 @@ export function decideSchoolAdminApplication(
       );
     } else {
       sql.exec(
-        "UPDATE organization_members SET is_school_admin=1, status='有効' WHERE user_id=? AND organization_id=?",
+        "UPDATE organization_members SET is_school_admin=1 WHERE user_id=? AND organization_id=? AND status='有効'",
         app.applicant_user_id,
         app.organization_id,
       );
