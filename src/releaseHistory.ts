@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.138.2",
+    date: "2026-11-17",
+    title: "クラウドに保存していない作品で、編集画面が開けない問題を直しました",
+    changes: [
+      "ファイルから開いた作品など、クラウドに保存していない作品で、サムネイルを押しても編集画面が真っ白になって開けない問題を直しました。クラウドに保存した作品は今までどおり開けます。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.138.1",
     date: "2026-11-17",
     title: "版番号を 0.138.1 にしました",

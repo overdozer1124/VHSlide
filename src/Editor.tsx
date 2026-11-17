@@ -435,15 +435,15 @@ export function Editor({
   const activeDeckId = cloud?.active?.id;
   const responseBinding = element?.responseField;
   const sidebarSheetId =
-    element?.worksheet?.deckId === activeDeckId
-      ? element!.worksheet!.worksheetId
+    element?.worksheet && element.worksheet.deckId === activeDeckId
+      ? element.worksheet.worksheetId
       : responseBinding?.source === "worksheet" &&
           responseBinding.deckId === activeDeckId
         ? responseBinding.worksheetId
         : undefined;
   const sidebarSurveyId =
-    element?.survey?.deckId === activeDeckId
-      ? element!.survey!.surveyId
+    element?.survey && element.survey.deckId === activeDeckId
+      ? element.survey.surveyId
       : responseBinding?.source === "survey" &&
           responseBinding.deckId === activeDeckId
         ? responseBinding.surveyId
