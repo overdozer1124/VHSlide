@@ -6,6 +6,7 @@ import { useGroups } from "./GroupsContext";
 import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
+  thinkingOwnerLabels,
   zoneAtPoint,
 } from "./thinkingTools";
 import type {
@@ -269,19 +270,15 @@ function ThinkingSurface({
   const pointOwners: { owner: string; label: string }[] =
     tool.unit === "group"
       ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
-      : [
-          ...new Set(
-            tool.points
-              .filter((p) => p.owner !== myOwner)
-              .map((p) => p.owner),
-          ),
-        ].map((owner, i) => ({
-          owner,
-          label: showNames
-            ? tool.points.find((p) => p.owner === owner)?.authorName ||
-              "名前未登録"
-            : `生徒${i + 1}`,
-        }));
+      : thinkingOwnerLabels(
+          tool.points
+            .filter((p) => p.owner !== myOwner)
+            .map((p) => p.owner),
+          (owner) =>
+            tool.points.find((p) => p.owner === owner)?.authorName ||
+            undefined,
+          showNames,
+        );
   const ghosts = myPoints
     .filter((p) => p.scene !== scene)
     .sort(
@@ -817,13 +814,13 @@ function BoardSurface({
   const chartOwners: { owner: string; label: string }[] =
     tool.unit === "group"
       ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
-      : [...new Set(tool.cards.map((c) => c.owner))].map((owner, i) => ({
-          owner,
-          label: showNames
-            ? tool.cards.find((c) => c.owner === owner)?.authorName ||
-              "名前未登録"
-            : `生徒${i + 1}`,
-        }));
+      : thinkingOwnerLabels(
+          tool.cards.map((c) => c.owner),
+          (owner) =>
+            tool.cards.find((c) => c.owner === owner)?.authorName ||
+            undefined,
+          showNames,
+        );
   const focusLabel =
     chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
   const selected = tool.cards.find((c) => c.id === selectedId);
