@@ -5,6 +5,7 @@ import {
   BOARD_ZONE_SPECS,
   CARD_COLORS,
   templateKind,
+  VENN_CIRCLES,
 } from "./thinkingTools";
 import type {
   ThinkingDefinition,
@@ -36,6 +37,247 @@ export const CARD_COLOR_LABELS: Record<string, string> = {
   pink: "ピンク",
   green: "緑色",
 };
+/** Teacher-facing explanation per template, shown next to the template
+ * picker: what the tool is (about) and how a class uses it (usage). */
+export const THINKING_TEMPLATE_GUIDES: Record<
+  ThinkingTemplate,
+  { about: string; usage: string }
+> = {
+  axis2: {
+    about: "2つの軸で作る座標の上に、自分の考えの位置を点で置くツールです。",
+    usage:
+      "横軸を「反対⇔賛成」、縦軸を「自信がない⇔自信がある」のようにすると、意見と自信の両方を一度に表せます。場面を分ければ、話し合いの前後で考えがどう動いたかも残せます。",
+  },
+  axis1: {
+    about: "1本の線の上に、量や程度を点で表すツールです。",
+    usage:
+      "「少ない⇔多い」「短い⇔長い」など、1つのものさしで表せるものに使います。「縦に置く」を選ぶと、温度計のように縦の線にもできます。",
+  },
+  emotion: {
+    about: "気持ちの程度を、顔の表情が並んだ線の上に点で表すツールです。",
+    usage:
+      "物語を読んだ気持ちや、活動のふり返りなどに使います。場面を分ければ、場面ごとの気持ちの変化を追えます。",
+  },
+  ratio: {
+    about: "2つの気持ちの割合を、円の分け方で表すツールです。",
+    usage:
+      "「言いたい⇔黙っていたい」のように、心の中でゆれる2つの気持ちの割合を表すのに向いています。円をタップするか、スライダーで割合を決めます。",
+  },
+  venn2: {
+    about: "2つの円の重なりで、共通点と違いを整理する図です。",
+    usage:
+      "2つのもの・考えを比べるときに使います。それぞれだけの部分と、重なる部分（共通点）にカードを書きます。",
+  },
+  venn3: {
+    about: "3つの円の重なりで、共通点と違いを整理する図です。",
+    usage:
+      "3つのもの・考えを比べるときに使います。2つだけの重なりや、3つ全部の重なりにもカードを置けます。",
+  },
+  ychart: {
+    about: "見たこと・聞いたこと・感じたことを書き分ける図です。",
+    usage:
+      "観察や見学の記録に向いています。事実（見たこと・聞いたこと）と感想（感じたこと）を分けて書く練習になります。",
+  },
+  xchart: {
+    about: "4つの区切りに分けて考える図です。",
+    usage:
+      "区切りの名前は自由に付けられます。2つの切り口を組み合わせて、考えを4つに整理したいときに使います。",
+  },
+  wchart: {
+    about:
+      "いつ・どこで・だれが・何を・なぜ（どのように）の5つで整理する図です。",
+    usage:
+      "出来事や調べたことを、5Wの観点で抜けなく書き出すのに使います。区切りの名前は変更できます。",
+  },
+  tchart: {
+    about: "2つの区切りに分けて書き比べる図です。",
+    usage:
+      "メリットとデメリット、賛成と反対など、物事の2つの面を並べて比べるのに使います。",
+  },
+  pmi: {
+    about:
+      "よい点（Plus）・課題（Minus）・面白い点（Interesting）の3つで考える図です。",
+    usage:
+      "アイデアや作品を評価するときに使います。悪い点探しで終わらず、「面白い点」まで考えるのが特徴です。",
+  },
+  matrix: {
+    about: "縦と横の2つの切り口を組み合わせた、4つの区切り（2×2）で整理する図です。",
+    usage:
+      "例えば「大切さ」と「急ぎ具合」で分けて優先順位を考える、といった使い方をします。区切りの名前は自由に付けられます。",
+  },
+  kwl: {
+    about: "知っていること（K）・知りたいこと（W）・分かったこと（L）を書く図です。",
+    usage:
+      "学習のはじめにKとWを書き、終わりにLを書き足すと、学びの変化が見えます。",
+  },
+};
+
+const PREVIEW_FACES = ["😞", "😕", "😐", "🙂", "😄"];
+
+/** A static miniature of the selected template, drawn from the form's
+ * current definition so axis ends and zone names update while the
+ * teacher edits them. Decorative: the form fields carry the values. */
+function ThinkingTemplatePreview({
+  template,
+  def,
+}: {
+  template: ThinkingTemplate;
+  def: ThinkingDefinition;
+}) {
+  if (templateKind(template) === "board") {
+    const spec = BOARD_ZONE_SPECS[template] ?? [];
+    const circles = VENN_CIRCLES[template];
+    return (
+      <div className="thinking-preview is-board" aria-hidden="true">
+        {circles && (
+          <svg
+            className="thinking-venn"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            {circles.map((c, i) => (
+              <circle
+                key={i}
+                cx={c.x * 100}
+                cy={c.y * 100}
+                r={c.r * 100}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+        )}
+        {spec.map((z) => {
+          const label =
+            def.zones.find((x) => x.id === z.id)?.label ?? z.label;
+          return z.rect ? (
+            <div
+              key={z.id}
+              className="thinking-preview-zone"
+              style={{
+                left: `${z.rect[0] * 100}%`,
+                top: `${z.rect[1] * 100}%`,
+                width: `${z.rect[2] * 100}%`,
+                height: `${z.rect[3] * 100}%`,
+              }}
+            >
+              <span>{label}</span>
+            </div>
+          ) : (
+            <div
+              key={z.id}
+              className="thinking-preview-zone is-anchor"
+              style={{
+                left: `${z.anchor[0] * 100}%`,
+                top: `${z.anchor[1] * 100}%`,
+              }}
+            >
+              <span>{label}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  if (template === "ratio") {
+    return (
+      <div className="thinking-preview is-ratio" aria-hidden="true">
+        <div
+          className="thinking-preview-pie"
+          style={{
+            background: "conic-gradient(#e2703a 0% 60%, #3a7bd5 60% 100%)",
+          }}
+        >
+          <span>60%</span>
+        </div>
+        <div className="thinking-preview-legend">
+          <p>
+            <span className="thinking-swatch is-a" /> {def.nameA}：60%
+          </p>
+          <p>
+            <span className="thinking-swatch is-b" /> {def.nameB}：40%
+          </p>
+        </div>
+      </div>
+    );
+  }
+  const two = template === "axis2";
+  const vertical = !two && def.vertical;
+  const faces = template === "emotion" ? PREVIEW_FACES : null;
+  return (
+    <div className="thinking-preview is-point" aria-hidden="true">
+      <svg viewBox="0 0 200 140" role="presentation">
+        {two ? (
+          <>
+            <line x1="36" y1="12" x2="36" y2="112" className="tp-axis" />
+            <line x1="36" y1="112" x2="188" y2="112" className="tp-axis" />
+            <text x="36" y="9" className="tp-text" textAnchor="middle">
+              {def.yMax}
+            </text>
+            <text x="30" y="126" className="tp-text" textAnchor="end">
+              {def.yMin}
+            </text>
+            <text x="40" y="126" className="tp-text">
+              {def.xMin}
+            </text>
+            <text x="188" y="126" className="tp-text" textAnchor="end">
+              {def.xMax}
+            </text>
+            <circle cx="128" cy="52" r="6" className="tp-dot" />
+          </>
+        ) : vertical ? (
+          <>
+            <line x1="100" y1="14" x2="100" y2="116" className="tp-axis" />
+            <text x="100" y="10" className="tp-text" textAnchor="middle">
+              {def.xMax}
+            </text>
+            <text x="100" y="130" className="tp-text" textAnchor="middle">
+              {def.xMin}
+            </text>
+            {faces ? (
+              faces.map((f, i) => (
+                <text
+                  key={f}
+                  x="116"
+                  y={116 - i * 25.5 + 4}
+                  className="tp-face"
+                >
+                  {f}
+                </text>
+              ))
+            ) : (
+              <circle cx="100" cy="45" r="6" className="tp-dot" />
+            )}
+            {faces && <circle cx="100" cy="45" r="6" className="tp-dot" />}
+          </>
+        ) : (
+          <>
+            <line x1="14" y1="66" x2="186" y2="66" className="tp-axis" />
+            <text x="14" y="92" className="tp-text">
+              {def.xMin}
+            </text>
+            <text x="186" y="92" className="tp-text" textAnchor="end">
+              {def.xMax}
+            </text>
+            {faces ? (
+              faces.map((f, i) => (
+                <text
+                  key={f}
+                  x={14 + i * 43}
+                  y={52}
+                  className="tp-face"
+                  textAnchor="middle"
+                >
+                  {f}
+                </text>
+              ))
+            ) : null}
+            <circle cx="128" cy="66" r="6" className="tp-dot" />
+          </>
+        )}
+      </svg>
+    </div>
+  );
+}
 export const THINKING_UNIT_LABELS: Record<ThinkingUnit, string> = {
   individual: "個人",
   group: "班",
@@ -378,24 +620,36 @@ function ThinkingToolForm({
         if (!editing) setDef(defaultDefinition(template));
       }}
     >
-      <fieldset className="thinking-templates">
-        <legend>{editing ? "種類（変更できません）" : "ひな形を選ぶ"}</legend>
-        {(Object.keys(THINKING_TEMPLATE_LABELS) as ThinkingTemplate[]).map(
-          (t) => (
-            <label key={t} className={template === t ? "is-active" : ""}>
-              <input
-                type="radio"
-                name="thinking-template"
-                value={t}
-                checked={template === t}
-                disabled={editing}
-                onChange={() => pickTemplate(t)}
-              />
-              {THINKING_TEMPLATE_LABELS[t]}
-            </label>
-          ),
-        )}
-      </fieldset>
+      <div className="thinking-template-layout">
+        <fieldset className="thinking-templates">
+          <legend>{editing ? "種類（変更できません）" : "ひな形を選ぶ"}</legend>
+          {(Object.keys(THINKING_TEMPLATE_LABELS) as ThinkingTemplate[]).map(
+            (t) => (
+              <label key={t} className={template === t ? "is-active" : ""}>
+                <input
+                  type="radio"
+                  name="thinking-template"
+                  value={t}
+                  checked={template === t}
+                  disabled={editing}
+                  onChange={() => pickTemplate(t)}
+                />
+                {THINKING_TEMPLATE_LABELS[t]}
+              </label>
+            ),
+          )}
+        </fieldset>
+        <div className="thinking-template-side">
+          <figure className="thinking-template-figure">
+            <ThinkingTemplatePreview template={template} def={def} />
+            <figcaption>{THINKING_TEMPLATE_LABELS[template]}の形</figcaption>
+          </figure>
+          <div className="thinking-template-guide">
+            <p>{THINKING_TEMPLATE_GUIDES[template].about}</p>
+            <p>{THINKING_TEMPLATE_GUIDES[template].usage}</p>
+          </div>
+        </div>
+      </div>
       <label>
         ツールの名前
         <input
