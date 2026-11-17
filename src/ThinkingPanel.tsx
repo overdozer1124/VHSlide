@@ -133,13 +133,20 @@ function ThinkingTemplatePreview({
 }) {
   // Squeeze an over-long label into `max` viewBox units instead of
   // letting it spill out of the miniature (labels can be 40 chars).
-  const fit = (label: string, max: number) =>
-    label.length * 15 > max
+  // Width estimate: full-width characters count 15 units (the label
+  // font size), half-width ones about 8.
+  const fit = (label: string, max: number) => {
+    const width = [...label].reduce(
+      (sum, ch) => sum + (ch.charCodeAt(0) > 0xff ? 15 : 8),
+      0,
+    );
+    return width > max
       ? {
           textLength: max,
           lengthAdjust: "spacingAndGlyphs" as const,
         }
       : {};
+  };
   const zoneLabel = (z: ThinkingZoneSpec) =>
     def.zones.find((x) => x.id === z.id)?.label ?? z.label;
   let kind: "board" | "ratio" | "point" = "point";
@@ -740,6 +747,7 @@ function ThinkingToolForm({
           </div>
         </div>
         <div className="thinking-params">
+          <div className="thinking-params-fields">
       <label>
         ツールの名前
         <input
@@ -1029,6 +1037,7 @@ function ThinkingToolForm({
         点と一緒に「理由」を書けるようにする
       </label>
       )}
+          </div>
       <button type="submit" disabled={busy || !def.title.trim()}>
         {editing ? "設定を保存" : "思考ツールを作成"}
       </button>

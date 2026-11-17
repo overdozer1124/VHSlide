@@ -7915,7 +7915,8 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-template-figure figcaption { font-size:12px;font-weight:700;color:#4a3a6b;text-align:center; }
 .thinking-template-guide { background:#f4f1fa;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;box-sizing:border-box; }
 .thinking-template-guide p { margin:0;font-size:13px;line-height:1.7;color:#2e2440; }
-.thinking-params { display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-width:0;padding-right:2px; }
+.thinking-params { display:flex;flex-direction:column;gap:10px;overflow:hidden;min-width:0; }
+.thinking-params-fields { flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px; }
 .thinking-preview { position:relative;border:1.5px solid #b7a8d9;border-radius:10px;background:#fbf9ff;overflow:hidden;aspect-ratio:4/3; }
 .thinking-preview svg { display:block;width:100%;height:100%; }
 .thinking-preview .tp-axis { stroke:#5b4a8a;stroke-width:3; }
