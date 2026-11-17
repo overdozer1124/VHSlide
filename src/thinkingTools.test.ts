@@ -7,6 +7,8 @@ import {
   thinkingList,
   thinkingCommand,
   parseThinkingDefinition,
+  templateKind,
+  zoneAtPoint,
   ThinkingError,
 } from "./thinkingTools";
 import {
@@ -287,6 +289,270 @@ describe("thinking points", () => {
     );
     thinkingCommand(sql, "deck", "host", true, "delete", id, {});
     expect(thinkingList(sql, "deck", "host", true)).toHaveLength(0);
+  });
+});
+
+describe("thinking board definitions", () => {
+  it("fills board zones from the template and validates them", () => {
+    const { definition } = parseThinkingDefinition("venn2", {
+      title: "ベン図",
+    });
+    expect(definition.zones.map((z) => z.id)).toEqual(["a", "b", "ab"]);
+    expect(definition.scenes).toEqual([]);
+    const custom = parseThinkingDefinition("tchart", {
+      title: "Tチャート",
+      zones: [
+        { id: "a", label: "分かった" },
+        { id: "b", label: "疑問" },
+      ],
+      cardColors: [{ color: "yellow", label: "自分の考え" }],
+    });
+    expect(custom.definition.zones[1].label).toBe("疑問");
+    expect(custom.definition.cardColors).toHaveLength(1);
+    expect(() =>
+      parseThinkingDefinition("tchart", {
+        title: "Tチャート",
+        zones: [{ id: "x", label: "?" }],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseThinkingDefinition("kwl", {
+        title: "KWL",
+        cardColors: [
+          { color: "yellow", label: "a" },
+          { color: "yellow", label: "b" },
+        ],
+      }),
+    ).toThrow();
+    expect(templateKind("venn3")).toBe("board");
+    expect(templateKind("axis2")).toBe("point");
+  });
+
+  it("hit-tests zones, including the Venn overlaps", () => {
+    expect(zoneAtPoint("venn2", 0.5, 0.5)).toBe("ab");
+    expect(zoneAtPoint("venn2", 0.15, 0.5)).toBe("a");
+    expect(zoneAtPoint("venn2", 0.85, 0.5)).toBe("b");
+    expect(zoneAtPoint("venn2", 0.05, 0.05)).toBeNull();
+    expect(zoneAtPoint("venn3", 0.5, 0.55)).toBe("abc");
+    expect(zoneAtPoint("tchart", 0.25, 0.5)).toBe("a");
+    expect(zoneAtPoint("tchart", 0.75, 0.5)).toBe("b");
+    expect(zoneAtPoint("ychart", 0.5, 0.8)).toBe("c");
+    expect(zoneAtPoint("axis2", 0.5, 0.5)).toBeNull();
+  });
+});
+
+const vennDef = {
+  title: "ベン図",
+  cardColors: [{ color: "yellow", label: "自分の考え" }],
+};
+function createBoard(
+  sql: HistorySQL,
+  overrides: Record<string, unknown> = {},
+): string {
+  const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+    template: "venn2",
+    unit: "class",
+    definition: vennDef,
+    ...overrides,
+  });
+  return created!.createdId!;
+}
+
+describe("thinking board cards", () => {
+  it("shares one class board: anyone moves, only the author edits", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql);
+    // Old clients (no board capability) never receive board tools.
+    open(sql, id);
+    expect(thinkingList(sql, "deck", "ana", false)).toHaveLength(0);
+    expect(
+      thinkingList(sql, "deck", "ana", false, { board: true }),
+    ).toHaveLength(1);
+    const card = thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "Aだけの考え",
+      color: "yellow",
+    })!;
+    const cardId = card.createdId!;
+    // Bob sees the shared card without ana's identity, marked not his.
+    const bobs = thinkingList(sql, "deck", "bob", false, { board: true });
+    expect(bobs[0].kind).toBe("board");
+    expect(bobs[0].cards).toHaveLength(1);
+    expect(bobs[0].cards[0].authorId).toBe("");
+    expect(bobs[0].cards[0].authorName).toBe("");
+    expect(bobs[0].cards[0].mine).toBe(false);
+    // Bob may move it to the overlap, but may not rewrite or delete it.
+    thinkingCommand(sql, "deck", "bob", false, "cardmove", id, {
+      cardId,
+      zone: "ab",
+    });
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "cardedit", id, {
+          cardId,
+          text: "書き換え",
+        }),
+      403,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "carddelete", id, {
+          cardId,
+        }),
+      403,
+    );
+    // Ana edits her own card; the host sees names and can delete it.
+    thinkingCommand(sql, "deck", "ana", false, "cardedit", id, {
+      cardId,
+      text: "直した考え",
+    });
+    const hosts = thinkingList(sql, "deck", "host", true, { board: true });
+    expect(hosts[0].cards[0].text).toBe("直した考え");
+    expect(hosts[0].cards[0].zone).toBe("ab");
+    expect(hosts[0].cards[0].authorName).toBe("あな");
+    thinkingCommand(sql, "deck", "host", true, "carddelete", id, { cardId });
+    expect(
+      thinkingList(sql, "deck", "host", true, { board: true })[0].cards,
+    ).toHaveLength(0);
+  });
+
+  it("restricts card locks to the author and hides lock identity", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql);
+    open(sql, id);
+    const card = thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "Aだけの考え",
+    })!;
+    const cardId = card.createdId!;
+    // Bob cannot take the lock on ana's card; ana can.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "lock", id, { cardId }),
+      403,
+    );
+    thinkingCommand(sql, "deck", "ana", false, "lock", id, { cardId });
+    // On a class board, other students get the lock without its
+    // identity — only the mine flag (the lock names the author).
+    const bobs = thinkingList(sql, "deck", "bob", false, { board: true });
+    expect(bobs[0].locks).toHaveLength(1);
+    expect(bobs[0].locks[0].userId).toBe("");
+    expect(bobs[0].locks[0].name).toBe("");
+    expect(bobs[0].locks[0].mine).toBe(false);
+    const anas = thinkingList(sql, "deck", "ana", false, { board: true });
+    expect(anas[0].locks[0].mine).toBe(true);
+    // The host sees whose lock it is. While ana's lock is active,
+    // even the host cannot take it over (the lock is mutual).
+    const hosts = thinkingList(sql, "deck", "host", true, { board: true });
+    expect(hosts[0].locks[0].userId).toBe("ana");
+    expect(hosts[0].locks[0].name).toBe("あな");
+    fails(
+      () => thinkingCommand(sql, "deck", "host", true, "lock", id, { cardId }),
+      409,
+    );
+  });
+
+  it("keeps group boards inside the group and validates cards", () => {
+    const { sql } = fixture();
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    groupCommand(sql, "deck", "ana", false, "join", undefined, {
+      groupId: thinkingGroups(sql)[0],
+    });
+    groupCommand(sql, "deck", "bob", false, "join", undefined, {
+      groupId: thinkingGroups(sql)[0],
+    });
+    groupCommand(sql, "deck", "eve", false, "join", undefined, {
+      groupId: thinkingGroups(sql)[1],
+    });
+    const id = createBoard(sql, { unit: "group" });
+    open(sql, id);
+    const card = thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "b",
+      text: "班のカード",
+    })!;
+    const cardId = card.createdId!;
+    // Same group: bob sees it with ana's name and can move it, not edit.
+    const bobs = thinkingList(sql, "deck", "bob", false, { board: true });
+    expect(bobs[0].cards).toHaveLength(1);
+    expect(bobs[0].cards[0].authorName).toBe("あな");
+    thinkingCommand(sql, "deck", "bob", false, "cardmove", id, {
+      cardId,
+      zone: "a",
+    });
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "cardedit", id, {
+          cardId,
+          text: "だめ",
+        }),
+      403,
+    );
+    // Another group: nothing is returned and every write is refused.
+    expect(
+      thinkingList(sql, "deck", "eve", false, { board: true })[0].cards,
+    ).toHaveLength(0);
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "eve", false, "cardmove", id, {
+          cardId,
+          zone: "a",
+        }),
+      403,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "eve", false, "carddelete", id, {
+          cardId,
+        }),
+      403,
+    );
+    // Validation: bad zone, over-long text, unknown colour.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "card", id, {
+          zone: "zz",
+          text: "x",
+        }),
+      400,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "card", id, {
+          zone: "a",
+          text: "あ".repeat(81),
+        }),
+      400,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "card", id, {
+          zone: "a",
+          text: "x",
+          color: "purple",
+        }),
+      400,
+    );
+  });
+
+  it("keeps individual boards private", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql, { unit: "individual" });
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "個人のカード",
+    });
+    expect(
+      thinkingList(sql, "deck", "ana", false, { board: true })[0].cards,
+    ).toHaveLength(1);
+    expect(
+      thinkingList(sql, "deck", "bob", false, { board: true })[0].cards,
+    ).toHaveLength(0);
+    expect(
+      thinkingList(sql, "deck", "host", true, { board: true })[0].cards,
+    ).toHaveLength(1);
   });
 });
 

@@ -7,17 +7,40 @@ import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
  * Stage 1 covers the "point" kind: a learner places a point on axes, a
  * line, an emotion meter or a two-part ratio circle. Every scene (場面)
  * keeps its own point, so how a learner's thinking moved stays visible.
+ * Stage 2 adds the "board" kind: cards written into the zones of a
+ * chart (Venn diagrams, Y/X/W/T charts, PMI, a 2x2 matrix, KWL). A
+ * board written by the whole class is ONE shared board (plan §4.1.2) —
+ * unlike point tools, where a class tool still keys points per learner.
  * A tool is written by an individual, by a group (班) or by the whole
  * class, mirroring the worksheet/webbing permission shape: the shared
  * command enforces everything server-side for both servers.
  */
-export type ThinkingKind = "point";
-export type ThinkingTemplate = "axis2" | "axis1" | "emotion" | "ratio";
+export type ThinkingKind = "point" | "board";
+export type ThinkingTemplate =
+  | "axis2"
+  | "axis1"
+  | "emotion"
+  | "ratio"
+  | "venn2"
+  | "venn3"
+  | "ychart"
+  | "xchart"
+  | "wchart"
+  | "tchart"
+  | "pmi"
+  | "matrix"
+  | "kwl";
 export type ThinkingUnit = "individual" | "group" | "class";
 export type ThinkingStatus = "draft" | "open" | "closed";
 export type ThinkingScale = "none" | "s5" | "s10";
 
 export type ThinkingScene = { id: string; label: string };
+/** One zone （区切り） of a board template. The ids and geometry come
+ * from BOARD_ZONE_SPECS; the teacher edits only the labels. */
+export type ThinkingZone = { id: string; label: string };
+/** A card colour and the meaning the teacher gave it (e.g. yellow =
+ * 自分の考え). The colour is one of CARD_COLORS. */
+export type ThinkingCardColor = { color: string; label: string };
 export type ThinkingDefinition = {
   title: string;
   /** Axis end labels. x is used by axis2/axis1/emotion, y by axis2. */
@@ -31,6 +54,10 @@ export type ThinkingDefinition = {
   /** ratio: the two feelings/parts whose share is shown. */
   nameA: string;
   nameB: string;
+  /** Board templates: the zone labels (ids fixed per template). */
+  zones: ThinkingZone[];
+  /** Board templates: what each card colour means (may be empty). */
+  cardColors: ThinkingCardColor[];
   scenes: ThinkingScene[];
   sceneMode: "teacher" | "free";
   reason: boolean;
@@ -50,7 +77,31 @@ export type ThinkingLock = {
   scene: string;
   userId: string;
   name: string;
+  /** True when the lock is the viewer's own. Identity fields are
+   * blanked for viewers who may not see who is editing (plan
+   * §4.1.8), so clients must judge "someone else is editing" from
+   * this flag, never from a blank userId. */
+  mine: boolean;
   expires: number;
+};
+/** One card on a board tool. For board tools the lock row's scene
+ * column holds the card id while someone edits its text. */
+export type ThinkingCard = {
+  id: string;
+  owner: string;
+  zone: string;
+  text: string;
+  color: string;
+  x: number;
+  y: number;
+  sort: number;
+  authorId: string;
+  authorName: string;
+  /** True when the viewer wrote this card (author ids are not returned
+   * to most participants, so the client needs this to offer editing). */
+  mine: boolean;
+  created: number;
+  updated: number;
 };
 export type ThinkingTool = {
   id: string;
@@ -65,6 +116,7 @@ export type ThinkingTool = {
 };
 export type ThinkingView = ThinkingTool & {
   points: ThinkingPoint[];
+  cards: ThinkingCard[];
   locks: ThinkingLock[];
   /** The group the viewer belongs to (group-unit tools). */
   myGroupId?: string;
@@ -84,6 +136,11 @@ export const MAX_THINKING_TOOLS = 30;
 const MAX_SCENES = 10;
 const MAX_LABEL = 40;
 const MAX_REASON = 200;
+export const MAX_CARDS_PER_BOARD = 100;
+export const MAX_CARD_TEXT = 80;
+const MAX_DECK_CARDS = 5000;
+/** The fixed card colour palette. "" means no colour (white). */
+export const CARD_COLORS = ["yellow", "blue", "pink", "green"];
 
 export const thinkingSchema =
   `
@@ -91,11 +148,19 @@ CREATE TABLE IF NOT EXISTS thinking_tools(id TEXT PRIMARY KEY, deck TEXT NOT NUL
 CREATE INDEX IF NOT EXISTS thinking_tools_deck ON thinking_tools(deck);
 CREATE TABLE IF NOT EXISTS thinking_points(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, value TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', author TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
 CREATE INDEX IF NOT EXISTS thinking_points_tool ON thinking_points(tool);
-CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));` +
+CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
+CREATE TABLE IF NOT EXISTS thinking_cards(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, zone TEXT NOT NULL, parent TEXT, sort INTEGER NOT NULL DEFAULT 0, text TEXT NOT NULL, color TEXT NOT NULL DEFAULT '', x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS thinking_cards_tool ON thinking_cards(tool, owner);
+CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);` +
   featureVersionSchema +
   versionTriggers("thinking_tools", "thinking", (a) => `${a}.deck`) +
   versionTriggers(
     "thinking_points",
+    "thinking",
+    (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`,
+  ) +
+  versionTriggers(
+    "thinking_cards",
     "thinking",
     (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`,
   ) +
@@ -105,6 +170,120 @@ CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking
     (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`,
   );
 
+/** Zone geometry for one board template. Coordinates are fractions of
+ * the board surface (0..1). Rect zones hit-test by their rect; the Venn
+ * templates hit-test by circle membership (see zoneAtPoint) and only
+ * carry an anchor — where the zone's cards and label sit. */
+export type ThinkingZoneSpec = {
+  id: string;
+  label: string;
+  rect?: [number, number, number, number];
+  anchor: [number, number];
+};
+const cols = (labels: string[]): ThinkingZoneSpec[] =>
+  labels.map((label, i) => ({
+    id: String.fromCharCode(97 + i),
+    label,
+    rect: [i / labels.length, 0, 1 / labels.length, 1] as [
+      number,
+      number,
+      number,
+      number,
+    ],
+    anchor: [(i + 0.5) / labels.length, 0.5] as [number, number],
+  }));
+const quad = (labels: [string, string, string, string]): ThinkingZoneSpec[] =>
+  labels.map((label, i) => ({
+    id: String.fromCharCode(97 + i),
+    label,
+    rect: [i % 2 === 1 ? 0.5 : 0, i >= 2 ? 0.5 : 0, 0.5, 0.5] as [
+      number,
+      number,
+      number,
+      number,
+    ],
+    anchor: [i % 2 === 1 ? 0.75 : 0.25, i >= 2 ? 0.75 : 0.25] as [
+      number,
+      number,
+    ],
+  }));
+export const BOARD_ZONE_SPECS: Partial<
+  Record<ThinkingTemplate, ThinkingZoneSpec[]>
+> = {
+  venn2: [
+    { id: "a", label: "A", anchor: [0.2, 0.5] },
+    { id: "b", label: "B", anchor: [0.8, 0.5] },
+    { id: "ab", label: "AとBの重なり", anchor: [0.5, 0.5] },
+  ],
+  venn3: [
+    { id: "a", label: "A", anchor: [0.5, 0.18] },
+    { id: "b", label: "B", anchor: [0.18, 0.8] },
+    { id: "c", label: "C", anchor: [0.82, 0.8] },
+    { id: "ab", label: "AとB", anchor: [0.38, 0.42] },
+    { id: "ac", label: "AとC", anchor: [0.62, 0.42] },
+    { id: "bc", label: "BとC", anchor: [0.5, 0.76] },
+    { id: "abc", label: "AとBとC", anchor: [0.5, 0.56] },
+  ],
+  ychart: [
+    { id: "a", label: "見たこと", rect: [0, 0, 0.5, 0.55], anchor: [0.25, 0.27] },
+    { id: "b", label: "聞いたこと", rect: [0.5, 0, 0.5, 0.55], anchor: [0.75, 0.27] },
+    { id: "c", label: "感じたこと", rect: [0.25, 0.55, 0.5, 0.45], anchor: [0.5, 0.77] },
+  ],
+  xchart: quad(["左上", "右上", "左下", "右下"]),
+  wchart: cols(["いつ", "どこで", "だれが", "何を", "なぜ・どのように"]),
+  tchart: cols(["メリット", "デメリット"]),
+  pmi: cols(["よい点（Plus）", "課題（Minus）", "面白い点（Interesting）"]),
+  matrix: quad(["左上", "右上", "左下", "右下"]),
+  kwl: cols([
+    "知っていること（K）",
+    "知りたいこと（W）",
+    "分かったこと（L）",
+  ]),
+};
+/** The Venn circles, in the same 0..1 space (x, y, r). */
+export const VENN_CIRCLES: Partial<
+  Record<ThinkingTemplate, { x: number; y: number; r: number }[]>
+> = {
+  venn2: [
+    { x: 0.38, y: 0.5, r: 0.3 },
+    { x: 0.62, y: 0.5, r: 0.3 },
+  ],
+  venn3: [
+    { x: 0.5, y: 0.37, r: 0.27 },
+    { x: 0.36, y: 0.61, r: 0.27 },
+    { x: 0.64, y: 0.61, r: 0.27 },
+  ],
+};
+export function templateKind(template: ThinkingTemplate): ThinkingKind {
+  return BOARD_ZONE_SPECS[template] ? "board" : "point";
+}
+/** Which zone of a board template contains the point (x, y in 0..1)?
+ * Null when the point falls outside every zone. */
+export function zoneAtPoint(
+  template: ThinkingTemplate,
+  x: number,
+  y: number,
+): string | null {
+  const circles = VENN_CIRCLES[template];
+  if (circles) {
+    const inside = circles.map(
+      (c) => (x - c.x) ** 2 + (y - c.y) ** 2 <= c.r * c.r,
+    );
+    if (!inside.some(Boolean)) return null;
+    return inside
+      .map((on, i) => (on ? String.fromCharCode(97 + i) : ""))
+      .join("");
+  }
+  const spec = BOARD_ZONE_SPECS[template];
+  if (!spec) return null;
+  for (const zone of spec) {
+    if (!zone.rect) continue;
+    const [rx, ry, rw, rh] = zone.rect;
+    if (x >= rx && x <= rx + rw && y >= ry && y <= ry + rh) return zone.id;
+  }
+  return null;
+}
+
 function cleanLabel(value: unknown, label: string, max = MAX_LABEL): string {
   insist(
     typeof value === "string" && value.trim().length > 0 && value.length <= max,
@@ -113,7 +292,21 @@ function cleanLabel(value: unknown, label: string, max = MAX_LABEL): string {
   );
   return (value as string).trim().replace(/\s+/g, " ");
 }
-const TEMPLATES: ThinkingTemplate[] = ["axis2", "axis1", "emotion", "ratio"];
+const TEMPLATES: ThinkingTemplate[] = [
+  "axis2",
+  "axis1",
+  "emotion",
+  "ratio",
+  "venn2",
+  "venn3",
+  "ychart",
+  "xchart",
+  "wchart",
+  "tchart",
+  "pmi",
+  "matrix",
+  "kwl",
+];
 const UNITS: ThinkingUnit[] = ["individual", "group", "class"];
 
 /** Validate and normalize a tool definition for its template. Throws
@@ -136,6 +329,81 @@ export function parseThinkingDefinition(
     "思考ツールの設定を確認してください。",
   );
   const title = cleanLabel(value.title, "ツールの名前", 60);
+  if (BOARD_ZONE_SPECS[t]) {
+    // Board templates: the zones are fixed by the template; only their
+    // labels (and the card colour meanings) are the teacher's to edit.
+    // Boards have no scenes and no reason field.
+    const spec = BOARD_ZONE_SPECS[t]!;
+    insist(
+      value.zones === undefined || Array.isArray(value.zones),
+      400,
+      "区切りの設定を確認してください。",
+    );
+    const given = new Map<string, unknown>();
+    for (const entry of (value.zones as unknown[] | undefined) ?? []) {
+      const z = entry as Record<string, unknown>;
+      insist(
+        z && typeof z === "object" && typeof z.id === "string",
+        400,
+        "区切りの設定を確認してください。",
+      );
+      given.set(z.id as string, z.label);
+    }
+    const zones: ThinkingZone[] = spec.map((zone) => ({
+      id: zone.id,
+      label:
+        given.get(zone.id) === undefined
+          ? zone.label
+          : cleanLabel(given.get(zone.id), "区切りの名前"),
+    }));
+    insist(
+      [...given.keys()].every((id) => spec.some((zone) => zone.id === id)),
+      400,
+      "区切りの設定を確認してください。",
+    );
+    const cardColors: ThinkingCardColor[] = [];
+    insist(
+      value.cardColors === undefined || Array.isArray(value.cardColors),
+      400,
+      "カードの色の設定を確認してください。",
+    );
+    for (const entry of (value.cardColors as unknown[] | undefined) ?? []) {
+      const c = entry as Record<string, unknown>;
+      insist(
+        c &&
+          typeof c === "object" &&
+          typeof c.color === "string" &&
+          CARD_COLORS.includes(c.color as string) &&
+          !cardColors.some((x) => x.color === c.color),
+        400,
+        "カードの色の設定を確認してください。",
+      );
+      cardColors.push({
+        color: c.color as string,
+        label: cleanLabel(c.label, "色の意味", 20),
+      });
+    }
+    insist(cardColors.length <= 4, 400, "カードの色は4つまでです。");
+    return {
+      template: t,
+      definition: {
+        title,
+        xMin: "",
+        xMax: "",
+        yMin: "",
+        yMax: "",
+        scale: "none",
+        vertical: false,
+        nameA: "",
+        nameB: "",
+        zones,
+        cardColors,
+        scenes: [],
+        sceneMode: "teacher",
+        reason: false,
+      },
+    };
+  }
   insist(
     value.scenes === undefined || Array.isArray(value.scenes),
     400,
@@ -190,6 +458,8 @@ export function parseThinkingDefinition(
     vertical: value.vertical === true,
     nameA: "",
     nameB: "",
+    zones: [],
+    cardColors: [],
     scenes,
     sceneMode: scenes.length
       ? value.sceneMode === "free"
@@ -222,29 +492,41 @@ function parseUnit(raw: unknown): ThinkingUnit {
   return raw as ThinkingUnit;
 }
 
+const EMPTY_DEFINITION: ThinkingDefinition = {
+  title: "思考ツール",
+  xMin: "",
+  xMax: "",
+  yMin: "",
+  yMax: "",
+  scale: "none",
+  vertical: false,
+  nameA: "",
+  nameB: "",
+  zones: [],
+  cardColors: [],
+  scenes: [],
+  sceneMode: "teacher",
+  reason: false,
+};
+
 function readTool(row: Record<string, unknown>): ThinkingTool {
   let definition: ThinkingDefinition;
   try {
-    definition = JSON.parse(row.definition as string) as ThinkingDefinition;
-  } catch {
+    const parsed = JSON.parse(row.definition as string) as ThinkingDefinition;
+    // Definitions written before stage 2 lack the board fields.
     definition = {
-      title: "思考ツール",
-      xMin: "",
-      xMax: "",
-      yMin: "",
-      yMax: "",
-      scale: "none",
-      vertical: false,
-      nameA: "",
-      nameB: "",
-      scenes: [],
-      sceneMode: "teacher",
-      reason: false,
+      ...EMPTY_DEFINITION,
+      ...parsed,
+      zones: parsed.zones ?? [],
+      cardColors: parsed.cardColors ?? [],
+      scenes: parsed.scenes ?? [],
     };
+  } catch {
+    definition = EMPTY_DEFINITION;
   }
   return {
     id: row.id as string,
-    kind: "point",
+    kind: (row.kind as ThinkingKind) ?? "point",
     template: row.template as ThinkingTemplate,
     unit: row.unit as ThinkingUnit,
     definition,
@@ -318,11 +600,28 @@ function visibleOwners(
   return { owners: mine ? [mine] : [], myGroupId: mine };
 }
 
+/** The owner keys whose cards a viewer receives on a board tool. A
+ * class board is one shared board (owner ""), unlike point tools. */
+function boardVisibleOwners(
+  sql: HistorySQL,
+  deck: string,
+  tool: ThinkingTool,
+  actor: string,
+  host: boolean,
+): { owners: string[] | null; myGroupId?: string } {
+  if (host) return { owners: null };
+  if (tool.unit === "individual") return { owners: [actor] };
+  if (tool.unit === "class") return { owners: [""] };
+  const mine = effectiveGroupId(sql, deck, actor);
+  return { owners: mine ? [mine] : [], myGroupId: mine };
+}
+
 export function thinkingList(
   sql: HistorySQL,
   deck: string,
   actor: string,
   host: boolean,
+  caps?: { board?: boolean },
 ): ThinkingView[] {
   const now = Date.now();
   return [
@@ -332,8 +631,95 @@ export function thinkingList(
     ),
   ]
     .filter((row) => host || row.status !== "draft")
+    .filter((row) => caps?.board || row.kind !== "board")
     .map((row) => {
       const tool = readTool(row);
+      if (tool.kind === "board") {
+        const { owners, myGroupId } = boardVisibleOwners(
+          sql,
+          deck,
+          tool,
+          actor,
+          host,
+        );
+        const showAuthor = host || tool.unit === "group";
+        const ownerClause =
+          owners === null
+            ? ""
+            : owners.length === 0
+              ? " AND 1=0"
+              : ` AND c.owner IN (${owners.map(() => "?").join(",")})`;
+        const cards = (
+          owners !== null && owners.length === 0
+            ? []
+            : [
+                ...sql(
+                  showAuthor
+                    ? `SELECT c.*,u.name AS author_name FROM thinking_cards c LEFT JOIN users u ON u.id=c.author WHERE c.tool=?${ownerClause} ORDER BY c.zone,c.sort,c.created`
+                    : `SELECT c.* FROM thinking_cards c WHERE c.tool=?${ownerClause} ORDER BY c.zone,c.sort,c.created`,
+                  tool.id,
+                  ...(owners ?? []),
+                ),
+              ]
+        ).map(
+          (c): ThinkingCard => ({
+            id: c.id as string,
+            owner: c.owner as string,
+            zone: c.zone as string,
+            text: c.text as string,
+            color: c.color as string,
+            x: c.x as number,
+            y: c.y as number,
+            sort: c.sort as number,
+            authorId: showAuthor ? (c.author as string) : "",
+            authorName: showAuthor
+              ? (c.author_name as string) || "名前未登録"
+              : "",
+            mine: c.author === actor,
+            created: c.created as number,
+            updated: c.updated as number,
+          }),
+        );
+        const lockOwnerClause =
+          owners === null
+            ? ""
+            : owners.length === 0
+              ? " AND 1=0"
+              : ` AND owner IN (${owners.map(() => "?").join(",")})`;
+        const locks = (
+          owners !== null && owners.length === 0
+            ? []
+            : [
+                ...sql(
+                  `SELECT owner,scene,user,name,expires FROM thinking_locks WHERE tool=? AND expires>?${lockOwnerClause}`,
+                  tool.id,
+                  now,
+                  ...(owners ?? []),
+                ),
+              ]
+        ).map((l): ThinkingLock => {
+          // A board lock names the card's author (only the author or
+          // the host may take it), so its identity is the author's:
+          // return it only to the host and same-group members, like
+          // card authors (plan §4.1.8, stage-2 review 🔴2).
+          const showIdentity = host || tool.unit === "group";
+          return {
+            owner: l.owner as string,
+            scene: l.scene as string,
+            userId: showIdentity ? (l.user as string) : "",
+            name: showIdentity ? (l.name as string) : "",
+            mine: (l.user as string) === actor,
+            expires: l.expires as number,
+          };
+        });
+        return {
+          ...tool,
+          points: [],
+          cards,
+          locks,
+          ...(myGroupId ? { myGroupId } : {}),
+        };
+      }
       const { owners, myGroupId } = visibleOwners(sql, deck, tool, actor, host);
       // Participants read only their own owners' rows: the owner filter
       // belongs in SQL (the points primary key starts with
@@ -403,10 +789,17 @@ export function thinkingList(
           scene: l.scene as string,
           userId: l.user as string,
           name: l.name as string,
+          mine: (l.user as string) === actor,
           expires: l.expires as number,
         }),
       );
-      return { ...tool, points, locks, ...(myGroupId ? { myGroupId } : {}) };
+      return {
+        ...tool,
+        points,
+        cards: [],
+        locks,
+        ...(myGroupId ? { myGroupId } : {}),
+      };
     });
 }
 
@@ -433,17 +826,17 @@ function actorName(sql: HistorySQL, actor: string): string {
   return (row?.name as string) || "名前未登録";
 }
 
-/** Take (or refresh) the short editing lock; another holder rejects. */
-function takeLock(
+/** Take (or refresh) the short editing lock; another holder rejects.
+ * The key is a scene id for point tools and a card id for board tools. */
+function lockRow(
   sql: HistorySQL,
   tool: ThinkingTool,
   owner: string,
-  scene: string,
+  key: string,
   actor: string,
   now: number,
 ) {
-  if (tool.unit === "individual" || tool.unit === "class") return;
-  const lock = activeLock(sql, tool.id, owner, scene, now);
+  const lock = activeLock(sql, tool.id, owner, key, now);
   insist(
     !lock || lock.user === actor,
     409,
@@ -453,11 +846,23 @@ function takeLock(
     "INSERT INTO thinking_locks(tool,owner,scene,user,name,expires) VALUES(?,?,?,?,?,?) ON CONFLICT(tool,owner,scene) DO UPDATE SET user=excluded.user,name=excluded.name,expires=excluded.expires",
     tool.id,
     owner,
-    scene,
+    key,
     actor,
     actorName(sql, actor),
     now + THINKING_LOCK_MS,
   );
+}
+
+function takeLock(
+  sql: HistorySQL,
+  tool: ThinkingTool,
+  owner: string,
+  scene: string,
+  actor: string,
+  now: number,
+) {
+  if (tool.unit === "individual" || tool.unit === "class") return;
+  lockRow(sql, tool, owner, scene, actor, now);
 }
 
 function cleanScene(tool: ThinkingTool, raw: unknown): string {
@@ -511,6 +916,129 @@ function cleanPointValue(
   return { v: unit(value.v) };
 }
 
+/** The owner key a new card lands under. Class boards are shared
+ * (owner ""); the host may name a group explicitly. */
+function boardOwner(
+  sql: HistorySQL,
+  deck: string,
+  tool: ThinkingTool,
+  actor: string,
+  host: boolean,
+  requested: unknown,
+): string {
+  if (tool.unit === "class") return "";
+  if (tool.unit === "individual") {
+    if (typeof requested === "string" && requested !== "" && requested !== actor)
+      insist(host, 403, "ほかの人のカードは変更できません。");
+    return typeof requested === "string" && requested !== "" && host
+      ? requested
+      : actor;
+  }
+  if (host && typeof requested === "string" && requested !== "") {
+    const exists = [
+      ...sql("SELECT id FROM deck_groups WHERE deck=? AND id=?", deck, requested),
+    ][0];
+    insist(exists, 404, "その班が見つかりません。");
+    return requested;
+  }
+  const mine = effectiveGroupId(sql, deck, actor);
+  insist(mine, 409, "班に入ってから書き込んでください。");
+  if (typeof requested === "string" && requested !== "" && requested !== mine)
+    insist(false, 403, "ほかの班のカードは変更できません。");
+  return mine as string;
+}
+
+type CardRow = Record<string, unknown>;
+
+function loadCard(
+  sql: HistorySQL,
+  tool: ThinkingTool,
+  raw: unknown,
+): CardRow {
+  insist(
+    typeof raw === "string" && raw !== "",
+    400,
+    "カードを確認してください。",
+  );
+  const row = [
+    ...sql(
+      "SELECT * FROM thinking_cards WHERE tool=? AND id=?",
+      tool.id,
+      raw as string,
+    ),
+  ][0];
+  insist(row, 404, "そのカードは既に消えています。");
+  return row;
+}
+
+/** A card is in the actor's writing scope when it sits on a board the
+ * actor writes to: their own (individual), their group's (group) or the
+ * shared board (class). The host may act on any card. */
+function insistCardScope(
+  sql: HistorySQL,
+  deck: string,
+  tool: ThinkingTool,
+  card: CardRow,
+  actor: string,
+  host: boolean,
+) {
+  if (host) return;
+  if (tool.unit === "individual")
+    insist(card.owner === actor, 403, "ほかの人のカードは変更できません。");
+  else if (tool.unit === "class")
+    insist(card.owner === "", 403, "そのカードは変更できません。");
+  else {
+    const mine = effectiveGroupId(sql, deck, actor);
+    insist(mine, 409, "班に入ってから書き込んでください。");
+    insist(card.owner === mine, 403, "ほかの班のカードは変更できません。");
+  }
+}
+
+function cleanZone(tool: ThinkingTool, raw: unknown): string {
+  insist(
+    typeof raw === "string" &&
+      tool.definition.zones.some((z) => z.id === raw),
+    400,
+    "区切りを確認してください。",
+  );
+  return raw as string;
+}
+
+function cleanCardText(raw: unknown): string {
+  insist(
+    typeof raw === "string" && raw.trim().length > 0,
+    400,
+    "カードの内容を入力してください。",
+  );
+  const text = (raw as string).trim().replace(/\s+/g, " ");
+  insist(
+    text.length <= MAX_CARD_TEXT,
+    400,
+    `カードは${MAX_CARD_TEXT}文字までです。`,
+  );
+  return text;
+}
+
+function cleanCardColor(raw: unknown): string {
+  if (raw === undefined || raw === "") return "";
+  insist(
+    typeof raw === "string" && CARD_COLORS.includes(raw as string),
+    400,
+    "カードの色を確認してください。",
+  );
+  return raw as string;
+}
+
+function cleanCardPos(raw: unknown, fallback: number): number {
+  if (raw === undefined) return fallback;
+  insist(
+    typeof raw === "number" && Number.isFinite(raw) && raw >= 0 && raw <= 1,
+    400,
+    "カードの位置を確認してください。",
+  );
+  return raw as number;
+}
+
 /** Must run within the caller's transaction after membership validation.
  * Returns extra response fields (create reports the new id). */
 export function thinkingCommand(
@@ -544,7 +1072,7 @@ export function thinkingCommand(
     );
     const tool: ThinkingTool = {
       id: crypto.randomUUID(),
-      kind: "point",
+      kind: templateKind(template),
       template,
       unit,
       definition,
@@ -578,13 +1106,17 @@ export function thinkingCommand(
     const pointCount = [
       ...sql("SELECT COUNT(*) AS n FROM thinking_points WHERE tool=?", tool.id),
     ][0].n as number;
+    const cardCount = [
+      ...sql("SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=?", tool.id),
+    ][0].n as number;
+    const writingCount = pointCount + cardCount;
     insist(
-      unit === tool.unit || pointCount === 0,
+      unit === tool.unit || writingCount === 0,
       409,
       "回答があるため、書き込む単位は変更できません。",
     );
     // Scenes that already hold points cannot be removed.
-    if (pointCount > 0) {
+    if (writingCount > 0) {
       const usedScenes = new Set(
         [...sql("SELECT DISTINCT scene FROM thinking_points WHERE tool=?", tool.id)].map(
           (r) => r.scene as string,
@@ -634,6 +1166,7 @@ export function thinkingCommand(
   if (action === "delete") {
     insist(host, 403, "思考ツールを削除できるのはホストだけです。");
     sql("DELETE FROM thinking_points WHERE tool=?", tool.id);
+    sql("DELETE FROM thinking_cards WHERE tool=?", tool.id);
     sql("DELETE FROM thinking_locks WHERE tool=?", tool.id);
     sql("DELETE FROM thinking_tools WHERE id=?", tool.id);
     return undefined;
@@ -644,6 +1177,21 @@ export function thinkingCommand(
       409,
       "このツールは書き込みを受け付けていません。",
     );
+    if (tool.kind === "board") {
+      // Board locks guard one card's text editing (key = card id).
+      // Only the card's author or the host may take it: anyone else
+      // could otherwise keep re-taking it and block the author from
+      // editing at all (stage-2 review 🔴2).
+      const card = loadCard(sql, tool, value.cardId);
+      insistCardScope(sql, deck, tool, card, actor, host);
+      insist(
+        host || card.author === actor,
+        403,
+        "カードのロックを取れるのは、書いた人と先生だけです。",
+      );
+      lockRow(sql, tool, card.owner as string, card.id as string, actor, now);
+      return undefined;
+    }
     const owner = resolveOwner(sql, deck, tool, actor, host, value.owner);
     const scene = cleanScene(tool, value.scene);
     takeLock(sql, tool, owner, scene, actor, now);
@@ -727,6 +1275,158 @@ export function thinkingCommand(
       tool.id,
       owner,
       scene,
+    );
+    return undefined;
+  }
+  if (action === "card") {
+    insist(tool.kind === "board", 400, "このツールにカードは書けません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const owner = boardOwner(sql, deck, tool, actor, host, value.owner);
+    const zone = cleanZone(tool, value.zone);
+    const text = cleanCardText(value.text);
+    const color = cleanCardColor(value.color);
+    const boardCount = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=? AND owner=?",
+        tool.id,
+        owner,
+      ),
+    ][0].n as number;
+    insist(
+      boardCount < MAX_CARDS_PER_BOARD,
+      413,
+      `カードは1枚のチャートに${MAX_CARDS_PER_BOARD}枚までです。`,
+    );
+    // The deck total counts through the (deck) index on the card
+    // rows themselves — no join against thinking_tools per write
+    // (stage-2 review 🟡6).
+    const deckCount = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM thinking_cards WHERE deck=?",
+        deck,
+      ),
+    ][0].n as number;
+    insist(
+      deckCount < MAX_DECK_CARDS,
+      413,
+      "作品全体のカードの上限に達しています。",
+    );
+    const sort = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=? AND owner=? AND zone=?",
+        tool.id,
+        owner,
+        zone,
+      ),
+    ][0].n as number;
+    const cardId = crypto.randomUUID();
+    sql(
+      "INSERT INTO thinking_cards(id,tool,deck,owner,zone,parent,sort,text,color,x,y,author,created,updated) VALUES(?,?,?,?,?,NULL,?,?,?,?,?,?,?,?)",
+      cardId,
+      tool.id,
+      deck,
+      owner,
+      zone,
+      sort,
+      text,
+      color,
+      cleanCardPos(value.x, 0.5),
+      cleanCardPos(value.y, 0.5),
+      actor,
+      now,
+      now,
+    );
+    return { createdId: cardId };
+  }
+  if (action === "cardmove") {
+    insist(tool.kind === "board", 400, "このツールにカードはありません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const card = loadCard(sql, tool, value.cardId);
+    insistCardScope(sql, deck, tool, card, actor, host);
+    // Moving a card is open to everyone in scope (user decision 1);
+    // only its text is the author's. The card lands at the end of the
+    // target zone.
+    const zone = cleanZone(tool, value.zone);
+    const sort = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=? AND owner=? AND zone=? AND id<>?",
+        tool.id,
+        card.owner as string,
+        zone,
+        card.id as string,
+      ),
+    ][0].n as number;
+    sql(
+      "UPDATE thinking_cards SET zone=?,sort=?,x=?,y=?,updated=? WHERE id=?",
+      zone,
+      sort,
+      cleanCardPos(value.x, card.x as number),
+      cleanCardPos(value.y, card.y as number),
+      now,
+      card.id as string,
+    );
+    return undefined;
+  }
+  if (action === "cardedit") {
+    insist(tool.kind === "board", 400, "このツールにカードはありません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const card = loadCard(sql, tool, value.cardId);
+    insistCardScope(sql, deck, tool, card, actor, host);
+    insist(
+      host || card.author === actor,
+      403,
+      "カードの内容を変えられるのは、書いた人と先生だけです。",
+    );
+    lockRow(sql, tool, card.owner as string, card.id as string, actor, now);
+    const text =
+      value.text === undefined
+        ? (card.text as string)
+        : cleanCardText(value.text);
+    const color =
+      value.color === undefined
+        ? (card.color as string)
+        : cleanCardColor(value.color);
+    sql(
+      "UPDATE thinking_cards SET text=?,color=?,updated=? WHERE id=?",
+      text,
+      color,
+      now,
+      card.id as string,
+    );
+    return undefined;
+  }
+  if (action === "carddelete") {
+    insist(tool.kind === "board", 400, "このツールにカードはありません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const card = loadCard(sql, tool, value.cardId);
+    insistCardScope(sql, deck, tool, card, actor, host);
+    insist(
+      host || card.author === actor,
+      403,
+      "カードを消せるのは、書いた人と先生だけです。",
+    );
+    sql("DELETE FROM thinking_cards WHERE id=?", card.id as string);
+    sql(
+      "DELETE FROM thinking_locks WHERE tool=? AND owner=? AND scene=?",
+      tool.id,
+      card.owner as string,
+      card.id as string,
     );
     return undefined;
   }

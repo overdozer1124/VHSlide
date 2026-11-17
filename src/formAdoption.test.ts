@@ -112,6 +112,8 @@ describe("collectForeignForms", () => {
       vertical: false,
       nameA: "",
       nameB: "",
+      zones: [],
+      cardColors: [],
       scenes: [{ id: "s1", label: "場面1" }],
       sceneMode: "teacher" as const,
       reason: true,
@@ -155,6 +157,50 @@ describe("collectForeignForms", () => {
     // The owner-deck binding is untouched.
     expect(rewritten.slides[0].elements[1].thinking?.deckId).toBe(OWNER);
     expect(rewritten.slides[0].elements[1].thinking?.toolId).toBe(TOOL);
+  });
+
+  it("collects foreign board thinking tools with their zone labels", () => {
+    const TOOL = "88888888-8888-4888-8888-888888888888";
+    const definition = {
+      title: "ベン図",
+      xMin: "",
+      xMax: "",
+      yMin: "",
+      yMax: "",
+      scale: "none" as const,
+      vertical: false,
+      nameA: "",
+      nameB: "",
+      zones: [
+        { id: "a", label: "魚" },
+        { id: "b", label: "肉" },
+        { id: "ab", label: "両方" },
+      ],
+      cardColors: [{ color: "yellow", label: "自分の考え" }],
+      scenes: [],
+      sceneMode: "teacher" as const,
+      reason: false,
+    };
+    const deck = deckOf([
+      el({
+        thinking: {
+          deckId: OTHER,
+          toolId: TOOL,
+          title: "ベン図",
+          template: "venn2",
+          unit: "class",
+          definition,
+        },
+      }),
+    ]);
+    const { thinking } = collectForeignForms(deck, OWNER);
+    expect(thinking).toHaveLength(1);
+    expect(thinking[0].template).toBe("venn2");
+    expect(thinking[0].definition.zones.map((z) => z.label)).toEqual([
+      "魚",
+      "肉",
+      "両方",
+    ]);
   });
 
   it("prefers an embedded worksheet definition over field snapshots", () => {

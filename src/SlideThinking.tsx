@@ -3,7 +3,13 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Element } from "./model";
 import { useThinking } from "./ThinkingContext";
 import { useGroups } from "./GroupsContext";
+import {
+  BOARD_ZONE_SPECS,
+  VENN_CIRCLES,
+  zoneAtPoint,
+} from "./thinkingTools";
 import type {
+  ThinkingCard,
   ThinkingPoint,
   ThinkingPointValue,
   ThinkingView,
@@ -78,7 +84,15 @@ export function SlideThinking(props: {
         )}
       </header>
       {tool ? (
-        <ThinkingSurface tool={tool} interactive={!!props.interactive} />
+        tool.kind === "board" ? (
+          <BoardSurface tool={tool} interactive={!!props.interactive} />
+        ) : tool.kind === "point" ? (
+          <ThinkingSurface tool={tool} interactive={!!props.interactive} />
+        ) : (
+          <div className="webbing-unavailable">
+            <p>このツールは、新しい版のVHSlideで開いてください。</p>
+          </div>
+        )
       ) : (
         <div className="webbing-unavailable">
           <p>
@@ -648,6 +662,617 @@ function RatioSurface({
           <p className="thinking-hint">円をタップするか、スライダーで割合を決めよう</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Board (区切り・カード型) surface: cards written into the zones of a
+ * chart. Anyone in scope may move a card; its text is edited or deleted
+ * only by its author or the host, under the short editing lock (user
+ * decisions, plan §4.1.2/§7). A class board is one shared board. */
+function BoardSurface({
+  tool,
+  interactive,
+}: {
+  tool: ThinkingView;
+  interactive: boolean;
+}) {
+  const ctx = useThinking();
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const spec = BOARD_ZONE_SPECS[tool.template] ?? [];
+  const circles = VENN_CIRCLES[tool.template];
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [composing, setComposing] = useState("");
+  const [draftText, setDraftText] = useState("");
+  const [draftColor, setDraftColor] = useState("");
+  const [selectedId, setSelectedId] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [moveZone, setMoveZone] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notice, setNotice] = useState("");
+  // Host-only slide display state (user decision 2026-11-17): for
+  // individual/group boards the host first sees one thumbnail per
+  // student/group and opens one chart at a time; author names stay
+  // hidden until the host explicitly turns them on. Neither changes
+  // what the server returns to anyone.
+  const [focusOwner, setFocusOwner] = useState("");
+  const [showNames, setShowNames] = useState(false);
+  const [drag, setDrag] = useState<
+    { id: string; x: number; y: number } | undefined
+  >(undefined);
+  const dragStart = useRef<{ id: string; px: number; py: number } | undefined>(
+    undefined,
+  );
+  // Lock expiry is time-based; re-check it once a second like points.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (tool.unit === "group" && !tool.myGroupId && !ctx.host) {
+    return (
+      <div className="thinking-join">
+        <p>この思考ツールは班ごとに書き込みます。班に入ってください。</p>
+        <div className="thinking-join-buttons">
+          {groupsCtx.groups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => void groupsCtx.command("join", { groupId: g.id })}
+            >
+              {g.name}に入る
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const inScope =
+    interactive &&
+    tool.status === "open" &&
+    !(ctx.host && tool.unit === "group") &&
+    !focusOwner;
+  const canCompose =
+    inScope && (tool.unit !== "group" || !!tool.myGroupId) &&
+    (!ctx.host || tool.unit === "class");
+  const canMove = inScope && (tool.unit !== "group" || !!tool.myGroupId || !!ctx.host);
+  // On the host's slide, individual and group boards open as a
+  // thumbnail list (one chart per student/group) instead of piling
+  // everyone's cards into one chart (user decision 2026-11-17).
+  const hostChartList = !!ctx.host && tool.unit !== "class" && !focusOwner;
+  const chartOwners: { owner: string; label: string }[] =
+    tool.unit === "group"
+      ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
+      : [...new Set(tool.cards.map((c) => c.owner))].map((owner, i) => ({
+          owner,
+          label: showNames
+            ? tool.cards.find((c) => c.owner === owner)?.authorName ||
+              "名前未登録"
+            : `生徒${i + 1}`,
+        }));
+  const focusLabel =
+    chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
+  const selected = tool.cards.find((c) => c.id === selectedId);
+  const lockOf = (card: ThinkingCard) =>
+    tool.locks.find((l) => l.scene === card.id && l.expires > nowTick);
+  const selectedLock = selected ? lockOf(selected) : undefined;
+  const selectedLockedByOther = !!selectedLock && !selectedLock.mine;
+  const canEditSelected =
+    !!selected && (selected.mine || !!ctx.host) && !selectedLockedByOther;
+
+  function zoneLabel(zoneId: string): string {
+    return def.zones.find((z) => z.id === zoneId)?.label ?? zoneId;
+  }
+  async function run(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+      setNotice("");
+    } catch (e) {
+      setNotice((e as Error).message);
+    }
+  }
+  async function addCard(zone: string) {
+    const text = draftText.trim();
+    if (!text) return;
+    const result = await ctx
+      .command(tool.id, "card", {
+        zone,
+        text,
+        color: draftColor,
+        ...(tool.unit === "group" ? { owner: tool.myGroupId } : {}),
+      })
+      .catch((e: Error) => {
+        setNotice(e.message);
+        return undefined;
+      });
+    if (result) {
+      setDraftText("");
+      setComposing("");
+      if (result.createdId) setSelectedId(result.createdId);
+    }
+  }
+  function beginEdit(card: ThinkingCard) {
+    setEditing(true);
+    setEditText(card.text);
+    setEditColor(card.color);
+    setConfirmDelete(false);
+    void ctx.command(tool.id, "lock", { cardId: card.id }).catch(() => {});
+  }
+  async function saveEdit() {
+    if (!selected) return;
+    await run(async () => {
+      await ctx.command(tool.id, "cardedit", {
+        cardId: selected.id,
+        text: editText,
+        color: editColor,
+      });
+      setEditing(false);
+    });
+  }
+  function boardPos(e: ReactPointerEvent): { x: number; y: number } {
+    const rect = boardRef.current!.getBoundingClientRect();
+    return {
+      x: clamp01((e.clientX - rect.left) / rect.width),
+      y: clamp01((e.clientY - rect.top) / rect.height),
+    };
+  }
+
+  function renderCard(card: ThinkingCard) {
+    const lock = lockOf(card);
+    const lockedByOther = !!lock && !lock.mine;
+    if (focusOwner)
+      // The host's opened chart is for looking, not editing.
+      return (
+        <div
+          key={card.id}
+          className={`thinking-card is-${card.color || "none"}`}
+        >
+          <span className="thinking-card-text">{card.text}</span>
+          {showNames && card.authorName && (
+            <span className="thinking-card-author">{card.authorName}</span>
+          )}
+        </div>
+      );
+    return (
+      <div
+        key={card.id}
+        role="button"
+        tabIndex={0}
+        aria-label={`カード：${card.text}`}
+        className={`thinking-card is-${card.color || "none"} ${card.id === selectedId ? "is-selected" : ""} ${drag?.id === card.id ? "is-dragging" : ""} ${canMove ? "is-draggable" : ""}`}
+        onClick={() => {
+          setSelectedId(card.id);
+          setEditing(false);
+          setMoveZone(card.zone);
+          setConfirmDelete(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedId(card.id);
+            setMoveZone(card.zone);
+          }
+        }}
+        onPointerDown={(e) => {
+          if (!canMove) return;
+          e.stopPropagation();
+          dragStart.current = { id: card.id, px: e.clientX, py: e.clientY };
+          (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const start = dragStart.current;
+          if (!start || start.id !== card.id) return;
+          if (
+            !drag &&
+            Math.hypot(e.clientX - start.px, e.clientY - start.py) < 8
+          )
+            return;
+          setDrag({ id: card.id, ...boardPos(e) });
+        }}
+        onPointerUp={(e) => {
+          const start = dragStart.current;
+          dragStart.current = undefined;
+          if (!start || start.id !== card.id) return;
+          if (drag?.id === card.id) {
+            const pos = boardPos(e);
+            const zone = zoneAtPoint(tool.template, pos.x, pos.y);
+            setDrag(undefined);
+            if (zone && zone !== card.zone)
+              void run(() =>
+                ctx.command(tool.id, "cardmove", {
+                  cardId: card.id,
+                  zone,
+                  x: pos.x,
+                  y: pos.y,
+                }),
+              );
+          }
+        }}
+      >
+        <span className="thinking-card-text">{card.text}</span>
+        {/* Author names on a slide only when the host turned them on
+          (user decision 2026-11-17): the host's screen is what gets
+          projected to the class, so the default is no names. */}
+        {showNames && ctx.host && card.authorName && (
+          <span className="thinking-card-author">{card.authorName}</span>
+        )}
+        {lockedByOther && (
+          <span className="thinking-card-lock">ほかの人が編集中です</span>
+        )}
+      </div>
+    );
+  }
+
+  function composeForm(zone: string) {
+    return (
+      <div
+        className="thinking-compose"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <textarea
+          aria-label="カードの内容"
+          value={draftText}
+          maxLength={80}
+          rows={2}
+          autoFocus
+          placeholder="カードに書くこと"
+          onChange={(e) => setDraftText(e.target.value)}
+        />
+        {def.cardColors.length > 0 && (
+          <select
+            aria-label="カードの色"
+            value={draftColor}
+            onChange={(e) => setDraftColor(e.target.value)}
+          >
+            <option value="">色なし</option>
+            {def.cardColors.map((c) => (
+              <option key={c.color} value={c.color}>
+                {c.label || c.color}
+              </option>
+            ))}
+          </select>
+        )}
+        <div className="thinking-compose-actions">
+          <button
+            type="button"
+            disabled={!draftText.trim()}
+            onClick={() => void addCard(zone)}
+          >
+            追加する
+          </button>
+          <button type="button" onClick={() => setComposing("")}>
+            やめる
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const cardsIn = (zone: string) =>
+    tool.cards
+      .filter((c) => !focusOwner || c.owner === focusOwner)
+      .filter((c) => c.zone === zone)
+      .sort((a, b) => a.sort - b.sort || a.created - b.created);
+
+  const renderThumbs = () => (
+    <div className="thinking-thumbs">
+      {chartOwners.map(({ owner, label }) => {
+        const own = tool.cards.filter((c) => c.owner === owner);
+        return (
+          <button
+            type="button"
+            key={owner}
+            className="thinking-thumb"
+            onClick={() => setFocusOwner(owner)}
+          >
+            <span className="thinking-thumb-board">
+              {circles && (
+                <svg
+                  className="thinking-venn"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  {circles.map((c, i) => (
+                    <circle
+                      key={i}
+                      cx={c.x * 100}
+                      cy={c.y * 100}
+                      r={c.r * 100}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
+                </svg>
+              )}
+              {spec.map((zoneSpec) => (
+                <span
+                  key={zoneSpec.id}
+                  className={`thinking-thumb-zone${zoneSpec.rect ? "" : " is-anchor"}`}
+                  style={
+                    zoneSpec.rect
+                      ? {
+                          left: `${zoneSpec.rect[0] * 100}%`,
+                          top: `${zoneSpec.rect[1] * 100}%`,
+                          width: `${zoneSpec.rect[2] * 100}%`,
+                          height: `${zoneSpec.rect[3] * 100}%`,
+                        }
+                      : {
+                          left: `${(zoneSpec.anchor?.[0] ?? 0.5) * 100}%`,
+                          top: `${(zoneSpec.anchor?.[1] ?? 0.5) * 100}%`,
+                        }
+                  }
+                >
+                  {own
+                    .filter((c) => c.zone === zoneSpec.id)
+                    .map((c) => (
+                      <span
+                        key={c.id}
+                        className={`thinking-thumb-card is-${c.color || "none"}`}
+                      />
+                    ))}
+                </span>
+              ))}
+            </span>
+            <span className="thinking-thumb-label">
+              {label}（{own.length}枚）
+            </span>
+          </button>
+        );
+      })}
+      {chartOwners.length === 0 && (
+        <p className="thinking-zone-empty">まだカードがありません。</p>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="thinking-body">
+      {def.cardColors.length > 0 && (
+        <div className="thinking-color-legend" aria-label="カードの色の意味">
+          {def.cardColors.map((c) => (
+            <span key={c.color} className="thinking-color-legend-item">
+              <span className={`thinking-color-dot is-${c.color}`} />
+              {c.label}
+            </span>
+          ))}
+        </div>
+      )}
+      {ctx.host && interactive && (
+        <div className="thinking-hostbar">
+          {focusOwner && (
+            <button type="button" onClick={() => setFocusOwner("")}>
+              ← 一覧に戻る
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowNames((v) => !v)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+          {focusOwner && (
+            <span className="thinking-focus-label">{focusLabel}の図</span>
+          )}
+        </div>
+      )}
+      {hostChartList ? (
+        renderThumbs()
+      ) : (
+      <div ref={boardRef} className="thinking-board">
+        {circles && (
+          <svg
+            className="thinking-venn"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {circles.map((c, i) => (
+              <circle
+                key={i}
+                cx={c.x * 100}
+                cy={c.y * 100}
+                r={c.r * 100}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+        )}
+        {spec.map((zoneSpec) => {
+          const label = zoneLabel(zoneSpec.id);
+          const zoneCards = cardsIn(zoneSpec.id);
+          const inner = (
+            <>
+              <span className="thinking-zone-label">{label}</span>
+              <div className="thinking-zone-cards">
+                {zoneCards.map(renderCard)}
+                {composing === zoneSpec.id
+                  ? composeForm(zoneSpec.id)
+                  : canCompose && (
+                      <button
+                        type="button"
+                        className="thinking-add-card"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => {
+                          setComposing(zoneSpec.id);
+                          setDraftText("");
+                          setDraftColor("");
+                        }}
+                      >
+                        ＋カードを書く
+                      </button>
+                    )}
+              </div>
+            </>
+          );
+          return zoneSpec.rect ? (
+            <div
+              key={zoneSpec.id}
+              className="thinking-zone"
+              style={{
+                left: `${zoneSpec.rect[0] * 100}%`,
+                top: `${zoneSpec.rect[1] * 100}%`,
+                width: `${zoneSpec.rect[2] * 100}%`,
+                height: `${zoneSpec.rect[3] * 100}%`,
+              }}
+            >
+              {inner}
+            </div>
+          ) : (
+            <div
+              key={zoneSpec.id}
+              className="thinking-zone is-anchor"
+              style={{
+                left: `${zoneSpec.anchor[0] * 100}%`,
+                top: `${zoneSpec.anchor[1] * 100}%`,
+              }}
+            >
+              {inner}
+            </div>
+          );
+        })}
+        {drag && (
+          <div
+            className="thinking-card is-drag-ghost"
+            style={{
+              left: `${drag.x * 100}%`,
+              top: `${drag.y * 100}%`,
+            }}
+          >
+            <span className="thinking-card-text">
+              {tool.cards.find((c) => c.id === drag.id)?.text}
+            </span>
+          </div>
+        )}
+      </div>
+      )}
+      {notice && <p className="thinking-lock-note">{notice}</p>}
+      {selected && (
+        <div
+          className="thinking-card-panel"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {editing ? (
+            <>
+              <textarea
+                aria-label="カードの内容を変える"
+                value={editText}
+                maxLength={80}
+                rows={2}
+                autoFocus
+                onChange={(e) => setEditText(e.target.value)}
+              />
+              {def.cardColors.length > 0 && (
+                <select
+                  aria-label="カードの色"
+                  value={editColor}
+                  onChange={(e) => setEditColor(e.target.value)}
+                >
+                  <option value="">色なし</option>
+                  {def.cardColors.map((c) => (
+                    <option key={c.color} value={c.color}>
+                      {c.label || c.color}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                disabled={!editText.trim()}
+                onClick={() => void saveEdit()}
+              >
+                保存する
+              </button>
+              <button type="button" onClick={() => setEditing(false)}>
+                やめる
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="thinking-card-panel-zone">
+                {zoneLabel(selected.zone)}
+              </span>
+              {canMove && def.zones.length > 1 && (
+                <label>
+                  区切りを移す
+                  <select
+                    aria-label="移す先の区切り"
+                    value={moveZone}
+                    onChange={(e) => setMoveZone(e.target.value)}
+                  >
+                    {def.zones.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {canMove && moveZone !== selected.zone && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void run(() =>
+                      ctx.command(tool.id, "cardmove", {
+                        cardId: selected.id,
+                        zone: moveZone,
+                      }),
+                    )
+                  }
+                >
+                  移す
+                </button>
+              )}
+              {canEditSelected && (
+                <button type="button" onClick={() => beginEdit(selected)}>
+                  内容を変える
+                </button>
+              )}
+              {canEditSelected &&
+                (confirmDelete ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void run(async () => {
+                          await ctx.command(tool.id, "carddelete", {
+                            cardId: selected.id,
+                          });
+                          setSelectedId("");
+                          setConfirmDelete(false);
+                        })
+                      }
+                    >
+                      本当に削除する
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      やめる
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    削除
+                  </button>
+                ))}
+              {selectedLockedByOther && (
+                <span className="thinking-lock-note">
+                  ほかの人が編集中です
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -97,7 +97,9 @@ function ThinkingSession({
       thinking?: ThinkingView[];
       version?: number;
       unchanged?: boolean;
-    }>(`/api/decks/${deckId}/thinking${known !== null ? `?v=${known}` : ""}`);
+    }>(
+      `/api/decks/${deckId}/thinking?caps=board${known !== null ? `&v=${known}` : ""}`,
+    );
     if (typeof data.version === "number") listVersion.current = data.version;
     if (data.unchanged) return toolsRef.current;
     const list = data.thinking ?? [];
@@ -113,7 +115,7 @@ function ThinkingSession({
     body: Record<string, unknown> = {},
     method: "POST" | "DELETE" = "POST",
   ) {
-    const path = `/api/decks/${deckId}/thinking${toolId ? `/${toolId}` : ""}${action ? `/${action}` : ""}`;
+    const path = `/api/decks/${deckId}/thinking${toolId ? `/${toolId}` : ""}${action ? `/${action}` : ""}?caps=board`;
     const data = await api<{ thinking: ThinkingView[]; createdId?: string }>(
       path,
       method === "DELETE" ? { method } : { method, body: JSON.stringify(body) },

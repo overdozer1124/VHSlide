@@ -92,9 +92,13 @@ export class DeckPoller {
     if (this.inflight) return this.inflight;
     const features = [...this.sinks.keys()];
     if (features.length === 0) return Promise.resolve();
-    const query = features
-      .map((f) => `${PARAM[f]}=${this.versions[f] ?? ""}`)
-      .join("&");
+    const query =
+      features
+        .map((f) => `${PARAM[f]}=${this.versions[f] ?? ""}`)
+        .join("&") +
+      // Thinking board tools are only sent to clients that declare
+      // they can render them (older clients keep the point-only list).
+      (features.includes("thinking") ? "&tcaps=board" : "");
     const guards = new Map(
       features.map((f) => [f, this.sinks.get(f)?.guard?.current]),
     );
