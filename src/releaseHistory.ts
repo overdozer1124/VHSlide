@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.138.1",
+    date: "2026-11-17",
+    title: "版番号を 0.138.1 にしました",
+    changes: [
+      "画面の操作は 0.138.0 と同じです。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.138.0",
     date: "2026-11-17",
     title: "位置型の思考ツールで、先生のスライドの点の表示を切り替えられるようにしました",
