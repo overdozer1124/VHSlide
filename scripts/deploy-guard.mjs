@@ -43,6 +43,19 @@ export function deployedVersion(payload) {
       commit: "5e1aeaedbfc9d72925cc1010082ac3debf7055fb",
     };
   }
+  // The 0.138.0 production deploy used a message outside the Deploy prefix.
+  // Match this exact deployment only; do not parse other free-form messages.
+  if (
+    message === "0.138.0 point focus switch (PR #15)" &&
+    deployment.versions[0].version_id ===
+      "01579746-04a4-4eb9-95e6-204927f5bc8c"
+  ) {
+    return {
+      version: "0.138.0",
+      id: deployment.id,
+      commit: "694d1d995cee322f58130e92ec4428c6e4f4f2c6",
+    };
+  }
   const match =
     typeof message === "string" &&
     /^Deploy (\d+\.\d+\.\d+)(?:\s|:|$)/.exec(message);

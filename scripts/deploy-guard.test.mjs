@@ -39,6 +39,39 @@ test("fails closed for missing, ambiguous or split production deployments", () =
     id: "muse",
     commit: "5e1aeaedbfc9d72925cc1010082ac3debf7055fb",
   });
+  const current = {
+    id: "current",
+    annotations: {
+      "workers/message": "0.138.0 point focus switch (PR #15)",
+    },
+    versions: [
+      {
+        version_id: "01579746-04a4-4eb9-95e6-204927f5bc8c",
+        percentage: 100,
+      },
+    ],
+  };
+  assert.deepEqual(deployedVersion(payload(current)), {
+    version: "0.138.0",
+    id: "current",
+    commit: "694d1d995cee322f58130e92ec4428c6e4f4f2c6",
+  });
+  assert.throws(() =>
+    deployedVersion(
+      payload({
+        ...current,
+        versions: [{ version_id: "other", percentage: 100 }],
+      }),
+    ),
+  );
+  assert.throws(() =>
+    deployedVersion(
+      payload({
+        ...current,
+        annotations: { "workers/message": "0.138.0 point focus switch" },
+      }),
+    ),
+  );
   assert.throws(() =>
     deployedVersion(
       payload({
