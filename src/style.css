@@ -7972,7 +7972,8 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-x { position:absolute;inset:0;width:100%;height:100%; }
 .thinking-x line { stroke:#7a6a9a;stroke-width:1.5; }
 .thinking-x circle { fill:#fbf9ff;stroke:#7a6a9a;stroke-width:1.5; }
-.thinking-x-topic { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24%;max-height:26%;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:700;color:#5b4a8a;pointer-events:none; }
+.thinking-x-topic { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:700;color:#5b4a8a;pointer-events:none; }
+.thinking-x-topic > span { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden; }
 .thinking-zone.is-wedge { border:none;background:transparent; }
 .thinking-zone { position:absolute;box-sizing:border-box;border:1px dashed rgba(122,106,154,0.45);display:flex;flex-direction:column;padding:4px;overflow:hidden; }
 .thinking-zone.is-anchor { transform:translate(-50%,-50%);width:36%;max-height:44%;border:none;background:rgba(255,255,255,0.55);border-radius:8px; }

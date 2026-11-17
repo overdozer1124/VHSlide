@@ -358,6 +358,56 @@ describe("thinking board definitions", () => {
     expect(zoneAtPoint("matrix", 0.9, 0.05)).toBe("b");
     expect(zoneAtPoint("matrix", 0.75, 0.75)).toBe("d");
   });
+
+  it("renames an X chart's untouched quadrant labels to the wedge names", () => {
+    const old = parseThinkingDefinition("xchart", {
+      title: "観察",
+      zones: [
+        { id: "a", label: "左上" },
+        { id: "b", label: "右上" },
+        { id: "c", label: "左下" },
+        { id: "d", label: "右下" },
+      ],
+    });
+    expect(old.definition.zones.map((z) => z.label)).toEqual([
+      "見た目",
+      "音",
+      "感じ",
+      "におい",
+    ]);
+    // Any customised label keeps the teacher's whole set as-is.
+    const custom = parseThinkingDefinition("xchart", {
+      title: "観察",
+      zones: [
+        { id: "a", label: "色" },
+        { id: "b", label: "右上" },
+        { id: "c", label: "左下" },
+        { id: "d", label: "右下" },
+      ],
+    });
+    expect(custom.definition.zones.map((z) => z.label)).toEqual([
+      "色",
+      "右上",
+      "左下",
+      "右下",
+    ]);
+    // Other templates are never renamed.
+    const matrix = parseThinkingDefinition("matrix", {
+      title: "整理",
+      zones: [
+        { id: "a", label: "左上" },
+        { id: "b", label: "右上" },
+        { id: "c", label: "左下" },
+        { id: "d", label: "右下" },
+      ],
+    });
+    expect(matrix.definition.zones.map((z) => z.label)).toEqual([
+      "左上",
+      "右上",
+      "左下",
+      "右下",
+    ]);
+  });
 });
 
 const vennDef = {

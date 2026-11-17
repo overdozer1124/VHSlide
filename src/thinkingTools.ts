@@ -396,13 +396,16 @@ export function parseThinkingDefinition(
       );
       given.set(z.id as string, z.label);
     }
-    const zones: ThinkingZone[] = spec.map((zone) => ({
-      id: zone.id,
-      label:
-        given.get(zone.id) === undefined
-          ? zone.label
-          : cleanLabel(given.get(zone.id), "区切りの名前"),
-    }));
+    const zones: ThinkingZone[] = migrateXChartLabels(
+      t,
+      spec.map((zone) => ({
+        id: zone.id,
+        label:
+          given.get(zone.id) === undefined
+            ? zone.label
+            : cleanLabel(given.get(zone.id), "区切りの名前"),
+      })),
+    );
     insist(
       [...given.keys()].every((id) => spec.some((zone) => zone.id === id)),
       400,
@@ -556,6 +559,28 @@ const EMPTY_DEFINITION: ThinkingDefinition = {
   reason: false,
 };
 
+/** X charts created before 0.140.2 stored the quadrant defaults
+ * （左上・右上・左下・右下） as their zone labels. When all four labels
+ * are exactly those old defaults they were never the teacher's own
+ * names, so read them as the wedge defaults （見た目・音・感じ・におい）;
+ * otherwise an old chart would label its left triangle 「右下」. A set
+ * with any customised label is left completely untouched. */
+const XCHART_OLD_DEFAULTS = ["左上", "右上", "左下", "右下"];
+export function migrateXChartLabels(
+  template: ThinkingTemplate,
+  zones: ThinkingZone[],
+): ThinkingZone[] {
+  if (template !== "xchart" || zones.length !== 4) return zones;
+  const spec = BOARD_ZONE_SPECS.xchart!;
+  const byId = new Map(zones.map((z) => [z.id, z.label]));
+  if (!spec.every((zone, i) => byId.get(zone.id) === XCHART_OLD_DEFAULTS[i]))
+    return zones;
+  return zones.map((z) => ({
+    ...z,
+    label: spec.find((s) => s.id === z.id)?.label ?? z.label,
+  }));
+}
+
 function readTool(row: Record<string, unknown>): ThinkingTool {
   let definition: ThinkingDefinition;
   try {
@@ -564,7 +589,10 @@ function readTool(row: Record<string, unknown>): ThinkingTool {
     definition = {
       ...EMPTY_DEFINITION,
       ...parsed,
-      zones: parsed.zones ?? [],
+      zones: migrateXChartLabels(
+        row.template as ThinkingTemplate,
+        parsed.zones ?? [],
+      ),
       cardColors: parsed.cardColors ?? [],
       scenes: parsed.scenes ?? [],
     };
