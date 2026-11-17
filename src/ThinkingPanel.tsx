@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useActivityPanel } from "./ActivitiesPanel";
 import { useThinking } from "./ThinkingContext";
 import {
@@ -12,6 +13,7 @@ import type {
   ThinkingTemplate,
   ThinkingUnit,
   ThinkingView,
+  ThinkingZoneSpec,
 } from "./thinkingTools";
 import { ThinkingResults } from "./ThinkingResults";
 import { usePageVisible } from "./usePageVisible";
@@ -116,7 +118,12 @@ const PREVIEW_FACES = ["😞", "😕", "😐", "🙂", "😄"];
 
 /** A static miniature of the selected template, drawn from the form's
  * current definition so axis ends and zone names update while the
- * teacher edits them. Decorative: the form fields carry the values. */
+ * teacher edits them. Every template is drawn in the SAME 400x300
+ * viewBox with the same label sizes, so switching templates never
+ * changes the scale of the drawing or its text (the picker used to
+ * mix a width-scaled SVG, fixed-pixel HTML zones and a fixed-size
+ * pie, which made each template look a different size). Decorative:
+ * the form fields carry the values. */
 function ThinkingTemplatePreview({
   template,
   def,
@@ -124,160 +131,243 @@ function ThinkingTemplatePreview({
   template: ThinkingTemplate;
   def: ThinkingDefinition;
 }) {
+  // Squeeze an over-long label into `max` viewBox units instead of
+  // letting it spill out of the miniature (labels can be 40 chars).
+  const fit = (label: string, max: number) =>
+    label.length * 15 > max
+      ? {
+          textLength: max,
+          lengthAdjust: "spacingAndGlyphs" as const,
+        }
+      : {};
+  const zoneLabel = (z: ThinkingZoneSpec) =>
+    def.zones.find((x) => x.id === z.id)?.label ?? z.label;
+  let kind: "board" | "ratio" | "point" = "point";
+  let body: ReactNode;
   if (templateKind(template) === "board") {
+    kind = "board";
     const spec = BOARD_ZONE_SPECS[template] ?? [];
     const circles = VENN_CIRCLES[template];
-    return (
-      <div className="thinking-preview is-board" aria-hidden="true">
-        {circles && (
-          <svg
-            className="thinking-venn"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-          >
-            {circles.map((c, i) => (
-              <circle
-                key={i}
-                cx={c.x * 100}
-                cy={c.y * 100}
-                r={c.r * 100}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-          </svg>
-        )}
+    body = (
+      <>
+        {circles?.map((c, i) => (
+          <ellipse
+            key={i}
+            cx={c.x * 400}
+            cy={c.y * 300}
+            rx={c.r * 400}
+            ry={c.r * 300}
+            className="tp-venn"
+          />
+        ))}
         {spec.map((z) => {
-          const label =
-            def.zones.find((x) => x.id === z.id)?.label ?? z.label;
-          return z.rect ? (
-            <div
-              key={z.id}
-              className="thinking-preview-zone"
-              style={{
-                left: `${z.rect[0] * 100}%`,
-                top: `${z.rect[1] * 100}%`,
-                width: `${z.rect[2] * 100}%`,
-                height: `${z.rect[3] * 100}%`,
-              }}
-            >
-              <span>{label}</span>
-            </div>
-          ) : (
-            <div
-              key={z.id}
-              className="thinking-preview-zone is-anchor"
-              style={{
-                left: `${z.anchor[0] * 100}%`,
-                top: `${z.anchor[1] * 100}%`,
-              }}
-            >
-              <span>{label}</span>
-            </div>
+          const label = zoneLabel(z);
+          if (z.rect) {
+            const x = z.rect[0] * 400;
+            const y = z.rect[1] * 300;
+            const w = z.rect[2] * 400;
+            const h = z.rect[3] * 300;
+            return (
+              <g key={z.id}>
+                <rect x={x} y={y} width={w} height={h} className="tp-zone" />
+                <text
+                  x={x + w / 2}
+                  y={y + 23}
+                  className="tp-zone-label"
+                  textAnchor="middle"
+                  {...fit(label, w - 10)}
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          }
+          const w = 136;
+          const cx = Math.min(
+            Math.max(z.anchor[0] * 400, w / 2 + 2),
+            400 - w / 2 - 2,
+          );
+          const cy = z.anchor[1] * 300;
+          return (
+            <g key={z.id}>
+              <rect
+                x={cx - w / 2}
+                y={cy - 14}
+                width={w}
+                height={28}
+                rx={8}
+                className="tp-anchor"
+              />
+              <text
+                x={cx}
+                y={cy + 5}
+                className="tp-zone-label"
+                textAnchor="middle"
+                {...fit(label, w - 10)}
+              >
+                {label}
+              </text>
+            </g>
           );
         })}
-      </div>
+      </>
     );
-  }
-  if (template === "ratio") {
-    return (
-      <div className="thinking-preview is-ratio" aria-hidden="true">
-        <div
-          className="thinking-preview-pie"
-          style={{
-            background: "conic-gradient(#e2703a 0% 60%, #3a7bd5 60% 100%)",
-          }}
+  } else if (template === "ratio") {
+    kind = "ratio";
+    const polar = (deg: number) => {
+      const rad = (deg * Math.PI) / 180;
+      return [138 + 102 * Math.cos(rad), 150 + 102 * Math.sin(rad)];
+    };
+    const [sx, sy] = polar(-90);
+    const [ex, ey] = polar(126);
+    body = (
+      <>
+        <path
+          d={`M138 150 L${sx} ${sy} A102 102 0 1 1 ${ex} ${ey} Z`}
+          fill="#e2703a"
+        />
+        <path
+          d={`M138 150 L${ex} ${ey} A102 102 0 0 1 ${sx} ${sy} Z`}
+          fill="#3a7bd5"
+        />
+        <circle cx="138" cy="150" r="27" fill="#fff" />
+        <text x="138" y="156" className="tp-pie-label" textAnchor="middle">
+          60%
+        </text>
+        <rect x="262" y="116" width="15" height="15" fill="#e2703a" />
+        <text
+          x="285"
+          y="129"
+          className="tp-label"
+          {...fit(`${def.nameA}：60%`, 112)}
         >
-          <span>60%</span>
-        </div>
-        <div className="thinking-preview-legend">
-          <p>
-            <span className="thinking-swatch is-a" /> {def.nameA}：60%
-          </p>
-          <p>
-            <span className="thinking-swatch is-b" /> {def.nameB}：40%
-          </p>
-        </div>
-      </div>
+          {def.nameA}：60%
+        </text>
+        <rect x="262" y="146" width="15" height="15" fill="#3a7bd5" />
+        <text
+          x="285"
+          y="159"
+          className="tp-label"
+          {...fit(`${def.nameB}：40%`, 112)}
+        >
+          {def.nameB}：40%
+        </text>
+      </>
+    );
+  } else if (template === "axis2") {
+    body = (
+      <>
+        <line x1="64" y1="30" x2="64" y2="242" className="tp-axis" />
+        <line x1="64" y1="242" x2="370" y2="242" className="tp-axis" />
+        <text
+          x="64"
+          y="20"
+          className="tp-label"
+          textAnchor="middle"
+          {...fit(def.yMax, 120)}
+        >
+          {def.yMax}
+        </text>
+        <text
+          x="56"
+          y="267"
+          className="tp-label"
+          textAnchor="end"
+          {...fit(def.yMin, 52)}
+        >
+          {def.yMin}
+        </text>
+        <text x="72" y="267" className="tp-label" {...fit(def.xMin, 130)}>
+          {def.xMin}
+        </text>
+        <text
+          x="370"
+          y="267"
+          className="tp-label"
+          textAnchor="end"
+          {...fit(def.xMax, 150)}
+        >
+          {def.xMax}
+        </text>
+        <circle cx="238" cy="108" r="10" className="tp-dot" />
+      </>
+    );
+  } else if (!def.vertical) {
+    const faces = template === "emotion" ? PREVIEW_FACES : null;
+    body = (
+      <>
+        {faces?.map((f, i) => (
+          <text
+            key={f}
+            x={64 + i * 68}
+            y={104}
+            className="tp-face"
+            textAnchor="middle"
+          >
+            {f}
+          </text>
+        ))}
+        <line x1="28" y1="150" x2="372" y2="150" className="tp-axis" />
+        <text x="28" y="188" className="tp-label" {...fit(def.xMin, 150)}>
+          {def.xMin}
+        </text>
+        <text
+          x="372"
+          y="188"
+          className="tp-label"
+          textAnchor="end"
+          {...fit(def.xMax, 150)}
+        >
+          {def.xMax}
+        </text>
+        <circle cx="238" cy="150" r="10" className="tp-dot" />
+      </>
+    );
+  } else {
+    const faces = template === "emotion" ? PREVIEW_FACES : null;
+    body = (
+      <>
+        <line x1="196" y1="36" x2="196" y2="252" className="tp-axis" />
+        <text
+          x="196"
+          y="22"
+          className="tp-label"
+          textAnchor="middle"
+          {...fit(def.xMax, 170)}
+        >
+          {def.xMax}
+        </text>
+        <text
+          x="196"
+          y="282"
+          className="tp-label"
+          textAnchor="middle"
+          {...fit(def.xMin, 170)}
+        >
+          {def.xMin}
+        </text>
+        {faces ? (
+          faces.map((f, i) => (
+            <text key={f} x="224" y={248 - i * 50} className="tp-face">
+              {f}
+            </text>
+          ))
+        ) : (
+          <circle cx="196" cy="96" r="10" className="tp-dot" />
+        )}
+        {faces && <circle cx="196" cy="96" r="10" className="tp-dot" />}
+      </>
     );
   }
-  const two = template === "axis2";
-  const vertical = !two && def.vertical;
-  const faces = template === "emotion" ? PREVIEW_FACES : null;
   return (
-    <div className="thinking-preview is-point" aria-hidden="true">
-      <svg viewBox="0 0 200 140" role="presentation">
-        {two ? (
-          <>
-            <line x1="36" y1="12" x2="36" y2="112" className="tp-axis" />
-            <line x1="36" y1="112" x2="188" y2="112" className="tp-axis" />
-            <text x="36" y="9" className="tp-text" textAnchor="middle">
-              {def.yMax}
-            </text>
-            <text x="30" y="126" className="tp-text" textAnchor="end">
-              {def.yMin}
-            </text>
-            <text x="40" y="126" className="tp-text">
-              {def.xMin}
-            </text>
-            <text x="188" y="126" className="tp-text" textAnchor="end">
-              {def.xMax}
-            </text>
-            <circle cx="128" cy="52" r="6" className="tp-dot" />
-          </>
-        ) : vertical ? (
-          <>
-            <line x1="100" y1="14" x2="100" y2="116" className="tp-axis" />
-            <text x="100" y="10" className="tp-text" textAnchor="middle">
-              {def.xMax}
-            </text>
-            <text x="100" y="130" className="tp-text" textAnchor="middle">
-              {def.xMin}
-            </text>
-            {faces ? (
-              faces.map((f, i) => (
-                <text
-                  key={f}
-                  x="116"
-                  y={116 - i * 25.5 + 4}
-                  className="tp-face"
-                >
-                  {f}
-                </text>
-              ))
-            ) : (
-              <circle cx="100" cy="45" r="6" className="tp-dot" />
-            )}
-            {faces && <circle cx="100" cy="45" r="6" className="tp-dot" />}
-          </>
-        ) : (
-          <>
-            <line x1="14" y1="66" x2="186" y2="66" className="tp-axis" />
-            <text x="14" y="92" className="tp-text">
-              {def.xMin}
-            </text>
-            <text x="186" y="92" className="tp-text" textAnchor="end">
-              {def.xMax}
-            </text>
-            {faces ? (
-              faces.map((f, i) => (
-                <text
-                  key={f}
-                  x={14 + i * 43}
-                  y={52}
-                  className="tp-face"
-                  textAnchor="middle"
-                >
-                  {f}
-                </text>
-              ))
-            ) : null}
-            <circle cx="128" cy="66" r="6" className="tp-dot" />
-          </>
-        )}
+    <div className={`thinking-preview is-${kind}`} aria-hidden="true">
+      <svg viewBox="0 0 400 300" role="presentation">
+        {body}
       </svg>
     </div>
   );
 }
+
 export const THINKING_UNIT_LABELS: Record<ThinkingUnit, string> = {
   individual: "個人",
   group: "班",
@@ -620,7 +710,7 @@ function ThinkingToolForm({
         if (!editing) setDef(defaultDefinition(template));
       }}
     >
-      <div className="thinking-template-layout">
+      <div className="thinking-create-layout">
         <fieldset className="thinking-templates">
           <legend>{editing ? "種類（変更できません）" : "ひな形を選ぶ"}</legend>
           {(Object.keys(THINKING_TEMPLATE_LABELS) as ThinkingTemplate[]).map(
@@ -649,7 +739,7 @@ function ThinkingToolForm({
             <p>{THINKING_TEMPLATE_GUIDES[template].usage}</p>
           </div>
         </div>
-      </div>
+        <div className="thinking-params">
       <label>
         ツールの名前
         <input
@@ -942,6 +1032,8 @@ function ThinkingToolForm({
       <button type="submit" disabled={busy || !def.title.trim()}>
         {editing ? "設定を保存" : "思考ツールを作成"}
       </button>
+        </div>
+      </div>
     </form>
   );
 }
