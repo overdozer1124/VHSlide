@@ -16,6 +16,11 @@ import {
   webbingCommand,
 } from "../src/webbing.ts";
 import {
+  thinkingSchema,
+  thinkingList,
+  thinkingCommand,
+} from "../src/thinkingTools.ts";
+import {
   groupSchema,
   groupList,
   groupCommand,
@@ -132,6 +137,7 @@ export class Directory extends DurableObject<Env> {
     this.sql.exec(worksheetSchema);
     this.sql.exec(webbingSchema);
     this.sql.exec(groupSchema);
+    this.sql.exec(thinkingSchema);
     this.sql.exec(userAppSchema);
     this.sql.exec(revisionSchema("directory") + restoreSchema);
     this.sql
@@ -967,6 +973,15 @@ export class Directory extends DurableObject<Env> {
           if (gv === "" || Number(gv) !== version)
             out.groups = { version, ...groupList(sql, id, user.id, host) };
         }
+        const tv = params.get("tv");
+        if (tv !== null) {
+          const version = featureVersion(sql, id, "thinking");
+          if (tv === "" || Number(tv) !== version)
+            out.thinking = {
+              version,
+              thinking: thinkingList(sql, id, user.id, host),
+            };
+        }
         return json(out);
       });
     }
@@ -1156,6 +1171,64 @@ export class Directory extends DurableObject<Env> {
         }
         return json({
           webbing: webbingList(sql, id, host),
+          ...(extraResult?.createdId
+            ? { createdId: extraResult.createdId }
+            : {}),
+        });
+      });
+    }
+    if (extra === "thinking" || extra?.startsWith("thinking/")) {
+      insist(
+        ["GET", "POST", "DELETE"].includes(method),
+        405,
+        "この操作には対応していません。",
+      );
+      const route =
+        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit))?)?$/.exec(
+          extra,
+        );
+      insist(
+        route &&
+          (method === "GET"
+            ? extra === "thinking"
+            : method === "DELETE"
+              ? !!route[1] && !route[2]
+              : extra === "thinking" || !!route[2]),
+        404,
+        "思考ツールの操作が見つかりません。",
+      );
+      const value = method === "POST" ? await input(request, 12000) : {};
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        let extraResult: { createdId?: string } | undefined;
+        if (method !== "GET") {
+          this.rate(`thinking:${user.id}`, 300);
+          extraResult = thinkingCommand(
+            sql,
+            id,
+            user.id,
+            host,
+            method === "DELETE" ? "delete" : (route![2] ?? "create"),
+            route![1],
+            value,
+          );
+        }
+        if (method === "GET") {
+          const v = new URL(request.url).searchParams.get("v");
+          if (v !== null) {
+            const version = featureVersion(sql, id, "thinking");
+            if (String(version) === v) return json({ unchanged: true, version });
+            return json({
+              thinking: thinkingList(sql, id, user.id, host),
+              version,
+            });
+          }
+        }
+        return json({
+          thinking: thinkingList(sql, id, user.id, host),
           ...(extraResult?.createdId
             ? { createdId: extraResult.createdId }
             : {}),

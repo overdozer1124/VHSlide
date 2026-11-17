@@ -4,6 +4,7 @@ import { exerciseWorksheetMerge } from "../support/worksheetMerge.ts";
 import { exercisePermissionOrder } from "../support/permission-order.ts";
 import { exerciseSurveys } from "../support/surveys.ts";
 import { exerciseWebbing } from "../support/webbing.ts";
+import { exerciseThinking } from "../support/thinking.ts";
 import { exerciseDeckPoll } from "../support/poll.ts";
 import { exerciseGalleryCounts } from "../support/gallery.ts";
 import {
@@ -1582,6 +1583,82 @@ test("webbing maps share one map, enforce authorship and edit locks, and persist
       await mf.dispose();
       mf = fixture.start();
     },
+  );
+});
+
+test("thinking tools place per-scene points, keep individual and class points per-student, share group points inside the group and persist across restart", async () => {
+  // Fresh identities: the shared owner/friend/stranger mutation rate
+  // budgets are nearly exhausted by the earlier exercises in this file.
+  const tOwner = await login("thinking-owner");
+  const tFriend = await login("thinking-friend");
+  const tStranger = await login("thinking-stranger");
+  const id = await create(sample(), tOwner);
+  // joinRoom() is wired to the shared owner, so join with tOwner as host.
+  const inviteRes = await request(
+    `/api/decks/${id}/invite`,
+    "POST",
+    undefined,
+    tOwner,
+  );
+  assert.equal(inviteRes.status, 200);
+  const token = new URL(
+    ((await inviteRes.json()) as { url: string }).url,
+  ).searchParams.get("join");
+  await acceptAndApprove(request, id, token, tFriend, tOwner);
+  const { user: tFriendUser } = (await (
+    await request("/api/session", "GET", undefined, tFriend)
+  ).json()) as { user: { id: string } };
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/members/${encodeURIComponent(tFriendUser.id)}`,
+        "PATCH",
+        { mode: "all", comment: true, rows: [], columns: [], slides: [] },
+        tOwner,
+      )
+    ).status,
+    200,
+  );
+  // A second member for the two-student denial checks (review 🔴2).
+  const tFriend2 = await login("thinking-friend2");
+  const invite2Res = await request(
+    `/api/decks/${id}/invite`,
+    "POST",
+    undefined,
+    tOwner,
+  );
+  assert.equal(invite2Res.status, 200);
+  const token2 = new URL(
+    ((await invite2Res.json()) as { url: string }).url,
+  ).searchParams.get("join");
+  await acceptAndApprove(request, id, token2, tFriend2, tOwner);
+  const { user: tFriend2User } = (await (
+    await request("/api/session", "GET", undefined, tFriend2)
+  ).json()) as { user: { id: string } };
+  assert.equal(
+    (
+      await request(
+        `/api/decks/${id}/members/${encodeURIComponent(tFriend2User.id)}`,
+        "PATCH",
+        { mode: "all", comment: true, rows: [], columns: [], slides: [] },
+        tOwner,
+      )
+    ).status,
+    200,
+  );
+  const other = await create(sample(), tOwner);
+  await exerciseThinking(
+    request,
+    id,
+    other,
+    tOwner,
+    tFriend,
+    tStranger,
+    async () => {
+      await mf.dispose();
+      mf = fixture.start();
+    },
+    tFriend2,
   );
 });
 

@@ -2,6 +2,12 @@ import type { Deck } from "./model";
 import { parseWorksheet } from "./worksheets";
 import type { WorksheetDefinition, WorksheetField } from "./worksheets";
 import type { SurveyBinding } from "./surveyBinding";
+import { parseThinkingBinding } from "./thinkingBinding";
+import type {
+  ThinkingDefinition,
+  ThinkingTemplate,
+  ThinkingUnit,
+} from "./thinkingTools";
 
 /**
  * Form adoption: a deck copied or loaded from a file can carry worksheet /
@@ -29,9 +35,20 @@ export interface ForeignSurvey {
   options: string[];
 }
 
+export interface ForeignThinking {
+  /** `${deckId}:${toolId}` of the original binding. */
+  key: string;
+  sourceDeckId: string;
+  sourceId: string;
+  template: ThinkingTemplate;
+  unit: ThinkingUnit;
+  definition: ThinkingDefinition;
+}
+
 export interface ForeignForms {
   worksheets: ForeignWorksheet[];
   surveys: ForeignSurvey[];
+  thinking: ForeignThinking[];
 }
 
 const keyOf = (deckId: string, id: string) => `${deckId}:${id}`;
@@ -46,6 +63,7 @@ export function collectForeignForms(
     { sourceDeckId: string; sourceId: string; fields: WorksheetField[] }
   >();
   const surveys = new Map<string, ForeignSurvey>();
+  const thinking = new Map<string, ForeignThinking>();
   const order: string[] = [];
 
   const noteSurvey = (binding: SurveyBinding) => {
@@ -89,6 +107,25 @@ export function collectForeignForms(
               fields: [],
             });
             order.push(key);
+          }
+        }
+      }
+      if (element.thinking && element.thinking.deckId !== ownerDeckId) {
+        const binding = element.thinking;
+        const key = keyOf(binding.deckId, binding.toolId);
+        if (!thinking.has(key)) {
+          try {
+            const parsed = parseThinkingBinding(binding);
+            thinking.set(key, {
+              key,
+              sourceDeckId: binding.deckId,
+              sourceId: binding.toolId,
+              template: parsed.template,
+              unit: parsed.unit,
+              definition: parsed.definition,
+            });
+          } catch {
+            // A snapshot that no longer validates stays a static preview.
           }
         }
       }
@@ -139,6 +176,7 @@ export function collectForeignForms(
     surveys: order
       .filter((key) => surveys.has(key))
       .map((key) => surveys.get(key)!),
+    thinking: [...thinking.values()],
   };
 }
 
@@ -152,6 +190,7 @@ export function rewriteFormBindings(
   ownerDeckId: string,
   worksheetIds: Map<string, string>,
   surveyIds: Map<string, string>,
+  thinkingIds: Map<string, string> = new Map(),
 ): Deck {
   let changed = false;
   const slides = deck.slides.map((slide) => {
@@ -238,6 +277,22 @@ export function rewriteFormBindings(
           next = {
             ...next,
             survey: { ...next.survey, deckId: ownerDeckId, surveyId: mapped },
+          };
+          slideChanged = true;
+        }
+      }
+      if (next.thinking) {
+        const mapped = thinkingIds.get(
+          keyOf(next.thinking.deckId, next.thinking.toolId),
+        );
+        if (mapped) {
+          next = {
+            ...next,
+            thinking: {
+              ...next.thinking,
+              deckId: ownerDeckId,
+              toolId: mapped,
+            },
           };
           slideChanged = true;
         }

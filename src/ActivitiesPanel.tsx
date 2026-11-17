@@ -9,7 +9,7 @@ import {
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { useWorksheets } from "./WorksheetContext";
-type Kind = "survey" | "worksheet" | "gallery" | "fields" | "webbing" | "apps";
+type Kind = "survey" | "worksheet" | "gallery" | "fields" | "webbing" | "apps" | "thinking";
 const Context = createContext({
   open: false,
   active: "survey" as Kind,
@@ -70,6 +70,7 @@ export function ActivitiesPanel({
   fields,
   webbing,
   apps,
+  thinking,
 }: {
   survey: ReactNode;
   worksheet: ReactNode;
@@ -77,6 +78,7 @@ export function ActivitiesPanel({
   fields: ReactNode;
   webbing: ReactNode;
   apps: ReactNode;
+  thinking: ReactNode;
 }) {
   const ctx = useWorksheets();
   const { open, active, close, busy, select } = useActivityPanel();
@@ -88,7 +90,7 @@ export function ActivitiesPanel({
   const kinds: Kind[] =
     ctx.enabled && !ctx.host
       ? ["survey", "worksheet", "webbing", "gallery"]
-      : ["survey", "worksheet", "webbing", "fields", "apps"];
+      : ["survey", "worksheet", "webbing", "thinking", "fields", "apps"];
   const labels: Record<Kind, string> = {
     survey: "アンケート",
     worksheet: "ワークシート",
@@ -96,6 +98,7 @@ export function ActivitiesPanel({
     fields: "回答欄の追加",
     webbing: "ウェブマップ",
     apps: "アプリ",
+    thinking: "思考ツール",
   };
   const title = labels[active];
   useEffect(() => {
@@ -258,6 +261,15 @@ export function ActivitiesPanel({
             hidden={active !== "apps"}
           >
             {apps}
+          </div>
+          <div
+            className="activity-content"
+            role="tabpanel"
+            id={`${id}-thinking-pane`}
+            aria-labelledby={`${id}-thinking-tab`}
+            hidden={active !== "thinking"}
+          >
+            {thinking}
           </div>
         </section>
       </div>

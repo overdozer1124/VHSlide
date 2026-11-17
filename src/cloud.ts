@@ -945,12 +945,43 @@ export class CloudWorkspace {
             adoptionFailures.push(`アンケート「${survey.question}」`);
           }
         }
-        if (worksheetIds.size || surveyIds.size)
+        const thinkingIds = new Map<string, string>();
+        for (const tool of plan.thinking) {
+          try {
+            const data = await api<{ createdId?: string }>(
+              `/api/decks/${result.id}/thinking`,
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  template: tool.template,
+                  unit: tool.unit,
+                  definition: tool.definition,
+                }),
+              },
+            );
+            if (!data.createdId)
+              throw new Error("思考ツールを作成できませんでした。");
+            await api(
+              `/api/decks/${result.id}/thinking/${data.createdId}/status`,
+              {
+                method: "POST",
+                body: JSON.stringify({ status: "open" }),
+              },
+            );
+            thinkingIds.set(tool.key, data.createdId);
+          } catch {
+            adoptionFailures.push(
+              `思考ツール「${tool.definition.title}」`,
+            );
+          }
+        }
+        if (worksheetIds.size || surveyIds.size || thinkingIds.size)
           finalDeck = rewriteFormBindings(
             portable,
             result.id,
             worksheetIds,
             surveyIds,
+            thinkingIds,
           );
       }
       // Image adoption (rewrite half): upload each embedded image as an

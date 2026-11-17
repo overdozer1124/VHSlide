@@ -6,6 +6,7 @@ import { SurveyResultCaption } from "./SurveyResultCaption";
 import { SlideWorksheet } from "./SlideWorksheet";
 import { SlideSurvey } from "./SlideSurvey";
 import { SlideWebbing } from "./SlideWebbing";
+import { SlideThinking } from "./SlideThinking";
 import { SlideEmbed } from "./SlideEmbed";
 import { InkObject } from "./InkObject";
 import { ChartGraphic } from "./ChartGraphic";
@@ -46,6 +47,7 @@ export function ElementView({ element: e }: { element: Element }) {
   if (e.worksheet) return <SlideWorksheet element={e} />;
   if (e.survey) return <SlideSurvey element={e} />;
   if (e.webbing) return <SlideWebbing element={e} />;
+  if (e.thinking) return <SlideThinking element={e} />;
   if (e.embed) return <SlideEmbed element={e} />;
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
@@ -1024,6 +1026,17 @@ export function Canvas({
                 ) : e.webbing ? (
                   <SlideWebbing
                     key={`${e.webbing.deckId}:${e.webbing.mapId}`}
+                    element={e}
+                    interactive={surveyInteractive}
+                    onMoveStart={
+                      editable
+                        ? (event) => start(event, e, false, false)
+                        : undefined
+                    }
+                  />
+                ) : e.thinking ? (
+                  <SlideThinking
+                    key={`${e.thinking.deckId}:${e.thinking.toolId}`}
                     element={e}
                     interactive={surveyInteractive}
                     onMoveStart={

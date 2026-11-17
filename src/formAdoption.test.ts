@@ -99,6 +99,64 @@ describe("collectForeignForms", () => {
     expect(surveys).toHaveLength(0);
   });
 
+  it("collects foreign thinking tools with their definition snapshot and rewrites their bindings", () => {
+    const TOOL = "66666666-6666-4666-8666-666666666666";
+    const NEW_TOOL = "77777777-7777-4777-8777-777777777777";
+    const definition = {
+      title: "気持ち",
+      xMin: "いや",
+      xMax: "よい",
+      yMin: "",
+      yMax: "",
+      scale: "none" as const,
+      vertical: false,
+      nameA: "",
+      nameB: "",
+      scenes: [{ id: "s1", label: "場面1" }],
+      sceneMode: "teacher" as const,
+      reason: true,
+    };
+    const deck = deckOf([
+      el({
+        thinking: {
+          deckId: OTHER,
+          toolId: TOOL,
+          title: "気持ち",
+          template: "axis1",
+          unit: "individual",
+          definition,
+        },
+      }),
+      el({
+        thinking: {
+          deckId: OWNER,
+          toolId: TOOL,
+          title: "自分の",
+          template: "axis1",
+          unit: "individual",
+          definition,
+        },
+      }),
+    ]);
+    const { thinking } = collectForeignForms(deck, OWNER);
+    expect(thinking).toHaveLength(1);
+    expect(thinking[0].sourceId).toBe(TOOL);
+    expect(thinking[0].definition.title).toBe("気持ち");
+    expect(thinking[0].definition.scenes).toHaveLength(1);
+    const rewritten = rewriteFormBindings(
+      deck,
+      OWNER,
+      new Map(),
+      new Map(),
+      new Map([[`${OTHER}:${TOOL}`, NEW_TOOL]]),
+    );
+    expect(rewritten.slides[0].elements[0].thinking?.toolId).toBe(NEW_TOOL);
+    expect(rewritten.slides[0].elements[0].thinking?.deckId).toBe(OWNER);
+    // The owner-deck binding is untouched.
+    expect(rewritten.slides[0].elements[1].thinking?.deckId).toBe(OWNER);
+    expect(rewritten.slides[0].elements[1].thinking?.toolId).toBe(TOOL);
+  });
+
   it("prefers an embedded worksheet definition over field snapshots", () => {
     const deck = deckOf([
       el({
