@@ -349,3 +349,111 @@ test("the console thinking tab shows the class distribution", async (
     "1",
   );
 });
+
+test("the host slide narrows points to one student, names off by default", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-focus-host`);
+  const nameA = `${info.project.name}-focus-ana`;
+  const nameB = `${info.project.name}-focus-ben`;
+  await addGuest(page, id, nameA);
+  await addGuest(page, id, nameB);
+  const toolId = await createTool(page, id, {
+    template: "axis1",
+    unit: "class",
+    definition: {
+      title: "絞り込みの気持ち",
+      xMin: "いや",
+      xMax: "よい",
+      reason: false,
+    },
+  });
+  await page.goto(`/?room=${id}`);
+  await placeTool(page, "絞り込みの気持ち");
+
+  const place = async (name: string, v: number) => {
+    const context = await browser.newContext({ baseURL: scopeOrigin });
+    const student = await context.newPage();
+    await scopeLogin(student, name);
+    await student.goto(`/?room=${id}`);
+    await openSlide(student);
+    await clickSurface(student, v, 0.5);
+    await expect(
+      student.locator(
+        ".slide-thinking.is-interactive .thinking-point.is-mine",
+      ),
+    ).toBeVisible({ timeout: 15_000 });
+    // Students never see the host's display controls.
+    await expect(student.locator(".thinking-hostbar")).toHaveCount(0);
+    await context.close();
+  };
+  await place(nameA, 0.3);
+  await place(nameB, 0.75);
+  await expect
+    .poll(async () => (await pointsOf(page, id, toolId)).length)
+    .toBe(2);
+
+  const slide = page.locator(".slide-thinking.is-interactive");
+  // Everyone's points, no names anywhere by default.
+  await expect(slide.locator(".thinking-point.is-other")).toHaveCount(2, {
+    timeout: 20_000,
+  });
+  await expect(slide.locator(".thinking-point-name")).toHaveCount(0);
+  const bar = slide.locator(".thinking-hostbar");
+  await expect(bar.getByRole("button", { name: "全員" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "生徒1" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "生徒2" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: nameA })).toHaveCount(0);
+
+  // Narrow to one student: only their point remains.
+  await bar.getByRole("button", { name: "生徒1" }).click();
+  await expect(slide.locator(".thinking-point.is-other")).toHaveCount(1);
+
+  // Names on: the chips and the focused point show the student's name,
+  // and they agree with each other.
+  await bar.getByRole("button", { name: "名前を出す" }).click();
+  const activeChip = bar.locator("button.is-active");
+  await expect(activeChip).toHaveCount(1);
+  const shownName = (await activeChip.textContent())?.trim() ?? "";
+  expect([nameA, nameB]).toContain(shownName);
+  await expect(slide.locator(".thinking-point-name")).toHaveText(shownName);
+
+  // Back to everyone: both points return, name labels go away again.
+  await bar.getByRole("button", { name: "全員" }).click();
+  await expect(slide.locator(".thinking-point.is-other")).toHaveCount(2);
+  await expect(slide.locator(".thinking-point-name")).toHaveCount(0);
+
+  // The numbering is stable: labels follow the owner ids, not the
+  // last-updated order, so a student moving their point never
+  // renumbers anyone or steals the focus (review 🔴1). Names are
+  // still on from the steps above.
+  const chipNames = async () =>
+    (await bar.locator("button").allTextContents())
+      .map((t) => t.trim())
+      .filter((t) => t === nameA || t === nameB);
+  const orderBefore = await chipNames();
+  expect(orderBefore).toHaveLength(2);
+  const secondName = orderBefore[1];
+  await bar.getByRole("button", { name: secondName }).click();
+  await expect(slide.locator(".thinking-point.is-other")).toHaveCount(1);
+  await expect(slide.locator(".thinking-point-name")).toHaveText(secondName);
+  const moved = await browser.newContext({ baseURL: scopeOrigin });
+  const movedPage = await moved.newPage();
+  await scopeLogin(movedPage, secondName);
+  await movedPage.goto(`/?room=${id}`);
+  await openSlide(movedPage);
+  await clickSurface(movedPage, 0.55, 0.5);
+  await expect(
+    movedPage.locator(
+      ".slide-thinking.is-interactive .thinking-point.is-mine",
+    ),
+  ).toBeVisible({ timeout: 15_000 });
+  await moved.close();
+  // After the move, the chip order and the focused student are the
+  // same as before.
+  await expect.poll(async () => await chipNames()).toEqual(orderBefore);
+  await expect(slide.locator(".thinking-point.is-other")).toHaveCount(1);
+  await expect(slide.locator(".thinking-point-name")).toHaveText(secondName);
+});

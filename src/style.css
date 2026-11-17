@@ -7951,7 +7951,10 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-zone-count-chip { display:inline-block;background:#efe9fa;border:1px dashed #b7a8dd;border-radius:999px;padding:3px 10px;font-size:12px;color:#5a4a86; }
 .thinking-hostbar { display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0; }
 .thinking-hostbar > button { font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
+.thinking-hostbar > button.is-active { background:#4a3a6b;border-color:#4a3a6b;color:#fff; }
+.thinking-hostbar-label { font-size:12px;font-weight:700;color:#4a3a6b; }
 .thinking-focus-label { font-size:12.5px;font-weight:700;color:#4a3a6b; }
+.thinking-point-name { position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);font-size:10px;font-weight:700;line-height:1.5;color:#4a3a6b;background:#ffffffd9;padding:0 5px;border-radius:4px;white-space:nowrap;pointer-events:none; }
 .thinking-thumbs { flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start; }
 .thinking-thumb { display:flex;flex-direction:column;gap:4px;background:#fff;border:1.5px solid #cfc3e8;border-radius:10px;padding:6px;cursor:pointer;text-align:left; }
 .thinking-thumb:hover { border-color:#5b4a8a; }

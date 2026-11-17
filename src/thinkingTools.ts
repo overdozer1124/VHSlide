@@ -257,6 +257,24 @@ export const VENN_CIRCLES: Partial<
 export function templateKind(template: ThinkingTemplate): ThinkingKind {
   return BOARD_ZONE_SPECS[template] ? "board" : "point";
 }
+/** Display labels for the students (owners) shown on the host's slide
+ * where names stay hidden until the host turns them on. Owners are
+ * sorted by id so the pseudonym numbers (生徒1, 生徒2, …) never
+ * change while a lesson runs: the server returns points and cards in
+ * last-updated order, so first-appearance order would shuffle the
+ * numbers whenever a student moves a point or a card. Point tools
+ * and card boards share this helper, so a student keeps the same
+ * number in both views. */
+export function thinkingOwnerLabels(
+  owners: readonly string[],
+  nameOf: (owner: string) => string | undefined,
+  showNames: boolean,
+): { owner: string; label: string }[] {
+  return [...new Set(owners)].sort().map((owner, i) => ({
+    owner,
+    label: showNames ? nameOf(owner) || "名前未登録" : `生徒${i + 1}`,
+  }));
+}
 /** Which zone of a board template contains the point (x, y in 0..1)?
  * Null when the point falls outside every zone. */
 export function zoneAtPoint(

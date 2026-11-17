@@ -6,6 +6,7 @@ import { useGroups } from "./GroupsContext";
 import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
+  thinkingOwnerLabels,
   zoneAtPoint,
 } from "./thinkingTools";
 import type {
@@ -164,6 +165,13 @@ function ThinkingSurface({
   }, [myPoint, draft]);
 
   const [notice, setNotice] = useState("");
+  // Host-only slide display state (user decision 2026-11-17, point
+  // tools): the host can narrow the slide to one student's (or one
+  // group's) points instead of everyone's, and author names stay
+  // hidden until the host explicitly turns them on. Display-only —
+  // nothing extra is ever sent to student terminals.
+  const [focusOwner, setFocusOwner] = useState("");
+  const [showNames, setShowNames] = useState(false);
   async function commit(value: ThinkingPointValue, nextReason?: string) {
     try {
       await ctx.command(tool.id, "point", {
@@ -249,8 +257,28 @@ function ThinkingSurface({
   }
 
   const others = ctx.host
-    ? tool.points.filter((p) => p.scene === scene && p.owner !== myOwner)
+    ? tool.points.filter(
+        (p) =>
+          p.scene === scene &&
+          p.owner !== myOwner &&
+          (!focusOwner || p.owner === focusOwner),
+      )
     : [];
+  // Who the host can narrow the slide to. Labels follow the same
+  // convention as the board thumbnails: group names are not personal,
+  // student names appear only while the host has names turned on.
+  const pointOwners: { owner: string; label: string }[] =
+    tool.unit === "group"
+      ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
+      : thinkingOwnerLabels(
+          tool.points
+            .filter((p) => p.owner !== myOwner)
+            .map((p) => p.owner),
+          (owner) =>
+            tool.points.find((p) => p.owner === owner)?.authorName ||
+            undefined,
+          showNames,
+        );
   const ghosts = myPoints
     .filter((p) => p.scene !== scene)
     .sort(
@@ -293,6 +321,37 @@ function ThinkingSurface({
           )}
         </div>
       )}
+      {ctx.host && interactive && tool.template !== "ratio" && (
+        <div
+          className="thinking-hostbar"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <span className="thinking-hostbar-label">表示</span>
+          <button
+            type="button"
+            className={!focusOwner ? "is-active" : ""}
+            onClick={() => setFocusOwner("")}
+          >
+            全員
+          </button>
+          {pointOwners.map((o) => (
+            <button
+              key={o.owner}
+              type="button"
+              className={focusOwner === o.owner ? "is-active" : ""}
+              onClick={() => setFocusOwner(o.owner)}
+            >
+              {o.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowNames((v) => !v)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        </div>
+      )}
       {tool.template === "ratio" ? (
         <RatioSurface
           key={scene}
@@ -314,6 +373,7 @@ function ThinkingSurface({
           canEdit={canEdit}
           ghosts={ghosts}
           others={others}
+          labelOthers={showNames && !!focusOwner}
           onDraft={setDraft}
           onCommit={(v) => void commit(v)}
           onKeyCommit={commitKeys}
@@ -370,6 +430,7 @@ function AxisSurface({
   canEdit,
   ghosts,
   others,
+  labelOthers,
   onDraft,
   onCommit,
   onKeyCommit,
@@ -380,6 +441,7 @@ function AxisSurface({
   canEdit: boolean;
   ghosts: ThinkingPoint[];
   others: ThinkingPoint[];
+  labelOthers?: boolean;
   onDraft: (v: ThinkingPointValue) => void;
   onCommit: (v: ThinkingPointValue) => void;
   onKeyCommit: (v: ThinkingPointValue) => void;
@@ -506,7 +568,11 @@ function AxisSurface({
                 ...posOf(p.value),
                 background: `hsl(${ownerHue(p.owner)} 60% 55%)`,
               }}
-            />
+            >
+              {labelOthers && p.authorName && (
+                <span className="thinking-point-name">{p.authorName}</span>
+              )}
+            </span>
           ))}
           {value && (
             <button
@@ -748,13 +814,13 @@ function BoardSurface({
   const chartOwners: { owner: string; label: string }[] =
     tool.unit === "group"
       ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
-      : [...new Set(tool.cards.map((c) => c.owner))].map((owner, i) => ({
-          owner,
-          label: showNames
-            ? tool.cards.find((c) => c.owner === owner)?.authorName ||
-              "名前未登録"
-            : `生徒${i + 1}`,
-        }));
+      : thinkingOwnerLabels(
+          tool.cards.map((c) => c.owner),
+          (owner) =>
+            tool.cards.find((c) => c.owner === owner)?.authorName ||
+            undefined,
+          showNames,
+        );
   const focusLabel =
     chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
   const selected = tool.cards.find((c) => c.id === selectedId);

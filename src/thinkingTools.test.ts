@@ -8,6 +8,7 @@ import {
   thinkingCommand,
   parseThinkingDefinition,
   templateKind,
+  thinkingOwnerLabels,
   zoneAtPoint,
   ThinkingError,
 } from "./thinkingTools";
@@ -577,6 +578,40 @@ describe("thinking binding forward compatibility", () => {
     expect(() =>
       parseThinkingBindingLenient({ ...binding, toolId: "x" }),
     ).toThrow();
+  });
+});
+
+describe("thinking owner labels", () => {
+  const names = (owner: string) =>
+    ({ "user-a": "あおい", "user-b": "そら" })[owner];
+
+  it("numbers owners in id order, not in the order they arrived", () => {
+    // The server returns points/cards in last-updated order, so the
+    // arrival order shuffles whenever a student edits. The labels
+    // must come out identical for every arrival order.
+    const expected = [
+      { owner: "user-a", label: "生徒1" },
+      { owner: "user-b", label: "生徒2" },
+    ];
+    expect(thinkingOwnerLabels(["user-a", "user-b"], names, false)).toEqual(
+      expected,
+    );
+    expect(thinkingOwnerLabels(["user-b", "user-a"], names, false)).toEqual(
+      expected,
+    );
+    expect(
+      thinkingOwnerLabels(["user-b", "user-a", "user-b"], names, false),
+    ).toEqual(expected);
+  });
+
+  it("shows names only when asked, with a fallback for missing names", () => {
+    expect(thinkingOwnerLabels(["user-b", "user-a"], names, true)).toEqual([
+      { owner: "user-a", label: "あおい" },
+      { owner: "user-b", label: "そら" },
+    ]);
+    expect(thinkingOwnerLabels(["user-c"], names, true)).toEqual([
+      { owner: "user-c", label: "名前未登録" },
+    ]);
   });
 });
 
