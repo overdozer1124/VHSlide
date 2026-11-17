@@ -1,0 +1,13 @@
+{
+  "name": "stage1-harness",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "VHSlide stage-1 next-prototype harness (LOCAL MOCK ONLY - plan v0.2 step 1)",
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "dependencies": {
+    "miniflare": "^4.20260730.0"
+  }
+}

@@ -1,0 +1,39 @@
+--- src/worker.js	2026-11-03 07:58:14.473692851 +0900
++++ abort-build/worker.js	2026-11-04 21:55:10.450984850 +0900
+@@ -24,6 +24,11 @@
+ //   POST /operate        セッション＋CSRF による操作（毎回現在の資格を照合）
+ //   POST /recover        復旧（Origin 照合＋新しい ID トークン＋復旧キー、原子的更新）
+ //   POST /admin/restart  試験用フック（local-mock のみ。RESTART_KEY 照合必須）
++//   POST /admin/abort-instance
++//                        【abort 専用版のみ・通常版には存在しない】手順6専用。
++//                        Origin 完全一致＋X-Abort-Key（BOOTSTRAP_SECRET）照合の
++//                        うえで ctx.abort() を呼び、DO インスタンスを実際に
++//                        再生成させる。前回試作（2026-11-01）の方式の再現。
+ //   GET  /test/state     診断用読み取り（local-mock＋ALLOW_TEST_HOOKS=1＋DIAG_KEY 照合。
+ //                        秘匿化済みの集計と記録だけを返す）
+ //   GET  /test/boot      起動回数（boot_count）の読み取り（同上）
+@@ -321,6 +326,24 @@
+       }
+       throw new Error("test_restart_forced");
+     }
++    // 【abort 専用版のみ】手順6（再起動）専用の経路。通常版には存在しない。
++    // 前回試作（2026-11-01、gtrial2/gtrial3）で用いた ctx.abort() による
++    // 実再生成を再現する。照合は、上の設定検証に加えて Origin 完全一致と
++    // X-Abort-Key = BOOTSTRAP_SECRET（運営側シークレット、PC 側保管）。
++    // 成功時は ctx.abort() でこのインスタンスを終了させるため、正常な応答は
++    // 返らない（要求自体が失敗する）。次の要求でインスタンスが再生成され、
++    // コンストラクタが boot_count を進める。保存状態（SQLite）は不変。
++    if (request.method === "POST" && path === "/admin/abort-instance") {
++      if (origin !== EXPECTED_ORIGIN) {
++        return jsonResponse({ ok: false, error: "bad_origin", origin }, 403);
++      }
++      const key = request.headers.get("X-Abort-Key");
++      if (!this.env.BOOTSTRAP_SECRET || key !== this.env.BOOTSTRAP_SECRET) {
++        return jsonResponse({ ok: false, error: "bad_abort_key", origin }, 403);
++      }
++      this.ctx.abort("stage1-step6-abort-test");
++      return jsonResponse({ ok: false, error: "aborted", origin }, 500);
++    }
+     try {
+       if (request.method === "GET" && path === "/nonce") {
+         return await this.handleNonce(origin);

@@ -83,6 +83,19 @@ import {
   digestBytes,
 } from "../src/backupProtocol.ts";
 import {
+  applyStage1OrgMigration,
+  nodeStage1OrgDb,
+  usersPublicColumns,
+} from "../src/stage1OrgSchema.ts";
+import {
+  InitialRegistrationError,
+  applyStage1OperatorMigration,
+  issueAdminNonce,
+  nodeOperatorSql,
+  operatorActionFromBody,
+  performOperatorAction,
+} from "../src/stage1InitialRegistration.ts";
+import {
   backupSnapshot,
   parseBackupSnapshot,
   restoredComments,
@@ -94,14 +107,33 @@ import {
   sharedAccountNames,
 } from "../src/preSharing.ts";
 import { applyAuthorizedUpdate } from "../src/authorizeUpdate.ts";
-import {
-  AccessError,
-  defaultAccess,
-  hostAccess,
-  parseAccess,
-  parseComment,
-} from "../src/permissions.ts";
+import { AccessError, parseAccess, parseComment } from "../src/permissions.ts";
 import type { SlideComment } from "../src/permissions.ts";
+import {
+  generalDeckAccess,
+  stage1FeaturesEnabled,
+} from "../src/stage1Capabilities.ts";
+import { writeAuditLog } from "../src/stage1Audit.ts";
+import {
+  bindPreregistrationsOnLogin,
+  cancelPreregistration,
+  canManageOrganizationPrereg,
+  createPreregistration,
+  nodePreregSql,
+  PreregistrationError,
+} from "../src/stage1Preregistration.ts";
+import {
+  applyForSchoolAdmin,
+  decideSchoolAdminApplication,
+  nodeSchoolAdminSql,
+  revokeSchoolAdmin,
+  SchoolAdminError,
+} from "../src/stage1SchoolAdmin.ts";
+import {
+  invalidateOrganizationMember,
+  nodeGenerationSql,
+  reactivateOrganizationMember,
+} from "../src/stage1Generation.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -134,7 +166,15 @@ interface Options {
   schoolDomain?: string;
   /** Tests inject an identity verifier; production always verifies Google's signature. */
   verifyIdentity?: (credential: string) => Promise<User>;
+  /** Operator routes require a fresh Google ID token and its nonce. */
+  verifyOperatorCredential?: (
+    credential: string,
+  ) => Promise<{ sub: string; nonce: string }>;
   maxConnections?: number;
+  /** Verify-only stage 1 APIs. Prefer env STAGE1_FEATURES; tests may set this. */
+  stage1Features?: boolean;
+  /** Environment id recorded on the first super-admin registration. */
+  stage1EnvId?: string;
 }
 interface Room {
   follow?: FollowState;
@@ -209,6 +249,9 @@ function imageMime(bytes: Buffer): string | undefined {
 
 export function createApplication(options: Options) {
   const origin = new URL(options.origin).origin;
+  const stage1On =
+    options.stage1Features === true ||
+    (options.stage1Features !== false && stage1FeaturesEnabled(process.env));
   mkdirSync(options.directory, { recursive: true });
   const db = new DatabaseSync(join(options.directory, "vhslide.sqlite"));
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
@@ -239,6 +282,9 @@ export function createApplication(options: Options) {
   ])
     if (!commentColumns.has(name))
       db.exec(`ALTER TABLE comments ADD COLUMN ${name} ${type}`);
+
+  applyStage1OrgMigration(nodeStage1OrgDb(db));
+  applyStage1OperatorMigration(nodeStage1OrgDb(db));
 
   db.exec(revisionSchema("node") + restoreSchema);
   db.exec(
@@ -323,6 +369,26 @@ export function createApplication(options: Options) {
         name: String(payload.name ?? payload.email).slice(0, 100),
       };
     });
+  const verifyOperatorCredential =
+    options.verifyOperatorCredential ??
+    (async (credential: string) => {
+      const { payload } = await jwtVerify(credential, googleKeys, {
+        audience: [options.clientId, options.schoolClientId].filter(
+          (value): value is string => !!value,
+        ),
+        issuer: ["https://accounts.google.com", "accounts.google.com"],
+        algorithms: ["RS256"],
+      });
+      insist(
+        payload.email_verified === true &&
+          typeof payload.sub === "string" &&
+          typeof payload.nonce === "string",
+        401,
+        "確認用の番号が無効です。",
+      );
+      return { sub: payload.sub, nonce: payload.nonce };
+    });
+  const stage1EnvId = options.stage1EnvId || process.env.STAGE1_ENV_ID || "";
   function sessionHash(req: IncomingMessage) {
     const raw = /(?:^|;\s*)vhslide_session=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
       req.headers.cookie ?? "",
@@ -332,7 +398,7 @@ export function createApplication(options: Options) {
   function user(req: IncomingMessage): User {
     const found = db
       .prepare(
-        "SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?",
+        `SELECT ${usersPublicColumns} FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?`,
       )
       .get(sessionHash(req), Date.now()) as unknown as User | undefined;
     insist(found, 401, "Googleアカウントでサインインしてください。");
@@ -378,11 +444,19 @@ export function createApplication(options: Options) {
     return found;
   }
   function permissions(id: string, user: string, owner: string) {
-    if (owner === user) return hostAccess();
     const grant = db
       .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
       .get(id, user) as { value: string } | undefined;
-    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+    const isMember = !!db
+      .prepare("SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?")
+      .get(id, user);
+    return generalDeckAccess({
+      deckId: id,
+      userId: user,
+      ownerId: owner,
+      isMember,
+      grantJson: grant?.value,
+    }).access;
   }
   function recipientList(id: string) {
     return (
@@ -640,6 +714,10 @@ export function createApplication(options: Options) {
         );
       if (path === "/healthz" && method === "GET")
         return json(res, 200, { ok: true });
+      if (path === "/platform/apply" || path.startsWith("/admin/"))
+        throw new HttpError(404, "見つかりません。");
+      if (path.startsWith("/api/stage1/") && !stage1On)
+        throw new HttpError(404, "見つかりません。");
       if (path === "/api/config" && method === "GET")
         return json(res, 200, {
           clientId: options.clientId,
@@ -694,15 +772,28 @@ export function createApplication(options: Options) {
             "Googleのサインインを確認できませんでした。もう一度お試しください。",
           );
         }
-        db.prepare(
-          "INSERT INTO users VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
-        ).run(u.id, u.name, u.email);
         const raw = token();
-        db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
-          sha(raw),
-          u.id,
-          Date.now() + 7 * 86400_000,
-        );
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          db.prepare(
+            "INSERT INTO users(id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          ).run(u.id, u.name, u.email);
+          if (stage1On)
+            bindPreregistrationsOnLogin(nodePreregSql(db), {
+              userId: u.id,
+              email: u.email,
+              emailVerified: true,
+            });
+          db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
+            sha(raw),
+            u.id,
+            Date.now() + 7 * 86400_000,
+          );
+          db.exec("COMMIT");
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
         res.setHeader("Set-Cookie", cookie(raw, 7 * 86400));
         return json(res, 200, { user: u });
       }
@@ -715,10 +806,425 @@ export function createApplication(options: Options) {
         res.setHeader("Set-Cookie", cookie("", 0));
         return json(res, 200, { ok: true });
       }
+      if (
+        stage1On &&
+        path === "/api/stage1/operators/nonce" &&
+        method === "POST"
+      ) {
+        const nonceValue = token();
+        const ctx = token();
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          issueAdminNonce(nodeOperatorSql(db), {
+            nonce: nonceValue,
+            ctxHash: sha(ctx),
+            expiresAt: Date.now() + 5 * 60_000,
+          });
+          db.exec("COMMIT");
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+        res.setHeader(
+          "Set-Cookie",
+          `vhslide_admin_ctx=${ctx}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300${origin.startsWith("https:") ? "; Secure" : ""}`,
+        );
+        return json(res, 200, { nonce: nonceValue });
+      }
+      const operatorKind =
+        /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
+          path,
+        );
+      if (stage1On && operatorKind && method === "POST") {
+        const kind = operatorKind[1] || operatorKind[2];
+        const input = JSON.parse((await body(req, 20_000)).toString()) as {
+          credential?: unknown;
+        } & Record<string, unknown>;
+        insist(
+          typeof input.credential === "string",
+          400,
+          "サインイン情報を確認できません。",
+        );
+        let operator: { sub: string; nonce: string };
+        try {
+          operator = await verifyOperatorCredential(input.credential);
+        } catch (error) {
+          if (error instanceof HttpError) throw error;
+          throw new HttpError(
+            401,
+            "Googleのサインインを確認できませんでした。",
+          );
+        }
+        const ctx =
+          /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+            req.headers.cookie ?? "",
+          )?.[1] ?? null;
+        const action = operatorActionFromBody(kind, input);
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          const result = performOperatorAction(nodeOperatorSql(db), {
+            action,
+            actor: operator.sub,
+            nonce: operator.nonce,
+            ctxHash: ctx ? sha(ctx) : null,
+            now: Date.now(),
+            envId: stage1EnvId,
+            auditId: randomBytes(16).toString("hex"),
+          });
+          db.exec("COMMIT");
+          return json(res, 200, result);
+        } catch (error) {
+          db.exec("ROLLBACK");
+          if (error instanceof InitialRegistrationError)
+            throw new HttpError(error.status, error.message);
+          throw error;
+        }
+      }
       if (path.startsWith("/api/")) {
         const u = user(req);
         claim(u);
         if (method !== "GET") rateLimit(`api:${u.id}`, 120);
+        const orgPrereg =
+          /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
+        if (stage1On && orgPrereg && method === "POST") {
+          const organizationId = decodeURIComponent(orgPrereg[1]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の事前登録を作成する権限がありません。",
+          );
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          insist(
+            typeof input.email === "string",
+            400,
+            "メールアドレスを確認してください。",
+          );
+          const plannedRole =
+            input.plannedRole === "teacher" || input.plannedRole === "student"
+              ? input.plannedRole
+              : input.plannedRole == null
+                ? null
+                : undefined;
+          insist(
+            plannedRole !== undefined,
+            400,
+            "予定の役割を確認してください。",
+          );
+          const id = randomUUID();
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const row = createPreregistration(nodePreregSql(db), {
+              id,
+              email: input.email,
+              organizationId,
+              plannedRole,
+              plannedIsSchoolAdmin: !!input.plannedIsSchoolAdmin,
+              plannedCanCreateSpace: !!input.plannedCanCreateSpace,
+              createdBy: u.id,
+              createdAt: now,
+            });
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "preregistration.create",
+                target: `preregistration:${id}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 201, { preregistration: row });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof PreregistrationError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const schoolAdminApply =
+          /^\/api\/organizations\/([^/]+)\/school-admin-applications$/.exec(
+            path,
+          );
+        if (stage1On && schoolAdminApply && method === "POST") {
+          const organizationId = decodeURIComponent(schoolAdminApply[1]);
+          const id = randomUUID();
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const row = applyForSchoolAdmin(nodeSchoolAdminSql(db), {
+              id,
+              organizationId,
+              applicantUserId: u.id,
+              createdAt: now,
+            });
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "school_admin.apply",
+                target: `school_admin_application:${id}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 201, { application: row });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof SchoolAdminError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const schoolAdminDecide =
+          /^\/api\/school-admin-applications\/([^/]+)\/decide$/.exec(path);
+        if (stage1On && schoolAdminDecide && method === "POST") {
+          const applicationId = decodeURIComponent(schoolAdminDecide[1]);
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          insist(
+            input.decision === "登録" || input.decision === "却下",
+            400,
+            "決定内容を確認してください。",
+          );
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const row = decideSchoolAdminApplication(nodeSchoolAdminSql(db), {
+              applicationId,
+              decision: input.decision,
+              decidedBy: u.id,
+              decidedAt: now,
+            });
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action:
+                  input.decision === "登録"
+                    ? "school_admin.appoint"
+                    : "school_admin.reject",
+                target: `school_admin_application:${applicationId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { application: row });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof SchoolAdminError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const schoolAdminRevoke =
+          /^\/api\/organizations\/([^/]+)\/school-admins\/([^/]+)$/.exec(path);
+        if (stage1On && schoolAdminRevoke && method === "DELETE") {
+          const organizationId = decodeURIComponent(schoolAdminRevoke[1]);
+          const targetUserId = decodeURIComponent(schoolAdminRevoke[2]);
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            insist(
+              revokeSchoolAdmin(nodeSchoolAdminSql(db), {
+                organizationId,
+                userId: targetUserId,
+                actorUserId: u.id,
+              }),
+              404,
+              "解除する学校管理者資格が見つかりません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "school_admin.revoke",
+                target: `organization:${organizationId}:user:${targetUserId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { ok: true });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof SchoolAdminError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        const memberInvalidate =
+          /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/invalidate$/.exec(
+            path,
+          );
+        if (stage1On && memberInvalidate && method === "POST") {
+          const organizationId = decodeURIComponent(memberInvalidate[1]);
+          const targetUserId = decodeURIComponent(memberInvalidate[2]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の所属を無効化する権限がありません。",
+          );
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const generation = invalidateOrganizationMember(
+              nodeGenerationSql(db),
+              targetUserId,
+              organizationId,
+            );
+            insist(
+              generation !== undefined,
+              404,
+              "無効化できる有効な所属が見つかりません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "membership.invalidate",
+                target: `organization:${organizationId}:user:${targetUserId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { generation });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        const memberReactivate =
+          /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/reactivate$/.exec(
+            path,
+          );
+        if (stage1On && memberReactivate && method === "POST") {
+          const organizationId = decodeURIComponent(memberReactivate[1]);
+          const targetUserId = decodeURIComponent(memberReactivate[2]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の所属を再有効化する権限がありません。",
+          );
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          const role =
+            input.role === "teacher" || input.role === "student"
+              ? input.role
+              : input.role == null
+                ? null
+                : undefined;
+          insist(role !== undefined, 400, "役割を確認してください。");
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const member = reactivateOrganizationMember(
+              nodeGenerationSql(db),
+              targetUserId,
+              organizationId,
+              role,
+            );
+            insist(member, 404, "再有効化できる無効な所属が見つかりません。");
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "membership.reactivate",
+                target: `organization:${organizationId}:user:${targetUserId}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { member });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        const preregId = /^\/api\/preregistrations\/([^/]+)$/.exec(path);
+        if (stage1On && preregId && method === "DELETE") {
+          const id = decodeURIComponent(preregId[1]);
+          const existing = db
+            .prepare("SELECT organization_id FROM preregistrations WHERE id=?")
+            .get(id) as { organization_id: string } | undefined;
+          insist(existing, 404, "事前登録が見つかりません。");
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              existing.organization_id,
+            ),
+            403,
+            "この事前登録を取り消す権限がありません。",
+          );
+          const now = Date.now();
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            insist(
+              cancelPreregistration(nodePreregSql(db), id),
+              409,
+              "この事前登録は取り消せません。",
+            );
+            writeAuditLog(
+              {
+                exec(query, ...args) {
+                  db.prepare(query).run(...args);
+                },
+              },
+              {
+                id: randomUUID(),
+                actorUserId: u.id,
+                action: "preregistration.cancel",
+                target: `preregistration:${id}`,
+                createdAt: now,
+              },
+            );
+            db.exec("COMMIT");
+            return json(res, 200, { ok: true });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
         if (path === "/api/trash" && method === "GET")
           return json(res, 200, {
             decks: db
@@ -904,7 +1410,9 @@ export function createApplication(options: Options) {
           });
           db.exec("BEGIN IMMEDIATE");
           try {
-            db.prepare("INSERT INTO decks VALUES(?,?,?,?,?)").run(
+            db.prepare(
+              "INSERT INTO decks(id,owner,title,state,updated) VALUES(?,?,?,?,?)",
+            ).run(
               id,
               u.id,
               deck.title,
@@ -1546,7 +2054,7 @@ export function createApplication(options: Options) {
           const people = (
             db
               .prepare(
-                "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?",
+                `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?`,
               )
               .all(id, access.owner) as unknown as User[]
           ).map((p) => ({ ...p, access: permissions(id, p.id, access.owner) }));
@@ -1870,7 +2378,7 @@ export function createApplication(options: Options) {
         if (extra === "row-accounts" && method === "GET") {
           const people = db
             .prepare(
-              "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+              `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
             )
             .all(id)
             .map((value) => {
@@ -1895,7 +2403,7 @@ export function createApplication(options: Options) {
           return json(res, 200, {
             members: db
               .prepare(
-                "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+                `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
               )
               .all(id)
               .map((value) => {
@@ -1911,6 +2419,26 @@ export function createApplication(options: Options) {
           return json(res, 200, {
             access: permissions(id, u.id, access.owner),
           });
+        if (extra === "capabilities" && method === "GET") {
+          insist(stage1On, 404, "この機能は利用できません。");
+          const grant = db
+            .prepare("SELECT value FROM grants WHERE deck=? AND user_id=?")
+            .get(id, u.id) as { value: string } | undefined;
+          const isMember = !!db
+            .prepare("SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?")
+            .get(id, u.id);
+          return json(
+            res,
+            200,
+            generalDeckAccess({
+              deckId: id,
+              userId: u.id,
+              ownerId: access.owner,
+              isMember,
+              grantJson: grant?.value,
+            }),
+          );
+        }
         if (extra?.startsWith("members/") && method === "PATCH") {
           member(id, u, true);
           const target = decodeURIComponent(extra.slice(8));
@@ -2182,7 +2710,8 @@ export function createApplication(options: Options) {
         error instanceof WebbingError ||
         error instanceof GroupError ||
         error instanceof ThinkingError ||
-        error instanceof UserAppError
+        error instanceof UserAppError ||
+        error instanceof InitialRegistrationError
           ? error.status
           : error instanceof SyntaxError
             ? 400

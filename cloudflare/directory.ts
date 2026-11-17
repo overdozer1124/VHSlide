@@ -58,6 +58,19 @@ import {
   parseBackupSnapshot,
   BACKUP_METADATA_BYTES,
 } from "../src/backupData.ts";
+import {
+  applyStage1OrgMigration,
+  durableStage1OrgDb,
+  usersPublicColumns,
+} from "../src/stage1OrgSchema.ts";
+import {
+  InitialRegistrationError,
+  applyStage1OperatorMigration,
+  durableOperatorSql,
+  issueAdminNonce,
+  operatorActionFromBody,
+  performOperatorAction,
+} from "../src/stage1InitialRegistration.ts";
 import { blank } from "../src/model.ts";
 import type { SlideComment } from "../src/permissions.ts";
 import {
@@ -65,7 +78,32 @@ import {
   parseRecipients,
   sharedAccountNames,
 } from "../src/preSharing.ts";
-import { defaultAccess, hostAccess, parseAccess } from "../src/permissions.ts";
+import { parseAccess } from "../src/permissions.ts";
+import {
+  generalDeckAccess,
+  stage1FeaturesEnabled,
+} from "../src/stage1Capabilities.ts";
+import { writeAuditLog } from "../src/stage1Audit.ts";
+import {
+  bindPreregistrationsOnLogin,
+  cancelPreregistration,
+  canManageOrganizationPrereg,
+  createPreregistration,
+  durablePreregSql,
+  PreregistrationError,
+} from "../src/stage1Preregistration.ts";
+import {
+  applyForSchoolAdmin,
+  decideSchoolAdminApplication,
+  durableSchoolAdminSql,
+  revokeSchoolAdmin,
+  SchoolAdminError,
+} from "../src/stage1SchoolAdmin.ts";
+import {
+  durableGenerationSql,
+  invalidateOrganizationMember,
+  reactivateOrganizationMember,
+} from "../src/stage1Generation.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -105,7 +143,7 @@ interface Work {
 
 /** Private account directory. Only the Worker and other bound objects can call it. */
 export class Directory extends DurableObject<Env> {
-  private sql: SqlStorage;
+  protected sql: SqlStorage;
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
@@ -143,6 +181,8 @@ export class Directory extends DurableObject<Env> {
     this.sql
       .exec(`INSERT OR IGNORE INTO restore_tasks(id,owner,request_key,content_hash,apply_sharing,title,status,created)
       SELECT id,owner,'legacy:'||id,'',-1,title,'uploading',updated FROM decks WHERE status='restoring'`);
+    applyStage1OrgMigration(durableStage1OrgDb(this.sql));
+    applyStage1OperatorMigration(durableStage1OrgDb(this.sql));
   }
   private revision(id: string) {
     return (
@@ -185,7 +225,7 @@ export class Directory extends DurableObject<Env> {
     const session = raw ? await sha(raw) : "";
     const found = one<User & { expires: number }>(
       this.sql,
-      "SELECT users.*,sessions.expires FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?",
+      `SELECT ${usersPublicColumns},sessions.expires FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.hash=? AND expires>?`,
       session,
       Date.now(),
     );
@@ -220,14 +260,25 @@ export class Directory extends DurableObject<Env> {
     return work;
   }
   private permissions(id: string, user: string, owner: string) {
-    if (owner === user) return hostAccess();
     const grant = one<{ value: string }>(
       this.sql,
       "SELECT value FROM grants WHERE deck=? AND user_id=?",
       id,
       user,
     );
-    return grant ? parseAccess(JSON.parse(grant.value)) : defaultAccess();
+    const isMember = !!one(
+      this.sql,
+      "SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?",
+      id,
+      user,
+    );
+    return generalDeckAccess({
+      deckId: id,
+      userId: user,
+      ownerId: owner,
+      isMember,
+      grantJson: grant?.value,
+    }).access;
   }
   private async claim(user: User) {
     const pending = rows<{ deck: string; email: string; value: string }>(
@@ -446,6 +497,10 @@ export class Directory extends DurableObject<Env> {
     const url = new URL(request.url),
       path = url.pathname,
       method = request.method;
+    if (path === "/platform/apply" || path.startsWith("/admin/"))
+      throw new HttpError(404, "見つかりません。");
+    if (path.startsWith("/api/stage1/") && !stage1FeaturesEnabled(this.env))
+      throw new HttpError(404, "見つかりません。");
     if (path === "/internal/authorize" && method === "POST") {
       const data = await input(request);
       const active = one(
@@ -519,6 +574,87 @@ export class Directory extends DurableObject<Env> {
         },
       });
     }
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/operators/nonce" &&
+      method === "POST"
+    ) {
+      const nonceValue = randomToken();
+      const ctx = randomToken();
+      issueAdminNonce(durableOperatorSql(this.sql), {
+        nonce: nonceValue,
+        ctxHash: await sha(ctx),
+        expiresAt: Date.now() + 5 * 60_000,
+      });
+      const secure = (this.env.PUBLIC_ORIGIN || url.origin).startsWith("https:")
+        ? "; Secure"
+        : "";
+      return json({ nonce: nonceValue }, 200, {
+        "Set-Cookie": `vhslide_admin_ctx=${ctx}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300${secure}`,
+      });
+    }
+    const operatorKind =
+      /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
+        path,
+      );
+    if (stage1FeaturesEnabled(this.env) && operatorKind && method === "POST") {
+      const kind = operatorKind[1] || operatorKind[2];
+      const data = await input(request);
+      insist(
+        typeof data.credential === "string",
+        400,
+        "サインイン情報を確認できません。",
+      );
+      let operator: { sub: string; nonce: string };
+      try {
+        const { payload } = await jwtVerify(data.credential, keys, {
+          audience: [
+            this.env.GOOGLE_CLIENT_ID,
+            this.env.GOOGLE_SCHOOL_CLIENT_ID,
+          ].filter((value): value is string => !!value),
+          issuer: ["https://accounts.google.com", "accounts.google.com"],
+          algorithms: ["RS256"],
+        });
+        insist(
+          payload.email_verified === true &&
+            typeof payload.sub === "string" &&
+            typeof payload.nonce === "string",
+          401,
+          "確認用の番号が無効です。",
+        );
+        operator = { sub: payload.sub, nonce: payload.nonce };
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw new HttpError(401, "Googleのサインインを確認できませんでした。");
+      }
+      const ctx =
+        /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+          request.headers.get("Cookie") || "",
+        )?.[1] ?? null;
+      const ctxHash = ctx ? await sha(ctx) : null;
+      try {
+        const action = operatorActionFromBody(
+          kind,
+          data as Record<string, unknown>,
+        );
+        const result = this.ctx.storage.transactionSync(() =>
+          performOperatorAction(durableOperatorSql(this.sql), {
+            action,
+            actor: operator.sub,
+            nonce: operator.nonce,
+            ctxHash,
+            now: Date.now(),
+            envId: this.env.STAGE1_ENV_ID || "",
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json(result);
+      } catch (error) {
+        if (error instanceof InitialRegistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
     const origin = this.env.PUBLIC_ORIGIN || url.origin;
     const cookie = (raw: string, age: number) =>
       `vhslide_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${origin.startsWith("https:") ? "; Secure" : ""}`;
@@ -566,11 +702,17 @@ export class Directory extends DurableObject<Env> {
         hash = await sha(raw);
       this.ctx.storage.transactionSync(() => {
         this.sql.exec(
-          "INSERT INTO users VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
+          "INSERT INTO users(id,name,email) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email",
           user.id,
           user.name,
           user.email,
         );
+        if (stage1FeaturesEnabled(this.env))
+          bindPreregistrationsOnLogin(durablePreregSql(this.sql), {
+            userId: user.id,
+            email: user.email,
+            emailVerified: true,
+          });
         this.sql.exec(
           "INSERT INTO sessions VALUES(?,?,?)",
           hash,
@@ -585,6 +727,353 @@ export class Directory extends DurableObject<Env> {
     const identity = await this.identity(request),
       user = identity.user;
     if (path !== "/api/logout") await this.claim(user);
+    const orgPrereg = /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(
+      path,
+    );
+    if (stage1FeaturesEnabled(this.env) && orgPrereg && method === "POST") {
+      const organizationId = decodeURIComponent(orgPrereg[1]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の事前登録を作成する権限がありません。",
+      );
+      const data = await input(request, 20_000);
+      insist(
+        typeof data.email === "string",
+        400,
+        "メールアドレスを確認してください。",
+      );
+      const plannedRole =
+        data.plannedRole === "teacher" || data.plannedRole === "student"
+          ? data.plannedRole
+          : data.plannedRole == null
+            ? null
+            : undefined;
+      insist(plannedRole !== undefined, 400, "予定の役割を確認してください。");
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const created = createPreregistration(durablePreregSql(this.sql), {
+            id,
+            email: data.email,
+            organizationId,
+            plannedRole,
+            plannedIsSchoolAdmin: !!data.plannedIsSchoolAdmin,
+            plannedCanCreateSpace: !!data.plannedCanCreateSpace,
+            createdBy: user.id,
+            createdAt: now,
+          });
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "preregistration.create",
+              target: `preregistration:${id}`,
+              createdAt: now,
+            },
+          );
+          return created;
+        });
+        return json({ preregistration: row }, 201);
+      } catch (error) {
+        if (error instanceof PreregistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const schoolAdminApply =
+      /^\/api\/organizations\/([^/]+)\/school-admin-applications$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      schoolAdminApply &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(schoolAdminApply[1]);
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const created = applyForSchoolAdmin(durableSchoolAdminSql(this.sql), {
+            id,
+            organizationId,
+            applicantUserId: user.id,
+            createdAt: now,
+          });
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "school_admin.apply",
+              target: `school_admin_application:${id}`,
+              createdAt: now,
+            },
+          );
+          return created;
+        });
+        return json({ application: row }, 201);
+      } catch (error) {
+        if (error instanceof SchoolAdminError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const schoolAdminDecide =
+      /^\/api\/school-admin-applications\/([^/]+)\/decide$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      schoolAdminDecide &&
+      method === "POST"
+    ) {
+      const applicationId = decodeURIComponent(schoolAdminDecide[1]);
+      const data = await input(request, 20_000);
+      insist(
+        data.decision === "登録" || data.decision === "却下",
+        400,
+        "決定内容を確認してください。",
+      );
+      const now = Date.now();
+      try {
+        const row = this.ctx.storage.transactionSync(() => {
+          const decided = decideSchoolAdminApplication(
+            durableSchoolAdminSql(this.sql),
+            {
+              applicationId,
+              decision: data.decision,
+              decidedBy: user.id,
+              decidedAt: now,
+            },
+          );
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action:
+                data.decision === "登録"
+                  ? "school_admin.appoint"
+                  : "school_admin.reject",
+              target: `school_admin_application:${applicationId}`,
+              createdAt: now,
+            },
+          );
+          return decided;
+        });
+        return json({ application: row });
+      } catch (error) {
+        if (error instanceof SchoolAdminError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const schoolAdminRevoke =
+      /^\/api\/organizations\/([^/]+)\/school-admins\/([^/]+)$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      schoolAdminRevoke &&
+      method === "DELETE"
+    ) {
+      const organizationId = decodeURIComponent(schoolAdminRevoke[1]);
+      const targetUserId = decodeURIComponent(schoolAdminRevoke[2]);
+      const now = Date.now();
+      try {
+        this.ctx.storage.transactionSync(() => {
+          insist(
+            revokeSchoolAdmin(durableSchoolAdminSql(this.sql), {
+              organizationId,
+              userId: targetUserId,
+              actorUserId: user.id,
+            }),
+            404,
+            "解除する学校管理者資格が見つかりません。",
+          );
+          writeAuditLog(
+            {
+              exec: (query, ...args) => {
+                this.sql.exec(query, ...args);
+              },
+            },
+            {
+              id: crypto.randomUUID(),
+              actorUserId: user.id,
+              action: "school_admin.revoke",
+              target: `organization:${organizationId}:user:${targetUserId}`,
+              createdAt: now,
+            },
+          );
+        });
+        return json({ ok: true });
+      } catch (error) {
+        if (error instanceof SchoolAdminError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const memberInvalidate =
+      /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/invalidate$/.exec(
+        path,
+      );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      memberInvalidate &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(memberInvalidate[1]);
+      const targetUserId = decodeURIComponent(memberInvalidate[2]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を無効化する権限がありません。",
+      );
+      const now = Date.now();
+      const generation = this.ctx.storage.transactionSync(() => {
+        const next = invalidateOrganizationMember(
+          durableGenerationSql(this.sql),
+          targetUserId,
+          organizationId,
+        );
+        insist(
+          next !== undefined,
+          404,
+          "無効化できる有効な所属が見つかりません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "membership.invalidate",
+            target: `organization:${organizationId}:user:${targetUserId}`,
+            createdAt: now,
+          },
+        );
+        return next;
+      });
+      return json({ generation });
+    }
+    const memberReactivate =
+      /^\/api\/organizations\/([^/]+)\/members\/([^/]+)\/reactivate$/.exec(
+        path,
+      );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      memberReactivate &&
+      method === "POST"
+    ) {
+      const organizationId = decodeURIComponent(memberReactivate[1]);
+      const targetUserId = decodeURIComponent(memberReactivate[2]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を再有効化する権限がありません。",
+      );
+      const data = await input(request, 20_000);
+      const role =
+        data.role === "teacher" || data.role === "student"
+          ? data.role
+          : data.role == null
+            ? null
+            : undefined;
+      insist(role !== undefined, 400, "役割を確認してください。");
+      const now = Date.now();
+      const member = this.ctx.storage.transactionSync(() => {
+        const restored = reactivateOrganizationMember(
+          durableGenerationSql(this.sql),
+          targetUserId,
+          organizationId,
+          role,
+        );
+        insist(restored, 404, "再有効化できる無効な所属が見つかりません。");
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "membership.reactivate",
+            target: `organization:${organizationId}:user:${targetUserId}`,
+            createdAt: now,
+          },
+        );
+        return restored;
+      });
+      return json({ member });
+    }
+    const preregId = /^\/api\/preregistrations\/([^/]+)$/.exec(path);
+    if (stage1FeaturesEnabled(this.env) && preregId && method === "DELETE") {
+      const id = decodeURIComponent(preregId[1]);
+      const existing = one<{ organization_id: string }>(
+        this.sql,
+        "SELECT organization_id FROM preregistrations WHERE id=?",
+        id,
+      );
+      insist(existing, 404, "事前登録が見つかりません。");
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          existing.organization_id,
+        ),
+        403,
+        "この事前登録を取り消す権限がありません。",
+      );
+      const now = Date.now();
+      this.ctx.storage.transactionSync(() => {
+        insist(
+          cancelPreregistration(durablePreregSql(this.sql), id),
+          409,
+          "この事前登録は取り消せません。",
+        );
+        writeAuditLog(
+          {
+            exec: (query, ...args) => {
+              this.sql.exec(query, ...args);
+            },
+          },
+          {
+            id: crypto.randomUUID(),
+            actorUserId: user.id,
+            action: "preregistration.cancel",
+            target: `preregistration:${id}`,
+            createdAt: now,
+          },
+        );
+      });
+      return json({ ok: true });
+    }
     if (path === "/api/logout" && method === "POST") {
       this.sql.exec("DELETE FROM sessions WHERE hash=?", identity.session);
       const works = rows<{ deck: string }>(
@@ -803,7 +1292,7 @@ export class Directory extends DurableObject<Env> {
           "保存できる作品数の上限です（40作品）。",
         );
         this.sql.exec(
-          "INSERT INTO decks VALUES(?,?,?,?,?)",
+          "INSERT INTO decks(id,owner,title,updated,status) VALUES(?,?,?,?,?)",
           work.id,
           user.id,
           work.title,
@@ -1344,7 +1833,7 @@ export class Directory extends DurableObject<Env> {
       const people = () =>
         rows<User>(
           this.sql,
-          "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?",
+          `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=? AND users.id<>?`,
           id,
           work.owner,
         ).map((p) => ({
@@ -1653,7 +2142,7 @@ export class Directory extends DurableObject<Env> {
     if (extra === "row-accounts" && method === "GET") {
       const members = rows<User>(
         this.sql,
-        "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+        `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
         id,
       ).map((member) => ({
         id: member.id,
@@ -1672,7 +2161,7 @@ export class Directory extends DurableObject<Env> {
       return json({
         members: rows<User>(
           this.sql,
-          "SELECT users.* FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?",
+          `SELECT ${usersPublicColumns} FROM users JOIN members ON users.id=members.user_id WHERE members.deck=?`,
           id,
         ).map((member) => ({
           ...member,
@@ -1682,6 +2171,34 @@ export class Directory extends DurableObject<Env> {
     }
     if (extra === "permissions" && method === "GET")
       return json({ access: this.permissions(id, user.id, work.owner) });
+    if (extra === "capabilities" && method === "GET") {
+      insist(
+        stage1FeaturesEnabled(this.env),
+        404,
+        "この機能は利用できません。",
+      );
+      const grant = one<{ value: string }>(
+        this.sql,
+        "SELECT value FROM grants WHERE deck=? AND user_id=?",
+        id,
+        user.id,
+      );
+      const isMember = !!one(
+        this.sql,
+        "SELECT 1 AS ok FROM members WHERE deck=? AND user_id=?",
+        id,
+        user.id,
+      );
+      return json(
+        generalDeckAccess({
+          deckId: id,
+          userId: user.id,
+          ownerId: work.owner,
+          isMember,
+          grantJson: grant?.value,
+        }),
+      );
+    }
     if (extra?.startsWith("members/") && method === "PATCH") {
       this.access(id, user, true);
       const target = decodeURIComponent(extra.slice(8));
