@@ -340,6 +340,24 @@ describe("thinking board definitions", () => {
     expect(zoneAtPoint("ychart", 0.5, 0.8)).toBe("c");
     expect(zoneAtPoint("axis2", 0.5, 0.5)).toBeNull();
   });
+
+  it("hit-tests the X chart by its diagonals, not by quadrants", () => {
+    // The four triangles: top / right / bottom / left.
+    expect(zoneAtPoint("xchart", 0.5, 0.1)).toBe("a");
+    expect(zoneAtPoint("xchart", 0.9, 0.5)).toBe("b");
+    expect(zoneAtPoint("xchart", 0.5, 0.9)).toBe("c");
+    expect(zoneAtPoint("xchart", 0.1, 0.5)).toBe("d");
+    // Near a corner the diagonals decide: the top-right corner
+    // belongs to the top or right triangle, never to a quadrant.
+    expect(zoneAtPoint("xchart", 0.9, 0.05)).toBe("a");
+    expect(zoneAtPoint("xchart", 0.95, 0.4)).toBe("b");
+    // The centre circle holds the topic: no card zone there.
+    expect(zoneAtPoint("xchart", 0.5, 0.5)).toBeNull();
+    expect(zoneAtPoint("xchart", 0.55, 0.45)).toBeNull();
+    // The matrix keeps its plain quadrants.
+    expect(zoneAtPoint("matrix", 0.9, 0.05)).toBe("b");
+    expect(zoneAtPoint("matrix", 0.75, 0.75)).toBe("d");
+  });
 });
 
 const vennDef = {

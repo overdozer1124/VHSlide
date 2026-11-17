@@ -179,6 +179,11 @@ export type ThinkingZoneSpec = {
   label: string;
   rect?: [number, number, number, number];
   anchor: [number, number];
+  /** X chart only: the zone is one of the four triangles the two
+   * diagonals cut the board into. `rect` then gives the box the
+   * zone's cards are stacked in (inscribed in the triangle), and
+   * zone membership follows the diagonals, not the box. */
+  wedge?: "top" | "right" | "bottom" | "left";
 };
 const cols = (labels: string[]): ThinkingZoneSpec[] =>
   labels.map((label, i) => ({
@@ -229,7 +234,12 @@ export const BOARD_ZONE_SPECS: Partial<
     { id: "b", label: "聞いたこと", rect: [0.5, 0, 0.5, 0.55], anchor: [0.75, 0.27] },
     { id: "c", label: "感じたこと", rect: [0.25, 0.55, 0.5, 0.45], anchor: [0.5, 0.77] },
   ],
-  xchart: quad(["左上", "右上", "左下", "右下"]),
+  xchart: [
+    { id: "a", label: "見た目", wedge: "top", rect: [0.33, 0.03, 0.34, 0.28], anchor: [0.5, 0.15] },
+    { id: "b", label: "音", wedge: "right", rect: [0.69, 0.33, 0.28, 0.34], anchor: [0.85, 0.5] },
+    { id: "c", label: "感じ", wedge: "bottom", rect: [0.33, 0.69, 0.34, 0.28], anchor: [0.5, 0.85] },
+    { id: "d", label: "におい", wedge: "left", rect: [0.03, 0.33, 0.28, 0.34], anchor: [0.15, 0.5] },
+  ],
   wchart: cols(["いつ", "どこで", "だれが", "何を", "なぜ・どのように"]),
   tchart: cols(["メリット", "デメリット"]),
   pmi: cols(["よい点（Plus）", "課題（Minus）", "面白い点（Interesting）"]),
@@ -240,6 +250,10 @@ export const BOARD_ZONE_SPECS: Partial<
     "分かったこと（L）",
   ]),
 };
+/** The X chart's centre circle, which holds the topic (the tool's
+ * title), in the same 0..1 space (x, y, r). Cards cannot be placed
+ * inside it. */
+export const XCHART_CENTER = { x: 0.5, y: 0.5, r: 0.14 };
 /** The Venn circles, in the same 0..1 space (x, y, r). */
 export const VENN_CIRCLES: Partial<
   Record<ThinkingTemplate, { x: number; y: number; r: number }[]>
@@ -294,6 +308,21 @@ export function zoneAtPoint(
   }
   const spec = BOARD_ZONE_SPECS[template];
   if (!spec) return null;
+  if (spec.some((zone) => zone.wedge)) {
+    // X chart: the centre circle holds the topic, and the two
+    // diagonals decide which triangle a point belongs to.
+    const c = XCHART_CENTER;
+    if ((x - c.x) ** 2 + (y - c.y) ** 2 <= c.r * c.r) return null;
+    const wedge =
+      y <= x && y <= 1 - x
+        ? "top"
+        : y >= x && y >= 1 - x
+          ? "bottom"
+          : x < y && x < 1 - y
+            ? "left"
+            : "right";
+    return spec.find((zone) => zone.wedge === wedge)?.id ?? null;
+  }
   for (const zone of spec) {
     if (!zone.rect) continue;
     const [rx, ry, rw, rh] = zone.rect;

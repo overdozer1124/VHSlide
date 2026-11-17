@@ -262,3 +262,39 @@ test("an individual T-chart board keeps cards private", async ({
   await context.close();
   await context2.close();
 });
+
+test("an X chart shows the diagonals and the topic, and cards land in the triangles", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-xchart-host`);
+  const guestName = `${info.project.name}-xchart-student`;
+  await addGuest(page, id, guestName);
+  const toolId = await createTool(page, id, {
+    template: "xchart",
+    unit: "class",
+    definition: { title: "りんごを観察しよう" },
+  });
+  await page.goto(`/?room=${id}`);
+  await placeTool(page, "りんごを観察しよう");
+
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  await student.goto(`/?room=${id}`);
+  await openSlide(student);
+  const slide = student.locator(".slide-thinking.is-interactive");
+  // The X shape is drawn and the topic sits in the centre circle.
+  await expect(slide.locator("svg.thinking-x")).toBeVisible();
+  await expect(slide.locator(".thinking-x-topic")).toHaveText(
+    "りんごを観察しよう",
+  );
+  // The first zone is the top triangle （見た目）, not a top-left box.
+  await expect(slide.locator(".thinking-zone").first()).toContainText("見た目");
+  await writeCard(student, 0, "つやつやしている");
+  await expect
+    .poll(async () => (await cardsOf(student, id, toolId))[0]?.zone)
+    .toBe("a");
+  await context.close();
+});

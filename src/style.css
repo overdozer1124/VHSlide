@@ -7926,6 +7926,9 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-preview .tp-zone { fill:rgba(91,74,138,0.04);stroke:rgba(122,106,154,0.55);stroke-width:1.5;stroke-dasharray:5 4; }
 .thinking-preview .tp-zone-label { font-size:14px;fill:#5b4a8a;font-weight:700; }
 .thinking-preview .tp-venn { fill:rgba(91,74,138,0.07);stroke:#7a6a9a;stroke-width:2; }
+.thinking-preview .tp-x-line { stroke:#7a6a9a;stroke-width:2; }
+.thinking-preview .tp-x-circle { fill:#fff;stroke:#7a6a9a;stroke-width:2; }
+.thinking-preview .tp-topic { font-size:13px;font-weight:700;fill:#2e2440; }
 .thinking-preview .tp-anchor { fill:rgba(255,255,255,0.6); }
 .thinking-preview .tp-pie-label { font-size:15px;font-weight:700;fill:#2e2440; }
 @media(max-width:900px) { .thinking-create-layout { grid-template-columns:1fr;height:auto; } .thinking-create-layout .thinking-templates, .thinking-template-side, .thinking-params { overflow:visible; } }
@@ -7966,6 +7969,11 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-board { position:relative;flex:1;min-height:0;border:1.5px solid #b7a8d9;border-radius:10px;background:#fbf9ff;overflow:hidden; }
 .thinking-venn { position:absolute;inset:0;width:100%;height:100%; }
 .thinking-venn circle { fill:rgba(91,74,138,0.07);stroke:#7a6a9a;stroke-width:1.5; }
+.thinking-x { position:absolute;inset:0;width:100%;height:100%; }
+.thinking-x line { stroke:#7a6a9a;stroke-width:1.5; }
+.thinking-x circle { fill:#fbf9ff;stroke:#7a6a9a;stroke-width:1.5; }
+.thinking-x-topic { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24%;max-height:26%;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:700;color:#5b4a8a;pointer-events:none; }
+.thinking-zone.is-wedge { border:none;background:transparent; }
 .thinking-zone { position:absolute;box-sizing:border-box;border:1px dashed rgba(122,106,154,0.45);display:flex;flex-direction:column;padding:4px;overflow:hidden; }
 .thinking-zone.is-anchor { transform:translate(-50%,-50%);width:36%;max-height:44%;border:none;background:rgba(255,255,255,0.55);border-radius:8px; }
 .thinking-zone-label { font-size:11px;font-weight:700;color:#5b4a8a;text-align:center;flex-shrink:0;padding:1px 2px; }
