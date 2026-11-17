@@ -1033,6 +1033,11 @@ export function WorksheetDrawing({
         hidden
         onClick={() => {
           guardUntil.current = Date.now() + 5000;
+          // Close the tools panel here, not in the label's click
+          // handler: unmounting the label during its own click cancels
+          // the label's activation behavior in some browsers, so the
+          // file dialog never opens (the 「画像を追加」 regression).
+          setToolsOpen(false);
         }}
         onChange={(e) => {
           const file = e.currentTarget.files?.[0];
@@ -1133,11 +1138,22 @@ export function WorksheetDrawing({
             <label
               className="worksheet-drawing-upload"
               htmlFor={fileInputId}
+              onPointerDown={() => {
+                // Arm the hold-open guard NOW, not on click: pressing
+                // the label shifts focus out of the field (to the
+                // panel), and the root blur handler would close the
+                // editor before the click — and with it the label's
+                // activation — ever happens. That was the 「画像を
+                // 追加」 regression: nothing responded at all.
+                guardUntil.current = Date.now() + 5000;
+              }}
               onClick={() => {
                 // The file dialog is about to open; hold edit mode open
-                // until the chosen file has been handed over.
+                // until the chosen file has been handed over. The panel
+                // closes in the input's own click handler (see above):
+                // closing it here unmounts this label mid-click and can
+                // cancel the activation that opens the dialog.
                 guardUntil.current = Date.now() + 5000;
-                setToolsOpen(false);
               }}
             >
               画像を追加
