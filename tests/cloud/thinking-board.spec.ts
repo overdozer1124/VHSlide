@@ -161,7 +161,9 @@ test("a class Venn board shares cards: anyone moves, only the author edits", asy
     .poll(async () => (await cardsOf(student2, id, toolId))[0]?.zone)
     .toBe("b");
 
-  // The author edits the text; the host sees the card with the name.
+  // The author edits the text. The host's data carries the name, but
+  // the host's SLIDE never shows it (that screen is what gets
+  // projected to the class); the name appears in the results view.
   await slide.locator(".thinking-card", { hasText: "Aだけの考え" }).click();
   const panelA = slide.locator(".thinking-card-panel");
   await panelA.getByRole("button", { name: "内容を変える" }).click();
@@ -172,6 +174,32 @@ test("a class Venn board shares cards: anyone moves, only the author edits", asy
     .toBe("書き直した考え");
   cards = await cardsOf(page, id, toolId);
   expect(cards[0].authorName).not.toBe("");
+  await expect(
+    page
+      .locator(".slide-thinking.is-interactive .thinking-board")
+      .getByText(guestName),
+  ).toHaveCount(0);
+  // The host can turn names on explicitly — only then do they
+  // appear on the slide.
+  const boardArea = page.locator(".slide-thinking.is-interactive");
+  await boardArea.getByRole("button", { name: "名前を出す" }).click();
+  await expect(
+    boardArea.locator(".thinking-card-author", { hasText: guestName }),
+  ).toBeVisible({ timeout: 15_000 });
+  await boardArea.getByRole("button", { name: "名前を隠す" }).click();
+  await expect(boardArea.getByText(guestName)).toHaveCount(0);
+  const hostPanel = page.locator(".activity-panel");
+  const toolCard = hostPanel.locator(".thinking-tool-card", {
+    hasText: "ベン図で比べよう",
+  });
+  if (!(await toolCard.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: "フォーム", exact: true }).click();
+    await hostPanel.getByRole("tab", { name: "思考ツール" }).click();
+  }
+  await toolCard.getByRole("button", { name: "結果を見る" }).click();
+  await expect(
+    hostPanel.locator(".thinking-zone-card-name", { hasText: guestName }),
+  ).toBeVisible({ timeout: 15_000 });
   await context.close();
   await context2.close();
 });
@@ -204,6 +232,24 @@ test("an individual T-chart board keeps cards private", async ({
   // The host receives the card; another student receives nothing and
   // sees no card on the slide.
   expect((await cardsOf(page, id, toolId)).length).toBe(1);
+  // On the host's own slide, an individual board opens as a
+  // thumbnail list: no card text, and no student name on the
+  // thumbnail until the host turns names on. Opening the thumbnail
+  // shows that student's chart only.
+  const thumbs = page.locator(
+    ".slide-thinking.is-interactive .thinking-thumb",
+  );
+  await expect(thumbs).toHaveCount(1, { timeout: 15_000 });
+  await expect(thumbs.getByText(guestName)).toHaveCount(0);
+  await expect(
+    page.locator(".slide-thinking.is-interactive").getByText("個人のカード"),
+  ).toHaveCount(0);
+  await thumbs.first().click();
+  await expect(
+    page.locator(".slide-thinking.is-interactive .thinking-card", {
+      hasText: "個人のカード",
+    }),
+  ).toBeVisible({ timeout: 15_000 });
   const context2 = await browser.newContext({ baseURL: scopeOrigin });
   const student2 = await context2.newPage();
   await scopeLogin(student2, guest2Name);

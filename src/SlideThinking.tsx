@@ -693,6 +693,13 @@ function BoardSurface({
   const [moveZone, setMoveZone] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notice, setNotice] = useState("");
+  // Host-only slide display state (user decision 2026-11-17): for
+  // individual/group boards the host first sees one thumbnail per
+  // student/group and opens one chart at a time; author names stay
+  // hidden until the host explicitly turns them on. Neither changes
+  // what the server returns to anyone.
+  const [focusOwner, setFocusOwner] = useState("");
+  const [showNames, setShowNames] = useState(false);
   const [drag, setDrag] = useState<
     { id: string; x: number; y: number } | undefined
   >(undefined);
@@ -728,17 +735,33 @@ function BoardSurface({
   const inScope =
     interactive &&
     tool.status === "open" &&
-    !(ctx.host && tool.unit === "group");
+    !(ctx.host && tool.unit === "group") &&
+    !focusOwner;
   const canCompose =
     inScope && (tool.unit !== "group" || !!tool.myGroupId) &&
     (!ctx.host || tool.unit === "class");
   const canMove = inScope && (tool.unit !== "group" || !!tool.myGroupId || !!ctx.host);
+  // On the host's slide, individual and group boards open as a
+  // thumbnail list (one chart per student/group) instead of piling
+  // everyone's cards into one chart (user decision 2026-11-17).
+  const hostChartList = !!ctx.host && tool.unit !== "class" && !focusOwner;
+  const chartOwners: { owner: string; label: string }[] =
+    tool.unit === "group"
+      ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
+      : [...new Set(tool.cards.map((c) => c.owner))].map((owner, i) => ({
+          owner,
+          label: showNames
+            ? tool.cards.find((c) => c.owner === owner)?.authorName ||
+              "名前未登録"
+            : `生徒${i + 1}`,
+        }));
+  const focusLabel =
+    chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
   const selected = tool.cards.find((c) => c.id === selectedId);
   const lockOf = (card: ThinkingCard) =>
     tool.locks.find((l) => l.scene === card.id && l.expires > nowTick);
   const selectedLock = selected ? lockOf(selected) : undefined;
-  const selectedLockedByOther =
-    !!selectedLock && selectedLock.userId !== ctx.userId;
+  const selectedLockedByOther = !!selectedLock && !selectedLock.mine;
   const canEditSelected =
     !!selected && (selected.mine || !!ctx.host) && !selectedLockedByOther;
 
@@ -801,14 +824,27 @@ function BoardSurface({
 
   function renderCard(card: ThinkingCard) {
     const lock = lockOf(card);
-    const lockedByOther = !!lock && lock.userId !== ctx.userId;
+    const lockedByOther = !!lock && !lock.mine;
+    if (focusOwner)
+      // The host's opened chart is for looking, not editing.
+      return (
+        <div
+          key={card.id}
+          className={`thinking-card is-${card.color || "none"}`}
+        >
+          <span className="thinking-card-text">{card.text}</span>
+          {showNames && card.authorName && (
+            <span className="thinking-card-author">{card.authorName}</span>
+          )}
+        </div>
+      );
     return (
       <div
         key={card.id}
         role="button"
         tabIndex={0}
         aria-label={`カード：${card.text}`}
-        className={`thinking-card is-${card.color || "none"} ${card.id === selectedId ? "is-selected" : ""} ${drag?.id === card.id ? "is-dragging" : ""}`}
+        className={`thinking-card is-${card.color || "none"} ${card.id === selectedId ? "is-selected" : ""} ${drag?.id === card.id ? "is-dragging" : ""} ${canMove ? "is-draggable" : ""}`}
         onClick={() => {
           setSelectedId(card.id);
           setEditing(false);
@@ -859,11 +895,14 @@ function BoardSurface({
         }}
       >
         <span className="thinking-card-text">{card.text}</span>
-        {card.authorName && (
+        {/* Author names on a slide only when the host turned them on
+          (user decision 2026-11-17): the host's screen is what gets
+          projected to the class, so the default is no names. */}
+        {showNames && ctx.host && card.authorName && (
           <span className="thinking-card-author">{card.authorName}</span>
         )}
         {lockedByOther && (
-          <span className="thinking-card-lock">{lock.name}さんが編集中</span>
+          <span className="thinking-card-lock">ほかの人が編集中です</span>
         )}
       </div>
     );
@@ -916,8 +955,80 @@ function BoardSurface({
 
   const cardsIn = (zone: string) =>
     tool.cards
+      .filter((c) => !focusOwner || c.owner === focusOwner)
       .filter((c) => c.zone === zone)
       .sort((a, b) => a.sort - b.sort || a.created - b.created);
+
+  const renderThumbs = () => (
+    <div className="thinking-thumbs">
+      {chartOwners.map(({ owner, label }) => {
+        const own = tool.cards.filter((c) => c.owner === owner);
+        return (
+          <button
+            type="button"
+            key={owner}
+            className="thinking-thumb"
+            onClick={() => setFocusOwner(owner)}
+          >
+            <span className="thinking-thumb-board">
+              {circles && (
+                <svg
+                  className="thinking-venn"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  {circles.map((c, i) => (
+                    <circle
+                      key={i}
+                      cx={c.x * 100}
+                      cy={c.y * 100}
+                      r={c.r * 100}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
+                </svg>
+              )}
+              {spec.map((zoneSpec) => (
+                <span
+                  key={zoneSpec.id}
+                  className={`thinking-thumb-zone${zoneSpec.rect ? "" : " is-anchor"}`}
+                  style={
+                    zoneSpec.rect
+                      ? {
+                          left: `${zoneSpec.rect[0] * 100}%`,
+                          top: `${zoneSpec.rect[1] * 100}%`,
+                          width: `${zoneSpec.rect[2] * 100}%`,
+                          height: `${zoneSpec.rect[3] * 100}%`,
+                        }
+                      : {
+                          left: `${(zoneSpec.anchor?.[0] ?? 0.5) * 100}%`,
+                          top: `${(zoneSpec.anchor?.[1] ?? 0.5) * 100}%`,
+                        }
+                  }
+                >
+                  {own
+                    .filter((c) => c.zone === zoneSpec.id)
+                    .map((c) => (
+                      <span
+                        key={c.id}
+                        className={`thinking-thumb-card is-${c.color || "none"}`}
+                      />
+                    ))}
+                </span>
+              ))}
+            </span>
+            <span className="thinking-thumb-label">
+              {label}（{own.length}枚）
+            </span>
+          </button>
+        );
+      })}
+      {chartOwners.length === 0 && (
+        <p className="thinking-zone-empty">まだカードがありません。</p>
+      )}
+    </div>
+  );
 
   return (
     <div className="thinking-body">
@@ -931,6 +1042,27 @@ function BoardSurface({
           ))}
         </div>
       )}
+      {ctx.host && interactive && (
+        <div className="thinking-hostbar">
+          {focusOwner && (
+            <button type="button" onClick={() => setFocusOwner("")}>
+              ← 一覧に戻る
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowNames((v) => !v)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+          {focusOwner && (
+            <span className="thinking-focus-label">{focusLabel}の図</span>
+          )}
+        </div>
+      )}
+      {hostChartList ? (
+        renderThumbs()
+      ) : (
       <div ref={boardRef} className="thinking-board">
         {circles && (
           <svg
@@ -1017,6 +1149,7 @@ function BoardSurface({
           </div>
         )}
       </div>
+      )}
       {notice && <p className="thinking-lock-note">{notice}</p>}
       {selected && (
         <div
@@ -1133,7 +1266,7 @@ function BoardSurface({
                 ))}
               {selectedLockedByOther && (
                 <span className="thinking-lock-note">
-                  {selectedLock?.name}さんが編集中です
+                  ほかの人が編集中です
                 </span>
               )}
             </>

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { surveyResponsesCsv } from "./surveyCsv";
+import { csvCell, surveyResponsesCsv } from "./surveyCsv";
 import type { SurveyView } from "./surveys";
 const survey: SurveyView = {
   id: "s",
@@ -41,6 +41,19 @@ it("preserves multiline text and neutralizes spreadsheet formulas", () => {
   const csv = surveyResponsesCsv(s);
   expect(csv).toContain('"\'=1+1"');
   expect(csv).toContain('"発見,""花""\n次"');
+});
+it("csvCell neutralizes formula-leading values (shared by thinking CSVs)", () => {
+  // The thinking results CSVs (point reasons and card texts) run
+  // every cell through this same function (stage-2 review 🔴3).
+  expect(csvCell("=HYPERLINK(\"https://example.test\")")).toBe(
+    "\"'=HYPERLINK(\"\"https://example.test\"\")\"",
+  );
+  expect(csvCell("+1+1")).toBe("\"'+1+1\"");
+  expect(csvCell("-1+1")).toBe("\"'-1+1\"");
+  expect(csvCell("@SUM(1)")).toBe("\"'@SUM(1)\"");
+  expect(csvCell("  =1+1")).toBe("\"'  =1+1\"");
+  expect(csvCell("ふつうの文字")).toBe("\"ふつうの文字\"");
+  expect(csvCell('彼は"はい"と言った')).toBe("\"彼は\"\"はい\"\"と言った\"");
 });
 it("requires host response data", () => {
   expect(() => surveyResponsesCsv({ ...survey, results: undefined })).toThrow(

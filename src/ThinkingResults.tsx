@@ -6,6 +6,7 @@ import type {
   ThinkingView,
 } from "./thinkingTools";
 import { useGroups } from "./GroupsContext";
+import { csvCell } from "./surveyCsv";
 
 function ownerHue(owner: string): number {
   let h = 0;
@@ -45,17 +46,15 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
   const colorLabel = (color: string): string =>
     def.cardColors.find((c) => c.color === color)?.label ?? "";
   function downloadCsv() {
-    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const lines = [["名前・班", "区切り", "カード", "色の意味"].join(",")];
+    const lines = [
+      ["名前・班", "区切り", "カード", "色の意味"].map(csvCell).join(","),
+    ];
     for (const z of def.zones)
       for (const c of tool.cards.filter((x) => x.zone === z.id))
         lines.push(
-          [
-            esc(nameOfCard(c)),
-            esc(z.label),
-            esc(c.text),
-            esc(colorLabel(c.color)),
-          ].join(","),
+          [nameOfCard(c), z.label, c.text, colorLabel(c.color)]
+            .map(csvCell)
+            .join(","),
         );
     const blob = new Blob(["\ufeff" + lines.join("\r\n")], {
       type: "text/csv;charset=utf-8",
@@ -200,13 +199,14 @@ function PointResults({ tool }: { tool: ThinkingView }) {
   }
 
   function downloadCsv() {
-    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const lines = [["名前", "場面", "値", "理由"].join(",")];
+    const lines = [["名前", "場面", "値", "理由"].map(csvCell).join(",")];
     for (const p of tool.points) {
       const label =
         def.scenes.find((s) => s.id === p.scene)?.label ?? p.scene;
       lines.push(
-        [esc(nameOf(p)), esc(label), esc(valueText(tool, p.value)), esc(p.reason)].join(","),
+        [nameOf(p), label, valueText(tool, p.value), p.reason]
+          .map(csvCell)
+          .join(","),
       );
     }
     const blob = new Blob(["\ufeff" + lines.join("\r\n")], {

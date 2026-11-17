@@ -401,6 +401,22 @@ export async function exerciseThinkingBoards(
     guest,
     400,
   );
+  // Only the author may take the card's edit lock, and on a class
+  // board other students receive the lock without its identity —
+  // only the mine flag (stage-2 review 🔴2).
+  await write(`/${boardId}/lock`, { cardId }, guest);
+  if (guest2) {
+    await write(`/${boardId}/lock`, { cardId }, guest2, 403);
+    const g2Locks = (await listCaps(guest2)).find((t) => t.id === boardId);
+    assert.ok(g2Locks && g2Locks.locks.length >= 1);
+    for (const l of g2Locks.locks) {
+      assert.equal(l.userId, "");
+      assert.equal(l.name, "");
+      assert.equal(l.mine, false);
+    }
+    const gLocks = (await listCaps(guest)).find((t) => t.id === boardId);
+    assert.ok(gLocks && gLocks.locks.some((l) => l.mine));
+  }
   if (guest2) {
     // The second student sees the shared card without its author's
     // identity, may move it, but may not rewrite or delete it.

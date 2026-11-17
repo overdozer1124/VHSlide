@@ -13,8 +13,11 @@ export function surveyResponseTime(time: number): string {
     hour12: false,
   });
 }
-function cell(value: string): string {
-  // User-entered spreadsheet formulas must remain literal text when opened in Excel.
+/** One CSV cell, quoted. Shared by every CSV export (surveys,
+ * thinking points and cards): user-entered spreadsheet formulas
+ * must remain literal text when opened in Excel, so a value whose
+ * first meaningful character is = + - @ gets a leading apostrophe. */
+export function csvCell(value: string): string {
   const safe = /^[\s\u0000-\u001f]*[=+@-]/.test(value) ? `'${value}` : value;
   return `"${safe.replace(/"/g, '""')}"`;
 }
@@ -47,5 +50,5 @@ export function surveyResponsesCsv(survey: SurveyView): string {
       ...survey.options.map((_, i) => (answer.choices.includes(i) ? "1" : "0")),
     ]);
   }
-  return `\ufeff${rows.map((row) => row.map(cell).join(",")).join("\r\n")}\r\n`;
+  return `\ufeff${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }

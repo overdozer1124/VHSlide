@@ -77,6 +77,11 @@ export type ThinkingLock = {
   scene: string;
   userId: string;
   name: string;
+  /** True when the lock is the viewer's own. Identity fields are
+   * blanked for viewers who may not see who is editing (plan
+   * §4.1.8), so clients must judge "someone else is editing" from
+   * this flag, never from a blank userId. */
+  mine: boolean;
   expires: number;
 };
 /** One card on a board tool. For board tools the lock row's scene
@@ -144,8 +149,9 @@ CREATE INDEX IF NOT EXISTS thinking_tools_deck ON thinking_tools(deck);
 CREATE TABLE IF NOT EXISTS thinking_points(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, value TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', author TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
 CREATE INDEX IF NOT EXISTS thinking_points_tool ON thinking_points(tool);
 CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
-CREATE TABLE IF NOT EXISTS thinking_cards(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, zone TEXT NOT NULL, parent TEXT, sort INTEGER NOT NULL DEFAULT 0, text TEXT NOT NULL, color TEXT NOT NULL DEFAULT '', x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
-CREATE INDEX IF NOT EXISTS thinking_cards_tool ON thinking_cards(tool, owner);` +
+CREATE TABLE IF NOT EXISTS thinking_cards(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, zone TEXT NOT NULL, parent TEXT, sort INTEGER NOT NULL DEFAULT 0, text TEXT NOT NULL, color TEXT NOT NULL DEFAULT '', x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS thinking_cards_tool ON thinking_cards(tool, owner);
+CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);` +
   featureVersionSchema +
   versionTriggers("thinking_tools", "thinking", (a) => `${a}.deck`) +
   versionTriggers(
@@ -691,15 +697,21 @@ export function thinkingList(
                   ...(owners ?? []),
                 ),
               ]
-        ).map(
-          (l): ThinkingLock => ({
+        ).map((l): ThinkingLock => {
+          // A board lock names the card's author (only the author or
+          // the host may take it), so its identity is the author's:
+          // return it only to the host and same-group members, like
+          // card authors (plan §4.1.8, stage-2 review 🔴2).
+          const showIdentity = host || tool.unit === "group";
+          return {
             owner: l.owner as string,
             scene: l.scene as string,
-            userId: l.user as string,
-            name: l.name as string,
+            userId: showIdentity ? (l.user as string) : "",
+            name: showIdentity ? (l.name as string) : "",
+            mine: (l.user as string) === actor,
             expires: l.expires as number,
-          }),
-        );
+          };
+        });
         return {
           ...tool,
           points: [],
@@ -777,6 +789,7 @@ export function thinkingList(
           scene: l.scene as string,
           userId: l.user as string,
           name: l.name as string,
+          mine: (l.user as string) === actor,
           expires: l.expires as number,
         }),
       );
@@ -1166,8 +1179,16 @@ export function thinkingCommand(
     );
     if (tool.kind === "board") {
       // Board locks guard one card's text editing (key = card id).
+      // Only the card's author or the host may take it: anyone else
+      // could otherwise keep re-taking it and block the author from
+      // editing at all (stage-2 review 🔴2).
       const card = loadCard(sql, tool, value.cardId);
       insistCardScope(sql, deck, tool, card, actor, host);
+      insist(
+        host || card.author === actor,
+        403,
+        "カードのロックを取れるのは、書いた人と先生だけです。",
+      );
       lockRow(sql, tool, card.owner as string, card.id as string, actor, now);
       return undefined;
     }
@@ -1280,9 +1301,12 @@ export function thinkingCommand(
       413,
       `カードは1枚のチャートに${MAX_CARDS_PER_BOARD}枚までです。`,
     );
+    // The deck total counts through the (deck) index on the card
+    // rows themselves — no join against thinking_tools per write
+    // (stage-2 review 🟡6).
     const deckCount = [
       ...sql(
-        "SELECT COUNT(*) AS n FROM thinking_cards c JOIN thinking_tools t ON t.id=c.tool WHERE t.deck=?",
+        "SELECT COUNT(*) AS n FROM thinking_cards WHERE deck=?",
         deck,
       ),
     ][0].n as number;
@@ -1301,9 +1325,10 @@ export function thinkingCommand(
     ][0].n as number;
     const cardId = crypto.randomUUID();
     sql(
-      "INSERT INTO thinking_cards(id,tool,owner,zone,parent,sort,text,color,x,y,author,created,updated) VALUES(?,?,?,?,NULL,?,?,?,?,?,?,?,?)",
+      "INSERT INTO thinking_cards(id,tool,deck,owner,zone,parent,sort,text,color,x,y,author,created,updated) VALUES(?,?,?,?,?,NULL,?,?,?,?,?,?,?,?)",
       cardId,
       tool.id,
+      deck,
       owner,
       zone,
       sort,

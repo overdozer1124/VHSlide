@@ -416,6 +416,42 @@ describe("thinking board cards", () => {
     ).toHaveLength(0);
   });
 
+  it("restricts card locks to the author and hides lock identity", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql);
+    open(sql, id);
+    const card = thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "Aだけの考え",
+    })!;
+    const cardId = card.createdId!;
+    // Bob cannot take the lock on ana's card; ana can.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "lock", id, { cardId }),
+      403,
+    );
+    thinkingCommand(sql, "deck", "ana", false, "lock", id, { cardId });
+    // On a class board, other students get the lock without its
+    // identity — only the mine flag (the lock names the author).
+    const bobs = thinkingList(sql, "deck", "bob", false, { board: true });
+    expect(bobs[0].locks).toHaveLength(1);
+    expect(bobs[0].locks[0].userId).toBe("");
+    expect(bobs[0].locks[0].name).toBe("");
+    expect(bobs[0].locks[0].mine).toBe(false);
+    const anas = thinkingList(sql, "deck", "ana", false, { board: true });
+    expect(anas[0].locks[0].mine).toBe(true);
+    // The host sees whose lock it is. While ana's lock is active,
+    // even the host cannot take it over (the lock is mutual).
+    const hosts = thinkingList(sql, "deck", "host", true, { board: true });
+    expect(hosts[0].locks[0].userId).toBe("ana");
+    expect(hosts[0].locks[0].name).toBe("あな");
+    fails(
+      () => thinkingCommand(sql, "deck", "host", true, "lock", id, { cardId }),
+      409,
+    );
+  });
+
   it("keeps group boards inside the group and validates cards", () => {
     const { sql } = fixture();
     groupCommand(sql, "deck", "host", true, "create", undefined, {

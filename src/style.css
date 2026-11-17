@@ -7947,6 +7947,23 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-zone-label { font-size:11px;font-weight:700;color:#5b4a8a;text-align:center;flex-shrink:0;padding:1px 2px; }
 .thinking-zone-cards { flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:2px; }
 .thinking-card { background:#fff;border:1.5px solid #cfc3e8;border-radius:8px;padding:5px 7px;font-size:12.5px;line-height:1.35;color:#2e2440;cursor:pointer;box-shadow:0 1px 2px rgba(46,36,64,0.12);word-break:break-word; }
+.thinking-card.is-draggable { touch-action:none; }
+.thinking-zone-count-chip { display:inline-block;background:#efe9fa;border:1px dashed #b7a8dd;border-radius:999px;padding:3px 10px;font-size:12px;color:#5a4a86; }
+.thinking-hostbar { display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0; }
+.thinking-hostbar > button { font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
+.thinking-focus-label { font-size:12.5px;font-weight:700;color:#4a3a6b; }
+.thinking-thumbs { flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start; }
+.thinking-thumb { display:flex;flex-direction:column;gap:4px;background:#fff;border:1.5px solid #cfc3e8;border-radius:10px;padding:6px;cursor:pointer;text-align:left; }
+.thinking-thumb:hover { border-color:#5b4a8a; }
+.thinking-thumb-board { position:relative;display:block;aspect-ratio:4/3;background:#fbf9ff;border:1px solid #e3dcf2;border-radius:6px;overflow:hidden; }
+.thinking-thumb-zone { position:absolute;display:flex;flex-direction:column;gap:1px;padding:1px;box-sizing:border-box; }
+.thinking-thumb-zone.is-anchor { transform:translate(-50%,-50%);width:36%; }
+.thinking-thumb-card { display:block;height:6px;border-radius:2px;background:#fff;border:1px solid #cfc3e8; }
+.thinking-thumb-card.is-yellow { background:#fff3b0;border-color:#e3c878; }
+.thinking-thumb-card.is-blue { background:#d3e7ff;border-color:#8fb4e3; }
+.thinking-thumb-card.is-pink { background:#ffd9e8;border-color:#e39abb; }
+.thinking-thumb-card.is-green { background:#d8f3dc;border-color:#8fc79a; }
+.thinking-thumb-label { font-size:12px;font-weight:700;color:#4a3a6b; }
 .thinking-card.is-yellow { background:#fff3b0;border-color:#e3c878; }
 .thinking-card.is-blue { background:#d3e7ff;border-color:#8fb4e3; }
 .thinking-card.is-pink { background:#ffd9e8;border-color:#e39abb; }
