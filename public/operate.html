@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学校の運用</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #f6f4ef;
+        color: #1d1a16;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+      }
+      h1 {
+        font-size: 1.4rem;
+      }
+      section,
+      form {
+        background: white;
+        border: 1px solid #ddd6cb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+      }
+      label {
+        display: block;
+        margin: 0.6rem 0;
+      }
+      button,
+      select,
+      input {
+        font: inherit;
+      }
+      button {
+        margin: 0.2rem 0.4rem 0.2rem 0;
+      }
+      .muted {
+        color: #5c564e;
+      }
+      .error {
+        color: #8d1d1d;
+      }
+    </style>
+  </head>
+  <body data-page="stage1-operate">
+    <main>
+      <h1>学校の運用</h1>
+      <p class="muted">
+        作品の画面とは別のページです。作品のメニューからは開きません。
+      </p>
+      <p id="status"></p>
+      <div id="sign-in" hidden></div>
+      <div id="app" hidden></div>
+    </main>
+    <script>
+      const status = document.querySelector("#status");
+      const signIn = document.querySelector("#sign-in");
+      const app = document.querySelector("#app");
+      const show = (message, error) => {
+        status.textContent = message || "";
+        status.className = error ? "error" : "muted";
+      };
+      async function send(path, method, body) {
+        const response = await fetch(path, {
+          method,
+          headers:
+            body === undefined ? {} : { "Content-Type": "application/json" },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        });
+        const text = await response.text();
+        let payload = {};
+        try {
+          payload = text ? JSON.parse(text) : {};
+        } catch {
+          payload = {};
+        }
+        if (!response.ok)
+          throw new Error(payload.error || "操作できませんでした。");
+        return payload;
+      }
+      function field(title, control) {
+        const label = document.createElement("label");
+        label.textContent = title;
+        label.append(control);
+        return label;
+      }
+      function button(title, action) {
+        const node = document.createElement("button");
+        node.type = "button";
+        node.textContent = title;
+        node.addEventListener("click", () =>
+          action().catch((error) => show(error.message, true)),
+        );
+        return node;
+      }
+      async function loadGoogle(clientId, nonce, label, onCredential) {
+        await new Promise((resolve, reject) => {
+          if (window.google) return resolve();
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.onload = () => resolve();
+          script.onerror = () =>
+            reject(new Error("Googleのサインインを読み込めませんでした。"));
+          document.head.append(script);
+        });
+        const host = document.createElement("div");
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          nonce,
+          callback: (result) => onCredential(result.credential),
+        });
+        window.google.accounts.id.renderButton(host, {
+          theme: "outline",
+          size: "large",
+          locale: "ja",
+          text: "signin_with",
+        });
+        const wrap = document.createElement("div");
+        wrap.append(label, host);
+        return wrap;
+      }
+      async function draw(config) {
+        const session = await send("/api/session", "GET");
+        if (!session.user) {
+          signIn.hidden = false;
+          app.hidden = true;
+          const host = await loadGoogle(
+            config.clientId,
+            undefined,
+            "",
+            (credential) =>
+              send("/api/auth/google", "POST", { credential }).then(() =>
+                location.reload(),
+              ),
+          );
+          signIn.replaceChildren(host);
+          show("サインインすると、使える欄だけが表示されます。");
+          return;
+        }
+        signIn.hidden = true;
+        const view = await send("/api/stage1/console", "GET");
+        if (
+          !view.createSchool &&
+          !view.operator &&
+          !view.applyTo.length &&
+          !view.schools.length
+        ) {
+          app.hidden = true;
+          show("この操作は利用できません。");
+          return;
+        }
+        app.hidden = false;
+        app.replaceChildren();
+        show(`${session.user.name} として開いています。`);
+        if (view.createSchool) {
+          const name = document.createElement("input");
+          name.maxLength = 40;
+          name.required = true;
+          const form = document.createElement("form");
+          form.append(
+            document.createElement("h2"),
+            field("学校の名前", name),
+            button("学校を作る", async () => {
+              await send("/api/organizations", "POST", { name: name.value });
+              location.reload();
+            }),
+          );
+          form.querySelector("h2").textContent = "学校を作る";
+          app.append(form);
+        }
+        for (const school of view.applyTo) {
+          const managed = view.schools.find((item) => item.id === school.id);
+          const section = document.createElement("section");
+          const title = document.createElement("h2");
+          title.textContent = school.name;
+          section.append(title);
+          if (!managed) {
+            section.append(
+              button("学校管理者を申請する", () =>
+                send(
+                  `/api/organizations/${school.id}/school-admin-applications`,
+                  "POST",
+                  {},
+                ).then(() => show("申請を受け付けました。")),
+              ),
+            );
+          }
+          if (managed?.preregistration) {
+            const email = document.createElement("input");
+            email.type = "email";
+            const role = document.createElement("select");
+            role.innerHTML =
+              "<option value='teacher'>教師</option><option value='student'>生徒</option>";
+            section.append(
+              field("事前登録するメールアドレス", email),
+              field("予定の役割", role),
+              button("事前登録を作る", async () => {
+                await send(
+                  `/api/organizations/${school.id}/preregistrations`,
+                  "POST",
+                  {
+                    email: email.value,
+                    plannedRole: role.value,
+                  },
+                );
+                location.reload();
+              }),
+            );
+            const rows = await send(
+              `/api/organizations/${school.id}/preregistrations`,
+              "GET",
+            );
+            for (const row of rows.preregistrations) {
+              const line = document.createElement("p");
+              line.textContent = `${row.email}（${row.plannedRole === "student" ? "生徒" : "教師"}、${row.status}）`;
+              if (row.status === "有効")
+                line.append(
+                  button("取り消す", () =>
+                    send(`/api/preregistrations/${row.id}`, "DELETE").then(() =>
+                      location.reload(),
+                    ),
+                  ),
+                );
+              section.append(line);
+            }
+          }
+          if (managed?.membership) {
+            const members = await send(
+              `/api/organizations/${school.id}/members`,
+              "GET",
+            );
+            for (const member of members.members) {
+              const line = document.createElement("p");
+              line.textContent = `${member.name}（${member.email}、${member.status}${member.schoolAdmin ? "、学校管理者" : ""}）`;
+              if (member.status === "有効")
+                line.append(
+                  button("無効化する", () =>
+                    send(
+                      `/api/organizations/${school.id}/members/${member.id}/invalidate`,
+                      "POST",
+                      {},
+                    ).then(() => location.reload()),
+                  ),
+                );
+              if (member.status === "無効")
+                line.append(
+                  button("再有効化する", () =>
+                    send(
+                      `/api/organizations/${school.id}/members/${member.id}/reactivate`,
+                      "POST",
+                      { role: member.role },
+                    ).then(() => location.reload()),
+                  ),
+                );
+              if (view.revokeSchoolAdmin && member.schoolAdmin)
+                line.append(
+                  button("学校管理者を解除する", () =>
+                    send(
+                      `/api/organizations/${school.id}/school-admins/${member.id}`,
+                      "DELETE",
+                    ).then(() => location.reload()),
+                  ),
+                );
+              section.append(line);
+            }
+          }
+          if (view.decideApplications) {
+            const applications = await send(
+              `/api/organizations/${school.id}/school-admin-applications`,
+              "GET",
+            );
+            for (const application of applications.applications) {
+              if (application.status !== "申請中") continue;
+              const line = document.createElement("p");
+              line.textContent = `${application.applicant.name}（${application.applicant.email}）の申請`;
+              for (const decision of ["登録", "却下"])
+                line.append(
+                  button(decision, () =>
+                    send(
+                      `/api/school-admin-applications/${application.id}/decide`,
+                      "POST",
+                      {
+                        decision,
+                      },
+                    ).then(() => location.reload()),
+                  ),
+                );
+              section.append(line);
+            }
+          }
+          app.append(section);
+        }
+        if (view.operator) {
+          const section = document.createElement("section");
+          const title = document.createElement("h2");
+          title.textContent = "運営者";
+          const note = document.createElement("p");
+          note.className = "muted";
+          note.textContent = `登録簿の世代は ${view.operatorGeneration} です。相手の名前や番号は表示しません。`;
+          section.append(title, note);
+          const issued = await send("/api/stage1/operators/nonce", "POST", {});
+          const held = {};
+          const slot = document.createElement("select");
+          slot.innerHTML =
+            "<option value='self'>自分</option><option value='target'>相手</option><option value='next'>交代先</option>";
+          section.append(
+            field("このサインインの相手", slot),
+            await loadGoogle(
+              config.clientId,
+              issued.nonce,
+              "",
+              (credential) => {
+                held[slot.value] = credential;
+                show("サインインを受け取りました。まだ送信していません。");
+              },
+            ),
+            button("運営者を追加する", async () => {
+              const result = await send(
+                "/api/stage1/operators/add-by-sign-in",
+                "POST",
+                {
+                  credential: held.self,
+                  targetCredential: held.target,
+                  expectedGeneration: view.operatorGeneration,
+                },
+              );
+              show(`追加しました。世代は ${result.generation} です。`);
+            }),
+            button("運営者を失効する", async () => {
+              const result = await send(
+                "/api/stage1/operators/revoke-by-sign-in",
+                "POST",
+                {
+                  credential: held.self,
+                  targetCredential: held.target,
+                  expectedGeneration: view.operatorGeneration,
+                },
+              );
+              show(`失効しました。世代は ${result.generation} です。`);
+            }),
+            button("運営者を交代する", async () => {
+              const result = await send(
+                "/api/stage1/operators/rotate-by-sign-in",
+                "POST",
+                {
+                  credential: held.self,
+                  fromCredential: held.target,
+                  toCredential: held.next,
+                  expectedGeneration: view.operatorGeneration,
+                },
+              );
+              show(`交代しました。世代は ${result.generation} です。`);
+            }),
+          );
+          app.append(section);
+        }
+      }
+      send("/api/config", "GET")
+        .then(draw)
+        .catch((error) => show(error.message, true));
+    </script>
+  </body>
+</html>
