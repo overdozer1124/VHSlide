@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Normal production Worker plus the first super-admin bind page.
+  // Upload with `wrangler versions upload` only. Do not activate until the
+  // owner approves that single activation. This file has no secrets.
+  "name": "vhslide",
+  "main": "cloudflare/index.ts",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/healthz", "/platform/apply", "/admin/*"]
+  },
+  "vars": {
+    "GOOGLE_CLIENT_ID": "187339871113-2j074eot6i41e2ts1g3129ch87vhjru1.apps.googleusercontent.com",
+    "GOOGLE_SCHOOL_CLIENT_ID": "142634110367-rongbdrtm1u416ch26orar134m50ttbi.apps.googleusercontent.com",
+    "GOOGLE_SCHOOL_DOMAIN": "kaga.ed.jp",
+    "PUBLIC_ORIGIN": "https://vhslide.overdozer1124.workers.dev",
+    "STAGE1_FEATURES": "1",
+    "STAGE1_ENV_ID": "vhslide"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "DIRECTORY", "class_name": "Directory" },
+      { "name": "ROOMS", "class_name": "SlideRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Directory", "SlideRoom"] }
+  ]
+}

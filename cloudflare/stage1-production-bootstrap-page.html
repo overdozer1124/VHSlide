@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>初代運営者の登録</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 2rem auto;
+        max-width: 36rem;
+        line-height: 1.6;
+      }
+      #result {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body data-page="stage1-bootstrap">
+    <h1>初代運営者の登録</h1>
+    <p>
+      本番のサイトに、初代運営者にする一般の Google
+      アカウントでサインインします。このページは一時版の間だけ開きます。
+    </p>
+    <div id="button"></div>
+    <p id="result" role="status"></p>
+    <script>
+      const oneTime = "__STAGE1_ONE_TIME__";
+      const result = document.querySelector("#result");
+      function show(text) {
+        result.textContent = text;
+      }
+      async function main() {
+        const config = await fetch("/api/config").then((response) =>
+          response.json(),
+        );
+        const issued = await fetch("/api/stage1/operators/nonce", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        if (!issued.ok) {
+          show("確認用の番号を用意できませんでした。");
+          return;
+        }
+        const { nonce } = await issued.json();
+        google.accounts.id.initialize({
+          client_id: config.clientId,
+          nonce,
+          callback: async (credential) => {
+            const response = await fetch("/platform/apply", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                credential: credential.credential,
+                purpose: "bootstrap",
+                envId: "vhslide",
+                oneTime,
+              }),
+            });
+            const body = await response.json().catch(() => ({}));
+            show(
+              response.ok
+                ? "登録を受け付けました。"
+                : body.error || "登録できませんでした。",
+            );
+          },
+        });
+        google.accounts.id.renderButton(document.querySelector("#button"), {
+          theme: "outline",
+          size: "large",
+          locale: "ja",
+          text: "signin_with",
+        });
+      }
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.onload = () => void main().catch(() => show("画面を用意できませんでした。"));
+      script.onerror = () => show("Googleのサインインを読み込めませんでした。");
+      document.head.appendChild(script);
+    </script>
+  </body>
+</html>
