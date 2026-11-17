@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>初代スーパー管理者の紐づけ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 2rem auto;
+        max-width: 36rem;
+        line-height: 1.6;
+      }
+      #result {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body data-page="stage1-bind">
+    <h1>初代スーパー管理者の紐づけ</h1>
+    <p>
+      初代運営者の登録に使った一般の Google
+      アカウントでサインインします。そのアカウントを、この検証用サイトの初代スーパー管理者に紐づけます。学校用のアカウントは使いません。
+    </p>
+    <div id="button"></div>
+    <p id="result" role="status"></p>
+    <script>
+      const operationId = "op-bind-verify-20261117";
+      const result = document.querySelector("#result");
+      function show(text) {
+        result.textContent = text;
+      }
+      function subjectOf(credential) {
+        const part = String(credential).split(".")[1] || "";
+        const padded = part.replace(/-/g, "+").replace(/_/g, "/");
+        const json = JSON.parse(
+          atob(padded + "=".repeat((4 - (padded.length % 4)) % 4)),
+        );
+        if (typeof json.sub !== "string" || json.sub.length < 1) {
+          throw new Error("subject");
+        }
+        return json.sub;
+      }
+      async function main() {
+        const config = await fetch("/api/config").then((response) =>
+          response.json(),
+        );
+        const issued = await fetch("/api/stage1/operators/nonce", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        if (!issued.ok) {
+          show("確認用の番号を用意できませんでした。");
+          return;
+        }
+        const { nonce } = await issued.json();
+        google.accounts.id.initialize({
+          client_id: config.clientId,
+          nonce,
+          auto_select: false,
+          callback: async (credential) => {
+            let subject;
+            try {
+              subject = subjectOf(credential.credential);
+            } catch {
+              show("サインイン情報を確認できません。");
+              return;
+            }
+            const response = await fetch("/api/stage1/super-admin/bind", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                credential: credential.credential,
+                subject,
+                operationId,
+              }),
+            });
+            const body = await response.json().catch(() => ({}));
+            show(
+              response.ok
+                ? "スーパー管理者として紐づけました。"
+                : body.error || "紐づけできませんでした。",
+            );
+          },
+        });
+        google.accounts.id.renderButton(document.querySelector("#button"), {
+          theme: "outline",
+          size: "large",
+          locale: "ja",
+          text: "signin_with",
+        });
+      }
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.onload = () =>
+        void main().catch(() => show("画面を用意できませんでした。"));
+      script.onerror = () => show("Googleのサインインを読み込めませんでした。");
+      document.head.appendChild(script);
+    </script>
+  </body>
+</html>

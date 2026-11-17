@@ -4,7 +4,13 @@ import { readFile } from "node:fs/promises";
 import { resolve, extname, dirname } from "node:path";
 
 /** Only test processes own this signing key. Production verifies Google's JWKS. */
-export async function harness(storage: string, origin: string, port?: number) {
+export async function harness(
+  storage: string,
+  origin: string,
+  port?: number,
+  extraBindings?: Record<string, string>,
+  scriptPath?: string,
+) {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
   const key = {
     ...(await exportJWK(publicKey)),
@@ -12,11 +18,16 @@ export async function harness(storage: string, origin: string, port?: number) {
     alg: "RS256",
     use: "sig",
   };
-  const sign = (id: string, audience = "test.apps.googleusercontent.com") =>
+  const sign = (
+    id: string,
+    audience = "test.apps.googleusercontent.com",
+    claims?: { nonce?: string },
+  ) =>
     new SignJWT({
       email: `${id}@example.test`,
       email_verified: true,
       name: id === "friend" ? "児童 友だち" : id,
+      ...(claims?.nonce ? { nonce: claims.nonce } : {}),
     })
       .setProtectedHeader({ alg: "RS256", kid: key.kid })
       .setSubject(id)
@@ -38,7 +49,7 @@ export async function harness(storage: string, origin: string, port?: number) {
       .persist();
     return new Miniflare({
       modules: true,
-      scriptPath: audit?.scriptPath ?? ".wrangler-build/index.js",
+      scriptPath: audit?.scriptPath ?? scriptPath ?? ".wrangler-build/index.js",
       ...(audit ? { modulesRoot: dirname(audit.scriptPath) } : {}),
       compatibilityDate: "2026-08-01",
       host: "127.0.0.1",
@@ -48,6 +59,7 @@ export async function harness(storage: string, origin: string, port?: number) {
         GOOGLE_SCHOOL_CLIENT_ID: "school.apps.googleusercontent.com",
         GOOGLE_SCHOOL_DOMAIN: "kaga.ed.jp",
         PUBLIC_ORIGIN: origin,
+        ...extraBindings,
       },
       durableObjects: {
         DIRECTORY: { className: "Directory", useSQLite: true },

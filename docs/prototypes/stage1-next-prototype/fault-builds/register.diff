@@ -1,0 +1,14 @@
+--- src/worker.js	2026-11-03 07:58:14.473692851 +0900
++++ fault-builds/register/worker.js	2026-11-03 18:54:45.610207044 +0900
+@@ -466,9 +466,8 @@
+         subjectHash,
+         nowIso
+       );
+-      if (this.failMode(request) === "register-mid") {
+-        throw new Error("injected_register_mid");
+-      }
++      // FAULT BUILD R (verification only): unconditional mid-register failure.
++      throw new Error("injected_register_mid");
+       this.sql.exec(
+         "INSERT INTO mtrial_sessions (session_hash, subject_hash, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+         sessionHash,

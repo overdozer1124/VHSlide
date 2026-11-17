@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>S14 ローテーション専用画面（検証用）</title>
+<!--
+  S14（項目6 手順7：ローテーション A→B）専用の検証画面です。
+  手順書 §4.3 項目6 手順7と §4.7 S14 の固定状態（開始前
+  generation 6・登録簿 {A}、終了時 generation 7・登録簿 {B}、
+  consumed=2・completion=2）に沿います。開始状態は S13 の
+  終了状態そのものです。
+
+  位置づけと制約:
+  - PC 専用ページです。tools/serve-real.mjs が 127.0.0.1:8787 で
+    配信し、どの Worker 版にも含めません。
+  - 順序は固定です：⓪a ローテーション元 A の主体ハッシュを
+    取得（対象取得。このトークンは管理操作に提示しません）→
+    ⓪b ローテーション先 B の主体ハッシュを取得（対象取得。
+    このトークンも提示しません。A と同一の主体では進めません）
+    → ① A の認可でローテーションを送信
+    （expected_generation = 6、旧主体 A・新主体 B。期待は
+    200 ok・generation 7。削除と追加は同一トランザクション）
+    → ② A の別の新しいトークンで verify-only を提示（期待は
+    403 not_operator。この拒否が合格であり、ローテーション元が
+    次回操作で拒否されることの確認です）→ ③ B の新しい
+    トークンで verify-only を提示（期待は 200 ok。ローテー
+    ション先が運営者として通ることの確認）。順序は
+    tools/s14-rotate.mjs の createS14Session が強制し、手順②は
+    手順①が期待どおり終わるまで、手順③は手順②の結果が記録
+    されるまで始められません。
+  - Cookie 文脈の分離：送信はブラウザーから直接行いません。
+    ブラウザーの Cookie jar は生成元で1つしかなく、提示待ちの
+    複数の nonce 文脈を区別できません。送信は提供サーバー側の
+    送信器（tools/s14-sender.mjs、Node）がスロット
+    （rotateAB / checkA / checkB）ごとに Cookie jar を分けて
+    行います。この画面は各アカウントの実トークンを集めて凍結
+    した要求を作り、表示を確認したうえで、送信指示を提供
+    サーバー側の送信器へ渡します。対象取得（手順⓪a・⓪b）の
+    nonce は、そのトークンを提示しないため送信器を経由せず、
+    画面が /nonce から直接取得します（対象主体ハッシュ取得
+    ページと同じ経路）。
+  - nonce の発行（送信器のスロット分）も送信器が行います
+    （GET /s14/nonces）。画面は nonce の値を受け取りますが、
+    表示・ログには出しません。各 nonce は対応するスロットの
+    GIS ログインにだけ使います。スロットごとに発行開始から
+    4分以内に送信しなければ送信器が拒否します（nonce の有効
+    期限は5分）。送信窓を過ぎた捕捉は使わず、試行を破棄して
+    取得からやり直します。
+  - 機械的な確認（送信前に状態機械が強制します）：ローテー
+    ション先 B の主体がローテーション元 A と異なること。手順
+    ①の認可者・手順②の A の主体が手順⓪a の A と同一である
+    こと。手順③の B の主体が手順⓪b の B と同一であること。
+    「A である／B である」ことの最終確認は、所有者がアカ
+    ウント選択を目視で確認することと組み合わせます。
+  - 対象の結び付け（送信器の境界）：ローテーションは旧主体と
+    新主体の組で結び付けるため、画面はローテーション要求を
+    凍結した時点で、その凍結済み要求の対象の組を送信器にも
+    登録します（POST /s14/freeze-rotate）。送信器は登録値と
+    一致する要求だけを受け付け、登録が完了するまで送信ボタン
+    は有効になりません。登録できなければローテーションは送信
+    せず、試行を停止します。
+  - 凍結要求は、実際の送信に使う値から生成します。旧主体は
+    手順⓪a で取得した A の主体ハッシュ、新主体は手順⓪b で
+    取得した B の主体ハッシュ、期待世代は手順の固定値（6）
+    であり、手入力欄はありません。画面は凍結内容（試行 ID・
+    action・旧主体・新主体・期待世代・送信先）を送信直前に
+    表示し、所有者が開始前の読み戻しの確認チェック（手順①）
+    とともに送信ボタンを押した場合にだけ、凍結した要求を
+    そのまま送信指示として送信器へ渡します。
+  - 送信は各手順で一度だけです（再送禁止・結果不明時の読み
+    戻し判断）。不一致なら試行を停止します。応答なし（送信器
+    が status null を返した場合）は「状態未確定、再送しません」
+    とログに出し停止します（登録簿の読み戻しで結果を確かめ
+    ます）。
+  - 送信指示が送信器の事前確認で拒否された場合（理由コードが
+    s14_*）は、1件も送信されていません。画面はその旨をログに
+    出し、試行を停止します。送信指示自体の通信が失敗した場合
+    は、実施有無が不明なため状態未確定として扱い、再送しません。
+  - 送信中の排他：sending フラグを持ち、送信中は準備・送信
+    ボタンを無効化します。試行の ID・世代・nonce・スロットを
+    閉じ込めた GIS コールバックを使い、古い試行のコールバック
+    は世代照合で拒否します。さらに各 await の後（JWKS 取得後・
+    署名検証後・sha256hex 後）でスロットと段階も照合します。
+  - 1スロット1捕捉：各スロットのコールバックは、受付の時点で
+    試行に閉じ込めた claim を取り（tools/s14-rotate.mjs の
+    claimCallbackCapture）、受付済み・処理中の同一試行・スロット
+    への後続コールバックは、ユーザーの確認で段階が進む前でも
+    拒否します。
+  - nonce 取得中の排他：取得要求の飛行中は準備・破棄・新規試行
+    ボタンを無効化し、合成イベントで呼んでもハンドラー側でも
+    拒否します。遅れて戻った旧応答が現行試行の期限・nonce を
+    上書きするのを防ぎます（状態機械の finishNonceFetch も世代
+    照合で破棄します）。
+  - トークン消去の契機（tools/s14-rotate.mjs の
+    S14_TOKEN_ERASE_TRIGGERS）：手順①のローテーション送信後・
+    手順②の A の提示の記録後（いずれも A の当該トークンのみ）・
+    S14 完了・S14 停止・試行の破棄・新規試行の開始。消去は
+    メモリー内の変数を空にし、表示した主体ハッシュも画面から
+    消すことで行い、消去の事実だけをログに出します。
+  - 表示・ログ・Issue・チャットに ID トークン・Cookie・nonce・
+    主体ハッシュを出しません。画面のログには試験 ID・ステップ・
+    応答の状態と理由コード・返された世代だけを出します。ログを
+    書き込む前に assertLogHasNoSecrets で秘密の混入を確認します。
+    主体ハッシュの表示はこの画面の DOM だけであり、ログには
+    出しません。
+  - 入力の境界：この画面に主体ハッシュ・世代・トークンの入力
+    欄はありません（チェックだけです）。
+  - Origin の境界：Origin はページ自身の生成元であり、画面
+    からは変えられません。送信器から Worker への送信では、
+    送信器が固定の Origin（http://localhost:8787）を付けます。
+
+  先行実測の参照範囲（個別。画面内の注記も参照）：
+  - 実 Google nonce 一致：捕捉したトークンの nonce と発行した
+    nonce の一致は、PC 内署名検証（verifyIdTokenLocal）の
+    expectedNonce 照合で真偽だけ確認します。nonce の値そのもの
+    は表示・ログに出しません。
+  - 送信器の Cookie 返送：S5 実環境試験で、送信器がスロット
+    ごとに保持した ctx を対応する送信にだけ付ける経路が実証
+    済みです（S5 の 201 が正確に1件）。S14 の送信器は同じ仕組み
+    を /admin/registry/rotate と /admin/verify-only へ使うもの
+    であり、経路自体の新規性はありません。
+  未実証のもの（本画面の対象外）：実トークン期限切れ、異なる
+  aud／iss、tokeninfo 到達不能。
+-->
+<style>
+  body { font-family: sans-serif; margin: 2em; max-width: 760px; }
+  fieldset { margin-bottom: 1.5em; }
+  label { display: block; margin: 0.4em 0; }
+  pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; word-break: break-all; }
+  .note { color: #555; }
+  button:disabled { opacity: 0.5; }
+</style>
+<body>
+<h1>S14 ローテーション専用画面（検証用）</h1>
+<p class="note">先行実測の参照範囲：実 Google nonce 一致は PC 内署名検証で確認します。送信器のスロット別 Cookie 保持は S5 実環境試験で実証済みの仕組みです。
+未実証のもの（本画面の対象外）：実トークン期限切れ、異なる aud／iss、tokeninfo 到達不能。
+Origin の境界：Origin はページ自身の生成元であり、画面からは変えられません。</p>
+
+<fieldset>
+  <legend>① 試行の開始</legend>
+  <button id="newTrial" type="button">新しい試行を始める</button>
+  <p>試験ID： <span id="trialId">（新しい試行を始めてください）</span></p>
+  <p>
+    <button id="discardTrial" type="button">試行を破棄する</button>
+  </p>
+</fieldset>
+
+<fieldset>
+  <legend>② 手順0a：ローテーション元 A の主体ハッシュを取得する（このトークンは提示しません）</legend>
+  <button id="prepTargetA" type="button">nonceを取得してAのGoogleログインボタンを表示</button>
+  <div id="gisTargetA"></div>
+  <p>署名検証：</p>
+  <pre id="targetAEvidence">（まだ A のログインをしていません）</pre>
+  <p>主体ハッシュ（この画面だけに表示します）：</p>
+  <pre id="targetAHash">（まだ A のログインをしていません）</pre>
+  <label><input type="checkbox" id="targetAConfirmed"> 表示されたAの主体が、ローテーション元の運営者Aであることを確認しました</label>
+  <p><button id="completeTargetA" type="button">Aの対象取得を完了する</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>③ 手順0b：ローテーション先 B の主体ハッシュを取得する（このトークンは提示しません）</legend>
+  <button id="prepTargetB" type="button">nonceを取得してBのGoogleログインボタンを表示</button>
+  <div id="gisTargetB"></div>
+  <p>署名検証：</p>
+  <pre id="targetBEvidence">（まだ B のログインをしていません）</pre>
+  <p>主体ハッシュ（この画面だけに表示します）：</p>
+  <pre id="targetBHash">（まだ B のログインをしていません）</pre>
+  <p id="targetBFacts">対象 B がローテーション元 A と異なること： 未確認</p>
+  <label><input type="checkbox" id="targetBConfirmed"> 表示されたBの主体が、ローテーション先の運営者Bであることを確認しました</label>
+  <p><button id="completeTargetB" type="button">Bの対象取得を完了する</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>④ 手順1：A の認可でローテーション（A→B）を送る</legend>
+  <button id="prepRotateAB" type="button">送信器からnonceを取得してAのGoogleログインボタンを表示</button>
+  <div id="gisRotateAB"></div>
+  <p>署名検証：</p>
+  <pre id="rotateABEvidence">（まだ A のログインをしていません）</pre>
+  <p>主体ハッシュ（この画面だけに表示します）：</p>
+  <pre id="rotateABHash">（まだ A のログインをしていません）</pre>
+  <p id="rotateABFacts">認可者がローテーション元 A と同一であること： 未確認</p>
+  <label><input type="checkbox" id="rotateABConfirmed"> 認可に使うアカウントが運営者Aであることを確認しました</label>
+  <p><button id="completeRotateAB" type="button">Aの取得を完了する</button></p>
+  <button id="freezeRotate" type="button">ローテーション要求を凍結して表示する</button>
+  <pre id="frozenRotate">（まだローテーション要求を凍結していません）</pre>
+  <label><input type="checkbox" id="preRead"> 開始前の読み戻しで generation=6・登録簿 {A} を確認しました</label>
+  <p><button id="sendRotate" type="button">ローテーションを送信する（200 ok・generation 7 が期待結果です）</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>⑤ 手順2：A のトークンで提示する（拒否が期待結果＝合格です）</legend>
+  <button id="prepCheckA" type="button">送信器からnonceを取得してAのGoogleログインボタンを表示</button>
+  <div id="gisCheckA"></div>
+  <p>署名検証：</p>
+  <pre id="checkAEvidence">（まだ A のログインをしていません）</pre>
+  <p>主体ハッシュ（この画面だけに表示します）：</p>
+  <pre id="checkAHash">（まだ A のログインをしていません）</pre>
+  <p id="checkAFacts">手順2のAが手順1の認可者Aと同一であること： 未確認</p>
+  <label><input type="checkbox" id="checkAConfirmed"> このアカウントが運営者A本人であることを確認しました</label>
+  <p><button id="completeCheckA" type="button">Aの取得を完了する</button></p>
+  <p><button id="sendCheckA" type="button">Aを提示する（403 not_operator が期待結果＝合格です）</button></p>
+</fieldset>
+
+<fieldset>
+  <legend>⑥ 手順3：B のトークンで提示する（成功が期待結果です）</legend>
+  <button id="prepCheckB" type="button">送信器からnonceを取得してBのGoogleログインボタンを表示</button>
+  <div id="gisCheckB"></div>
+  <p>署名検証：</p>
+  <pre id="checkBEvidence">（まだ B のログインをしていません）</pre>
+  <p>主体ハッシュ（この画面だけに表示します）：</p>
+  <pre id="checkBHash">（まだ B のログインをしていません）</pre>
+  <p id="checkBFacts">手順3のBが手順0bの対象 B と同一であること： 未確認</p>
+  <label><input type="checkbox" id="checkBConfirmed"> このアカウントが運営者B本人であることを確認しました</label>
+  <p><button id="completeCheckB" type="button">Bの取得を完了する</button></p>
+  <p><button id="sendCheckB" type="button">Bを提示する（200 ok が期待結果です）</button></p>
+</fieldset>
+
+<h2>状態</h2>
+<pre id="state">（試行がありません）</pre>
+<pre id="nonceInfo">（まだ nonce を取得していません）</pre>
+
+<h2>結果</h2>
+<pre id="log"></pre>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import {
+  createS14Session,
+  buildS14RotateRequest,
+  buildS14VerifyOnlyRequest,
+  makeS14LogEntry,
+  SLOT_SEND_WINDOW_MS,
+} from "./s14-rotate.mjs";
+import { assertLogHasNoSecrets } from "./s9-negative.mjs";
+import { verifyIdTokenLocal, sha256hex } from "./subject-hash-verify.mjs";
+
+// 検証用 OAuth クライアント ID。
+// !!! プレースホルダです。実値は PC 側で設定してください !!!
+// （検証用に作成した Web クライアントの ID を、tools/serve-real.mjs が
+// 起動時に環境変数 GOOGLE_CLIENT_ID からメモリ上で差し込みます）
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_VERIFICATION_OAUTH_CLIENT_ID";
+// 試験単位の不可推測セッション。提供サーバーが起動時に発行し、メモリ上で
+// 差し込む（ファイル自体は書き換えない）。/s14/nonces・/s14/send-* の
+// 呼び出し時にヘッダーで示し、別オリジン・別画面からの状態変更を拒否する。
+// 秘密の値ではないが、表示・ログには出さない。
+const S14_SESSION = "REPLACE_WITH_S14_SESSION";
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+const PATHS = { nonces: "/s14/nonces", freezeRotate: "/s14/freeze-rotate", sendRotate: "/s14/send-rotate", sendVerifyOnly: "/s14/send-verify-only" };
+// 送信指示の事前確認で送信器が返す、1件も送信されていないことを示す
+// 理由コード。これらを受けた場合は試行を停止する。それ以外の失敗
+// （通信失敗・5xx）は実施有無が不明なため、状態未確定として扱う。
+const PRE_SEND_ERROR_CODES = new Set([
+  "s14_sender_busy",
+  "s14_not_prepared",
+  "s14_trial_mismatch",
+  "s14_bad_slot",
+  "s14_slot_nonce_mismatch",
+  "s14_slot_already_issued",
+  "s14_nonce_issuance_failed",
+  "s14_rotate_target_fixed",
+  "s14_rotate_not_frozen",
+  "s14_rotate_target_mismatch",
+  "s14_unexpected_generation",
+  "s14_nonces_expired",
+  "s14_bad_session",
+  "s14_bad_origin",
+  "bad_body",
+  "bad_content_type",
+  "body_too_large",
+]);
+
+const session = createS14Session();
+let attempt = null; // 最新の試行 { trialId, generation }（表示用）
+let sending = false; // 送信中のフラグ（全送信共通）
+// スロットごとに保持する値（JS 変数のみ。表示・ログに出さない。
+// 主体ハッシュは表示用の DOM だけに書き、ログには出さない）。
+let tokenTargetA = null;
+let tokenTargetB = null;
+let tokenRotateAB = null;
+let tokenCheckA = null;
+let tokenCheckB = null;
+let hashTargetA = null;
+let hashTargetB = null;
+let hashRotateAB = null;
+let hashCheckA = null;
+let hashCheckB = null;
+let nonceTargetA = null;
+let nonceTargetB = null;
+let nonceRotateAB = null;
+let nonceCheckA = null;
+let nonceCheckB = null;
+let verifiedTargetA = null;
+let verifiedTargetB = null;
+let verifiedRotateAB = null;
+let verifiedCheckA = null;
+let verifiedCheckB = null;
+// 凍結した対象の組が送信器にも固定済みかどうか。固定が完了する
+// まで送信ボタンは有効にならない。
+const senderFrozen = { rotateAB: false };
+
+const logEl = document.getElementById("log");
+const stateEl = document.getElementById("state");
+const nonceInfoEl = document.getElementById("nonceInfo");
+const trialIdEl = document.getElementById("trialId");
+const newTrialBtn = document.getElementById("newTrial");
+const discardBtn = document.getElementById("discardTrial");
+const prepTargetABtn = document.getElementById("prepTargetA");
+const gisTargetABox = document.getElementById("gisTargetA");
+const targetAEvidenceEl = document.getElementById("targetAEvidence");
+const targetAHashEl = document.getElementById("targetAHash");
+const targetAConfirmCheck = document.getElementById("targetAConfirmed");
+const completeTargetABtn = document.getElementById("completeTargetA");
+const prepTargetBBtn = document.getElementById("prepTargetB");
+const gisTargetBBox = document.getElementById("gisTargetB");
+const targetBEvidenceEl = document.getElementById("targetBEvidence");
+const targetBHashEl = document.getElementById("targetBHash");
+const targetBFactsEl = document.getElementById("targetBFacts");
+const targetBConfirmCheck = document.getElementById("targetBConfirmed");
+const completeTargetBBtn = document.getElementById("completeTargetB");
+const prepRotateABBtn = document.getElementById("prepRotateAB");
+const gisRotateABBox = document.getElementById("gisRotateAB");
+const rotateABEvidenceEl = document.getElementById("rotateABEvidence");
+const rotateABHashEl = document.getElementById("rotateABHash");
+const rotateABFactsEl = document.getElementById("rotateABFacts");
+const rotateABConfirmCheck = document.getElementById("rotateABConfirmed");
+const completeRotateABBtn = document.getElementById("completeRotateAB");
+const freezeRotateBtn = document.getElementById("freezeRotate");
+const frozenRotateEl = document.getElementById("frozenRotate");
+const preReadCheck = document.getElementById("preRead");
+const sendRotateBtn = document.getElementById("sendRotate");
+const prepCheckABtn = document.getElementById("prepCheckA");
+const gisCheckABox = document.getElementById("gisCheckA");
+const checkAEvidenceEl = document.getElementById("checkAEvidence");
+const checkAHashEl = document.getElementById("checkAHash");
+const checkAFactsEl = document.getElementById("checkAFacts");
+const checkAConfirmCheck = document.getElementById("checkAConfirmed");
+const completeCheckABtn = document.getElementById("completeCheckA");
+const sendCheckABtn = document.getElementById("sendCheckA");
+const prepCheckBBtn = document.getElementById("prepCheckB");
+const gisCheckBBox = document.getElementById("gisCheckB");
+const checkBEvidenceEl = document.getElementById("checkBEvidence");
+const checkBHashEl = document.getElementById("checkBHash");
+const checkBFactsEl = document.getElementById("checkBFacts");
+const checkBConfirmCheck = document.getElementById("checkBConfirmed");
+const completeCheckBBtn = document.getElementById("completeCheckB");
+const sendCheckBBtn = document.getElementById("sendCheckB");
+
+function allSecrets() {
+  return [
+    tokenTargetA, tokenTargetB, tokenRotateAB, tokenCheckA, tokenCheckB,
+    nonceTargetA, nonceTargetB, nonceRotateAB, nonceCheckA, nonceCheckB,
+    hashTargetA, hashTargetB, hashRotateAB, hashCheckA, hashCheckB,
+  ];
+}
+
+function log(...parts) {
+  // 試験 ID・ステップ・応答の状態と理由コード・返された世代だけを出す。
+  // トークン・Cookie・nonce・主体ハッシュは出さない。書き込む前に混入
+  // を確認する。
+  const line = parts.join(" ");
+  try {
+    assertLogHasNoSecrets(line, allSecrets());
+  } catch {
+    // 秘密が混ざる行は書かない。混入そのものだけを記録する。
+    logEl.textContent += "ログへの書き込みを拒否しました（秘密の混入の疑い）\n";
+    return;
+  }
+  logEl.textContent += line + "\n";
+}
+
+// 手順1の A の秘密の消去（契機は S14_TOKEN_ERASE_TRIGGERS の
+// rotateab-sent）。消去の事実だけをログに出す（値は出さない）。
+// 認可者の主体ハッシュは手順2の表示照合に使うため、変数は
+// 試行の終了まで保持し、表示だけを消す（ログには常に出さない）。
+// 最終的な照合は状態機械が行う。
+function eraseRotateABSecrets(trigger) {
+  tokenRotateAB = null;
+  nonceRotateAB = null;
+  verifiedRotateAB = null;
+  rotateABHashEl.textContent = "（消去されました）";
+  log(`秘密を消去しました（${trigger}）`);
+}
+
+// 手順2の A の秘密の消去（契機は checka-recorded）。
+function eraseCheckASecrets(trigger) {
+  tokenCheckA = null;
+  nonceCheckA = null;
+  verifiedCheckA = null;
+  checkAHashEl.textContent = "（消去されました）";
+  log(`秘密を消去しました（${trigger}）`);
+}
+
+// すべての秘密の消去。表示した主体ハッシュも画面から消す。
+function eraseAllSecrets(trigger) {
+  tokenTargetA = null;
+  tokenTargetB = null;
+  tokenRotateAB = null;
+  tokenCheckA = null;
+  tokenCheckB = null;
+  hashTargetA = null;
+  hashTargetB = null;
+  hashRotateAB = null;
+  hashCheckA = null;
+  hashCheckB = null;
+  nonceTargetA = null;
+  nonceTargetB = null;
+  nonceRotateAB = null;
+  nonceCheckA = null;
+  nonceCheckB = null;
+  verifiedTargetA = null;
+  verifiedTargetB = null;
+  verifiedRotateAB = null;
+  verifiedCheckA = null;
+  verifiedCheckB = null;
+  targetAHashEl.textContent = "（消去されました）";
+  targetBHashEl.textContent = "（消去されました）";
+  rotateABHashEl.textContent = "（消去されました）";
+  checkAHashEl.textContent = "（消去されました）";
+  checkBHashEl.textContent = "（消去されました）";
+  log(`秘密を消去しました（${trigger}）`);
+}
+
+function currentPhase() {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  const snap = session.snapshot();
+  return snap ? snap.phase : null;
+}
+
+function currentNonceIssuedAt(role) {
+  if (!attempt || !session.isCurrent(attempt.trialId, attempt.generation)) return null;
+  return session.nonceIssuedAt(attempt.trialId, attempt.generation, role);
+}
+
+// いずれかの役割の nonce 取得が飛行中かどうか。新しい試行の
+// 開始・破棄のハンドラーでも使う（表示の無効化だけでは合成イベント
+// を防げないため、ハンドラー側でも拒否する）。
+function isAnyNonceFetchPending() {
+  if (attempt === null) return false;
+  return ["targetA", "targetB", "rotateAB", "checkA", "checkB"].some((role) =>
+    session.isNonceFetchPending(attempt.trialId, attempt.generation, role)
+  );
+}
+
+// 送信器発行の nonce の送信期限（発行開始＋4分）を過ぎているか。
+function senderWindowExpired(roles) {
+  const issued = roles
+    .map((role) => currentNonceIssuedAt(role))
+    .filter((v) => v !== null);
+  if (issued.length === 0) return false;
+  return Date.now() - Math.min(...issued) > SLOT_SEND_WINDOW_MS;
+}
+
+// GIS コールバックが現行の試行・スロット・段階に属するかを照合する。
+// 拒否する場合はログに出す文言を返し、通る場合は null を返す。
+function callbackRejection(snap) {
+  if (!session.isCurrent(snap.trialId, snap.generation)) {
+    return "古い試行のコールバックを破棄しました";
+  }
+  if (!session.isCallbackCurrent(snap.trialId, snap.generation, snap.role)) {
+    return "スロット・段階が一致しないコールバックを破棄しました";
+  }
+  return null;
+}
+
+function updateState() {
+  const snap = session.snapshot();
+  if (!snap) {
+    stateEl.textContent = "（試行がありません）";
+  } else {
+    stateEl.textContent = JSON.stringify({
+      trial_id: snap.trialId,
+      phase: snap.phase,
+      targeta_captured: snap.targetACaptured,
+      targetb_captured: snap.targetBCaptured,
+      authorizer_captured: snap.authorizerCaptured,
+      rotate_frozen: snap.rotateFrozen,
+      checka_captured: snap.checkACaptured,
+      checkb_captured: snap.checkBCaptured,
+      undetermined: snap.undetermined,
+    }, null, 2);
+  }
+  const parts = [];
+  for (const [role, label] of [["targetA", "手順0a A（対象取得）"], ["targetB", "手順0b B（対象取得）"], ["rotateAB", "手順1 A"], ["checkA", "手順2 A"], ["checkB", "手順3 B"]]) {
+    const issued = currentNonceIssuedAt(role);
+    if (issued !== null) {
+      parts.push(`${label} nonce 発行時刻：${new Date(issued).toISOString()}（${issued}）／送信期限：${new Date(issued + SLOT_SEND_WINDOW_MS).toISOString()}（${issued + SLOT_SEND_WINDOW_MS}）`);
+    }
+  }
+  nonceInfoEl.textContent = parts.length > 0
+    ? parts.join("\n") + "\n（送信器のスロットは発行開始＋4分が送信期限。nonce 自体の有効期限は5分）"
+    : "（まだ nonce を取得していません）";
+  trialIdEl.textContent = attempt ? attempt.trialId : "（新しい試行を始めてください）";
+}
+
+// 各ボタンの有効・無効。セッションの段階が許可する時のみ有効にする。
+// 送信中は準備・送信ボタンを無効化する（送信中の排他）。nonce 取得中
+// は準備・破棄・新規試行ボタンも無効化する（取得中の排他）。ローテー
+// ションの送信ボタンは、対象の組が送信器にも固定済みのときにだけ
+// 有効にする。
+function updateButtons() {
+  const phase = currentPhase();
+  const fetching = isAnyNonceFetchPending();
+  const canAct = !sending && !fetching && attempt !== null && phase !== null;
+  newTrialBtn.disabled = sending || fetching;
+  discardBtn.disabled = sending || fetching || attempt === null;
+  prepTargetABtn.disabled = !canAct || phase !== "start";
+  completeTargetABtn.disabled =
+    !canAct || phase !== "start" || tokenTargetA === null || !targetAConfirmCheck.checked;
+  prepTargetBBtn.disabled = !canAct || phase !== "targeta-captured";
+  completeTargetBBtn.disabled =
+    !canAct || phase !== "targeta-captured" || tokenTargetB === null || !targetBConfirmCheck.checked;
+  prepRotateABBtn.disabled = !canAct || phase !== "targetb-captured";
+  completeRotateABBtn.disabled =
+    !canAct || phase !== "targetb-captured" || tokenRotateAB === null || !rotateABConfirmCheck.checked;
+  freezeRotateBtn.disabled = !canAct || phase !== "rotateab-captured";
+  sendRotateBtn.disabled =
+    !canAct || phase !== "rotateab-frozen" || tokenRotateAB === null ||
+    !senderFrozen.rotateAB || !preReadCheck.checked || senderWindowExpired(["rotateAB"]);
+  prepCheckABtn.disabled = !canAct || phase !== "rotateab-sent";
+  completeCheckABtn.disabled =
+    !canAct || phase !== "rotateab-sent" || tokenCheckA === null || !checkAConfirmCheck.checked;
+  sendCheckABtn.disabled =
+    !canAct || phase !== "checka-captured" || tokenCheckA === null || senderWindowExpired(["checkA"]);
+  prepCheckBBtn.disabled = !canAct || phase !== "checka-recorded";
+  completeCheckBBtn.disabled =
+    !canAct || phase !== "checka-recorded" || tokenCheckB === null || !checkBConfirmCheck.checked;
+  sendCheckBBtn.disabled =
+    !canAct || phase !== "checkb-captured" || tokenCheckB === null || senderWindowExpired(["checkB"]);
+}
+
+// スロットの nonce を送信器から取得する。発行は試行 ID とスロットに
+// 結び付ける。送信指示の試行 ID・スロットと一致しなければ送信器は
+// 送信しない。試験単位のセッションもヘッダーで示す（別オリジン・
+// 別画面からの呼び出しは拒否される）。期限の起点は要求開始直前に
+// 同期的に記録した時刻であり、試行・スロットに閉じ込める。応答の
+// 受信時刻は使わない。
+async function fetchSenderNonce(slot) {
+  if (!attempt) throw new Error("試行がありません");
+  const req = session.beginNonceFetch(attempt.trialId, attempt.generation, slot, Date.now());
+  updateButtons();
+  const res = await fetch(
+    `${PATHS.nonces}?trial_id=${encodeURIComponent(attempt.trialId)}&slot=${encodeURIComponent(slot)}`,
+    { credentials: "include", headers: { "x-s14-session": S14_SESSION } }
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || typeof data.nonce !== "string") {
+    throw new Error("送信器から nonce が取得できませんでした");
+  }
+  // nonce の値は表示しない。対応するスロットの GIS ログインにだけ使う。
+  // 遅れて戻った旧試行の応答は、世代照合で破棄する（期限・nonce を
+  // 上書きしない）。
+  const applied = session.finishNonceFetch(req.trialId, req.generation, slot, data.nonce);
+  if (!applied) {
+    log("古い試行の nonce 応答を破棄しました");
+    return null;
+  }
+  return data.nonce;
+}
+
+// 対象取得（手順0a・0b）の nonce を /nonce から直接取得する。この
+// トークンは管理操作に提示しないため、送信器のスロットは使わない
+// （対象主体ハッシュ取得ページと同じ経路）。期限の起点は要求開始
+// 直前に同期的に記録した時刻である。
+async function fetchDirectNonce(role) {
+  if (!attempt) throw new Error("試行がありません");
+  const req = session.beginNonceFetch(attempt.trialId, attempt.generation, role, Date.now());
+  updateButtons();
+  const res = await fetch("/nonce", { credentials: "include" });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || typeof data.nonce !== "string") {
+    throw new Error("nonce が取得できませんでした");
+  }
+  const applied = session.finishNonceFetch(req.trialId, req.generation, role, data.nonce);
+  if (!applied) {
+    log("古い試行の nonce 応答を破棄しました");
+    return null;
+  }
+  return data.nonce;
+}
+
+// GIS コールバック。試行の ID・世代・スロット・nonce はスナップ
+// ショット（snap）に閉じ込められており、グローバルな attempt は
+// 読まない。古い試行のコールバックは、開始時と各 await 後の試行・
+// スロット・段階の照合（JWKS 取得後・署名検証後・sha256hex 後）で
+// 破棄する。共有の UI・状態の更新は、この試行が現行のときに限る。
+async function onGoogleSignIn(response, snap) {
+  const entryRejection = callbackRejection(snap);
+  if (entryRejection !== null) {
+    log(entryRejection);
+    return;
+  }
+  // 1スロット1捕捉の排他。受付済み・処理中の同一試行・スロットへの
+  // 後続コールバックは、ユーザーの確認（取得完了）で段階が進む
+  // 前でも拒否する。
+  if (!session.claimCallbackCapture(snap.trialId, snap.generation, snap.role)) {
+    log("同じスロットのコールバックは既に受け付け済みのため破棄しました");
+    return;
+  }
+  try {
+    // JWKS（Google 公開鍵集合）をブラウザーが直接取得し、PC 内で
+    // 署名を検証する。トークンは外部の検証サービスへ送らない。
+    // 真偽だけを扱う。
+    const jwks = await (await fetch(JWKS_URL)).json();
+    const jwksRejection = callbackRejection(snap);
+    if (jwksRejection !== null) {
+      log(jwksRejection);
+      return;
+    }
+    const sub = await verifyIdTokenLocal(response.credential, {
+      jwks,
+      expectedAud: GOOGLE_CLIENT_ID,
+      expectedIssuers: ISSUERS,
+      expectedNonce: snap.nonce,
+      nowSec: Math.floor(Date.now() / 1000),
+    }).then((r) => r.sub).catch((e) => {
+      log("署名検証 -> ng", e.code || "error", `(スロット=${snap.role})`);
+      return null;
+    });
+    if (sub === null) throw new Error("署名検証が通りませんでした");
+    const verifyRejection = callbackRejection(snap);
+    if (verifyRejection !== null) {
+      log(verifyRejection);
+      return;
+    }
+    // 主体ハッシュは PC 内で算出する。表示はこの画面の DOM だけ
+    // であり、ログには出さない。sha256hex は非同期であり、その
+    // 完了を待つ間に試行が破棄・置換され得るため、ハッシュ後に
+    // もう一度、試行・スロット・段階を照合してから共有の状態へ
+    // 書き込む。
+    const hash = await sha256hex(sub);
+    const hashRejection = callbackRejection(snap);
+    if (hashRejection !== null) {
+      log(hashRejection);
+      return;
+    }
+    const verified = { signature: true, iss: true, aud: true, exp: true, nonce: true };
+    if (snap.role === "targetA") {
+      tokenTargetA = response.credential;
+      nonceTargetA = snap.nonce;
+      hashTargetA = hash;
+      verifiedTargetA = verified;
+      targetAEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      targetAHashEl.textContent = hash;
+      log("手順0aの対象 A の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else if (snap.role === "targetB") {
+      tokenTargetB = response.credential;
+      nonceTargetB = snap.nonce;
+      hashTargetB = hash;
+      verifiedTargetB = verified;
+      targetBEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      targetBHashEl.textContent = hash;
+      targetBFactsEl.textContent =
+        hashTargetA !== null && hash !== hashTargetA
+          ? "対象 B がローテーション元 A と異なること： 確認済み"
+          : "対象 B がローテーション元 A と異なること： 未確認";
+      log("手順0bの対象 B の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else if (snap.role === "rotateAB") {
+      tokenRotateAB = response.credential;
+      nonceRotateAB = snap.nonce;
+      hashRotateAB = hash;
+      verifiedRotateAB = verified;
+      rotateABEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      rotateABHashEl.textContent = hash;
+      rotateABFactsEl.textContent =
+        hashTargetA !== null && hash === hashTargetA
+          ? "認可者がローテーション元 A と同一であること： 確認済み"
+          : "認可者がローテーション元 A と同一であること： 未確認";
+      log("手順1の認可 A の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else if (snap.role === "checkA") {
+      tokenCheckA = response.credential;
+      nonceCheckA = snap.nonce;
+      hashCheckA = hash;
+      verifiedCheckA = verified;
+      checkAEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      checkAHashEl.textContent = hash;
+      checkAFactsEl.textContent =
+        hashRotateAB !== null && hash === hashRotateAB
+          ? "手順2のAが手順1の認可者Aと同一であること： 確認済み"
+          : "手順2のAが手順1の認可者Aと同一であること： 未確認";
+      log("手順2の A の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    } else if (snap.role === "checkB") {
+      tokenCheckB = response.credential;
+      nonceCheckB = snap.nonce;
+      hashCheckB = hash;
+      verifiedCheckB = verified;
+      checkBEvidenceEl.textContent =
+        "署名検証： 署名 ok／iss ok／aud ok／exp ok／nonce ok（すべて PC 内で確認）";
+      checkBHashEl.textContent = hash;
+      checkBFactsEl.textContent =
+        hashTargetB !== null && hash === hashTargetB
+          ? "手順3のBが手順0bの対象 B と同一であること： 確認済み"
+          : "手順3のBが手順0bの対象 B と同一であること： 未確認";
+      log("手順3の B の署名検証 -> ok", `試験ID=${snap.trialId}`);
+    }
+    log("トークンを捕捉しました（送信はしていません）", `(スロット=${snap.role})`);
+  } catch (e) {
+    // 共有の状態を変えるのは、このコールバックが現行の試行・
+    // スロット・段階に属するときに限る。古い／重複コールバックの
+    // catch が新試行の状態を壊さないようにする。
+    if (callbackRejection(snap) === null) {
+      log("準備エラー:", e.message);
+      // 捕捉に失敗した試行は破棄し、保持しかけた秘密があれば消去する。
+      eraseAllSecrets("trial-discarded");
+      session.discard(snap.trialId, snap.generation);
+      attempt = null;
+    } else {
+      log("古い試行の準備エラーを破棄しました");
+    }
+  } finally {
+    updateButtons();
+    updateState();
+  }
+}
+
+// スロット用の GIS ボタンを描画する。nonce は取得済みのものを使う。
+// コールバックにこの試行の ID・世代・スロット・nonce を閉じ込める。
+function renderSlotButton(boxEl, role, nonce) {
+  const snap = { trialId: attempt.trialId, generation: attempt.generation, role, nonce };
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce,
+    callback: (response) => onGoogleSignIn(response, snap),
+  });
+  boxEl.innerHTML = "";
+  google.accounts.id.renderButton(boxEl, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+  });
+  updateButtons();
+  updateState();
+}
+
+newTrialBtn.addEventListener("click", () => {
+  if (sending || isAnyNonceFetchPending()) {
+    log("新しい試行は、送信中・nonce取得中は開始できません");
+    return;
+  }
+  attempt = session.beginTrial();
+  // 新しい試行の開始（契機）に、以前の試行の秘密を消去する。
+  eraseAllSecrets("new-trial-begun");
+  google.accounts.id.disableAutoSelect();
+  senderFrozen.rotateAB = false;
+  targetAEvidenceEl.textContent = "（新しい試行）";
+  targetBEvidenceEl.textContent = "（新しい試行）";
+  rotateABEvidenceEl.textContent = "（新しい試行）";
+  checkAEvidenceEl.textContent = "（新しい試行）";
+  checkBEvidenceEl.textContent = "（新しい試行）";
+  frozenRotateEl.textContent = "（新しい試行）";
+  targetBFactsEl.textContent = "対象 B がローテーション元 A と異なること： 未確認";
+  rotateABFactsEl.textContent = "認可者がローテーション元 A と同一であること： 未確認";
+  checkAFactsEl.textContent = "手順2のAが手順1の認可者Aと同一であること： 未確認";
+  checkBFactsEl.textContent = "手順3のBが手順0bの対象 B と同一であること： 未確認";
+  targetAConfirmCheck.checked = false;
+  targetBConfirmCheck.checked = false;
+  rotateABConfirmCheck.checked = false;
+  checkAConfirmCheck.checked = false;
+  checkBConfirmCheck.checked = false;
+  preReadCheck.checked = false;
+  log(`新しい試行を開始しました。試験ID： ${attempt.trialId}`);
+  updateState();
+  updateButtons();
+});
+
+discardBtn.addEventListener("click", () => {
+  if (sending) {
+    log("送信中は試行を破棄できません");
+    return;
+  }
+  if (attempt === null) return;
+  if (isAnyNonceFetchPending()) {
+    log("nonce の取得中は破棄できません");
+    return;
+  }
+  session.discard(attempt.trialId, attempt.generation);
+  eraseAllSecrets("trial-discarded");
+  log("試行を破棄しました。破棄した試行のトークン・主体ハッシュは消去しました（値表示なし）");
+  updateState();
+  updateButtons();
+});
+
+// 準備ハンドラー（役割ごと）。段階と取得中の排他を確認してから
+// nonce を取得し、GIS ボタンを描画する。
+async function prepRole({ role, phase, box, fetchNonce, busyMessage, phaseMessage }) {
+  if (currentPhase() !== phase) {
+    log(phaseMessage);
+    return;
+  }
+  if (session.isNonceFetchPending(attempt.trialId, attempt.generation, role)) {
+    log(busyMessage);
+    return;
+  }
+  box.replaceChildren();
+  updateButtons();
+  let nonce;
+  try {
+    nonce = await fetchNonce();
+  } catch {
+    log(`${role} の nonce の取得に失敗しました`);
+    updateButtons();
+    return;
+  }
+  if (nonce === null) {
+    updateButtons();
+    return;
+  }
+  renderSlotButton(box, role, nonce);
+}
+
+prepTargetABtn.addEventListener("click", () =>
+  prepRole({
+    role: "targetA",
+    phase: "start",
+    box: gisTargetABox,
+    fetchNonce: () => fetchDirectNonce("targetA"),
+    busyMessage: "手順0aの nonce 取得は既に進行中です",
+    phaseMessage: "手順0aの対象取得は対象取得・完了より前でなければできません",
+  })
+);
+
+prepTargetBBtn.addEventListener("click", () =>
+  prepRole({
+    role: "targetB",
+    phase: "targeta-captured",
+    box: gisTargetBBox,
+    fetchNonce: () => fetchDirectNonce("targetB"),
+    busyMessage: "手順0bの nonce 取得は既に進行中です",
+    phaseMessage: "手順0bの対象取得は手順0aの対象取得完了前にできません",
+  })
+);
+
+prepRotateABBtn.addEventListener("click", () =>
+  prepRole({
+    role: "rotateAB",
+    phase: "targetb-captured",
+    box: gisRotateABBox,
+    fetchNonce: () => fetchSenderNonce("rotateAB"),
+    busyMessage: "手順1の nonce 取得は既に進行中です",
+    phaseMessage: "手順1の認可 A の取得は対象 B の取得完了前にできません",
+  })
+);
+
+prepCheckABtn.addEventListener("click", () =>
+  prepRole({
+    role: "checkA",
+    phase: "rotateab-sent",
+    box: gisCheckABox,
+    fetchNonce: () => fetchSenderNonce("checkA"),
+    busyMessage: "手順2の nonce 取得は既に進行中です",
+    phaseMessage: "手順2の A の取得は手順1のローテーション送信前にはできません",
+  })
+);
+
+prepCheckBBtn.addEventListener("click", () =>
+  prepRole({
+    role: "checkB",
+    phase: "checka-recorded",
+    box: gisCheckBBox,
+    fetchNonce: () => fetchSenderNonce("checkB"),
+    busyMessage: "手順3の nonce 取得は既に進行中です",
+    phaseMessage: "手順3の B の取得は手順2の結果の記録前にはできません",
+  })
+);
+
+completeTargetABtn.addEventListener("click", () => {
+  try {
+    session.markTargetACaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashTargetA,
+      verified: verifiedTargetA,
+    });
+  } catch (e) {
+    log("手順0aの対象取得を完了できませんでした： " + e.message);
+    updateState();
+    updateButtons();
+    return;
+  }
+  log("手順0aの対象 A の取得を完了しました（値は出しません）");
+  updateState();
+  updateButtons();
+});
+
+completeTargetBBtn.addEventListener("click", () => {
+  try {
+    session.markTargetBCaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashTargetB,
+      verified: verifiedTargetB,
+    });
+  } catch (e) {
+    log("手順0bの対象取得を完了できませんでした： " + e.message);
+    // ローテーション先が元と同一なら、停止して B の選び直しが
+    // 必要なため自動判断の補助として扱う（試行は状態機械が
+    // 停止済み）。
+    if (e.code === "wrong_subject") {
+      log("この試行は停止しました。新しい試行を始めて B で再度ログインしてください");
+    }
+    updateState();
+    updateButtons();
+    return;
+  }
+  log("手順0bの対象 B の取得を完了しました（値は出しません）");
+  updateState();
+  updateButtons();
+});
+
+completeRotateABBtn.addEventListener("click", () => {
+  try {
+    session.markRotateABCaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashRotateAB,
+      verified: verifiedRotateAB,
+    });
+  } catch (e) {
+    log("手順1の A の取得を完了できませんでした： " + e.message);
+    // 認可者が A と異なれば、停止して A の選び直しが必要なため
+    // 自動判断の補助として扱う（試行は状態機械が停止済み）。
+    if (e.code === "wrong_authorizer") {
+      log("この試行は停止しました。新しい試行を始めて A で再度ログインしてください");
+    }
+    updateState();
+    updateButtons();
+    return;
+  }
+  log("手順1の認可 A の取得を完了しました（値は出しません）");
+  updateState();
+  updateButtons();
+});
+
+completeCheckABtn.addEventListener("click", () => {
+  try {
+    session.markCheckACaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashCheckA,
+      verified: verifiedCheckA,
+    });
+  } catch (e) {
+    log("手順2の A の取得を完了できませんでした： " + e.message);
+    updateState();
+    updateButtons();
+    return;
+  }
+  log("手順2の A の取得を完了しました（値は出しません）");
+  updateState();
+  updateButtons();
+});
+
+completeCheckBBtn.addEventListener("click", () => {
+  try {
+    session.markCheckBCaptured(attempt.trialId, attempt.generation, {
+      subjectHash: hashCheckB,
+      verified: verifiedCheckB,
+    });
+  } catch (e) {
+    log("手順3の B の取得を完了できませんでした： " + e.message);
+    updateState();
+    updateButtons();
+    return;
+  }
+  log("手順3の B の取得を完了しました（値は出しません）");
+  updateState();
+  updateButtons();
+});
+
+// 凍結した対象の組を送信器にも登録する（POST /s14/freeze-rotate）。
+// 成功なら { ok: true }、登録できない場合は 409 と理由コードだけが
+// 返る。登録が完了しなければ呼び出し側で試行を停止する。
+async function postFreezeTargets(trialId, oldSubjectHash, newSubjectHash) {
+  try {
+    const res = await fetch(PATHS.freezeRotate, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-s14-session": S14_SESSION,
+      },
+      body: JSON.stringify({ trial_id: trialId, old_subject_hash: oldSubjectHash, new_subject_hash: newSubjectHash }),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.ok === true) return { kind: "ok" };
+    if (data && PRE_SEND_ERROR_CODES.has(data.error)) {
+      return { kind: "pre", code: data.error };
+    }
+    return { kind: "failed", code: data && typeof data.error === "string" ? data.error : "instruction_failed" };
+  } catch {
+    return { kind: "failed", code: "instruction_failed" };
+  }
+}
+
+// 凍結ハンドラー。状態機械で要求を凍結し、表示してから、凍結済み
+// 要求の対象の組を送信器にも登録する。登録が完了するまで送信
+// ボタンは有効にならない。
+freezeRotateBtn.addEventListener("click", async () => {
+  let display;
+  try {
+    display = session.freezeRotateRequest(attempt.trialId, attempt.generation);
+  } catch (e) {
+    log("手順1のローテーション要求を凍結できませんでした： " + e.message);
+    updateState();
+    updateButtons();
+    return;
+  }
+  senderFrozen.rotateAB = false;
+  updateButtons();
+  const registration = await postFreezeTargets(attempt.trialId, display.oldSubjectHash, display.newSubjectHash);
+  if (registration.kind !== "ok") {
+    frozenRotateEl.textContent =
+      "試行ID： " + display.trialId + "\n" +
+      "action： " + display.action + "\n旧主体(主体ハッシュ)： " + display.oldSubjectHash + "\n" +
+      "新主体(主体ハッシュ)： " + display.newSubjectHash + "\n" +
+      "期待世代： " + display.expectedGeneration + "\n" +
+      "送信先： " + display.path + "\n" +
+      "対象の送信器への登録： 未完了";
+    log(
+      "手順1の送信は未実施： 送信器への対象登録が完了しませんでした。" +
+      (registration.code ? `理由コード： ${registration.code}。` : "") +
+      "この試行は停止します（送信器の状態と合わせた判断は所有者へ報告してください）"
+    );
+    updateState();
+    updateButtons();
+    return;
+  }
+  senderFrozen.rotateAB = true;
+  frozenRotateEl.textContent =
+    "試行ID： " + display.trialId + "\n" +
+    "action： " + display.action + "\n旧主体(主体ハッシュ)： " + display.oldSubjectHash + "\n" +
+    "新主体(主体ハッシュ)： " + display.newSubjectHash + "\n" +
+    "期待世代： " + display.expectedGeneration + "\n" +
+    "送信先： " + display.path + "\n" +
+    "対象の送信器への登録： 完了";
+  log("手順1のローテーション要求を凍結しました", `試験ID=${display.trialId}`, "（対象はこの画面だけに表示します）");
+  updateState();
+  updateButtons();
+});
+
+// 送信指示を送信器へ渡し、応答を読み解いて返す。戻り値：
+//   { kind: "result", status, error, generation } … 送信器が実際に
+//     送信し、応答（または応答なし）を得た。status null は応答なし。
+//   { kind: "pre", code } … 送信器の事前確認で拒否された。
+//     1件も送信されていない。
+//   { kind: "failed", code } … 指示の通信自体が失敗した。
+//     実施有無は不明のため、呼び出し側は状態未確定として扱う。
+async function postToSender(path, body) {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-s14-session": S14_SESSION,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && "status" in data) {
+      return { kind: "result", status: data.status, error: data.error ?? null, generation: data.generation ?? null };
+    }
+    if (data && PRE_SEND_ERROR_CODES.has(data.error)) {
+      return { kind: "pre", code: data.error };
+    }
+    return { kind: "failed", code: data && typeof data.error === "string" ? data.error : "instruction_failed" };
+  } catch {
+    return { kind: "failed", code: "instruction_failed" };
+  }
+}
+
+// 送信器のスロット発行時刻が4分の送信窓を過ぎているか。過ぎた
+// 捕捉は送信器が拒否する。画面でも先に確認し、使わないことに
+// 決める。過ぎていればログに出して true を返す。呼び出し側は
+// 試行を停止する。
+function checkSenderWindowExpired(roles, stepLabel) {
+  if (!senderWindowExpired(roles)) return false;
+  log(`${stepLabel}の送信は未実施： 送信器の送信時間窓が過ぎました。この試行は停止します（送信器の状態と合わせた判断は所有者へ報告してください）`);
+  eraseAllSecrets("s14-halted");
+  updateState();
+  updateButtons();
+  return true;
+}
+
+// 送信器の事前確認で拒否された場合の共通処理（1件も送信されて
+// いない）。試行を停止する（破棄するには所有者の判断が要る）。
+function reportPreSendRefusal(stepLabel, code) {
+  log(`${stepLabel}の送信は未実施： 送信器の事前確認で拒否されました。理由コード： ${code}。この試行は停止します（送信器の状態と合わせた判断は所有者へ報告してください）`);
+  eraseAllSecrets("s14-halted");
+  updateState();
+  updateButtons();
+}
+
+sendRotateBtn.addEventListener("click", async () => {
+  if (sending) return;
+  if (checkSenderWindowExpired(["rotateAB"], "手順1")) return;
+  sending = true;
+  updateButtons();
+  let display;
+  try {
+    display = session.rotateDisplayData(attempt.trialId, attempt.generation);
+  } catch (e) {
+    sending = false;
+    log("手順1のローテーション要求を送信できませんでした（凍結が完了していません）： " + e.message);
+    updateState();
+    updateButtons();
+    return;
+  }
+  const request = buildS14RotateRequest({
+    idToken: tokenRotateAB,
+    oldSubjectHash: display.oldSubjectHash,
+    newSubjectHash: display.newSubjectHash,
+    expectedGeneration: display.expectedGeneration,
+  });
+  const outcome = await postToSender(PATHS.sendRotate, {
+    trial_id: attempt.trialId,
+    slot: "rotateAB",
+    request,
+  });
+  sending = false;
+  if (outcome.kind === "pre") {
+    reportPreSendRefusal("手順1", outcome.code);
+    return;
+  }
+  if (outcome.kind === "failed") {
+    // 実施有無が不明。状態機械には応答なしとして記録し、状態
+    // 未確定で停止する。再送はしない。
+    try {
+      session.recordRotateSend(attempt.trialId, attempt.generation, null);
+    } catch {
+      // 記録できなければ既に停止している。
+    }
+    log("手順1の送信指示の到達確認ができませんでした（状態未確定）。再送はしません");
+    eraseAllSecrets("s14-halted");
+    updateState();
+    updateButtons();
+    return;
+  }
+  const response = { status: outcome.status, error: outcome.error, generation: outcome.generation };
+  let recorded;
+  try {
+    recorded = session.recordRotateSend(attempt.trialId, attempt.generation, response);
+  } catch {
+    recorded = { matched: false };
+  }
+  const entry = makeS14LogEntry({ trialId: attempt.trialId, step: "rotateab-sent", response });
+  log(
+    `手順1の送信 -> ${entry.response.status} ${entry.response.error === null ? "ok" : entry.response.error}` +
+    (entry.response.generation !== null ? ` generation=${entry.response.generation}` : "") +
+    ` 試験ID=${entry.trial_id}`
+  );
+  if (recorded.matched) {
+    eraseRotateABSecrets("rotateab-sent");
+    log("手順1のローテーションが記録されました（generation 7・登録簿 {B}）。続いて手順2の A の取得を行ってください");
+  } else {
+    log("手順1の結果は期待と一致しませんでした（この試行は停止しました）");
+    eraseAllSecrets("s14-halted");
+  }
+  updateState();
+  updateButtons();
+});
+
+// 提示の送信（手順2・手順3 共通）。手順2は 403 not_operator、
+// 手順3は 200 ok がそれぞれ期待結果（合格）である。記録は状態
+// 機械の record が行い、{ matched } で期待どおりかを返す。
+async function sendVerifyFlow(cfg) {
+  if (sending) return;
+  if (checkSenderWindowExpired([cfg.slot], cfg.stepLabel)) return;
+  sending = true;
+  updateButtons();
+  const request = buildS14VerifyOnlyRequest({ idToken: cfg.token() });
+  const outcome = await postToSender(PATHS.sendVerifyOnly, {
+    trial_id: attempt.trialId,
+    slot: cfg.slot,
+    request,
+  });
+  sending = false;
+  if (outcome.kind === "pre") {
+    reportPreSendRefusal(cfg.stepLabel, outcome.code);
+    return;
+  }
+  if (outcome.kind === "failed") {
+    // 実施有無が不明。状態機械には応答なしとして記録し、状態
+    // 未確定で停止する。再送はしない。
+    try {
+      cfg.record(null);
+    } catch {
+      // 記録できなければ既に停止している。
+    }
+    log(`${cfg.stepLabel}の送信指示の到達確認ができませんでした（状態未確定）。再送はしません`);
+    eraseAllSecrets("s14-halted");
+    updateState();
+    updateButtons();
+    return;
+  }
+  const response = { status: outcome.status, error: outcome.error, generation: outcome.generation };
+  let recorded;
+  try {
+    recorded = cfg.record(response);
+  } catch {
+    recorded = { matched: false };
+  }
+  const entry = makeS14LogEntry({ trialId: attempt.trialId, step: cfg.logStep, response });
+  log(
+    `${cfg.stepLabel}の提示 -> ${entry.response.status} ${entry.response.error === null ? "ok" : entry.response.error}` +
+    (entry.response.generation !== null ? ` generation=${entry.response.generation}` : "") +
+    ` 試験ID=${entry.trial_id}`
+  );
+  if (recorded.matched) {
+    if (cfg.afterMatched) cfg.afterMatched();
+    log(cfg.matchedExtraLogLine);
+  } else {
+    log(`${cfg.stepLabel}の提示の結果は期待と一致しませんでした（この試行は停止しました）`);
+    eraseAllSecrets("s14-halted");
+  }
+  updateState();
+  updateButtons();
+}
+
+sendCheckABtn.addEventListener("click", () =>
+  sendVerifyFlow({
+    slot: "checkA",
+    stepLabel: "手順2",
+    logStep: "checka-refused",
+    token: () => tokenCheckA,
+    record: (response) => session.recordCheckAVerifyOnly(attempt.trialId, attempt.generation, response),
+    afterMatched: () => eraseCheckASecrets("checka-recorded"),
+    matchedExtraLogLine: "手順2の A は not_operator で拒否されました（ローテーション元は次回操作で拒否されます。状態は変わりません）。続いて手順3の B の取得を行ってください",
+  })
+);
+
+sendCheckBBtn.addEventListener("click", async () => {
+  if (sending) return;
+  if (checkSenderWindowExpired(["checkB"], "手順3")) return;
+  sending = true;
+  updateButtons();
+  const request = buildS14VerifyOnlyRequest({ idToken: tokenCheckB });
+  const outcome = await postToSender(PATHS.sendVerifyOnly, {
+    trial_id: attempt.trialId,
+    slot: "checkB",
+    request,
+  });
+  sending = false;
+  if (outcome.kind === "pre") {
+    reportPreSendRefusal("手順3", outcome.code);
+    return;
+  }
+  if (outcome.kind === "failed") {
+    try {
+      session.recordCheckBVerifyOnly(attempt.trialId, attempt.generation, null);
+    } catch {
+      // 記録できなければ既に停止している。
+    }
+    log("手順3の送信指示の到達確認ができませんでした（状態未確定）。再送はしません");
+    eraseAllSecrets("s14-halted");
+    updateState();
+    updateButtons();
+    return;
+  }
+  const response = { status: outcome.status, error: outcome.error, generation: outcome.generation };
+  let recorded;
+  try {
+    recorded = session.recordCheckBVerifyOnly(attempt.trialId, attempt.generation, response);
+  } catch {
+    recorded = { matched: false };
+  }
+  const entry = makeS14LogEntry({ trialId: attempt.trialId, step: "checkb-verified", response });
+  log(
+    `手順3の提示 -> ${entry.response.status} ${entry.response.error === null ? "ok" : entry.response.error}` +
+    (entry.response.generation !== null ? ` generation=${entry.response.generation}` : "") +
+    ` 試験ID=${entry.trial_id}`
+  );
+  if (recorded.matched) {
+    log("S14 完了です。登録簿の独立した読み戻しで、generation=7・登録簿 {B}・consumed=2・completion=2 を確認してください");
+    eraseAllSecrets("s14-completed");
+  } else {
+    log("手順3の提示の結果は期待と一致しませんでした（この試行は停止しました）");
+    eraseAllSecrets("s14-halted");
+  }
+  updateState();
+  updateButtons();
+});
+
+for (const el of [
+  targetAConfirmCheck, targetBConfirmCheck, rotateABConfirmCheck, checkAConfirmCheck, checkBConfirmCheck, preReadCheck,
+]) {
+  el.addEventListener("change", updateButtons);
+}
+updateState();
+updateButtons();
+</script>
+</body>
+</html>
