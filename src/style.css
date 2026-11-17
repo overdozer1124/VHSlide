@@ -7939,3 +7939,53 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-ratio-reason { color:#7a6f96; }
 .thinking-trajectory label { display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;color:#2e2440; }
 .thinking-trajectory-list { margin:6px 0 0;padding-left:20px;font-size:13px;color:#2e2440; }
+.thinking-board { position:relative;flex:1;min-height:0;border:1.5px solid #b7a8d9;border-radius:10px;background:#fbf9ff;overflow:hidden; }
+.thinking-venn { position:absolute;inset:0;width:100%;height:100%; }
+.thinking-venn circle { fill:rgba(91,74,138,0.07);stroke:#7a6a9a;stroke-width:1.5; }
+.thinking-zone { position:absolute;box-sizing:border-box;border:1px dashed rgba(122,106,154,0.45);display:flex;flex-direction:column;padding:4px;overflow:hidden; }
+.thinking-zone.is-anchor { transform:translate(-50%,-50%);width:36%;max-height:44%;border:none;background:rgba(255,255,255,0.55);border-radius:8px; }
+.thinking-zone-label { font-size:11px;font-weight:700;color:#5b4a8a;text-align:center;flex-shrink:0;padding:1px 2px; }
+.thinking-zone-cards { flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:2px; }
+.thinking-card { background:#fff;border:1.5px solid #cfc3e8;border-radius:8px;padding:5px 7px;font-size:12.5px;line-height:1.35;color:#2e2440;cursor:pointer;box-shadow:0 1px 2px rgba(46,36,64,0.12);word-break:break-word; }
+.thinking-card.is-yellow { background:#fff3b0;border-color:#e3c878; }
+.thinking-card.is-blue { background:#d3e7ff;border-color:#8fb4e3; }
+.thinking-card.is-pink { background:#ffd9e8;border-color:#e39abb; }
+.thinking-card.is-green { background:#d8f3dc;border-color:#8fc79a; }
+.thinking-card.is-selected { outline:2.5px solid #5b4a8a;outline-offset:1px; }
+.thinking-card.is-dragging { opacity:0.35; }
+.thinking-card.is-drag-ghost { position:absolute;width:34%;transform:translate(-50%,-50%);pointer-events:none;z-index:5;opacity:0.92; }
+.thinking-card-text { display:block; }
+.thinking-card-author { display:block;font-size:10.5px;color:#7a6f96;margin-top:2px; }
+.thinking-card-lock { display:block;font-size:10.5px;color:#b3543a;margin-top:2px; }
+.thinking-add-card { border:1.5px dashed #b7a8d9;background:transparent;border-radius:8px;color:#5b4a8a;font-size:12px;font-weight:700;padding:5px;cursor:pointer;flex-shrink:0; }
+.thinking-compose { display:flex;flex-direction:column;gap:4px;background:#fff;border:1.5px solid #5b4a8a;border-radius:8px;padding:6px; }
+.thinking-compose textarea { font-size:12.5px;border:1px solid #cfc3e8;border-radius:6px;padding:4px 6px;resize:vertical; }
+.thinking-compose select { font-size:12px; }
+.thinking-compose-actions { display:flex;gap:6px; }
+.thinking-compose-actions button { font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #b7a8d9;background:#5b4a8a;color:#fff;cursor:pointer; }
+.thinking-compose-actions button:last-child { background:#fff;color:#4a3a6b; }
+.thinking-color-legend { display:flex;gap:10px;flex-wrap:wrap;flex-shrink:0; }
+.thinking-color-legend-item { display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:#4a3a6b;font-weight:700; }
+.thinking-color-dot { display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(46,36,64,0.25);background:#fff;flex-shrink:0; }
+.thinking-color-dot.is-yellow { background:#fff3b0; }
+.thinking-color-dot.is-blue { background:#d3e7ff; }
+.thinking-color-dot.is-pink { background:#ffd9e8; }
+.thinking-color-dot.is-green { background:#d8f3dc; }
+.thinking-card-panel { display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#f4f1fa;border:1px solid #cfc3e8;border-radius:8px;padding:6px 8px;flex-shrink:0;font-size:12.5px; }
+.thinking-card-panel textarea { flex:1;min-width:160px;font-size:12.5px;border:1px solid #cfc3e8;border-radius:6px;padding:4px 6px; }
+.thinking-card-panel button { font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
+.thinking-card-panel-zone { font-weight:700;color:#5b4a8a; }
+.thinking-card-panel label { display:inline-flex;gap:6px;align-items:center;font-weight:700;color:#4a3a6b; }
+.thinking-zone-results { margin-top:10px; }
+.thinking-zone-results h4 { margin:0 0 6px;font-size:13.5px;color:#2e2440;display:flex;gap:8px;align-items:baseline; }
+.thinking-zone-count { font-size:11.5px;color:#7a6f96;font-weight:400; }
+.thinking-zone-empty { margin:0;font-size:12.5px;color:#7a6f96; }
+.thinking-zone-card-list { list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px; }
+.thinking-zone-card-list li { display:flex;gap:10px;align-items:baseline;background:#fff;border:1px solid #cfc3e8;border-radius:8px;padding:5px 8px;font-size:13px; }
+.thinking-zone-card-list li.is-yellow { background:#fff3b0; }
+.thinking-zone-card-list li.is-blue { background:#d3e7ff; }
+.thinking-zone-card-list li.is-pink { background:#ffd9e8; }
+.thinking-zone-card-list li.is-green { background:#d8f3dc; }
+.thinking-zone-card-text { flex:1;word-break:break-word; }
+.thinking-zone-card-name { font-size:11.5px;color:#7a6f96;white-space:nowrap; }
+.thinking-color-add { display:flex;gap:6px;flex-wrap:wrap; }

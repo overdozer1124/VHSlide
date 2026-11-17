@@ -286,3 +286,180 @@ export async function exerciseThinking(
   await write(`/${classId}`, {}, owner, 200, "DELETE");
   assert.equal((await list()).length, 2);
 }
+
+const VENN = {
+  title: "ベン図",
+  cardColors: [{ color: "yellow", label: "自分の考え" }],
+};
+
+/**
+ * Thinking boards (stage 2): the capability gate for older clients,
+ * one shared class board (anyone moves a card, only its author or the
+ * host rewrites/deletes it), group boards staying inside the group,
+ * and card validation. Runs against both servers after
+ * exerciseThinking; `guest2` is the second student for the denial
+ * checks (skipped when empty).
+ */
+export async function exerciseThinkingBoards(
+  call: Call,
+  id: string,
+  owner: string,
+  guest: string,
+  guest2 = "",
+) {
+  const base = `/api/decks/${id}/thinking`;
+  const listCaps = async (who = owner): Promise<ThinkingView[]> => {
+    const r = await call(`${base}?caps=board`, "GET", undefined, who);
+    assert.equal(r.status, 200, await r.clone().text());
+    return (await r.json()).thinking;
+  };
+  const listPlain = async (who = owner): Promise<ThinkingView[]> => {
+    const r = await call(base, "GET", undefined, who);
+    assert.equal(r.status, 200, await r.clone().text());
+    return (await r.json()).thinking;
+  };
+  const write = async (
+    path: string,
+    value: unknown,
+    who = owner,
+    status = 200,
+    method = "POST",
+  ) => {
+    const r = await call(base + path, method, value, who);
+    assert.equal(r.status, status, await r.clone().text());
+    return r;
+  };
+  // Only the host creates boards; zone definitions are validated.
+  await write(
+    "",
+    { template: "venn2", unit: "class", definition: VENN },
+    guest,
+    403,
+  );
+  await write(
+    "",
+    {
+      template: "venn2",
+      unit: "class",
+      definition: { title: "x", zones: [{ id: "zz", label: "?" }] },
+    },
+    owner,
+    400,
+  );
+  const created = await (
+    await write("", { template: "venn2", unit: "class", definition: VENN })
+  ).json();
+  const boardId: string = created.createdId;
+  assert.ok(boardId);
+  // Drafts are invisible; the capability gate hides boards entirely
+  // from clients that do not declare board support (0.136.0).
+  assert.equal(
+    (await listCaps(guest)).find((t) => t.id === boardId),
+    undefined,
+  );
+  await write(`/${boardId}/status`, { status: "open" });
+  assert.equal(
+    (await listPlain(guest)).find((t) => t.id === boardId),
+    undefined,
+  );
+  assert.equal(
+    (await listPlain()).find((t) => t.id === boardId),
+    undefined,
+  );
+  const guestBoard = (await listCaps(guest)).find((t) => t.id === boardId);
+  assert.equal(guestBoard?.kind, "board");
+  // The poll applies the same gate via tcaps.
+  const pollCaps = await (
+    await call(`/api/decks/${id}/poll?tv=&tcaps=board`, "GET", undefined, guest)
+  ).json();
+  assert.ok(
+    pollCaps.thinking.thinking.some((t: ThinkingView) => t.id === boardId),
+  );
+  const pollPlain = await (
+    await call(`/api/decks/${id}/poll?tv=`, "GET", undefined, guest)
+  ).json();
+  assert.ok(
+    !pollPlain.thinking.thinking.some((t: ThinkingView) => t.id === boardId),
+  );
+  // A card lands on the shared board; invalid cards are refused.
+  const cardRes = await write(`/${boardId}/card`, {
+    zone: "a",
+    text: "Aだけの考え",
+    color: "yellow",
+  }, guest);
+  const cardId: string = (await cardRes.json()).createdId;
+  assert.ok(cardId);
+  await write(
+    `/${boardId}/card`,
+    { zone: "zz", text: "x" },
+    guest,
+    400,
+  );
+  await write(
+    `/${boardId}/card`,
+    { zone: "a", text: "あ".repeat(81) },
+    guest,
+    400,
+  );
+  if (guest2) {
+    // The second student sees the shared card without its author's
+    // identity, may move it, but may not rewrite or delete it.
+    const g2 = (await listCaps(guest2)).find((t) => t.id === boardId);
+    assert.equal(g2?.cards.length, 1);
+    assert.equal(g2?.cards[0].authorId, "");
+    assert.equal(g2?.cards[0].authorName, "");
+    assert.equal(g2?.cards[0].mine, false);
+    await write(`/${boardId}/cardmove`, { cardId, zone: "ab" }, guest2);
+    await write(
+      `/${boardId}/cardedit`,
+      { cardId, text: "書き換え" },
+      guest2,
+      403,
+    );
+    await write(`/${boardId}/carddelete`, { cardId }, guest2, 403);
+  }
+  // The author rewrites it; the host sees the name and the new zone.
+  await write(`/${boardId}/cardedit`, { cardId, text: "直した考え" }, guest);
+  const hostBoard = (await listCaps()).find((t) => t.id === boardId);
+  assert.equal(hostBoard?.cards.length, 1);
+  assert.equal(hostBoard?.cards[0].text, "直した考え");
+  assert.notEqual(hostBoard?.cards[0].authorName, "");
+  // Group boards stay inside the group. Memberships come from
+  // exerciseThinking: the guest sits in the first group, guest2 in
+  // the second.
+  const groupCreated = await (
+    await write("", {
+      template: "tchart",
+      unit: "group",
+      definition: { title: "Tチャート" },
+    })
+  ).json();
+  const groupBoardId: string = groupCreated.createdId;
+  await write(`/${groupBoardId}/status`, { status: "open" });
+  const gCard = await write(`/${groupBoardId}/card`, {
+    zone: "a",
+    text: "班のカード",
+  }, guest);
+  const gCardId: string = (await gCard.json()).createdId;
+  if (guest2) {
+    assert.equal(
+      (await listCaps(guest2)).find((t) => t.id === groupBoardId)?.cards
+        .length,
+      0,
+    );
+    await write(
+      `/${groupBoardId}/cardmove`,
+      { cardId: gCardId, zone: "b" },
+      guest2,
+      403,
+    );
+    await write(`/${groupBoardId}/carddelete`, { cardId: gCardId }, guest2, 403);
+  }
+  // Deleting a board is host-only and removes its cards with it.
+  await write(`/${boardId}`, {}, guest, 403, "DELETE");
+  await write(`/${boardId}`, {}, owner, 200, "DELETE");
+  assert.equal(
+    (await listCaps()).find((t) => t.id === boardId),
+    undefined,
+  );
+}

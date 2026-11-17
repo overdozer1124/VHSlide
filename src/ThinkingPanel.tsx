@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useActivityPanel } from "./ActivitiesPanel";
 import { useThinking } from "./ThinkingContext";
+import {
+  BOARD_ZONE_SPECS,
+  CARD_COLORS,
+  templateKind,
+} from "./thinkingTools";
 import type {
   ThinkingDefinition,
   ThinkingTemplate,
@@ -15,6 +20,21 @@ export const THINKING_TEMPLATE_LABELS: Record<ThinkingTemplate, string> = {
   axis1: "数直線（1つの軸）",
   emotion: "感情メーター",
   ratio: "心情円（2つの気持ちの割合）",
+  venn2: "ベン図（2つの円）",
+  venn3: "ベン図（3つの円）",
+  ychart: "Yチャート",
+  xchart: "Xチャート",
+  wchart: "Wチャート",
+  tchart: "Tチャート",
+  pmi: "PMI",
+  matrix: "マトリックス（2×2）",
+  kwl: "KWL",
+};
+export const CARD_COLOR_LABELS: Record<string, string> = {
+  yellow: "黄色",
+  blue: "青色",
+  pink: "ピンク",
+  green: "緑色",
 };
 export const THINKING_UNIT_LABELS: Record<ThinkingUnit, string> = {
   individual: "個人",
@@ -33,10 +53,23 @@ function defaultDefinition(template: ThinkingTemplate): ThinkingDefinition {
     vertical: false,
     nameA: "",
     nameB: "",
+    zones: [],
+    cardColors: [],
     scenes: [],
     sceneMode: "teacher",
     reason: true,
   };
+  const spec = BOARD_ZONE_SPECS[template];
+  if (spec)
+    return {
+      ...base,
+      reason: false,
+      zones: spec.map((z) => ({ id: z.id, label: z.label })),
+      cardColors: [
+        { color: "yellow", label: "自分の考え" },
+        { color: "blue", label: "友だちの考え" },
+      ],
+    };
   if (template === "axis2")
     return {
       ...base,
@@ -99,7 +132,7 @@ export function ThinkingPanel({
   return (
     <div className="thinking-panel">
       <p className="webbing-panel-note">
-        考えを「点」で表す思考ツールです。軸や気持ちの上に点を置き、場面ごとに残すことで、考えの変化が見えます。個人・班・全体のどれでも使えます。
+        考えを「点」や「カード」で表す思考ツールです。軸や気持ちの上に点を置くものと、区切りにカードを書くものがあります。個人・班・全体のどれでも使えます。
       </p>
       {ctx.error && (
         <p role="alert" className="webbing-panel-error">
@@ -153,7 +186,9 @@ export function ThinkingPanel({
                   : tool.status === "closed"
                     ? "受付終了"
                     : "下書き"}
-                {` · ${new Set(tool.points.map((p) => p.owner)).size}件`}
+                {tool.kind === "board"
+                  ? ` · カード${tool.cards.length}枚`
+                  : ` · ${new Set(tool.points.map((p) => p.owner)).size}件`}
               </span>
             </header>
             {host && (
@@ -282,7 +317,7 @@ export function ThinkingPanel({
                   unit: tool.unit,
                   definition: tool.definition,
                 }}
-                hasPoints={tool.points.length > 0}
+                hasPoints={tool.points.length > 0 || tool.cards.length > 0}
                 onSubmit={async (_template, unit, definition) => {
                   await run(async () => {
                     await ctx.command(tool.id, "edit", { unit, definition });
@@ -377,13 +412,28 @@ function ThinkingToolForm({
           disabled={hasPoints}
           onChange={(e) => setUnit(e.target.value as ThinkingUnit)}
         >
-          <option value="individual">個人（1人1つの点）</option>
-          <option value="group">班（班で1つの点）</option>
-          <option value="class">全体（一人ひとりが自分の点）</option>
+          {templateKind(template) === "board" ? (
+            <>
+              <option value="individual">個人（1人1枚のチャート）</option>
+              <option value="group">班（班で1枚のチャート）</option>
+              <option value="class">全体（全員で1枚のチャート）</option>
+            </>
+          ) : (
+            <>
+              <option value="individual">個人（1人1つの点）</option>
+              <option value="group">班（班で1つの点）</option>
+              <option value="class">全体（一人ひとりが自分の点）</option>
+            </>
+          )}
         </select>
-        {unit === "class" && (
+        {unit === "class" && templateKind(template) === "point" && (
           <span className="thinking-form-note">
             「全体」は、みんなの点の分布を先生の画面で見せる前提の単位です。生徒には自分の点だけが見えます（「個人」との違いは、その前提があるかどうかです）。
+          </span>
+        )}
+        {unit === "class" && templateKind(template) === "board" && (
+          <span className="thinking-form-note">
+            カード型の「全体」は、全員で1枚のチャートに書き込みます（点の「全体」とは違います）。カードを動かすのは誰でもできますが、内容の変更と削除は、書いた人と先生だけです。
           </span>
         )}
         {hasPoints && (
@@ -392,6 +442,88 @@ function ThinkingToolForm({
           </span>
         )}
       </label>
+      {templateKind(template) === "board" && (
+        <>
+          <fieldset className="thinking-form-scenes">
+            <legend>区切りの名前</legend>
+            {def.zones.map((z) => (
+              <div key={z.id} className="thinking-form-scene">
+                <input
+                  value={z.label}
+                  maxLength={40}
+                  aria-label={`区切り「${z.id}」の名前`}
+                  onChange={(e) =>
+                    patch({
+                      zones: def.zones.map((x) =>
+                        x.id === z.id ? { ...x, label: e.target.value } : x,
+                      ),
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </fieldset>
+          <fieldset className="thinking-form-scenes">
+            <legend>カードの色の意味（任意）</legend>
+            {def.cardColors.map((c) => (
+              <div key={c.color} className="thinking-form-scene">
+                <span
+                  className={`thinking-color-dot is-${c.color}`}
+                  aria-hidden="true"
+                />
+                <input
+                  value={c.label}
+                  maxLength={20}
+                  aria-label={`${CARD_COLOR_LABELS[c.color]}の意味`}
+                  onChange={(e) =>
+                    patch({
+                      cardColors: def.cardColors.map((x) =>
+                        x.color === c.color
+                          ? { ...x, label: e.target.value }
+                          : x,
+                      ),
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    patch({
+                      cardColors: def.cardColors.filter(
+                        (x) => x.color !== c.color,
+                      ),
+                    })
+                  }
+                >
+                  削除
+                </button>
+              </div>
+            ))}
+            {def.cardColors.length < 4 && (
+              <div className="thinking-color-add">
+                {CARD_COLORS.filter(
+                  (color) => !def.cardColors.some((x) => x.color === color),
+                ).map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() =>
+                      patch({
+                        cardColors: [
+                          ...def.cardColors,
+                          { color, label: "" },
+                        ],
+                      })
+                    }
+                  >
+                    {CARD_COLOR_LABELS[color]}を追加
+                  </button>
+                ))}
+              </div>
+            )}
+          </fieldset>
+        </>
+      )}
       {(template === "axis2" || template === "axis1" || template === "emotion") && (
         <div className="thinking-form-grid">
           <label>
@@ -452,7 +584,7 @@ function ThinkingToolForm({
           </label>
         </div>
       )}
-      {template !== "ratio" && (
+      {template !== "ratio" && templateKind(template) === "point" && (
         <div className="thinking-form-grid">
           <label>
             目盛り
@@ -479,6 +611,7 @@ function ThinkingToolForm({
           )}
         </div>
       )}
+      {templateKind(template) === "point" && (
       <fieldset className="thinking-form-scenes">
         <legend>場面（考えの変化を残す場合）</legend>
         {def.scenes.map((s, i) => (
@@ -541,6 +674,8 @@ function ThinkingToolForm({
           </label>
         )}
       </fieldset>
+      )}
+      {templateKind(template) === "point" && (
       <label className="thinking-check">
         <input
           type="checkbox"
@@ -549,6 +684,7 @@ function ThinkingToolForm({
         />
         点と一緒に「理由」を書けるようにする
       </label>
+      )}
       <button type="submit" disabled={busy || !def.title.trim()}>
         {editing ? "設定を保存" : "思考ツールを作成"}
       </button>

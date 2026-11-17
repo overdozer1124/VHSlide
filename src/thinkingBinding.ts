@@ -89,6 +89,8 @@ export function parseThinkingBindingLenient(value: unknown): ThinkingBinding {
         vertical: false,
         nameA: "",
         nameB: "",
+        zones: [],
+        cardColors: [],
         scenes: [],
         sceneMode: "teacher",
         reason: false,

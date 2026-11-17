@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
+  ThinkingCard,
   ThinkingPoint,
   ThinkingPointValue,
   ThinkingView,
@@ -21,10 +22,123 @@ export function valueText(tool: ThinkingView, v: ThinkingPointValue): string {
   return pct(v.v ?? 0);
 }
 
-/** Host results for one thinking tool: the class distribution per scene
+export function ThinkingResults({ tool }: { tool: ThinkingView }) {
+  if (tool.kind === "board") return <BoardResults tool={tool} />;
+  return <PointResults tool={tool} />;
+}
+
+/** Host results for a board tool: every card gathered per zone
+ * （区切りごとの集約）, with the author/group for each card and a CSV
+ * export. Cards arrive host-filtered from the server. */
+function BoardResults({ tool }: { tool: ThinkingView }) {
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const [zoneFilter, setZoneFilter] = useState("");
+  const nameOfCard = (c: ThinkingCard): string => {
+    if (tool.unit === "group")
+      return (
+        groupsCtx.groups.find((g) => g.id === c.owner)?.name || c.authorName
+      );
+    if (tool.unit === "class") return c.authorName;
+    return c.authorName;
+  };
+  const colorLabel = (color: string): string =>
+    def.cardColors.find((c) => c.color === color)?.label ?? "";
+  function downloadCsv() {
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const lines = [["名前・班", "区切り", "カード", "色の意味"].join(",")];
+    for (const z of def.zones)
+      for (const c of tool.cards.filter((x) => x.zone === z.id))
+        lines.push(
+          [
+            esc(nameOfCard(c)),
+            esc(z.label),
+            esc(c.text),
+            esc(colorLabel(c.color)),
+          ].join(","),
+        );
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${def.title || "思考ツール"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  const zones = zoneFilter
+    ? def.zones.filter((z) => z.id === zoneFilter)
+    : def.zones;
+  return (
+    <div className="thinking-results">
+      <div className="thinking-results-head">
+        <div className="thinking-scenes" role="tablist" aria-label="区切り">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={zoneFilter === ""}
+            className={zoneFilter === "" ? "is-active" : ""}
+            onClick={() => setZoneFilter("")}
+          >
+            すべての区切り
+          </button>
+          {def.zones.map((z) => (
+            <button
+              key={z.id}
+              type="button"
+              role="tab"
+              aria-selected={zoneFilter === z.id}
+              className={zoneFilter === z.id ? "is-active" : ""}
+              onClick={() => setZoneFilter(z.id)}
+            >
+              {z.label}（{tool.cards.filter((c) => c.zone === z.id).length}）
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={downloadCsv}>
+          CSVで保存
+        </button>
+        <span className="thinking-results-count">
+          カード{tool.cards.length}枚
+        </span>
+      </div>
+      {zones.map((z) => {
+        const cards = tool.cards
+          .filter((c) => c.zone === z.id)
+          .sort((a, b) => a.sort - b.sort || a.created - b.created);
+        return (
+          <div key={z.id} className="thinking-zone-results">
+            <h4>
+              {z.label}
+              <span className="thinking-zone-count">{cards.length}枚</span>
+            </h4>
+            {cards.length === 0 ? (
+              <p className="thinking-zone-empty">まだカードがありません。</p>
+            ) : (
+              <ul className="thinking-zone-card-list">
+                {cards.map((c) => (
+                  <li key={c.id} className={`is-${c.color || "none"}`}>
+                    <span className="thinking-zone-card-text">{c.text}</span>
+                    <span className="thinking-zone-card-name">
+                      {nameOfCard(c)}
+                      {colorLabel(c.color) ? ` · ${colorLabel(c.color)}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Host results for one point tool: the class distribution per scene
  * (with a playback of how points moved), one respondent's trajectory,
  * and a CSV export. Points arrive host-filtered from the server. */
-export function ThinkingResults({ tool }: { tool: ThinkingView }) {
+function PointResults({ tool }: { tool: ThinkingView }) {
   const groupsCtx = useGroups();
   const def = tool.definition;
   const scenes = def.scenes.length

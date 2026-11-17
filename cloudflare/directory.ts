@@ -979,7 +979,9 @@ export class Directory extends DurableObject<Env> {
           if (tv === "" || Number(tv) !== version)
             out.thinking = {
               version,
-              thinking: thinkingList(sql, id, user.id, host),
+              thinking: thinkingList(sql, id, user.id, host, {
+                board: (params.get("tcaps") ?? "").includes("board"),
+              }),
             };
         }
         return json(out);
@@ -1184,7 +1186,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit))?)?$/.exec(
+        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete))?)?$/.exec(
           extra,
         );
       insist(
@@ -1216,19 +1218,24 @@ export class Directory extends DurableObject<Env> {
             value,
           );
         }
+        const caps = {
+          board: (
+            new URL(request.url).searchParams.get("caps") ?? ""
+          ).includes("board"),
+        };
         if (method === "GET") {
           const v = new URL(request.url).searchParams.get("v");
           if (v !== null) {
             const version = featureVersion(sql, id, "thinking");
             if (String(version) === v) return json({ unchanged: true, version });
             return json({
-              thinking: thinkingList(sql, id, user.id, host),
+              thinking: thinkingList(sql, id, user.id, host, caps),
               version,
             });
           }
         }
         return json({
-          thinking: thinkingList(sql, id, user.id, host),
+          thinking: thinkingList(sql, id, user.id, host, caps),
           ...(extraResult?.createdId
             ? { createdId: extraResult.createdId }
             : {}),

@@ -1092,7 +1092,11 @@ export function createApplication(options: Options) {
               if (tv === "" || Number(tv) !== version)
                 out.thinking = {
                   version,
-                  thinking: thinkingList(historySQL, id, u.id, host),
+                  thinking: thinkingList(historySQL, id, u.id, host, {
+                    board: (url.searchParams.get("tcaps") ?? "").includes(
+                      "board",
+                    ),
+                  }),
                 };
             }
             db.exec("COMMIT");
@@ -1346,7 +1350,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit))?)?$/.exec(
+            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete))?)?$/.exec(
               extra,
             );
           insist(
@@ -1367,6 +1371,11 @@ export function createApplication(options: Options) {
           try {
             const current = member(id, u);
             const host = current.owner === u.id;
+            // Clients that understand board tools say so; older clients
+            // (0.136.0) must never receive them (stage-2 review note).
+            const caps = {
+              board: (url.searchParams.get("caps") ?? "").includes("board"),
+            };
             if (method === "GET") {
               const v = url.searchParams.get("v");
               if (v !== null) {
@@ -1374,7 +1383,7 @@ export function createApplication(options: Options) {
                 const thinking =
                   String(version) === v
                     ? undefined
-                    : thinkingList(historySQL, id, u.id, host);
+                    : thinkingList(historySQL, id, u.id, host, caps);
                 db.exec("COMMIT");
                 return json(
                   res,
@@ -1396,7 +1405,7 @@ export function createApplication(options: Options) {
                 route![1],
                 value,
               );
-            const thinking = thinkingList(historySQL, id, u.id, host);
+            const thinking = thinkingList(historySQL, id, u.id, host, caps);
             db.exec("COMMIT");
             return json(res, 200, {
               thinking,
