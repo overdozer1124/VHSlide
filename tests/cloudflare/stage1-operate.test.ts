@@ -61,6 +61,9 @@ test("cloudflare operations console stays closed without the feature and refuses
     const html = await page.text();
     assert.equal(page.status, 200);
     assert.equal(html.includes('data-page="stage1-operate"'), true);
+    assert.equal(html.includes("サインアウト"), true);
+    assert.equal(html.includes("受け取り済み"), true);
+    assert.equal(html.includes("このサインインの相手"), true);
     await mf.dispose();
   } finally {
     await rm(storage, { recursive: true, force: true });
