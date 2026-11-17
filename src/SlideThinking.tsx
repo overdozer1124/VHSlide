@@ -6,6 +6,7 @@ import { useGroups } from "./GroupsContext";
 import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
+  XCHART_CENTER,
   thinkingOwnerLabels,
   zoneAtPoint,
 } from "./thinkingTools";
@@ -748,6 +749,24 @@ function BoardSurface({
   const def = tool.definition;
   const spec = BOARD_ZONE_SPECS[tool.template] ?? [];
   const circles = VENN_CIRCLES[tool.template];
+  const isXChart = tool.template === "xchart";
+  const xUnderlay = isXChart && (
+    <svg
+      className="thinking-x"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <line x1="0" y1="0" x2="100" y2="100" vectorEffect="non-scaling-stroke" />
+      <line x1="100" y1="0" x2="0" y2="100" vectorEffect="non-scaling-stroke" />
+      <circle
+        cx={XCHART_CENTER.x * 100}
+        cy={XCHART_CENTER.y * 100}
+        r={XCHART_CENTER.r * 100}
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
   const boardRef = useRef<HTMLDivElement>(null);
   const [composing, setComposing] = useState("");
   const [draftText, setDraftText] = useState("");
@@ -1037,6 +1056,7 @@ function BoardSurface({
             onClick={() => setFocusOwner(owner)}
           >
             <span className="thinking-thumb-board">
+              {xUnderlay}
               {circles && (
                 <svg
                   className="thinking-venn"
@@ -1058,7 +1078,7 @@ function BoardSurface({
               {spec.map((zoneSpec) => (
                 <span
                   key={zoneSpec.id}
-                  className={`thinking-thumb-zone${zoneSpec.rect ? "" : " is-anchor"}`}
+                  className={`thinking-thumb-zone${zoneSpec.wedge ? " is-wedge" : zoneSpec.rect ? "" : " is-anchor"}`}
                   style={
                     zoneSpec.rect
                       ? {
@@ -1130,6 +1150,12 @@ function BoardSurface({
         renderThumbs()
       ) : (
       <div ref={boardRef} className="thinking-board">
+        {xUnderlay}
+        {isXChart && (
+          <div className="thinking-x-topic" aria-hidden="true">
+            <span>{def.title}</span>
+          </div>
+        )}
         {circles && (
           <svg
             className="thinking-venn"
@@ -1178,7 +1204,7 @@ function BoardSurface({
           return zoneSpec.rect ? (
             <div
               key={zoneSpec.id}
-              className="thinking-zone"
+              className={`thinking-zone${zoneSpec.wedge ? " is-wedge" : ""}`}
               style={{
                 left: `${zoneSpec.rect[0] * 100}%`,
                 top: `${zoneSpec.rect[1] * 100}%`,

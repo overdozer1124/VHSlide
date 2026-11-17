@@ -81,9 +81,10 @@ export const THINKING_TEMPLATE_GUIDES: Record<
       "観察や見学の記録に向いています。事実（見たこと・聞いたこと）と感想（感じたこと）を分けて書く練習になります。",
   },
   xchart: {
-    about: "4つの区切りに分けて考える図です。",
+    about:
+      "中心にテーマを置き、X字に区切った4つの三角形に考えを書く図です。",
     usage:
-      "区切りの名前は自由に付けられます。2つの切り口を組み合わせて、考えを4つに整理したいときに使います。",
+      "「見た目」「音」「におい」「感じ」のように、テーマを感覚ごとに観察して書き分けるときに使います。区切りの名前は自由に付けられます。",
   },
   wchart: {
     about:
@@ -155,7 +156,37 @@ function ThinkingTemplatePreview({
     kind = "board";
     const spec = BOARD_ZONE_SPECS[template] ?? [];
     const circles = VENN_CIRCLES[template];
-    body = (
+    body =
+      template === "xchart" ? (
+        <>
+          <line x1="0" y1="0" x2="400" y2="300" className="tp-x-line" />
+          <line x1="400" y1="0" x2="0" y2="300" className="tp-x-line" />
+          <ellipse cx="200" cy="150" rx="56" ry="42" className="tp-x-circle" />
+          <text
+            x="200"
+            y="150"
+            className="tp-topic"
+            textAnchor="middle"
+            dominantBaseline="central"
+            {...fit(def.title.trim() || "テーマ", 100)}
+          >
+            {def.title.trim() || "テーマ"}
+          </text>
+          {spec.map((z) => (
+            <text
+              key={z.id}
+              x={z.anchor[0] * 400}
+              y={z.anchor[1] * 300}
+              className="tp-zone-label"
+              textAnchor="middle"
+              dominantBaseline="central"
+              {...fit(zoneLabel(z), 110)}
+            >
+              {zoneLabel(z)}
+            </text>
+          ))}
+        </>
+      ) : (
       <>
         {circles?.map((c, i) => (
           <ellipse
@@ -218,7 +249,7 @@ function ThinkingTemplatePreview({
           );
         })}
       </>
-    );
+      );
   } else if (template === "ratio") {
     kind = "ratio";
     const polar = (deg: number) => {

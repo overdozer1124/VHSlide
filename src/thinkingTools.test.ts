@@ -340,6 +340,74 @@ describe("thinking board definitions", () => {
     expect(zoneAtPoint("ychart", 0.5, 0.8)).toBe("c");
     expect(zoneAtPoint("axis2", 0.5, 0.5)).toBeNull();
   });
+
+  it("hit-tests the X chart by its diagonals, not by quadrants", () => {
+    // The four triangles: top / right / bottom / left.
+    expect(zoneAtPoint("xchart", 0.5, 0.1)).toBe("a");
+    expect(zoneAtPoint("xchart", 0.9, 0.5)).toBe("b");
+    expect(zoneAtPoint("xchart", 0.5, 0.9)).toBe("c");
+    expect(zoneAtPoint("xchart", 0.1, 0.5)).toBe("d");
+    // Near a corner the diagonals decide: the top-right corner
+    // belongs to the top or right triangle, never to a quadrant.
+    expect(zoneAtPoint("xchart", 0.9, 0.05)).toBe("a");
+    expect(zoneAtPoint("xchart", 0.95, 0.4)).toBe("b");
+    // The centre circle holds the topic: no card zone there.
+    expect(zoneAtPoint("xchart", 0.5, 0.5)).toBeNull();
+    expect(zoneAtPoint("xchart", 0.55, 0.45)).toBeNull();
+    // The matrix keeps its plain quadrants.
+    expect(zoneAtPoint("matrix", 0.9, 0.05)).toBe("b");
+    expect(zoneAtPoint("matrix", 0.75, 0.75)).toBe("d");
+  });
+
+  it("renames an X chart's untouched quadrant labels to the wedge names", () => {
+    const old = parseThinkingDefinition("xchart", {
+      title: "観察",
+      zones: [
+        { id: "a", label: "左上" },
+        { id: "b", label: "右上" },
+        { id: "c", label: "左下" },
+        { id: "d", label: "右下" },
+      ],
+    });
+    expect(old.definition.zones.map((z) => z.label)).toEqual([
+      "見た目",
+      "音",
+      "感じ",
+      "におい",
+    ]);
+    // Any customised label keeps the teacher's whole set as-is.
+    const custom = parseThinkingDefinition("xchart", {
+      title: "観察",
+      zones: [
+        { id: "a", label: "色" },
+        { id: "b", label: "右上" },
+        { id: "c", label: "左下" },
+        { id: "d", label: "右下" },
+      ],
+    });
+    expect(custom.definition.zones.map((z) => z.label)).toEqual([
+      "色",
+      "右上",
+      "左下",
+      "右下",
+    ]);
+    // Other templates are never renamed.
+    const matrix = parseThinkingDefinition("matrix", {
+      title: "整理",
+      zones: [
+        { id: "a", label: "左上" },
+        { id: "b", label: "右上" },
+        { id: "c", label: "左下" },
+        { id: "d", label: "右下" },
+      ],
+    });
+    expect(matrix.definition.zones.map((z) => z.label)).toEqual([
+      "左上",
+      "右上",
+      "左下",
+      "右下",
+    ]);
+  });
 });
 
 const vennDef = {
