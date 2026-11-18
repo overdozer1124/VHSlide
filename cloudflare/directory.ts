@@ -18,6 +18,7 @@ import {
 } from "../src/thinkingTools.ts";
 import {
   learningRecord,
+  learningRecordMatrix,
   myLearningRecord,
 } from "../src/learningRecord.ts";
 import { prevAnswerFor } from "../src/prevAnswer.ts";
@@ -2248,7 +2249,10 @@ export class Directory extends DurableObject<Env> {
           this.sql.exec(query, ...args);
         return json(
           extra === "record"
-            ? { students: learningRecord(sql, deck, id, user.id, filter) }
+            ? {
+                students: learningRecord(sql, deck, id, user.id, filter),
+                matrix: learningRecordMatrix(sql, deck, id, user.id, filter),
+              }
             : { record: myLearningRecord(sql, deck, id, user.id) },
         );
       });

@@ -24,6 +24,7 @@ import {
 } from "../src/thinkingTools.ts";
 import {
   learningRecord,
+  learningRecordMatrix,
   myLearningRecord,
 } from "../src/learningRecord.ts";
 import { prevAnswerFor } from "../src/prevAnswer.ts";
@@ -2345,6 +2346,7 @@ export function createApplication(options: Options) {
             const filter = url.searchParams.get("user") ?? undefined;
             return json(res, 200, {
               students: learningRecord(historySQL, deck, id, u.id, filter),
+              matrix: learningRecordMatrix(historySQL, deck, id, u.id, filter),
             });
           }
           return json(res, 200, {

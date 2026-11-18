@@ -3269,6 +3269,7 @@ export default function App() {
             deckId={cloud.active.id}
             isHost={cloud.isHost}
             onClose={() => setView("map")}
+            onOpenSlide={(slideId) => switchWorkspace("editor", slideId)}
           />
         )}
         {view !== "present" && view !== "console" && view !== "record" && (

@@ -143,3 +143,130 @@ test("learning record: host sees each student, students see only their own", asy
   );
   await expect(mine2.locator(".record-students")).toHaveCount(0);
 });
+
+test("answer-status matrix: cells show coverage and open the slide", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-record-matrix`);
+  const guestName = `${info.project.name}-matrix-one`;
+  const guest2Name = `${info.project.name}-matrix-two`;
+  await addGuest(page, id, guestName);
+  await addGuest(page, id, guest2Name);
+
+  const created = await page.request.post(`/api/decks/${id}/surveys`, {
+    headers,
+    data: { kind: "single", question: "好きな季節", options: ["春", "夏"] },
+  });
+  expect(created.status()).toBe(200);
+  const survey = (await created.json()).surveys.find(
+    (s: { question: string }) => s.question === "好きな季節",
+  );
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/surveys/${survey.id}/status`, {
+        headers,
+        data: { status: "open" },
+      })
+    ).status(),
+  ).toBe(200);
+
+  // Place the survey on a slide from the host's form panel.
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "フォーム", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "アンケート", exact: true })
+    .getByRole("button", { name: /好きな季節/ })
+    .click();
+  await page
+    .getByRole("button", { name: "このアンケートをスライドに配置" })
+    .click();
+  await expect(
+    page.locator(".editor-workspace [data-slide-survey]"),
+  ).toHaveCount(1);
+
+  // The second student joins (opens the deck) but answers nothing.
+  const context2 = await browser.newContext({ baseURL: scopeOrigin });
+  const student2 = await context2.newPage();
+  await scopeLogin(student2, guest2Name);
+  await student2.goto(`/?room=${id}`);
+  await expect(student2.locator(".slide-card").first()).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Only the first student answers.
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  expect(
+    (
+      await student.request.post(
+        `/api/decks/${id}/surveys/${survey.id}/answer`,
+        { headers, data: { choices: [0], text: "" } },
+      )
+    ).status(),
+  ).toBe(200);
+
+  // The API carries the matrix next to the per-student records.
+  // The placement reaches the server asynchronously, so poll.
+  let all: {
+    matrix: {
+      columns: { total: number }[];
+      rows: {
+        name: string;
+        cells: { answered: number; slideId: string }[];
+      }[];
+    };
+  } = { matrix: { columns: [], rows: [] } };
+  await expect
+    .poll(
+      async () => {
+        all = await (
+          await page.request.get(`/api/decks/${id}/record`, { headers })
+        ).json();
+        return all.matrix.columns.length;
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(1);
+  expect(all.matrix.columns[0].total).toBe(1);
+  const answeredRow = all.matrix.rows.find(
+    (r: { name: string }) => r.name === guestName,
+  );
+  const silentRow = all.matrix.rows.find(
+    (r: { name: string }) => r.name === guest2Name,
+  );
+  expect(answeredRow.cells[0].answered).toBe(1);
+  expect(silentRow.cells[0].answered).toBe(0);
+  expect(silentRow.cells[0].slideId).toBe(answeredRow.cells[0].slideId);
+
+  // Host screen: the matrix view marks the two students apart, and
+  // a cell click opens that slide in the editor.
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "学びの記録" }).click();
+  const screen = page.locator(".learning-record");
+  await screen.getByRole("tab", { name: "回答状況" }).click();
+  const matrix = screen.locator(".record-matrix");
+  await expect(matrix.locator("tbody tr")).toHaveCount(2, {
+    timeout: 15_000,
+  });
+  const rowOne = matrix.locator("tbody tr", { hasText: guestName });
+  const rowTwo = matrix.locator("tbody tr", { hasText: guest2Name });
+  await expect(rowOne.locator(".record-matrix-cell.is-full")).toHaveCount(1);
+  await expect(rowTwo.locator(".record-matrix-cell.is-none")).toHaveCount(1);
+  // Students never see the matrix view.
+  await student2.goto(`/?room=${id}`);
+  await student2.getByRole("button", { name: "学びの記録" }).click();
+  await expect(
+    student2
+      .locator(".learning-record")
+      .getByRole("tab", { name: "回答状況" }),
+  ).toHaveCount(0);
+
+  await rowTwo.locator(".record-matrix-cell").click();
+  await expect(page.locator(".learning-record")).toHaveCount(0);
+  await expect(
+    page.locator(".editor-workspace [data-slide-survey]"),
+  ).toHaveCount(1);
+});

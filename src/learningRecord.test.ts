@@ -6,7 +6,11 @@ import { groupSchema, groupCommand, groupList } from "./groups";
 import { worksheetSchema } from "./worksheets";
 import { surveySchema } from "./surveys";
 import { thinkingSchema, thinkingCommand } from "./thinkingTools";
-import { learningRecord, myLearningRecord } from "./learningRecord";
+import {
+  learningRecord,
+  learningRecordMatrix,
+  myLearningRecord,
+} from "./learningRecord";
 
 const axisDef = {
   title: "賛成と自信",
@@ -254,5 +258,34 @@ describe("learning record", () => {
     expect(one).toHaveLength(1);
     expect(one[0].userId).toBe("bob");
     expect(one[0].entries.some((e) => e.kind === "worksheet")).toBe(true);
+  });
+
+  it("builds the answer-status matrix by map row", () => {
+    const { sql, deck } = fixture();
+    const matrix = learningRecordMatrix(sql, deck, "deck", "host");
+    // Only placed items form columns: the worksheet （第1時） and the
+    // axis tool （第2時）. The survey and the two boards are not
+    // placed on any slide, so they never appear here.
+    expect(matrix.columns.map((c) => c.rowLabel)).toEqual(["第1時", "第2時"]);
+    expect(matrix.columns.map((c) => c.total)).toEqual([1, 1]);
+    expect(matrix.columns.map((c) => c.slideId)).toEqual([
+      "slide-1",
+      "slide-2",
+    ]);
+    const ana = matrix.rows.find((r) => r.userId === "ana")!;
+    const bob = matrix.rows.find((r) => r.userId === "bob")!;
+    expect(ana.cells).toEqual([
+      { answered: 1, slideId: "slide-1" },
+      { answered: 1, slideId: "slide-2" },
+    ]);
+    // Bob answered the worksheet only; the empty cell still names
+    // the row's first slide as its open target.
+    expect(bob.cells).toEqual([
+      { answered: 1, slideId: "slide-1" },
+      { answered: 0, slideId: "slide-2" },
+    ]);
+    const filtered = learningRecordMatrix(sql, deck, "deck", "host", "bob");
+    expect(filtered.rows.map((r) => r.userId)).toEqual(["bob"]);
+    expect(filtered.columns).toHaveLength(2);
   });
 });
