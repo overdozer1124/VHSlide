@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.141.0 (322eb36): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.142.0 (55754b8): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -356,7 +356,12 @@ var BOARD_ZONE_SPECS = {
     { id: "b", label: "\u805E\u3044\u305F\u3053\u3068", rect: [0.5, 0, 0.5, 0.55], anchor: [0.75, 0.27] },
     { id: "c", label: "\u611F\u3058\u305F\u3053\u3068", rect: [0.25, 0.55, 0.5, 0.45], anchor: [0.5, 0.77] }
   ],
-  xchart: quad(["\u5DE6\u4E0A", "\u53F3\u4E0A", "\u5DE6\u4E0B", "\u53F3\u4E0B"]),
+  xchart: [
+    { id: "a", label: "\u898B\u305F\u76EE", wedge: "top", rect: [0.33, 0.03, 0.34, 0.28], anchor: [0.5, 0.15] },
+    { id: "b", label: "\u97F3", wedge: "right", rect: [0.69, 0.33, 0.28, 0.34], anchor: [0.85, 0.5] },
+    { id: "c", label: "\u611F\u3058", wedge: "bottom", rect: [0.33, 0.69, 0.34, 0.28], anchor: [0.5, 0.85] },
+    { id: "d", label: "\u306B\u304A\u3044", wedge: "left", rect: [0.03, 0.33, 0.28, 0.34], anchor: [0.15, 0.5] }
+  ],
   wchart: cols(["\u3044\u3064", "\u3069\u3053\u3067", "\u3060\u308C\u304C", "\u4F55\u3092", "\u306A\u305C\u30FB\u3069\u306E\u3088\u3046\u306B"]),
   tchart: cols(["\u30E1\u30EA\u30C3\u30C8", "\u30C7\u30E1\u30EA\u30C3\u30C8"]),
   pmi: cols(["\u3088\u3044\u70B9\uFF08Plus\uFF09", "\u8AB2\u984C\uFF08Minus\uFF09", "\u9762\u767D\u3044\u70B9\uFF08Interesting\uFF09"]),
@@ -421,10 +426,13 @@ function parseThinkingDefinition(template, raw) {
       );
       given.set(z.id, z.label);
     }
-    const zones = spec.map((zone) => ({
-      id: zone.id,
-      label: given.get(zone.id) === void 0 ? zone.label : cleanLabel(given.get(zone.id), "\u533A\u5207\u308A\u306E\u540D\u524D")
-    }));
+    const zones = migrateXChartLabels(
+      t,
+      spec.map((zone) => ({
+        id: zone.id,
+        label: given.get(zone.id) === void 0 ? zone.label : cleanLabel(given.get(zone.id), "\u533A\u5207\u308A\u306E\u540D\u524D")
+      }))
+    );
     insist(
       [...given.keys()].every((id) => spec.some((zone) => zone.id === id)),
       400,
@@ -535,6 +543,18 @@ function parseThinkingDefinition(template, raw) {
     definition.nameB = cleanLabel(value.nameB, "2\u3064\u3081\u306E\u6C17\u6301\u3061\u306E\u540D\u524D");
   }
   return { template: t, definition };
+}
+var XCHART_OLD_DEFAULTS = ["\u5DE6\u4E0A", "\u53F3\u4E0A", "\u5DE6\u4E0B", "\u53F3\u4E0B"];
+function migrateXChartLabels(template, zones) {
+  if (template !== "xchart" || zones.length !== 4) return zones;
+  const spec = BOARD_ZONE_SPECS.xchart;
+  const byId = new Map(zones.map((z) => [z.id, z.label]));
+  if (!spec.every((zone, i) => byId.get(zone.id) === XCHART_OLD_DEFAULTS[i]))
+    return zones;
+  return zones.map((z) => ({
+    ...z,
+    label: spec.find((s) => s.id === z.id)?.label ?? z.label
+  }));
 }
 
 // src/thinkingBinding.ts
