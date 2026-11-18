@@ -68,3 +68,24 @@ export function textMineTexts(
   }
   return out;
 }
+
+/** 思考ツールのカードから、分析にかける文章を取り出す。解析器は
+ * 文章1つを「1人の回答」として数えるので、カードは書いた人ごとに
+ * まとめ、同じ人が同じ言葉を複数枚に書いても1人と数える。
+ * zoneId が null のときはすべての区切りを対象にする。 */
+export function textMineCardTexts(
+  cards: { zone: string; text: string; authorId: string; owner: string }[],
+  zoneId: string | null,
+): string[] {
+  const byAuthor = new Map<string, string[]>();
+  for (const c of cards) {
+    if (zoneId !== null && c.zone !== zoneId) continue;
+    const text = c.text.trim();
+    if (!text) continue;
+    const who = c.authorId || c.owner;
+    const list = byAuthor.get(who) ?? [];
+    list.push(text);
+    byAuthor.set(who, list);
+  }
+  return [...byAuthor.values()].map((texts) => texts.join("。"));
+}

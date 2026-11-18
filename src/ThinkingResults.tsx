@@ -14,6 +14,8 @@ import {
 import { useGroups } from "./GroupsContext";
 import { csvCell } from "./surveyCsv";
 import { ThinkingThumbBoard } from "./ThinkingThumbBoard";
+import { TextMinePanel } from "./TextMinePanel";
+import { textMineCardTexts } from "./textMine";
 
 function ownerHue(owner: string): number {
   let h = 0;
@@ -42,6 +44,7 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
   const groupsCtx = useGroups();
   const def = tool.definition;
   const [zoneFilter, setZoneFilter] = useState("");
+  const [mineZone, setMineZone] = useState("");
   const [view, setView] = useState<"zone" | "charts">("zone");
   const [showNames, setShowNames] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -200,6 +203,44 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
               </div>
             );
           })}
+          <div className="thinking-textmine">
+            <h4>言葉の分析</h4>
+            <div className="thinking-results-head">
+              <div className="thinking-scenes" role="tablist" aria-label="分析する区切り">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mineZone === ""}
+                  className={mineZone === "" ? "is-active" : ""}
+                  onClick={() => setMineZone("")}
+                >
+                  すべての区切り
+                </button>
+                {def.zones.map((z) => (
+                  <button
+                    key={z.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={mineZone === z.id}
+                    className={mineZone === z.id ? "is-active" : ""}
+                    onClick={() => setMineZone(z.id)}
+                  >
+                    {z.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <TextMinePanel
+              key={mineZone}
+              texts={textMineCardTexts(
+                // The host's own cards are demonstrations, not
+                // student answers: they stay out of the counts.
+                tool.cards.filter((c) => !c.mine),
+                mineZone || null,
+              )}
+              idleNote="カードの文章を言葉に分けて、よく出る言葉を人数順に並べます。同じ人が同じ言葉を何枚に書いても1人と数え、先生のカードは人数に入りません。解析はこの端末の中で行われ、カードの内容が外部へ送られることはありません。"
+            />
+          </div>
         </>
       )}
       {view === "charts" && (
