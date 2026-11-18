@@ -9,10 +9,13 @@ import { applyStage1OrgMigration, nodeStage1OrgDb } from "./stage1OrgSchema";
 import {
   InitialRegistrationError,
   applyPlatformApproval,
+  applyStage1OperatorInviteMigration,
   applyStage1OperatorMigration,
+  createOperatorInvitation,
   issueAdminNonce,
   nodeOperatorSql,
   performOperatorAction,
+  revokeOperatorByPublicId,
 } from "./stage1InitialRegistration";
 
 const expected = {
@@ -31,6 +34,7 @@ function open() {
   const org = nodeStage1OrgDb(db);
   applyStage1OrgMigration(org, 1);
   applyStage1OperatorMigration(org, 2);
+  applyStage1OperatorInviteMigration(org, 3);
   return db;
 }
 
@@ -341,19 +345,40 @@ describe("in-app operator actions", () => {
       );
     once();
     expect(once).toThrow(/使用済み/);
+    const publicId = (
+      db.prepare("SELECT public_id FROM stage1_operators").get() as {
+        public_id: string;
+      }
+    ).public_id;
+    nonce(db, "nonce-revoke-0001");
     expect(() =>
-      act(
-        db,
-        { type: "revoke", subject: "raw-sub-operator", expectedGeneration: 1 },
-        "nonce-revoke-0001",
+      tx(db, () =>
+        revokeOperatorByPublicId(nodeOperatorSql(db), {
+          publicId,
+          expectedGeneration: 1,
+          actor: "raw-sub-operator",
+          nonce: "nonce-revoke-0001",
+          ctxHash: "ctx-nonce-revoke-0001",
+          now: 2_000,
+          envId: "verify-env",
+          auditId: "audit-revoke-last",
+        }),
       ),
     ).toThrow(expect.objectContaining({ status: 409 }));
+    nonce(db, "nonce-revoke-absent");
     let absent: unknown;
     try {
-      act(
-        db,
-        { type: "revoke", subject: "raw-sub-absent", expectedGeneration: 1 },
-        "nonce-revoke-absent",
+      tx(db, () =>
+        revokeOperatorByPublicId(nodeOperatorSql(db), {
+          publicId: "missing-public-id",
+          expectedGeneration: 1,
+          actor: "raw-sub-operator",
+          nonce: "nonce-revoke-absent",
+          ctxHash: "ctx-nonce-revoke-absent",
+          now: 2_000,
+          envId: "verify-env",
+          auditId: "audit-revoke-absent",
+        }),
       );
     } catch (error) {
       absent = error;
@@ -364,51 +389,42 @@ describe("in-app operator actions", () => {
     ).toEqual({ n: 1 });
   });
 
-  it("returns 404 for an unknown revoke target even when another operator exists", () => {
+  it("does not put a subject in an invitation and refuses a second active invite", () => {
     const db = ready();
-    act(
-      db,
-      { type: "add", subject: "raw-sub-second", expectedGeneration: 1 },
-      "nonce-add-second1",
+    db.prepare("INSERT INTO users(id,name,email) VALUES(?,?,?)").run(
+      "raw-sub-operator",
+      "operator",
+      "operator@example.test",
     );
-    let absent: unknown;
-    try {
-      act(
-        db,
-        { type: "revoke", subject: "raw-sub-absent", expectedGeneration: 2 },
-        "nonce-revoke-absent2",
+    const invite = (nonceId: string, email: string) => {
+      nonce(db, nonceId);
+      return tx(db, () =>
+        createOperatorInvitation(nodeOperatorSql(db), {
+          id: `invite-${nonceId}`,
+          email,
+          actor: "raw-sub-operator",
+          nonce: nonceId,
+          ctxHash: `ctx-${nonceId}`,
+          now: 2_000,
+          envId: "verify-env",
+          auditId: `audit-${nonceId}`,
+        }),
       );
-    } catch (error) {
-      absent = error;
-    }
-    expect(absent).toMatchObject({ status: 404 });
+    };
+    const created = invite("nonce-invite-0001", "Next@Example.test");
+    expect(created.email).toBe("next@example.test");
+    expect(JSON.stringify(created)).not.toContain("raw-sub");
     expect(
-      db.prepare("SELECT subject FROM stage1_operators ORDER BY subject").all(),
-    ).toEqual([{ subject: "raw-sub-operator" }, { subject: "raw-sub-second" }]);
-  });
-
-  it("rejects rotating an operator onto the same subject with 409", () => {
-    const db = ready();
-    let error: unknown;
-    try {
-      act(
-        db,
-        {
-          type: "rotate",
-          oldSubject: "raw-sub-operator",
-          newSubject: "raw-sub-operator",
-          expectedGeneration: 1,
-        },
-        "nonce-rotate-same1",
-      );
-    } catch (caught) {
-      error = caught;
-    }
-    expect(error).toBeInstanceOf(InitialRegistrationError);
-    expect(error).toMatchObject({ status: 409 });
-    expect(db.prepare("SELECT subject FROM stage1_operators").get()).toEqual({
-      subject: "raw-sub-operator",
-    });
+      db
+        .prepare("SELECT target FROM audit_log WHERE id=?")
+        .get("audit-nonce-invite-0001"),
+    ).toEqual({ target: "invitation:invite-nonce-invite-0001" });
+    expect(() => invite("nonce-invite-0002", "next@example.test")).toThrow(
+      expect.objectContaining({ status: 409 }),
+    );
+    expect(() => invite("nonce-invite-0003", "operator@example.test")).toThrow(
+      expect.objectContaining({ status: 409 }),
+    );
   });
 
   it("rolls back registry and super-admin changes when the audit write fails", () => {
@@ -419,11 +435,19 @@ describe("in-app operator actions", () => {
     db.prepare(
       "INSERT INTO audit_log(id, actor_user_id, action, target, created_at) VALUES(?,?,?,?,?)",
     ).run("audit-nonce-bind-fail-01", null, "seed", "seed", 1);
+    nonce(db, "nonce-add-fail-01");
     expect(() =>
-      act(
-        db,
-        { type: "add", subject: "raw-sub-extra", expectedGeneration: 1 },
-        "nonce-add-fail-01",
+      tx(db, () =>
+        createOperatorInvitation(nodeOperatorSql(db), {
+          id: "invite-fail",
+          email: "extra@example.test",
+          actor: "raw-sub-operator",
+          nonce: "nonce-add-fail-01",
+          ctxHash: "ctx-nonce-add-fail-01",
+          now: 2_000,
+          envId: "verify-env",
+          auditId: "audit-nonce-add-fail-01",
+        }),
       ),
     ).toThrow(/監査ログ/);
     expect(
@@ -471,6 +495,7 @@ describe("concurrent bootstrap", () => {
     );
     applyStage1OrgMigration(nodeStage1OrgDb(db), 1);
     applyStage1OperatorMigration(nodeStage1OrgDb(db), 2);
+    applyStage1OperatorInviteMigration(nodeStage1OrgDb(db), 3);
     nonce(db, "nonce-parent-0001");
     nonce(db, "nonce-child-00001");
     db.exec("BEGIN IMMEDIATE");

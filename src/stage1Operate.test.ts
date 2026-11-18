@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { applyStage1OrgMigration, nodeStage1OrgDb } from "./stage1OrgSchema";
-import { applyStage1OperatorMigration } from "./stage1InitialRegistration";
+import {
+  applyStage1OperatorInviteMigration,
+  applyStage1OperatorMigration,
+} from "./stage1InitialRegistration";
 import {
   consoleView,
   createSchool,
@@ -19,6 +22,7 @@ function open() {
   );
   applyStage1OrgMigration(nodeStage1OrgDb(db));
   applyStage1OperatorMigration(nodeStage1OrgDb(db));
+  applyStage1OperatorInviteMigration(nodeStage1OrgDb(db));
   db.prepare("INSERT INTO users(id,name,email) VALUES(?,?,?)").run(
     "super",
     "管理者",
@@ -71,6 +75,7 @@ describe("stage1Operate", () => {
     expect(consoleView(sql, "plain").applyTo).toEqual([
       { id: "org1", name: "加賀小学校" },
     ]);
+    expect(consoleView(sql, "plain").myInvitation).toBeNull();
   });
 
   it("lists preregistrations, applications and members without operator subjects", () => {

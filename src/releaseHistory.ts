@@ -8,6 +8,17 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.141.0",
+    date: "2026-11-18",
+    title: "運営者の追加を招待制にしました",
+    changes: [
+      "運営者の追加は、メールアドレスへの招待と、本人の承諾になりました。",
+      "運営者の失効は一覧から行います。相手がその場にいる必要はありません。",
+      "交代は、後任を招待してから前任を失効する手順になります。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.140.1",
     date: "2026-11-17",
     title: "学校の運用画面に手順を書きました",

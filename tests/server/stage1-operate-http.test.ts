@@ -68,8 +68,8 @@ before(async () => {
   const db = new DatabaseSync(join(directory, "vhslide.sqlite"));
   db.prepare("UPDATE users SET is_super_admin=1 WHERE id=?").run("super");
   db.prepare(
-    "INSERT INTO stage1_operators(subject, added_at, added_by) VALUES(?,?,?)",
-  ).run("super", Date.now(), "super");
+    "INSERT INTO stage1_operators(subject, public_id, added_at, added_by) VALUES(?,?,?,?)",
+  ).run("super", "public-super", Date.now(), "super");
   db.close();
 });
 
@@ -140,31 +140,92 @@ test("lists stay on public columns and operator sign-in does not return a subjec
     "plain@example.test",
   );
   assert.equal(JSON.stringify(applications).includes("is_super_admin"), false);
+  for (const path of [
+    "/api/stage1/operators/add",
+    "/api/stage1/operators/revoke",
+    "/api/stage1/operators/rotate",
+    "/api/stage1/operators/add-by-sign-in",
+    "/api/stage1/operators/revoke-by-sign-in",
+    "/api/stage1/operators/rotate-by-sign-in",
+  ]) {
+    const closed = await request(path, "POST", { subject: "added" });
+    assert.equal(closed.status, 404, path);
+  }
   const issued = await request("/api/stage1/operators/nonce", "POST", {});
   assert.equal(issued.status, 200);
   const nonce = ((await issued.json()) as { nonce: string }).nonce;
   const cookie = `${adminCookie}; ${issued.headers.get("set-cookie")!.split(";")[0]}`;
-  const added = await request(
-    "/api/stage1/operators/add-by-sign-in",
+  const invited = await request(
+    "/api/stage1/operators/invitations",
     "POST",
-    {
-      credential: `super|${nonce}`,
-      targetCredential: `added|${nonce}`,
-      expectedGeneration: 0,
-    },
+    { credential: `super|${nonce}`, email: "Added@Example.test" },
     cookie,
   );
-  const addedText = await added.text();
-  assert.equal(added.status, 200, addedText);
-  assert.equal(addedText.includes("added"), false);
-  const db = new DatabaseSync(join(directory, "vhslide.sqlite"));
-  assert.equal(
-    (
-      db
-        .prepare("SELECT COUNT(*) AS n FROM stage1_operators WHERE subject=?")
-        .get("added") as { n: number }
-    ).n,
-    1,
+  const invitedText = await invited.text();
+  assert.equal(invited.status, 201, invitedText);
+  assert.equal(invitedText.includes("super"), false);
+  const invitation = (
+    JSON.parse(invitedText) as { invitation: { id: string; email: string } }
+  ).invitation;
+  assert.equal(invitation.email, "added@example.test");
+  const login = await request(
+    "/api/auth/google",
+    "POST",
+    { credential: "added" },
+    "",
   );
-  db.close();
+  assert.equal(login.status, 200);
+  const addedCookie = login.headers.get("set-cookie")!.split(";")[0];
+  const mine = (await (
+    await request("/api/stage1/console", "GET", undefined, addedCookie)
+  ).json()) as { myInvitation: { id: string } | null };
+  assert.equal(mine.myInvitation?.id, invitation.id);
+  const accepted = await request(
+    `/api/stage1/operators/invitations/${invitation.id}/accept`,
+    "POST",
+    {},
+    addedCookie,
+  );
+  const acceptedText = await accepted.text();
+  assert.equal(accepted.status, 200, acceptedText);
+  assert.equal(acceptedText.includes("added"), false);
+  const operators = await request("/api/stage1/operators");
+  const operatorText = await operators.text();
+  assert.equal(operators.status, 200, operatorText);
+  assert.equal(operatorText.includes('"subject"'), false);
+  const roster = JSON.parse(operatorText) as {
+    operators: { id: string; email: string }[];
+    generation: number;
+  };
+  assert.equal(roster.generation, 1);
+  const addedOperator = roster.operators.find(
+    (item) => item.email === "added@example.test",
+  );
+  assert.ok(addedOperator);
+  assert.notEqual(addedOperator.id, "added");
+  const revokeNonce = await request("/api/stage1/operators/nonce", "POST", {});
+  const revokeValue = ((await revokeNonce.json()) as { nonce: string }).nonce;
+  const revokeCookie = `${adminCookie}; ${revokeNonce.headers.get("set-cookie")!.split(";")[0]}`;
+  const revoked = await request(
+    `/api/stage1/operators/${addedOperator.id}/revoke`,
+    "POST",
+    { credential: `super|${revokeValue}`, expectedGeneration: 1 },
+    revokeCookie,
+  );
+  assert.equal(revoked.status, 200, await revoked.clone().text());
+  const lastNonce = await request("/api/stage1/operators/nonce", "POST", {});
+  const lastValue = ((await lastNonce.json()) as { nonce: string }).nonce;
+  const lastCookie = `${adminCookie}; ${lastNonce.headers.get("set-cookie")!.split(";")[0]}`;
+  const operatorsAfter = (await (
+    await request("/api/stage1/operators")
+  ).json()) as {
+    operators: { id: string }[];
+  };
+  const denied = await request(
+    `/api/stage1/operators/${operatorsAfter.operators[0].id}/revoke`,
+    "POST",
+    { credential: `super|${lastValue}`, expectedGeneration: 2 },
+    lastCookie,
+  );
+  assert.equal(denied.status, 409);
 });

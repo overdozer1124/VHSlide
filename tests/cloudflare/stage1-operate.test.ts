@@ -57,13 +57,26 @@ test("cloudflare operations console stays closed without the feature and refuses
       body: JSON.stringify({ name: "加賀小学校" }),
     });
     assert.equal(denied.status, 403, await denied.clone().text());
+    const closed = await mf.dispatchFetch(
+      `${origin}/api/stage1/operators/add`,
+      {
+        method: "POST",
+        headers: {
+          Origin: origin,
+          "Content-Type": "application/json",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ subject: "added" }),
+      },
+    );
+    assert.equal(closed.status, 404, await closed.clone().text());
     const page = await mf.dispatchFetch(`${origin}/operate.html`);
     const html = await page.text();
     assert.equal(page.status, 200);
     assert.equal(html.includes('data-page="stage1-operate"'), true);
     assert.equal(html.includes("サインアウト"), true);
     assert.equal(html.includes("受け取り済み"), true);
-    assert.equal(html.includes("このサインインの相手"), true);
+    assert.equal(html.includes("いまのサインイン"), true);
     await mf.dispose();
   } finally {
     await rm(storage, { recursive: true, force: true });
