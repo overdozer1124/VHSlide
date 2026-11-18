@@ -14,6 +14,7 @@ import {
   ResponseFieldCreator,
   ResponseFieldLauncher,
 } from "./ResponseFieldLauncher";
+import { PrevAnswerCreator } from "./PrevAnswerTools";
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
 import { WebbingProvider } from "./WebbingContext";
@@ -3806,6 +3807,20 @@ export default function App() {
                 throw Error("1ページの要素は200個までです。");
               insertStructure(elements);
               setView("editor");
+            }}
+          />
+        }
+        prevanswer={
+          <PrevAnswerCreator
+            key={`${cloud.active?.id}:${slide.id}`}
+            onPlace={(elements) => {
+              if (slide.elements.length + elements.length > 200)
+                throw Error("1ページの要素は200個までです。");
+              insertStructure(elements);
+              setView("editor");
+              notify(
+                "「前の自分の回答」を配置しました。生徒の画面には本人の前の回答が表示されます。",
+              );
             }}
           />
         }
