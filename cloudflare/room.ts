@@ -580,6 +580,8 @@ export class SlideRoom extends DurableObject<Env> {
     }
     if (path === "/state" && request.method === "GET")
       return json({ state: toBase64(Y.encodeStateAsUpdate(this.doc())) });
+    if (path === "/deck-json" && request.method === "GET")
+      return json(readSharedDeck(this.doc()));
     if (
       path === "/live" &&
       request.headers.get("Upgrade")?.toLowerCase() === "websocket"

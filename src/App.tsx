@@ -41,6 +41,7 @@ import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget } from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
 import { TeacherConsole } from "./TeacherConsole";
+import { LearningRecord } from "./LearningRecord";
 import { addGuestPage } from "./guestPages";
 import { FitReview } from "./FitReview";
 import { fitKey, needsFitCheck } from "./checkContentFit";
@@ -281,9 +282,9 @@ export default function App() {
   const [, cloudChanged] = useState(0);
   const [past, setPast] = useState<Deck[]>([]),
     [future, setFuture] = useState<Deck[]>([]);
-  const [view, setView] = useState<"map" | "editor" | "present" | "console">(
-    "map",
-  );
+  const [view, setView] = useState<
+    "map" | "editor" | "present" | "console" | "record"
+  >("map");
   const [mapToolbarHost, setMapToolbarHost] = useState<HTMLDivElement | null>(
     null,
   );
@@ -2516,6 +2517,15 @@ export default function App() {
           {view === "console" ? "コンソールを閉じる" : "授業コンソール"}
         </button>
       )}
+      {cloud.active && view !== "present" && view !== "console" && (
+        <button
+          className="button outline"
+          aria-pressed={view === "record"}
+          onClick={() => setView(view === "record" ? "map" : "record")}
+        >
+          {view === "record" ? "記録を閉じる" : "学びの記録"}
+        </button>
+      )}
     </>
   );
   const undoRedoButtons = (
@@ -3221,7 +3231,14 @@ export default function App() {
             onGroupShow={handleGroupShow}
           />
         )}
-        {view !== "present" && view !== "console" && (
+        {view === "record" && cloud.active && (
+          <LearningRecord
+            deckId={cloud.active.id}
+            isHost={cloud.isHost}
+            onClose={() => setView("map")}
+          />
+        )}
+        {view !== "present" && view !== "console" && view !== "record" && (
           <MapView
             toolbarHost={mapToolbarHost}
             readOnly={!!cloud.active && cloud.access.mode === "none"}
