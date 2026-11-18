@@ -136,6 +136,7 @@ $("build").addEventListener("click", async () => {
     lastBlob = new Blob([json], { type: "application/json" });
     lastName = `${String(spec.title).replace(/[\\/:*?"<>|（）()　\s]+/g, "_").slice(0, 40)}.vhslide.json`;
     $("download").disabled = false;
+    if (json.length > 2_000_000) warnings.push(`ファイルが大きく（約${(json.length / 1e6).toFixed(1)}M文字）、VHSlide の「この端末に保存」（約5MB）に入りきらない場合があります。SVG の図を減らすか、作品を分けてください（クラウドへの保存はできます）`);
     status("ok", `できました：${deck.slides.length}ページ・ワークシート${forms.worksheets.length}個（入力欄 ${forms.worksheets.reduce((n, w) => n + w.definition.fields.length, 0)}個）・${Math.round(lastBlob.size / 1024)}KB。VHSlideの読み込み検査にも通りました。` + (warnings.length ? `\n注意：${warnings.join(" ／ ")}` : ""));
   } catch (e) {
     status("error", `作れませんでした：${e.message}`);

@@ -29,7 +29,7 @@ async function loadImg(ref) {
     const w = Number(/\bwidth=["'](\d+(?:\.\d+)?)/.exec(head)?.[1]), h = Number(/\bheight=["'](\d+(?:\.\d+)?)/.exec(head)?.[1]);
     if (!w || !h) throw Error("SVGの図には width と height を数値で書いてください（例：width=\"800\" height=\"450\"）。");
     const svg = /xmlns=/.test(head) ? r : r.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
-    return { src: await io.svgToDataUrl(svg, { scale: 2 }), w, h };
+    return { src: await io.svgToDataUrl(svg, { scale: Math.min(2, 1600 / w) }), w, h }; // at most 1600px wide: sharp on screen, light to save
   }
   return io.loadImage(r);
 }
