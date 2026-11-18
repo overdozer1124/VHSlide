@@ -604,7 +604,7 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         if kind == "order" and not 2 <= len(opts) <= 10:
             raise BuildError(f"並べ替えの入力欄「{f.get('label')}」の項目（options）は、正しい順番で2〜10個にしてください。")
         ws["fields"].append(wf)
-        if kind == "drawing" and (h < 120 or w < 160):
+        if kind in ("drawing", "free") and (h < 120 or w < 160):
             warn(f"※ 画像・手描きの入力欄「{f.get('label')}」が小さく、描いたり貼ったりしにくくなります（幅160・高さ120以上を推奨）。")
         return {"id": nid("f"), "type": "shape", "shape": "rounded", "x": r(x), "y": r(y), "w": r(w), "h": r(h), "fill": "#ffffff",
                 "stroke": nn(stroke, T["accent"]), "strokeWidth": nn(strokeWidth, 2), "color": "#1d1f23", "fontSize": fs, "text": f.get("label"),

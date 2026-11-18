@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.134.0 (be7f9f4): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.141.0 (40fc0ea): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -83,6 +83,7 @@ function parseWorksheet(value) {
         "multiple",
         "radar",
         "drawing",
+        "free",
         "order"
       ].includes(f.kind),
       "\u5165\u529B\u6B04\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
@@ -128,7 +129,7 @@ function parseWorksheet(value) {
       label: f.label.trim(),
       kind: f.kind,
       options: [...f.options],
-      placeholder: f.kind === "drawing" && f.placeholder === TEXT_PLACEHOLDER_DEFAULT ? "" : f.placeholder,
+      placeholder: (f.kind === "drawing" || f.kind === "free") && f.placeholder === TEXT_PLACEHOLDER_DEFAULT ? "" : f.placeholder,
       section: f.section,
       ...f.sectionId !== void 0 ? { sectionId: f.sectionId } : {},
       wide: f.wide,
@@ -280,6 +281,313 @@ function parseWebbingBinding(value) {
     throw new Error("\u30B9\u30E9\u30A4\u30C9\u5185\u30A6\u30A7\u30D3\u30F3\u30B0\u30DE\u30C3\u30D7\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
   }
   return { deckId: v.deckId, mapId: v.mapId, title: v.title };
+}
+
+// src/groups.ts
+var groupSchema = `
+CREATE TABLE IF NOT EXISTS deck_groups(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, name TEXT NOT NULL, sort INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS deck_groups_deck ON deck_groups(deck);
+CREATE TABLE IF NOT EXISTS deck_group_members(deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, user TEXT NOT NULL, grp TEXT NOT NULL, PRIMARY KEY(deck,user));` + featureVersionSchema + versionTriggers("deck_groups", "groups", (a) => `${a}.deck`) + versionTriggers("deck_group_members", "groups", (a) => `${a}.deck`);
+
+// src/thinkingTools.ts
+var ThinkingError = class extends Error {
+  status;
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+};
+var insist = (ok, status, message) => {
+  if (!ok) throw new ThinkingError(status, message);
+};
+var MAX_SCENES = 10;
+var MAX_LABEL = 40;
+var CARD_COLORS = ["yellow", "blue", "pink", "green"];
+var thinkingSchema = `
+CREATE TABLE IF NOT EXISTS thinking_tools(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, kind TEXT NOT NULL, template TEXT NOT NULL, unit TEXT NOT NULL, definition TEXT NOT NULL, series TEXT, status TEXT NOT NULL, scene TEXT, created INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS thinking_tools_deck ON thinking_tools(deck);
+CREATE TABLE IF NOT EXISTS thinking_points(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, value TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', author TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
+CREATE INDEX IF NOT EXISTS thinking_points_tool ON thinking_points(tool);
+CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
+CREATE TABLE IF NOT EXISTS thinking_cards(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, zone TEXT NOT NULL, parent TEXT, sort INTEGER NOT NULL DEFAULT 0, text TEXT NOT NULL, color TEXT NOT NULL DEFAULT '', x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS thinking_cards_tool ON thinking_cards(tool, owner);
+CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);` + featureVersionSchema + versionTriggers("thinking_tools", "thinking", (a) => `${a}.deck`) + versionTriggers(
+  "thinking_points",
+  "thinking",
+  (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`
+) + versionTriggers(
+  "thinking_cards",
+  "thinking",
+  (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`
+) + versionTriggers(
+  "thinking_locks",
+  "thinking",
+  (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`
+);
+var cols = (labels) => labels.map((label, i) => ({
+  id: String.fromCharCode(97 + i),
+  label,
+  rect: [i / labels.length, 0, 1 / labels.length, 1],
+  anchor: [(i + 0.5) / labels.length, 0.5]
+}));
+var quad = (labels) => labels.map((label, i) => ({
+  id: String.fromCharCode(97 + i),
+  label,
+  rect: [i % 2 === 1 ? 0.5 : 0, i >= 2 ? 0.5 : 0, 0.5, 0.5],
+  anchor: [i % 2 === 1 ? 0.75 : 0.25, i >= 2 ? 0.75 : 0.25]
+}));
+var BOARD_ZONE_SPECS = {
+  venn2: [
+    { id: "a", label: "A", anchor: [0.2, 0.5] },
+    { id: "b", label: "B", anchor: [0.8, 0.5] },
+    { id: "ab", label: "A\u3068B\u306E\u91CD\u306A\u308A", anchor: [0.5, 0.5] }
+  ],
+  venn3: [
+    { id: "a", label: "A", anchor: [0.5, 0.18] },
+    { id: "b", label: "B", anchor: [0.18, 0.8] },
+    { id: "c", label: "C", anchor: [0.82, 0.8] },
+    { id: "ab", label: "A\u3068B", anchor: [0.38, 0.42] },
+    { id: "ac", label: "A\u3068C", anchor: [0.62, 0.42] },
+    { id: "bc", label: "B\u3068C", anchor: [0.5, 0.76] },
+    { id: "abc", label: "A\u3068B\u3068C", anchor: [0.5, 0.56] }
+  ],
+  ychart: [
+    { id: "a", label: "\u898B\u305F\u3053\u3068", rect: [0, 0, 0.5, 0.55], anchor: [0.25, 0.27] },
+    { id: "b", label: "\u805E\u3044\u305F\u3053\u3068", rect: [0.5, 0, 0.5, 0.55], anchor: [0.75, 0.27] },
+    { id: "c", label: "\u611F\u3058\u305F\u3053\u3068", rect: [0.25, 0.55, 0.5, 0.45], anchor: [0.5, 0.77] }
+  ],
+  xchart: quad(["\u5DE6\u4E0A", "\u53F3\u4E0A", "\u5DE6\u4E0B", "\u53F3\u4E0B"]),
+  wchart: cols(["\u3044\u3064", "\u3069\u3053\u3067", "\u3060\u308C\u304C", "\u4F55\u3092", "\u306A\u305C\u30FB\u3069\u306E\u3088\u3046\u306B"]),
+  tchart: cols(["\u30E1\u30EA\u30C3\u30C8", "\u30C7\u30E1\u30EA\u30C3\u30C8"]),
+  pmi: cols(["\u3088\u3044\u70B9\uFF08Plus\uFF09", "\u8AB2\u984C\uFF08Minus\uFF09", "\u9762\u767D\u3044\u70B9\uFF08Interesting\uFF09"]),
+  matrix: quad(["\u5DE6\u4E0A", "\u53F3\u4E0A", "\u5DE6\u4E0B", "\u53F3\u4E0B"]),
+  kwl: cols([
+    "\u77E5\u3063\u3066\u3044\u308B\u3053\u3068\uFF08K\uFF09",
+    "\u77E5\u308A\u305F\u3044\u3053\u3068\uFF08W\uFF09",
+    "\u5206\u304B\u3063\u305F\u3053\u3068\uFF08L\uFF09"
+  ])
+};
+function cleanLabel(value, label, max = MAX_LABEL) {
+  insist(
+    typeof value === "string" && value.trim().length > 0 && value.length <= max,
+    400,
+    `${label}\u306F1\u301C${max}\u6587\u5B57\u3067\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002`
+  );
+  return value.trim().replace(/\s+/g, " ");
+}
+var TEMPLATES = [
+  "axis2",
+  "axis1",
+  "emotion",
+  "ratio",
+  "venn2",
+  "venn3",
+  "ychart",
+  "xchart",
+  "wchart",
+  "tchart",
+  "pmi",
+  "matrix",
+  "kwl"
+];
+function parseThinkingDefinition(template, raw) {
+  insist(
+    typeof template === "string" && TEMPLATES.includes(template),
+    400,
+    "\u601D\u8003\u30C4\u30FC\u30EB\u306E\u7A2E\u985E\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+  );
+  const t = template;
+  const value = raw;
+  insist(
+    value && typeof value === "object" && !Array.isArray(value),
+    400,
+    "\u601D\u8003\u30C4\u30FC\u30EB\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+  );
+  const title = cleanLabel(value.title, "\u30C4\u30FC\u30EB\u306E\u540D\u524D", 60);
+  if (BOARD_ZONE_SPECS[t]) {
+    const spec = BOARD_ZONE_SPECS[t];
+    insist(
+      value.zones === void 0 || Array.isArray(value.zones),
+      400,
+      "\u533A\u5207\u308A\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    const given = /* @__PURE__ */ new Map();
+    for (const entry of value.zones ?? []) {
+      const z = entry;
+      insist(
+        z && typeof z === "object" && typeof z.id === "string",
+        400,
+        "\u533A\u5207\u308A\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+      );
+      given.set(z.id, z.label);
+    }
+    const zones = spec.map((zone) => ({
+      id: zone.id,
+      label: given.get(zone.id) === void 0 ? zone.label : cleanLabel(given.get(zone.id), "\u533A\u5207\u308A\u306E\u540D\u524D")
+    }));
+    insist(
+      [...given.keys()].every((id) => spec.some((zone) => zone.id === id)),
+      400,
+      "\u533A\u5207\u308A\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    const cardColors = [];
+    insist(
+      value.cardColors === void 0 || Array.isArray(value.cardColors),
+      400,
+      "\u30AB\u30FC\u30C9\u306E\u8272\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    for (const entry of value.cardColors ?? []) {
+      const c = entry;
+      insist(
+        c && typeof c === "object" && typeof c.color === "string" && CARD_COLORS.includes(c.color) && !cardColors.some((x) => x.color === c.color),
+        400,
+        "\u30AB\u30FC\u30C9\u306E\u8272\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+      );
+      cardColors.push({
+        color: c.color,
+        label: cleanLabel(c.label, "\u8272\u306E\u610F\u5473", 20)
+      });
+    }
+    insist(cardColors.length <= 4, 400, "\u30AB\u30FC\u30C9\u306E\u8272\u306F4\u3064\u307E\u3067\u3067\u3059\u3002");
+    return {
+      template: t,
+      definition: {
+        title,
+        xMin: "",
+        xMax: "",
+        yMin: "",
+        yMax: "",
+        scale: "none",
+        vertical: false,
+        nameA: "",
+        nameB: "",
+        zones,
+        cardColors,
+        scenes: [],
+        sceneMode: "teacher",
+        reason: false
+      }
+    };
+  }
+  insist(
+    value.scenes === void 0 || Array.isArray(value.scenes),
+    400,
+    "\u5834\u9762\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+  );
+  const scenesRaw = Array.isArray(value.scenes) ? value.scenes : [];
+  insist(
+    scenesRaw.length <= MAX_SCENES,
+    400,
+    `\u5834\u9762\u306F${MAX_SCENES}\u500B\u307E\u3067\u3067\u3059\u3002`
+  );
+  const scenes = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const entry of scenesRaw) {
+    const s = entry;
+    insist(
+      s && typeof s === "object" && typeof s.id === "string" && s.id !== "",
+      400,
+      "\u5834\u9762\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    insist(!seen.has(s.id), 400, "\u5834\u9762\u304C\u91CD\u306A\u3063\u3066\u3044\u307E\u3059\u3002");
+    seen.add(s.id);
+    scenes.push({
+      id: s.id,
+      label: cleanLabel(s.label, "\u5834\u9762\u306E\u540D\u524D")
+    });
+  }
+  insist(
+    value.sceneMode === void 0 || value.sceneMode === "teacher" || value.sceneMode === "free",
+    400,
+    "\u5834\u9762\u306E\u9032\u3081\u65B9\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+  );
+  insist(
+    value.scale === void 0 || value.scale === "none" || value.scale === "s5" || value.scale === "s10",
+    400,
+    "\u76EE\u76DB\u308A\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+  );
+  const definition = {
+    title,
+    xMin: "",
+    xMax: "",
+    yMin: "",
+    yMax: "",
+    scale: value.scale ?? "none",
+    vertical: value.vertical === true,
+    nameA: "",
+    nameB: "",
+    zones: [],
+    cardColors: [],
+    scenes,
+    sceneMode: scenes.length ? value.sceneMode === "free" ? "free" : "teacher" : "teacher",
+    reason: value.reason === true
+  };
+  if (t === "axis2" || t === "axis1" || t === "emotion") {
+    definition.xMin = cleanLabel(value.xMin, "\u8EF8\u306E\u5DE6\u7AEF\uFF08\u4E0B\u7AEF\uFF09\u306E\u8A00\u8449");
+    definition.xMax = cleanLabel(value.xMax, "\u8EF8\u306E\u53F3\u7AEF\uFF08\u4E0A\u7AEF\uFF09\u306E\u8A00\u8449");
+  }
+  if (t === "axis2") {
+    definition.yMin = cleanLabel(value.yMin, "\u7E26\u8EF8\u306E\u4E0B\u7AEF\u306E\u8A00\u8449");
+    definition.yMax = cleanLabel(value.yMax, "\u7E26\u8EF8\u306E\u4E0A\u7AEF\u306E\u8A00\u8449");
+  }
+  if (t === "ratio") {
+    definition.nameA = cleanLabel(value.nameA, "1\u3064\u3081\u306E\u6C17\u6301\u3061\u306E\u540D\u524D");
+    definition.nameB = cleanLabel(value.nameB, "2\u3064\u3081\u306E\u6C17\u6301\u3061\u306E\u540D\u524D");
+  }
+  return { template: t, definition };
+}
+
+// src/thinkingBinding.ts
+function parseThinkingBinding(value) {
+  const v = value;
+  if (!v || typeof v.deckId !== "string" || typeof v.toolId !== "string" || !/^[a-f0-9-]{36}$/.test(v.deckId) || !/^[a-f0-9-]{36}$/.test(v.toolId) || typeof v.title !== "string" || !v.title.trim() || v.title.length > 100 || v.unit !== "individual" && v.unit !== "group" && v.unit !== "class") {
+    throw new Error("\u30B9\u30E9\u30A4\u30C9\u5185\u601D\u8003\u30C4\u30FC\u30EB\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
+  }
+  const { template, definition } = parseThinkingDefinition(
+    v.template,
+    v.definition
+  );
+  return {
+    deckId: v.deckId,
+    toolId: v.toolId,
+    title: v.title,
+    template,
+    unit: v.unit,
+    definition
+  };
+}
+function parseThinkingBindingLenient(value) {
+  try {
+    return parseThinkingBinding(value);
+  } catch {
+    const v = value;
+    if (!v || typeof v.deckId !== "string" || typeof v.toolId !== "string" || !/^[a-f0-9-]{36}$/.test(v.deckId) || !/^[a-f0-9-]{36}$/.test(v.toolId) || typeof v.title !== "string" || !v.title.trim() || v.title.length > 100 || v.unit !== "individual" && v.unit !== "group" && v.unit !== "class" || typeof v.template !== "string" || !v.template) {
+      throw new Error("\u30B9\u30E9\u30A4\u30C9\u5185\u601D\u8003\u30C4\u30FC\u30EB\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
+    }
+    return {
+      deckId: v.deckId,
+      toolId: v.toolId,
+      title: v.title,
+      template: v.template,
+      unit: v.unit,
+      definition: {
+        title: v.title,
+        xMin: "",
+        xMax: "",
+        yMin: "",
+        yMax: "",
+        scale: "none",
+        vertical: false,
+        nameA: "",
+        nameB: "",
+        zones: [],
+        cardColors: [],
+        scenes: [],
+        sceneMode: "teacher",
+        reason: false
+      }
+    };
+  }
 }
 
 // src/embedBinding.ts
@@ -764,17 +1072,22 @@ function parseDeck(input) {
         }
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
         if (e.responseField !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
             fail();
           base.responseField = parseResponseField(e.responseField);
         }
         if (e.webbing !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
             fail();
           base.webbing = parseWebbingBinding(e.webbing);
         }
+        if (e.thinking !== void 0) {
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.embed !== void 0)
+            fail();
+          base.thinking = parseThinkingBindingLenient(e.thinking);
+        }
         if (e.embed !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.thinking !== void 0)
             fail();
           base.embed = parseEmbedBinding(e.embed);
         }
@@ -789,12 +1102,12 @@ function parseDeck(input) {
           base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
             fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);
         }
         if (e.survey !== void 0) {
-          if (e.type !== "shape" || e.webbing !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
             fail();
           base.survey = parseSurveyBinding(e.survey);
         }
@@ -1054,6 +1367,7 @@ function collectForeignForms(deck, ownerDeckId) {
   const embedded = /* @__PURE__ */ new Map();
   const fieldsByKey = /* @__PURE__ */ new Map();
   const surveys = /* @__PURE__ */ new Map();
+  const thinking = /* @__PURE__ */ new Map();
   const order = [];
   const noteSurvey = (binding) => {
     if (binding.deckId === ownerDeckId) return;
@@ -1091,6 +1405,24 @@ function collectForeignForms(deck, ownerDeckId) {
               fields: []
             });
             order.push(key);
+          }
+        }
+      }
+      if (element.thinking && element.thinking.deckId !== ownerDeckId) {
+        const binding = element.thinking;
+        const key = keyOf(binding.deckId, binding.toolId);
+        if (!thinking.has(key)) {
+          try {
+            const parsed = parseThinkingBinding(binding);
+            thinking.set(key, {
+              key,
+              sourceDeckId: binding.deckId,
+              sourceId: binding.toolId,
+              template: parsed.template,
+              unit: parsed.unit,
+              definition: parsed.definition
+            });
+          } catch {
           }
         }
       }
@@ -1135,7 +1467,8 @@ function collectForeignForms(deck, ownerDeckId) {
   }
   return {
     worksheets,
-    surveys: order.filter((key) => surveys.has(key)).map((key) => surveys.get(key))
+    surveys: order.filter((key) => surveys.has(key)).map((key) => surveys.get(key)),
+    thinking: [...thinking.values()]
   };
 }
 export {

@@ -207,7 +207,7 @@ function field(f, x, y, w, h, fs = 18, opts = {}) {
   if (kind === "order" && (wf.options.length < 2 || wf.options.length > 10)) throw Error(`並べ替えの入力欄「${f.label}」の項目（options）は、正しい順番で2〜10個にしてください。`);
   ws.fields.push(wf);
   // Since VHSlide 0.106.4 the drawing canvas follows the frame's shape; just avoid frames too small to draw in.
-  if (kind === "drawing" && (h < 120 || w < 160))
+  if ((kind === "drawing" || kind === "free") && (h < 120 || w < 160))
     warn(`※ 画像・手描きの入力欄「${f.label}」が小さく、描いたり貼ったりしにくくなります（幅160・高さ120以上を推奨）。`);
   return {
     id: nid("f"), type: "shape", shape: "rounded", x: r(x), y: r(y), w: r(w), h: r(h),
