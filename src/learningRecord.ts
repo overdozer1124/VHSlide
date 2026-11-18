@@ -69,7 +69,38 @@ export type StudentRecord = {
   entries: RecordEntry[];
 };
 
-type PlacementInfo = { placement: RecordPlacement; order: number };
+/** Stage 3c: the answer-status matrix — students × map rows
+ * （時間）. A column is one map row that holds at least one placed,
+ * non-draft item; a cell counts how many of that row's items the
+ * student answered and names the slide a click should open (the
+ * student's own answered item's slide, else the row's first). */
+export type RecordMatrixColumn = {
+  key: string;
+  sheetName: string;
+  rowLabel: string;
+  slideTitle: string;
+  slideId: string;
+  total: number;
+};
+
+export type RecordMatrix = {
+  columns: RecordMatrixColumn[];
+  rows: {
+    userId: string;
+    name: string;
+    /** `answered` counts distinct items the student answered
+     * themselves; `group` counts distinct items covered only by
+     * their current group's work (never added to `answered`). */
+    cells: { answered: number; group: number; slideId: string }[];
+  }[];
+};
+
+type PlacementInfo = {
+  placement: RecordPlacement;
+  order: number;
+  sheetId: string;
+  y: number;
+};
 
 function placements(deck: Deck, deckId: string): Map<string, PlacementInfo> {
   const sheets = deck.sheets?.length
@@ -93,13 +124,19 @@ function placements(deck: Deck, deckId: string): Map<string, PlacementInfo> {
       rowLabel: sheet?.rowLabels?.[slide.y] ?? "",
       slideTitle: slide.title ?? "",
     };
+    const full: PlacementInfo = {
+      placement: info,
+      order: idx,
+      sheetId: slide.sheetId ?? "main",
+      y: slide.y,
+    };
     for (const el of slide.elements) {
       if (el.worksheet?.deckId === deckId)
-        map.set(`worksheet:${el.worksheet.worksheetId}`, { placement: info, order: idx });
+        map.set(`worksheet:${el.worksheet.worksheetId}`, full);
       if (el.survey?.deckId === deckId)
-        map.set(`survey:${el.survey.surveyId}`, { placement: info, order: idx });
+        map.set(`survey:${el.survey.surveyId}`, full);
       if (el.thinking?.deckId === deckId)
-        map.set(`thinking:${el.thinking.toolId}`, { placement: info, order: idx });
+        map.set(`thinking:${el.thinking.toolId}`, full);
     }
   });
   return map;
@@ -118,8 +155,56 @@ function buildRecords(
   deck: Deck,
   deckId: string,
   userIds: string[],
-): StudentRecord[] {
+): { records: StudentRecord[]; matrix: RecordMatrix } {
   const place = placements(deck, deckId);
+  // Matrix columns: one per map row holding at least one placed
+  // item, in map order. Totals count non-draft items only (filled
+  // in below, where each source's status is known).
+  const columnByKey = new Map<
+    string,
+    RecordMatrixColumn & { order: number }
+  >();
+  const columnOfItem = new Map<string, string>();
+  for (const [itemKey, info] of place) {
+    const key = `${info.sheetId}:${info.y}`;
+    columnOfItem.set(itemKey, key);
+    const existing = columnByKey.get(key);
+    if (!existing || info.order < existing.order)
+      columnByKey.set(key, {
+        key,
+        sheetName: info.placement.sheetName,
+        rowLabel: info.placement.rowLabel,
+        slideTitle: info.placement.slideTitle,
+        slideId: info.placement.slideId,
+        total: 0,
+        order: info.order,
+      });
+  }
+  const countItem = (kind: string, row: Record<string, unknown>) => {
+    if (row.status === "draft") return;
+    const key = columnOfItem.get(`${kind}:${String(row.id)}`);
+    const column = key ? columnByKey.get(key) : undefined;
+    if (column) column.total += 1;
+  };
+  // Per-student answered items per column, as sets of item keys:
+  // a group tool yields one record entry per board the student
+  // wrote on, but the matrix counts each item once. Entries the
+  // student did not write (their current group's board, marked
+  // groupCurrent in the timeline) collect separately and never
+  // count as the student's own answers. The cell's slide is the
+  // student's earliest covered item in that row.
+  const cellMap = new Map<
+    string,
+    Map<
+      string,
+      {
+        own: Set<string>;
+        group: Set<string>;
+        slideId: string;
+        order: number;
+      }
+    >
+  >();
   const nameOf = (id: string): string =>
     [...sql("SELECT name FROM users WHERE id=?", id)][0]?.name || "名前未登録";
   const groupOf = new Map<string, { id: string; name: string }>();
@@ -141,6 +226,9 @@ function buildRecords(
     worksheets.filter((r) => r.status !== "draft").length +
     surveys.filter((r) => r.status !== "draft").length +
     tools.filter((r) => r.status !== "draft").length;
+  for (const row of worksheets) countItem("worksheet", row);
+  for (const row of surveys) countItem("survey", row);
+  for (const row of tools) countItem("thinking", row);
 
   const byUser = new Map<string, { entry: RecordEntry; order: number; created: number }[]>();
   for (const uid of userIds) byUser.set(uid, []);
@@ -148,6 +236,26 @@ function buildRecords(
     const info = place.get(`${entry.kind}:${entry.refId}`);
     if (info) entry.placement = info.placement;
     byUser.get(uid)?.push({ entry, order: info?.order ?? Number.MAX_SAFE_INTEGER, created });
+    if (info) {
+      const itemKey = `${entry.kind}:${entry.refId}`;
+      const columnKey = columnOfItem.get(itemKey);
+      if (columnKey) {
+        let cells = cellMap.get(uid);
+        if (!cells) cellMap.set(uid, (cells = new Map()));
+        const cell = cells.get(columnKey) ?? {
+          own: new Set<string>(),
+          group: new Set<string>(),
+          slideId: info.placement.slideId,
+          order: info.order,
+        };
+        (entry.groupCurrent ? cell.group : cell.own).add(itemKey);
+        if (info.order < cell.order) {
+          cell.order = info.order;
+          cell.slideId = info.placement.slideId;
+        }
+        cells.set(columnKey, cell);
+      }
+    }
   };
 
   for (const row of worksheets) {
@@ -324,7 +432,7 @@ function buildRecords(
     }
   }
 
-  return userIds.map((uid) => {
+  const records = userIds.map((uid) => {
     const list = (byUser.get(uid) ?? []).sort(
       (a, b) => a.order - b.order || a.created - b.created,
     );
@@ -336,18 +444,38 @@ function buildRecords(
       entries: list.map((x) => x.entry),
     };
   });
+  const columns = [...columnByKey.values()]
+    .filter((c) => c.total > 0)
+    .sort((a, b) => a.order - b.order)
+    .map(({ order: _order, ...column }) => column);
+  const matrix: RecordMatrix = {
+    columns,
+    rows: records.map((record) => ({
+      userId: record.userId,
+      name: record.name,
+      cells: columns.map((column) => {
+        const cell = cellMap.get(record.userId)?.get(column.key);
+        const own = cell?.own.size ?? 0;
+        const groupOnly = cell
+          ? [...cell.group].filter((key) => !cell.own.has(key)).length
+          : 0;
+        return {
+          answered: own,
+          group: groupOnly,
+          slideId: cell?.slideId ?? column.slideId,
+        };
+      }),
+    })),
+  };
+  return { records, matrix };
 }
 
-/** Host view: every student's record. Students are the deck's
- * members plus anyone who has answered, minus the owner. `filterUser`
- * narrows the result to one student. */
-export function learningRecord(
+function recordUserIds(
   sql: HistorySQL,
-  deck: Deck,
   deckId: string,
   ownerId: string,
   filterUser?: string,
-): StudentRecord[] {
+): string[] {
   const ids = new Set<string>();
   for (const row of sql("SELECT user_id FROM members WHERE deck=?", deckId))
     ids.add(String(row.user_id));
@@ -361,8 +489,58 @@ export function learningRecord(
     ids.add(String(row.author));
   ids.delete(ownerId);
   const list = [...ids].sort();
-  const chosen = filterUser ? list.filter((id) => id === filterUser) : list;
-  return buildRecords(sql, deck, deckId, chosen);
+  return filterUser ? list.filter((id) => id === filterUser) : list;
+}
+
+/** Host view: every student's record. Students are the deck's
+ * members plus anyone who has answered, minus the owner. `filterUser`
+ * narrows the result to one student. */
+export function learningRecord(
+  sql: HistorySQL,
+  deck: Deck,
+  deckId: string,
+  ownerId: string,
+  filterUser?: string,
+): StudentRecord[] {
+  return buildRecords(
+    sql,
+    deck,
+    deckId,
+    recordUserIds(sql, deckId, ownerId, filterUser),
+  ).records;
+}
+
+/** Host view: the answer-status matrix for the same students. */
+export function learningRecordMatrix(
+  sql: HistorySQL,
+  deck: Deck,
+  deckId: string,
+  ownerId: string,
+  filterUser?: string,
+): RecordMatrix {
+  return buildRecords(
+    sql,
+    deck,
+    deckId,
+    recordUserIds(sql, deckId, ownerId, filterUser),
+  ).matrix;
+}
+
+/** Host view: records and matrix from a single aggregation pass. */
+export function learningRecordFull(
+  sql: HistorySQL,
+  deck: Deck,
+  deckId: string,
+  ownerId: string,
+  filterUser?: string,
+): { students: StudentRecord[]; matrix: RecordMatrix } {
+  const built = buildRecords(
+    sql,
+    deck,
+    deckId,
+    recordUserIds(sql, deckId, ownerId, filterUser),
+  );
+  return { students: built.records, matrix: built.matrix };
 }
 
 /** A student's own record. The actor comes from the caller's
@@ -373,5 +551,5 @@ export function myLearningRecord(
   deckId: string,
   actor: string,
 ): StudentRecord {
-  return buildRecords(sql, deck, deckId, [actor])[0];
+  return buildRecords(sql, deck, deckId, [actor]).records[0];
 }

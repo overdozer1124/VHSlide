@@ -23,7 +23,7 @@ import {
   ThinkingError,
 } from "../src/thinkingTools.ts";
 import {
-  learningRecord,
+  learningRecordFull,
   myLearningRecord,
 } from "../src/learningRecord.ts";
 import { prevAnswerFor } from "../src/prevAnswer.ts";
@@ -2343,9 +2343,11 @@ export function createApplication(options: Options) {
           const deck = readSharedDeck(room(id).doc);
           if (extra === "record") {
             const filter = url.searchParams.get("user") ?? undefined;
-            return json(res, 200, {
-              students: learningRecord(historySQL, deck, id, u.id, filter),
-            });
+            return json(
+              res,
+              200,
+              learningRecordFull(historySQL, deck, id, u.id, filter),
+            );
           }
           return json(res, 200, {
             record: myLearningRecord(historySQL, deck, id, u.id),

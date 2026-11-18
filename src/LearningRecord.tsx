@@ -4,6 +4,7 @@ import { api } from "./cloud";
 import { csvCell } from "./surveyCsv";
 import type {
   RecordEntry,
+  RecordMatrix,
   StudentRecord,
 } from "./learningRecord";
 import type { ThinkingView } from "./thinkingTools";
@@ -168,16 +169,107 @@ function RecordTimeline({ record }: { record: StudentRecord }) {
   );
 }
 
+/** Stage 3c: the answer-status matrix （生徒×時間）. A cell shows
+ * whether the student answered that row's items; clicking it opens
+ * the slide the item sits on. Host only — the payload itself is
+ * served by the host-only record route. */
+function RecordMatrixView({
+  matrix,
+  onOpenSlide,
+}: {
+  matrix: RecordMatrix;
+  onOpenSlide?: (slideId: string) => void;
+}) {
+  if (matrix.columns.length === 0)
+    return (
+      <p className="record-none">
+        スライドに置かれた項目がまだありません。
+      </p>
+    );
+  return (
+    <div className="record-matrix-wrap">
+      <table className="record-matrix">
+        <thead>
+          <tr>
+            <th scope="col" className="record-matrix-name">生徒</th>
+            {matrix.columns.map((column) => (
+              <th key={column.key} scope="col">
+                {[column.sheetName, column.rowLabel]
+                  .filter(Boolean)
+                  .join(" ") ||
+                  column.slideTitle ||
+                  "（見出しなし）"}
+                <span className="record-matrix-total">
+                  {column.total}件
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.rows.map((row) => (
+            <tr key={row.userId}>
+              <th scope="row" className="record-matrix-name">
+                {row.name}
+              </th>
+              {row.cells.map((cell, i) => {
+                const total = matrix.columns[i].total;
+                const groupOnly = cell.group > 0 && cell.answered < total;
+                const state =
+                  cell.answered >= total
+                    ? "full"
+                    : cell.answered > 0
+                      ? "partial"
+                      : groupOnly
+                        ? "group"
+                        : "none";
+                const label =
+                  state === "full"
+                    ? "●"
+                    : state === "none"
+                      ? "―"
+                      : cell.answered === 0 && cell.group >= total
+                        ? "班"
+                        : `${cell.answered}/${total}${groupOnly ? "・班" : ""}`;
+                return (
+                  <td key={matrix.columns[i].key}>
+                    <button
+                      type="button"
+                      className={`record-matrix-cell is-${state}`}
+                      disabled={!onOpenSlide}
+                      onClick={() => onOpenSlide?.(cell.slideId)}
+                      aria-label={`${row.name}さん、${matrix.columns[i].rowLabel || matrix.columns[i].slideTitle}：${cell.answered}/${total}件回答${groupOnly ? "（今の班が答えている項目があります）" : ""}。スライドを開く`}
+                    >
+                      {label}
+                    </button>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="record-matrix-note">
+        セルを押すと、その時間のスライドを開きます。●は全ての項目に回答済み、数字は回答した項目の数です。「班」は、自分では書いていないけれど今の班が答えているものです（回答の数には入れていません）。
+      </p>
+    </div>
+  );
+}
+
 export function LearningRecord({
   deckId,
   isHost,
   onClose,
+  onOpenSlide,
 }: {
   deckId: string;
   isHost: boolean;
   onClose: () => void;
+  onOpenSlide?: (slideId: string) => void;
 }) {
   const [students, setStudents] = useState<StudentRecord[] | null>(null);
+  const [matrix, setMatrix] = useState<RecordMatrix | null>(null);
+  const [mode, setMode] = useState<"timeline" | "matrix">("timeline");
   const [own, setOwn] = useState<StudentRecord | null>(null);
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
@@ -186,9 +278,12 @@ export function LearningRecord({
   const load = () => {
     setError("");
     if (isHost) {
-      api<{ students: StudentRecord[] }>(`/api/decks/${deckId}/record`)
+      api<{ students: StudentRecord[]; matrix: RecordMatrix }>(
+        `/api/decks/${deckId}/record`,
+      )
         .then((r) => {
           setStudents(r.students);
+          setMatrix(r.matrix);
           setSelected((prev) =>
             r.students.some((s) => s.userId === prev)
               ? prev
@@ -319,6 +414,28 @@ export function LearningRecord({
         </p>
       )}
       {isHost && students && (
+        <div className="record-modes" role="tablist" aria-label="見方を選ぶ">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "timeline"}
+            className={mode === "timeline" ? "is-active" : ""}
+            onClick={() => setMode("timeline")}
+          >
+            タイムライン
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "matrix"}
+            className={mode === "matrix" ? "is-active" : ""}
+            onClick={() => setMode("matrix")}
+          >
+            回答状況
+          </button>
+        </div>
+      )}
+      {isHost && students && mode === "timeline" && (
         <div className="record-students" role="tablist" aria-label="生徒を選ぶ">
           {students.map((s) => (
             <button
@@ -345,7 +462,13 @@ export function LearningRecord({
           {own.name}さんの記録です（{own.answered}/{own.total} 件の回答）。
         </p>
       )}
-      {current ? (
+      {isHost && mode === "matrix" ? (
+        matrix ? (
+          <RecordMatrixView matrix={matrix} onOpenSlide={onOpenSlide} />
+        ) : (
+          !error && <p className="record-none">読み込んでいます…</p>
+        )
+      ) : current ? (
         <RecordTimeline record={current} />
       ) : (
         !error && <p className="record-none">読み込んでいます…</p>

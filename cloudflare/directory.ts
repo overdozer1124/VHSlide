@@ -17,7 +17,7 @@ import {
   thinkingCommand,
 } from "../src/thinkingTools.ts";
 import {
-  learningRecord,
+  learningRecordFull,
   myLearningRecord,
 } from "../src/learningRecord.ts";
 import { prevAnswerFor } from "../src/prevAnswer.ts";
@@ -2248,7 +2248,7 @@ export class Directory extends DurableObject<Env> {
           this.sql.exec(query, ...args);
         return json(
           extra === "record"
-            ? { students: learningRecord(sql, deck, id, user.id, filter) }
+            ? learningRecordFull(sql, deck, id, user.id, filter)
             : { record: myLearningRecord(sql, deck, id, user.id) },
         );
       });
