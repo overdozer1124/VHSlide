@@ -7976,6 +7976,7 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .record-matrix-cell { min-width:40px;padding:4px 8px;border-radius:6px;border:1px solid transparent;background:transparent;font-size:13px;cursor:pointer;color:#4a3a6b; }
 .record-matrix-cell.is-full { color:#1d7a3a;font-weight:700; }
 .record-matrix-cell.is-partial { background:#fdf3d8;border-color:#e5cf8f;font-weight:700; }
+.record-matrix-cell.is-group { background:#e8f0fc;border-color:#b9cdef;color:#2b5ea7;font-weight:700; }
 .record-matrix-cell.is-none { color:#a39bb5; }
 .record-matrix-cell:hover:not(:disabled) { border-color:#5b4a8a; }
 .record-matrix-note { font-size:12px;color:#5a7189; }

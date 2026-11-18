@@ -214,18 +214,23 @@ function RecordMatrixView({
               </th>
               {row.cells.map((cell, i) => {
                 const total = matrix.columns[i].total;
+                const groupOnly = cell.group > 0 && cell.answered < total;
                 const state =
-                  cell.answered === 0
-                    ? "none"
-                    : cell.answered >= total
-                      ? "full"
-                      : "partial";
+                  cell.answered >= total
+                    ? "full"
+                    : cell.answered > 0
+                      ? "partial"
+                      : groupOnly
+                        ? "group"
+                        : "none";
                 const label =
                   state === "full"
                     ? "●"
                     : state === "none"
                       ? "―"
-                      : `${cell.answered}/${total}`;
+                      : cell.answered === 0 && cell.group >= total
+                        ? "班"
+                        : `${cell.answered}/${total}${groupOnly ? "・班" : ""}`;
                 return (
                   <td key={matrix.columns[i].key}>
                     <button
@@ -233,7 +238,7 @@ function RecordMatrixView({
                       className={`record-matrix-cell is-${state}`}
                       disabled={!onOpenSlide}
                       onClick={() => onOpenSlide?.(cell.slideId)}
-                      aria-label={`${row.name}さん、${matrix.columns[i].rowLabel || matrix.columns[i].slideTitle}：${cell.answered}/${total}件回答。スライドを開く`}
+                      aria-label={`${row.name}さん、${matrix.columns[i].rowLabel || matrix.columns[i].slideTitle}：${cell.answered}/${total}件回答${groupOnly ? "（今の班が答えている項目があります）" : ""}。スライドを開く`}
                     >
                       {label}
                     </button>
@@ -245,7 +250,7 @@ function RecordMatrixView({
         </tbody>
       </table>
       <p className="record-matrix-note">
-        セルを押すと、その時間のスライドを開きます。●は全ての項目に回答済み、数字は回答した項目の数です。
+        セルを押すと、その時間のスライドを開きます。●は全ての項目に回答済み、数字は回答した項目の数です。「班」は、自分では書いていないけれど今の班が答えているものです（回答の数には入れていません）。
       </p>
     </div>
   );

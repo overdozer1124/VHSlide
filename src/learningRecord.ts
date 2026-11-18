@@ -88,7 +88,10 @@ export type RecordMatrix = {
   rows: {
     userId: string;
     name: string;
-    cells: { answered: number; slideId: string }[];
+    /** `answered` counts distinct items the student answered
+     * themselves; `group` counts distinct items covered only by
+     * their current group's work (never added to `answered`). */
+    cells: { answered: number; group: number; slideId: string }[];
   }[];
 };
 
@@ -183,11 +186,24 @@ function buildRecords(
     const column = key ? columnByKey.get(key) : undefined;
     if (column) column.total += 1;
   };
-  // Per-student answered counts per column, with the slide of the
-  // student's earliest answered item in that row as the target.
+  // Per-student answered items per column, as sets of item keys:
+  // a group tool yields one record entry per board the student
+  // wrote on, but the matrix counts each item once. Entries the
+  // student did not write (their current group's board, marked
+  // groupCurrent in the timeline) collect separately and never
+  // count as the student's own answers. The cell's slide is the
+  // student's earliest covered item in that row.
   const cellMap = new Map<
     string,
-    Map<string, { answered: number; slideId: string; order: number }>
+    Map<
+      string,
+      {
+        own: Set<string>;
+        group: Set<string>;
+        slideId: string;
+        order: number;
+      }
+    >
   >();
   const nameOf = (id: string): string =>
     [...sql("SELECT name FROM users WHERE id=?", id)][0]?.name || "名前未登録";
@@ -221,16 +237,18 @@ function buildRecords(
     if (info) entry.placement = info.placement;
     byUser.get(uid)?.push({ entry, order: info?.order ?? Number.MAX_SAFE_INTEGER, created });
     if (info) {
-      const columnKey = columnOfItem.get(`${entry.kind}:${entry.refId}`);
+      const itemKey = `${entry.kind}:${entry.refId}`;
+      const columnKey = columnOfItem.get(itemKey);
       if (columnKey) {
         let cells = cellMap.get(uid);
         if (!cells) cellMap.set(uid, (cells = new Map()));
         const cell = cells.get(columnKey) ?? {
-          answered: 0,
+          own: new Set<string>(),
+          group: new Set<string>(),
           slideId: info.placement.slideId,
           order: info.order,
         };
-        cell.answered += 1;
+        (entry.groupCurrent ? cell.group : cell.own).add(itemKey);
         if (info.order < cell.order) {
           cell.order = info.order;
           cell.slideId = info.placement.slideId;
@@ -437,8 +455,13 @@ function buildRecords(
       name: record.name,
       cells: columns.map((column) => {
         const cell = cellMap.get(record.userId)?.get(column.key);
+        const own = cell?.own.size ?? 0;
+        const groupOnly = cell
+          ? [...cell.group].filter((key) => !cell.own.has(key)).length
+          : 0;
         return {
-          answered: cell?.answered ?? 0,
+          answered: own,
+          group: groupOnly,
           slideId: cell?.slideId ?? column.slideId,
         };
       }),
@@ -501,6 +524,23 @@ export function learningRecordMatrix(
     deckId,
     recordUserIds(sql, deckId, ownerId, filterUser),
   ).matrix;
+}
+
+/** Host view: records and matrix from a single aggregation pass. */
+export function learningRecordFull(
+  sql: HistorySQL,
+  deck: Deck,
+  deckId: string,
+  ownerId: string,
+  filterUser?: string,
+): { students: StudentRecord[]; matrix: RecordMatrix } {
+  const built = buildRecords(
+    sql,
+    deck,
+    deckId,
+    recordUserIds(sql, deckId, ownerId, filterUser),
+  );
+  return { students: built.records, matrix: built.matrix };
 }
 
 /** A student's own record. The actor comes from the caller's

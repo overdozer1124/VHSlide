@@ -275,17 +275,114 @@ describe("learning record", () => {
     const ana = matrix.rows.find((r) => r.userId === "ana")!;
     const bob = matrix.rows.find((r) => r.userId === "bob")!;
     expect(ana.cells).toEqual([
-      { answered: 1, slideId: "slide-1" },
-      { answered: 1, slideId: "slide-2" },
+      { answered: 1, group: 0, slideId: "slide-1" },
+      { answered: 1, group: 0, slideId: "slide-2" },
     ]);
     // Bob answered the worksheet only; the empty cell still names
     // the row's first slide as its open target.
     expect(bob.cells).toEqual([
-      { answered: 1, slideId: "slide-1" },
-      { answered: 0, slideId: "slide-2" },
+      { answered: 1, group: 0, slideId: "slide-1" },
+      { answered: 0, group: 0, slideId: "slide-2" },
     ]);
     const filtered = learningRecordMatrix(sql, deck, "deck", "host", "bob");
     expect(filtered.rows.map((r) => r.userId)).toEqual(["bob"]);
     expect(filtered.columns).toHaveLength(2);
+  });
+
+  it("counts a moved student's group item once and marks group-only coverage", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT); CREATE TABLE members(deck TEXT, user_id TEXT)",
+    );
+    db.exec(groupSchema);
+    db.exec(worksheetSchema);
+    db.exec(surveySchema);
+    db.exec(thinkingSchema);
+    db.prepare("INSERT INTO decks VALUES(?)").run("deck");
+    for (const [id, name] of [
+      ["host", "先生"],
+      ["ana", "あな"],
+      ["bob", "ぼぶ"],
+      ["coco", "ここ"],
+    ]) {
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+    }
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...(args as never[]));
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    const [g1, g2] = groupList(sql, "deck", "host", true).groups;
+    const board = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "venn2",
+      unit: "group",
+      definition: { title: "班のベン図", cardColors: [] },
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "host", true, "status", board, {
+      status: "open",
+    });
+    const axis = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "axis2",
+      unit: "individual",
+      definition: axisDef,
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "host", true, "status", axis, {
+      status: "open",
+    });
+    // Ana writes her group's card; bob (same group) writes nothing.
+    groupCommand(sql, "deck", "ana", false, "join", undefined, { groupId: g1.id });
+    groupCommand(sql, "deck", "bob", false, "join", undefined, { groupId: g1.id });
+    thinkingCommand(sql, "deck", "ana", false, "card", board, {
+      zone: "a",
+      text: "あなのカード",
+      color: "",
+    });
+    // Coco writes in group 1, moves to group 2 and writes there too:
+    // two boards, but still one item.
+    groupCommand(sql, "deck", "coco", false, "join", undefined, { groupId: g1.id });
+    thinkingCommand(sql, "deck", "coco", false, "card", board, {
+      zone: "a",
+      text: "ここの1班カード",
+      color: "",
+    });
+    groupCommand(sql, "deck", "coco", false, "join", undefined, { groupId: g2.id });
+    thinkingCommand(sql, "deck", "coco", false, "card", board, {
+      zone: "b",
+      text: "ここの2班カード",
+      color: "",
+    });
+    const deck = {
+      version: 1,
+      title: "テスト作品",
+      sheets: [{ id: "main", name: "", rowLabels: { 0: "第1時" } }],
+      slides: [
+        {
+          id: "slide-g",
+          sheetId: "main",
+          x: 0,
+          y: 0,
+          title: "班で考えよう",
+          background: "",
+          elements: [
+            { id: "e1", thinking: { deckId: "deck", toolId: board } },
+            { id: "e2", thinking: { deckId: "deck", toolId: axis } },
+          ],
+        },
+      ],
+    } as unknown as Deck;
+
+    const matrix = learningRecordMatrix(sql, deck, "deck", "host");
+    expect(matrix.columns).toHaveLength(1);
+    expect(matrix.columns[0].total).toBe(2);
+    const cellOf = (uid: string) =>
+      matrix.rows.find((r) => r.userId === uid)!.cells[0];
+    // Ana answered the board herself; the axis is still open.
+    expect(cellOf("ana")).toEqual({ answered: 1, group: 0, slideId: "slide-g" });
+    // Bob wrote nothing: the board shows as his group's work only,
+    // never as his own answer.
+    expect(cellOf("bob")).toEqual({ answered: 0, group: 1, slideId: "slide-g" });
+    // Coco's two boards are one item: 1 of 2, not 2 of 2.
+    expect(cellOf("coco")).toEqual({ answered: 1, group: 0, slideId: "slide-g" });
   });
 });
