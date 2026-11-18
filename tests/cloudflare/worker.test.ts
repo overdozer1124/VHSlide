@@ -194,7 +194,7 @@ test("both configured Google clients identify the same account and reject other 
 
 test("checks real JWT signatures/audience, session cookies, origin and membership", async () => {
   const config = (await (await request("/api/config")).json()) as any;
-  assert.match(config.notice, /写真は作成者ごと50MB/);
+  assert.match(config.notice, /写真は作成者ごと500MB/);
   assert.equal((await request("/api/decks", "GET", undefined, "")).status, 401);
   assert.equal(
     (await request("/api/auth/google", "POST", { credential: "forged" }, ""))
@@ -449,36 +449,75 @@ test("refuses foreign assets and closes a signed-out connection", async () => {
   owner = await login("owner");
 });
 
-test("reserves photo space atomically and stops uploading at the owner's limit", async () => {
+test("identical photos are stored and charged once per owner, and freed with the last referencing deck", async () => {
   const quotaOwner = await login("quota"),
     id = await create(sample(), quotaOwner);
+  const usage = async () =>
+    (
+      (await (
+        await request("/api/usage", "GET", undefined, quotaOwner)
+      ).json()) as { used: number }
+    ).used;
   const bytes = new Uint8Array(6_000_000);
   bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
-  for (let i = 0; i < 8; i++)
+  assert.equal(await usage(), 0);
+  // The same photo uploaded repeatedly is charged only once.
+  for (let i = 0; i < 3; i++)
     assert.equal(
       (await request(`/api/decks/${id}/assets`, "POST", bytes, quotaOwner))
         .status,
       201,
     );
-  const smaller = bytes.slice(0, 1_500_000);
+  assert.equal(await usage(), bytes.length);
+  // Concurrent uploads of the same photo also charge once.
   const results = await Promise.all([
-    request(`/api/decks/${id}/assets`, "POST", smaller, quotaOwner),
-    request(`/api/decks/${id}/assets`, "POST", smaller, quotaOwner),
+    request(`/api/decks/${id}/assets`, "POST", bytes, quotaOwner),
+    request(`/api/decks/${id}/assets`, "POST", bytes, quotaOwner),
   ]);
-  assert.deepEqual(results.map((r) => r.status).sort(), [201, 413]);
+  assert.deepEqual(results.map((r) => r.status), [201, 201]);
+  assert.equal(await usage(), bytes.length);
+  // A second deck referencing the same photo adds no charge, and the
+  // shared copy is served from that deck too.
+  const other = await create(sample(), quotaOwner);
+  const upOther = await request(
+    `/api/decks/${other}/assets`,
+    "POST",
+    bytes,
+    quotaOwner,
+  );
+  assert.equal(upOther.status, 201);
+  const srcOther = ((await upOther.json()) as { src: string }).src;
+  assert.equal(await usage(), bytes.length);
+  const got = await request(srcOther, "GET", undefined, quotaOwner);
+  assert.equal(got.status, 200);
+  assert.deepEqual(
+    new Uint8Array(await got.arrayBuffer()).slice(0, 8),
+    bytes.slice(0, 8),
+  );
+  // A different photo charges separately.
+  const smaller = bytes.slice(0, 1_500_000);
+  assert.equal(
+    (await request(`/api/decks/${id}/assets`, "POST", smaller, quotaOwner))
+      .status,
+    201,
+  );
+  assert.equal(await usage(), bytes.length + smaller.length);
+  // Deleting one referencing deck keeps the shared photo charged.
   const deleted = await request(
-    `/api/decks/${id}`,
+    `/api/decks/${other}`,
     "DELETE",
     undefined,
     quotaOwner,
   );
   assert.equal(deleted.status, 200, await deleted.text());
-  const again = await create(sample(), quotaOwner);
+  assert.equal(await usage(), bytes.length + smaller.length);
+  // Deleting the last referencing deck frees everything.
   assert.equal(
-    (await request(`/api/decks/${again}/assets`, "POST", smaller, quotaOwner))
+    (await request(`/api/decks/${id}`, "DELETE", undefined, quotaOwner))
       .status,
-    201,
+    200,
   );
+  assert.equal(await usage(), 0);
 });
 
 test("host grants are enforced on live edits; read-only guests can comment but cannot change settings or other authors' notes", async () => {

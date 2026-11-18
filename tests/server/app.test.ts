@@ -274,6 +274,73 @@ test("stores private photos, validates file type, and denies cross-project asset
   peer.doc.destroy();
   restored.destroy();
 });
+test("identical photos are stored and charged once per owner across decks", async () => {
+  const owner = await signIn("student-880");
+  const usage = async () =>
+    (await (await request("/api/usage", "GET", undefined, owner)).json())
+      .used as number;
+  const makeDeck = async () => {
+    const response = await request("/api/decks", "POST", sample(), owner);
+    assert.equal(response.status, 201);
+    return (await response.json()).id as string;
+  };
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const first = await makeDeck(),
+    second = await makeDeck();
+  assert.equal(await usage(), 0);
+  const up1 = await request(`/api/decks/${first}/assets`, "POST", png, owner);
+  assert.equal(up1.status, 201);
+  const src1 = (await up1.json()).src as string;
+  assert.equal(await usage(), png.length);
+  // The same bytes in a second deck, and again in the first, cost nothing.
+  const up2 = await request(
+    `/api/decks/${second}/assets`,
+    "POST",
+    png,
+    owner,
+  );
+  assert.equal(up2.status, 201);
+  const src2 = (await up2.json()).src as string;
+  assert.notEqual(src1, src2);
+  assert.equal(
+    (await request(`/api/decks/${first}/assets`, "POST", png, owner)).status,
+    201,
+  );
+  assert.equal(await usage(), png.length);
+  // Both decks serve the shared copy.
+  for (const src of [src1, src2]) {
+    const got = await request(src, "GET", undefined, owner);
+    assert.equal(got.status, 200);
+    assert.deepEqual(Buffer.from(await got.arrayBuffer()), png);
+  }
+  // Deleting one deck keeps the photo (and its charge) for the other.
+  assert.equal(
+    (await request(`/api/decks/${second}/trash`, "POST", undefined, owner))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/decks/${second}`, "DELETE", undefined, owner))
+      .status,
+    200,
+  );
+  assert.equal(await usage(), png.length);
+  assert.equal((await request(src1, "GET", undefined, owner)).status, 200);
+  // Deleting the last referencing deck frees the space.
+  assert.equal(
+    (await request(`/api/decks/${first}/trash`, "POST", undefined, owner))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/decks/${first}`, "DELETE", undefined, owner)).status,
+    200,
+  );
+  assert.equal(await usage(), 0);
+});
 test("40 authenticated peers merge simultaneous text edits and survive a server restart", async () => {
   const id = await create();
   const inviteResponse = await request(`/api/decks/${id}/invite`, "POST");
@@ -1346,8 +1413,8 @@ test("an interrupted image reservation cannot finalize before its bytes are reco
   // Simulate a crash after quota reservation but before storage.put completes.
   const sql = new DatabaseSync(join(directory, "vhslide.sqlite"));
   sql
-    .prepare("INSERT INTO assets VALUES(?,?,?,?,?)")
-    .run(asset, id, "student-973", "image/png", png.length);
+    .prepare("INSERT INTO assets VALUES(?,?,?,?,?,?)")
+    .run(asset, id, "student-973", "image/png", png.length, null);
   sql.exec(
     "CREATE TABLE IF NOT EXISTS restore_uploads(asset TEXT PRIMARY KEY,ready INTEGER NOT NULL)",
   );

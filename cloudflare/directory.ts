@@ -145,8 +145,9 @@ import type { Env, Identity, User } from "./common.ts";
 const keys = createRemoteJWKSet(
   new URL("https://www.googleapis.com/oauth2/v3/certs"),
 );
-const MAX_ASSETS = 500_000_000;
-const MAX_USER_ASSETS = 50_000_000;
+const MAX_ASSETS = 5_000_000_000;
+const MAX_USER_ASSETS = 500_000_000;
+const BLOB_CHUNK = 64 * 1024;
 interface Work {
   id: string;
   owner: string;
@@ -171,6 +172,8 @@ export class Directory extends DurableObject<Env> {
       CREATE INDEX IF NOT EXISTS recipients_email ON recipients(email);
       CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, owner TEXT NOT NULL, bytes INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS blobs (owner TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, PRIMARY KEY(owner,hash));
+      CREATE TABLE IF NOT EXISTS blob_chunks (owner TEXT NOT NULL, hash TEXT NOT NULL, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(owner,hash,part));
       CREATE INDEX IF NOT EXISTS members_user ON members(user_id);
       CREATE INDEX IF NOT EXISTS assets_owner ON assets(owner);
       CREATE TABLE IF NOT EXISTS work_trash(deck TEXT PRIMARY KEY, created INTEGER NOT NULL, purging INTEGER NOT NULL DEFAULT 0);
@@ -184,6 +187,12 @@ export class Directory extends DurableObject<Env> {
       this.sql.exec(
         "ALTER TABLE work_trash ADD COLUMN purging INTEGER NOT NULL DEFAULT 0",
       );
+    if (
+      ![...this.sql.exec<{ name: string }>("PRAGMA table_info(assets)")].some(
+        (c) => c.name === "hash",
+      )
+    )
+      this.sql.exec("ALTER TABLE assets ADD COLUMN hash TEXT");
     this.sql.exec(joinSchema);
     this.sql.exec(surveySchema);
     this.sql.exec(worksheetSchema);
@@ -362,9 +371,80 @@ export class Directory extends DurableObject<Env> {
       ...(r.user_id ? { userId: r.user_id, name: r.name } : {}),
     }));
   }
+  /** Bytes charged against the photo quota. Deduplicated blobs count once
+   * per owner; legacy assets (hash IS NULL, saved before dedup) count
+   * individually until their deck is deleted. */
+  private assetUsage(owner?: string) {
+    const blob = owner
+      ? one<{ n: number }>(
+          this.sql,
+          "SELECT COALESCE(SUM(bytes),0) AS n FROM blobs WHERE owner=?",
+          owner,
+        )
+      : one<{ n: number }>(
+          this.sql,
+          "SELECT COALESCE(SUM(bytes),0) AS n FROM blobs",
+        );
+    const legacy = owner
+      ? one<{ n: number }>(
+          this.sql,
+          "SELECT COALESCE(SUM(bytes),0) AS n FROM assets WHERE owner=? AND hash IS NULL",
+          owner,
+        )
+      : one<{ n: number }>(
+          this.sql,
+          "SELECT COALESCE(SUM(bytes),0) AS n FROM assets WHERE hash IS NULL",
+        );
+    return blob!.n + legacy!.n;
+  }
+  /** Drop a blob whose last referencing asset row is gone. Caller must have
+   * already removed the asset rows inside the same transaction. */
+  private releaseBlob(owner: string, hash: string) {
+    const refs = one<{ n: number }>(
+      this.sql,
+      "SELECT COUNT(*) AS n FROM assets WHERE owner=? AND hash=?",
+      owner,
+      hash,
+    )!;
+    if (refs.n) return;
+    this.sql.exec(
+      "DELETE FROM blob_chunks WHERE owner=? AND hash=?",
+      owner,
+      hash,
+    );
+    this.sql.exec("DELETE FROM blobs WHERE owner=? AND hash=?", owner, hash);
+  }
+  private storeBlob(
+    owner: string,
+    hash: string,
+    type: string,
+    bytes: Uint8Array,
+  ) {
+    this.sql.exec(
+      "INSERT OR IGNORE INTO blobs VALUES(?,?,?,?)",
+      owner,
+      hash,
+      bytes.length,
+      type,
+    );
+    for (let i = 0; i < bytes.length; i += BLOB_CHUNK)
+      this.sql.exec(
+        "INSERT OR IGNORE INTO blob_chunks VALUES(?,?,?,?)",
+        owner,
+        hash,
+        i / BLOB_CHUNK,
+        bytes.slice(i, i + BLOB_CHUNK).buffer,
+      );
+  }
   private removeWork(id: string) {
     this.ctx.storage.transactionSync(() => {
+      const shared = rows<{ owner: string; hash: string }>(
+        this.sql,
+        "SELECT DISTINCT owner,hash FROM assets WHERE deck=? AND hash IS NOT NULL",
+        id,
+      );
       this.sql.exec("DELETE FROM assets WHERE deck=?", id);
+      for (const blob of shared) this.releaseBlob(blob.owner, blob.hash);
       this.sql.exec("DELETE FROM invites WHERE deck=?", id);
       this.sql.exec("DELETE FROM recipients WHERE deck=?", id);
       this.sql.exec("DELETE FROM grants WHERE deck=?", id);
@@ -400,53 +480,121 @@ export class Directory extends DurableObject<Env> {
       "6MB以下のPNG・JPEG・WebP・GIF画像を選んでください。",
     );
     const asset = assetId ?? crypto.randomUUID();
-    const existing = one(
+    const existing = one<{ hash: string | null }>(
       this.sql,
-      "SELECT id FROM assets WHERE id=? AND deck=?",
+      "SELECT hash FROM assets WHERE id=? AND deck=?",
       asset,
       work.id,
     );
-    // Reserve before awaiting: concurrent uploads cannot overrun the account/owner quota.
-    const total = one<{ n: number }>(
-      this.sql,
-      "SELECT COALESCE(SUM(bytes),0) AS n FROM assets",
-    )!.n;
-    const owner = one<{ n: number }>(
-      this.sql,
-      "SELECT COALESCE(SUM(bytes),0) AS n FROM assets WHERE owner=?",
-      work.owner,
-    )!.n;
-    insist(
-      existing ||
-        (total + bytes.length <= MAX_ASSETS &&
-          owner + bytes.length <= MAX_USER_ASSETS),
-      413,
-      "写真の保存容量の上限です（作成者ごと50MB・アプリ全体500MB）。不要な作品を整理してください。",
-    );
-    if (!existing)
+    const url = `/api/decks/${work.id}/assets/${asset}`;
+    if (existing && existing.hash === null) {
+      // Legacy per-deck copy (saved before dedup): keep the room-stored
+      // bytes authoritative and preserve the old retry behaviour.
+      try {
+        await checked(
+          await room(this.env, work.id).fetch(
+            new Request(`https://internal/assets/${asset}`, {
+              method: "POST",
+              headers: { "Content-Type": type, "X-Uploaded-By": user.id },
+              body: bytes,
+            }),
+          ),
+        );
+      } catch (error) {
+        // The row predates this call; never delete it here.
+        throw error;
+      }
+      return url;
+    }
+    const hash = await digestBytes(bytes);
+    if (existing && existing.hash !== hash)
+      // An id was reused with different bytes: drop the stale binding
+      // before rebinding so the old blob can be released below.
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec("DELETE FROM assets WHERE id=?", asset);
+        this.releaseBlob(work.owner, existing.hash!);
+      });
+    if (existing && existing.hash === hash) {
+      // Retry of an upload that already bound this exact image: make sure
+      // the shared copy survived, then finish without charging quota again.
+      this.ctx.storage.transactionSync(() => {
+        if (
+          !one(
+            this.sql,
+            "SELECT hash FROM blobs WHERE owner=? AND hash=?",
+            work.owner,
+            hash,
+          )
+        )
+          this.storeBlob(work.owner, hash, type!, bytes);
+      });
+      await this.announceAsset(work, asset, type!, bytes.length, user);
+      return url;
+    }
+    // Check and reserve in one transaction: concurrent uploads cannot
+    // overrun the account/owner quota, and identical images are stored
+    // (and charged) only once per owner.
+    this.ctx.storage.transactionSync(() => {
+      const known = one(
+        this.sql,
+        "SELECT hash FROM blobs WHERE owner=? AND hash=?",
+        work.owner,
+        hash,
+      );
+      if (!known) {
+        insist(
+          this.assetUsage() + bytes.length <= MAX_ASSETS &&
+            this.assetUsage(work.owner) + bytes.length <= MAX_USER_ASSETS,
+          413,
+          "写真の保存容量の上限です（作成者ごと500MB・アプリ全体5GB）。不要な作品を整理してください。",
+        );
+        this.storeBlob(work.owner, hash, type!, bytes);
+      }
       this.sql.exec(
-        "INSERT INTO assets VALUES(?,?,?,?)",
+        "INSERT INTO assets VALUES(?,?,?,?,?)",
         asset,
         work.id,
         work.owner,
         bytes.length,
+        hash,
       );
+    });
     try {
-      await checked(
-        await room(this.env, work.id).fetch(
-          new Request(`https://internal/assets/${asset}`, {
-            method: "POST",
-            headers: { "Content-Type": type, "X-Uploaded-By": user.id },
-            body: bytes,
-          }),
-        ),
-      );
+      await this.announceAsset(work, asset, type!, bytes.length, user);
     } catch (error) {
-      if (!existing && !assetId)
-        this.sql.exec("DELETE FROM assets WHERE id=?", asset);
+      if (!assetId)
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec("DELETE FROM assets WHERE id=?", asset);
+          this.releaseBlob(work.owner, hash);
+        });
       throw error;
     }
-    return `/api/decks/${work.id}/assets/${asset}`;
+    return url;
+  }
+  /** Record a deduplicated image in its deck's room (binding only: id,
+   * type, size, uploader). The room needs the binding for document
+   * validation and media visibility; the bytes stay in the directory. */
+  private async announceAsset(
+    work: Work,
+    asset: string,
+    type: string,
+    size: number,
+    user: User,
+  ) {
+    await checked(
+      await room(this.env, work.id).fetch(
+        new Request(`https://internal/assets/${asset}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": type,
+            "X-Uploaded-By": user.id,
+            "X-Shared-Blob": "1",
+            "X-Shared-Bytes": String(size),
+          },
+          body: new Uint8Array(0),
+        }),
+      ),
+    );
   }
   async fetch(request: Request): Promise<Response> {
     try {
@@ -562,8 +710,17 @@ export class Directory extends DurableObject<Env> {
         enabled: !!this.env.GOOGLE_CLIENT_ID,
         syncIntervalMs: 1000,
         notice:
-          "写真は作成者ごと50MB・全体500MBまで。授業の終わりにはJSONも保存してください。",
+          "写真は作成者ごと500MB・全体5GBまで。同じ写真は1回だけ数えます。授業の終わりにはJSONも保存してください。",
       });
+    if (path === "/api/usage" && method === "GET") {
+      const { user } = await this.identity(request);
+      return json({
+        used: this.assetUsage(user.id),
+        limit: MAX_USER_ASSETS,
+        totalUsed: this.assetUsage(),
+        totalLimit: MAX_ASSETS,
+      });
+    }
     if (path === "/api/session" && method === "GET") {
       try {
         return json({ user: (await this.identity(request)).user });
@@ -2705,7 +2862,47 @@ export class Directory extends DurableObject<Env> {
         201,
       );
     }
-    if (/^assets\/[a-f0-9-]{36}$/.test(extra || "") && method === "GET")
+    if (/^assets\/[a-f0-9-]{36}$/.test(extra || "") && method === "GET") {
+      const assetId = extra!.slice("assets/".length);
+      const bound = one<{ hash: string | null; owner: string }>(
+        this.sql,
+        "SELECT hash,owner FROM assets WHERE id=? AND deck=?",
+        assetId,
+        id,
+      );
+      if (bound?.hash) {
+        // Deduplicated image: the bytes live here, but the room still
+        // decides who may see media of this deck.
+        const verdict = await room(this.env, id).fetch(
+          new Request(`https://internal/assets/${assetId}/check`, {
+            headers: {
+              "X-Media-User": user.id,
+              "X-Media-Host": work.owner === user.id ? "1" : "0",
+            },
+          }),
+        );
+        if (!verdict.ok) return verdict;
+        const blob = one<{ mime: string; bytes: number }>(
+          this.sql,
+          "SELECT mime,bytes FROM blobs WHERE owner=? AND hash=?",
+          bound.owner,
+          bound.hash,
+        );
+        insist(blob, 404, "写真が見つかりません。");
+        const chunks = rows<{ data: ArrayBuffer }>(
+          this.sql,
+          "SELECT data FROM blob_chunks WHERE owner=? AND hash=? ORDER BY part",
+          bound.owner,
+          bound.hash,
+        );
+        return new Response(new Blob(chunks.map((chunk) => chunk.data)), {
+          headers: {
+            "Content-Type": blob.mime,
+            "Content-Length": String(blob.bytes),
+            "Cache-Control": "private, no-store",
+          },
+        });
+      }
       return room(this.env, id).fetch(
         new Request(`https://internal/${extra}`, {
           headers: {
@@ -2714,6 +2911,7 @@ export class Directory extends DurableObject<Env> {
           },
         }),
       );
+    }
     if (
       extra === "live" &&
       method === "GET" &&

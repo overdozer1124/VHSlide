@@ -600,6 +600,7 @@ export class CloudWorkspace {
   busy = false;
   error = "";
   notice = "";
+  usage?: { used: number; limit: number };
   onState = () => {};
   onDeck = (_deck: Deck, _reset: boolean) => {};
   joinRequest?: {
@@ -742,6 +743,14 @@ export class CloudWorkspace {
     this.decks = this.user
       ? (await api<{ decks: CloudDeck[] }>("/api/decks")).decks
       : [];
+    if (this.user) {
+      try {
+        const usage = await api<{ used: number; limit: number }>("/api/usage");
+        this.usage = { used: usage.used, limit: usage.limit };
+      } catch {
+        /* Usage display is informational; keep the last known value. */
+      }
+    } else this.usage = undefined;
     this.emit();
   }
   async signIn(credential: string) {
@@ -990,6 +999,7 @@ export class CloudWorkspace {
       // applied deck, since the room would reject the whole save
       // otherwise.
       const imageFailures: string[] = [];
+      const imageFailureReasons = new Set<string>();
       if (imageSources.length) {
         const uploaded = new Map<string, string>();
         for (const [index, source] of imageSources.entries()) {
@@ -997,12 +1007,16 @@ export class CloudWorkspace {
             const file = dataUrlToFile(source, `embedded-${index + 1}`);
             if (!file) throw new Error("画像データを読み取れませんでした。");
             uploaded.set(source, await this.upload(file, result.id));
-          } catch {
+          } catch (error) {
             imageFailures.push(
               imageSources.length > 1
                 ? `画像（${index + 1}枚目）`
                 : "画像",
             );
+            // Keep the server's reason: "which image" alone left teachers
+            // unable to tell a full photo quota from a passing glitch.
+            const reason = (error as Error)?.message;
+            if (reason) imageFailureReasons.add(reason);
           }
         }
         finalDeck = rewriteImageSources(finalDeck, uploaded).deck;
@@ -1027,7 +1041,11 @@ export class CloudWorkspace {
           );
         if (imageFailures.length)
           parts.push(
-            `一部の画像を取り込めませんでした（${imageFailures.join("、")}）`,
+            `一部の画像を取り込めませんでした（${imageFailures.join("、")}）${
+              imageFailureReasons.size
+                ? `。理由：${[...imageFailureReasons].join("／")}`
+                : ""
+            }`,
           );
         throw new Error(
           `作品はクラウドに保存しましたが、${parts.join("。")}。`,

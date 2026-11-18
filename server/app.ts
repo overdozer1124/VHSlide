@@ -289,6 +289,7 @@ export function createApplication(options: Options) {
     CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, data BLOB NOT NULL);
     CREATE INDEX IF NOT EXISTS updates_deck ON updates(deck,seq);
     CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, owner TEXT NOT NULL, mime TEXT NOT NULL, bytes INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS blobs (owner TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, PRIMARY KEY(owner,hash));
     CREATE INDEX IF NOT EXISTS assets_owner ON assets(owner);
     CREATE TABLE IF NOT EXISTS restore_jobs (deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE);
   `);
@@ -304,6 +305,13 @@ export function createApplication(options: Options) {
   ])
     if (!commentColumns.has(name))
       db.exec(`ALTER TABLE comments ADD COLUMN ${name} ${type}`);
+  const assetColumns = new Set(
+    (db.prepare("PRAGMA table_info(assets)").all() as { name: string }[]).map(
+      (c) => c.name,
+    ),
+  );
+  if (!assetColumns.has("hash"))
+    db.exec("ALTER TABLE assets ADD COLUMN hash TEXT");
 
   applyStage1OrgMigration(nodeStage1OrgDb(db));
   applyStage1OperatorMigration(nodeStage1OrgDb(db));
@@ -348,11 +356,8 @@ export function createApplication(options: Options) {
   const maximumConnections =
     options.maxConnections ?? limit("MAX_CONNECTIONS", 200);
   const maximumRoom = limit("MAX_ROOM_CONNECTIONS", 50);
-  const maximumAssets = limit(
-    "MAX_TOTAL_ASSET_BYTES",
-    storage.kind === "bucket" ? 5_000_000_000 : 1_000_000_000,
-  );
-  const userAssets = limit("MAX_USER_ASSET_BYTES", 250_000_000);
+  const maximumAssets = limit("MAX_TOTAL_ASSET_BYTES", 5_000_000_000);
+  const userAssets = limit("MAX_USER_ASSET_BYTES", 500_000_000);
   const rate = new Map<string, { count: number; until: number }>();
   function rateLimit(key: string, maximum: number, amount = 1) {
     let entry = rate.get(key);
@@ -614,6 +619,46 @@ export function createApplication(options: Options) {
       ownsPending(asset, user.id)
     );
   }
+  /** Deduplicated images are stored once per content hash; every owner's
+   * assets rows reference the shared copy and the quota counts it once. */
+  const blobKey = (hash: string) => `blob-${hash}`;
+  function assetUsage(owner?: string) {
+    const blob = (
+      owner
+        ? db
+            .prepare(
+              "SELECT COALESCE(SUM(bytes),0) AS n FROM blobs WHERE owner=?",
+            )
+            .get(owner)
+        : db.prepare("SELECT COALESCE(SUM(bytes),0) AS n FROM blobs").get()
+    ) as { n: number };
+    const legacy = (
+      owner
+        ? db
+            .prepare(
+              "SELECT COALESCE(SUM(bytes),0) AS n FROM assets WHERE owner=? AND hash IS NULL",
+            )
+            .get(owner)
+        : db
+            .prepare(
+              "SELECT COALESCE(SUM(bytes),0) AS n FROM assets WHERE hash IS NULL",
+            )
+            .get()
+    ) as { n: number };
+    return blob.n + legacy.n;
+  }
+  /** Drop a shared copy whose last referencing asset row is gone. */
+  async function releaseBlob(owner: string, hash: string) {
+    const refs = db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM assets WHERE owner=? AND hash=?",
+      )
+      .get(owner, hash) as { n: number };
+    if (refs.n) return;
+    db.prepare("DELETE FROM blobs WHERE owner=? AND hash=?").run(owner, hash);
+    if (!db.prepare("SELECT hash FROM blobs WHERE hash=?").get(hash))
+      await storage.remove(blobKey(hash)).catch(() => {});
+  }
   function compact(id: string, r: Room) {
     db.exec("BEGIN IMMEDIATE");
     try {
@@ -643,10 +688,29 @@ export function createApplication(options: Options) {
       "6MB以下のPNG・JPEG・WebP・GIF画像を選んでください。",
     );
     const asset = fixedId ?? randomUUID();
-    const existing = db
-      .prepare("SELECT id FROM assets WHERE id=? AND deck=?")
-      .get(asset, id);
-    if (existing && fixedId) {
+    const hash = await digestBytes(bytes);
+    let existing = db
+      .prepare("SELECT hash FROM assets WHERE id=? AND deck=?")
+      .get(asset, id) as { hash: string | null } | undefined;
+    if (existing && existing.hash === hash) {
+      // The same image is already bound to this id: finish once the
+      // shared copy is confirmed readable, without charging quota again.
+      db.prepare("INSERT OR IGNORE INTO restore_uploads VALUES(?,0)").run(
+        asset,
+      );
+      try {
+        await storage.read(blobKey(hash));
+        db.prepare("UPDATE restore_uploads SET ready=1 WHERE asset=?").run(
+          asset,
+        );
+        return `/api/decks/${id}/assets/${asset}`;
+      } catch {
+        /* The shared copy is missing; store it again below. */
+      }
+    } else if (existing && existing.hash === null && fixedId) {
+      // Legacy per-asset copy from before dedup: resume in place when the
+      // stored bytes already match, otherwise fall through and rebind
+      // this id to the shared copy.
       db.prepare("INSERT OR IGNORE INTO restore_uploads VALUES(?,0)").run(
         asset,
       );
@@ -664,31 +728,49 @@ export function createApplication(options: Options) {
         /* Resume a reserved upload interrupted before persistence. */
       }
       await storage.remove(asset);
+    } else if (existing && existing.hash !== null) {
+      // The id was rebound to different bytes: release the stale binding.
+      db.prepare("DELETE FROM assets WHERE id=?").run(asset);
+      await releaseBlob(owner, existing.hash);
+      existing = undefined;
     }
-    const total = db
-      .prepare("SELECT COALESCE(SUM(bytes),0) AS n FROM assets")
-      .get() as { n: number };
-    const used = db
-      .prepare("SELECT COALESCE(SUM(bytes),0) AS n FROM assets WHERE owner=?")
-      .get(owner) as { n: number };
+    const known = db
+      .prepare("SELECT hash FROM blobs WHERE owner=? AND hash=?")
+      .get(owner, hash);
     insist(
-      existing ||
-        (total.n + bytes.length <= maximumAssets &&
-          used.n + bytes.length <= userAssets),
+      known ||
+        (assetUsage() + bytes.length <= maximumAssets &&
+          assetUsage(owner) + bytes.length <= userAssets),
       413,
       "写真の保存容量の上限です。不要な作品を整理してください。",
     );
     if (!existing)
-      db.prepare("INSERT INTO assets VALUES(?,?,?,?,?)").run(
+      db.prepare("INSERT INTO assets VALUES(?,?,?,?,?,?)").run(
         asset,
         id,
         owner,
         mime,
         bytes.length,
+        hash,
+      );
+    else if (existing.hash !== hash)
+      db.prepare("UPDATE assets SET hash=? WHERE id=?").run(hash, asset);
+    if (!known)
+      db.prepare("INSERT INTO blobs VALUES(?,?,?,?)").run(
+        owner,
+        hash,
+        bytes.length,
+        mime,
       );
     db.prepare("INSERT OR IGNORE INTO restore_uploads VALUES(?,0)").run(asset);
     try {
-      await storage.put(asset, bytes, mime);
+      let stored = true;
+      try {
+        await storage.read(blobKey(hash));
+      } catch {
+        stored = false;
+      }
+      if (!stored) await storage.put(blobKey(hash), bytes, mime);
       insist(
         !deleting.has(id) &&
           db
@@ -705,8 +787,8 @@ export function createApplication(options: Options) {
     } catch (error) {
       try {
         if (!fixedId) {
-          await storage.remove(asset);
           db.prepare("DELETE FROM assets WHERE id=?").run(asset);
+          await releaseBlob(owner, hash);
         }
       } catch {
         /* Retain a surviving reservation for a later explicit cleanup. */
@@ -757,6 +839,15 @@ export function createApplication(options: Options) {
           /* Signed out. */
         }
         return json(res, 200, { user: current });
+      }
+      if (path === "/api/usage" && method === "GET") {
+        const current = user(req);
+        return json(res, 200, {
+          used: assetUsage(current.id),
+          limit: userAssets,
+          totalUsed: assetUsage(),
+          totalLimit: maximumAssets,
+        });
       }
       // Uploaded user apps: public by unguessable id, isolated by the
       // sandbox CSP below (opaque origin). Overrides the app CSP set above.
@@ -1770,12 +1861,21 @@ export function createApplication(options: Options) {
             doc.destroy();
           } catch (error) {
             const assets = db
-              .prepare("SELECT id FROM assets WHERE deck=?")
-              .all(id) as { id: string }[];
+              .prepare("SELECT id,hash FROM assets WHERE deck=?")
+              .all(id) as { id: string; hash: string | null }[];
             await Promise.allSettled(
-              assets.map((asset) => storage.remove(asset.id)),
+              assets
+                .filter((asset) => !asset.hash)
+                .map((asset) => storage.remove(asset.id)),
             );
+            const shared = db
+              .prepare(
+                "SELECT DISTINCT owner,hash FROM assets WHERE deck=? AND hash IS NOT NULL",
+              )
+              .all(id) as { owner: string; hash: string }[];
             db.prepare("DELETE FROM decks WHERE id=?").run(id);
+            for (const blob of shared)
+              await releaseBlob(blob.owner, blob.hash);
             db.prepare(
               "UPDATE restore_tasks SET status='cancelled' WHERE id=?",
             ).run(id);
@@ -2537,9 +2637,15 @@ export function createApplication(options: Options) {
             for (const peer of rooms.get(id)?.clients ?? [])
               peer.ws.close(4003, "作品が削除されました。");
             const assets = db
-              .prepare("SELECT id FROM assets WHERE deck=?")
-              .all(id) as { id: string }[];
-            for (const asset of assets) await storage.remove(asset.id);
+              .prepare("SELECT id,hash FROM assets WHERE deck=?")
+              .all(id) as { id: string; hash: string | null }[];
+            for (const asset of assets)
+              if (!asset.hash) await storage.remove(asset.id);
+            const shared = db
+              .prepare(
+                "SELECT DISTINCT owner,hash FROM assets WHERE deck=? AND hash IS NOT NULL",
+              )
+              .all(id) as { owner: string; hash: string }[];
             rooms.get(id)?.doc.destroy();
             rooms.delete(id);
             db.exec("BEGIN IMMEDIATE");
@@ -2559,6 +2665,8 @@ export function createApplication(options: Options) {
               db.exec("ROLLBACK");
               throw error;
             }
+            for (const blob of shared)
+              await releaseBlob(blob.owner, blob.hash);
           } finally {
             deleting.delete(id);
           }
@@ -2967,15 +3075,19 @@ export function createApplication(options: Options) {
         const asset = /^assets\/([a-f0-9-]{36})$/.exec(extra ?? "");
         if (asset && method === "GET") {
           const found = db
-            .prepare("SELECT mime FROM assets WHERE deck=? AND id=?")
-            .get(id, asset[1]) as { mime: string } | undefined;
+            .prepare("SELECT mime,hash FROM assets WHERE deck=? AND id=?")
+            .get(id, asset[1]) as
+            | { mime: string; hash: string | null }
+            | undefined;
           insist(found, 404, "写真が見つかりません。");
           insist(
             mayReadAsset(id, asset[1], u, access.owner),
             404,
             "写真が見つかりません。",
           );
-          const bytes = await storage.read(asset[1]);
+          const bytes = await storage.read(
+            found.hash ? blobKey(found.hash) : asset[1],
+          );
           const latestAccess = member(id, u);
           insist(
             mayReadAsset(id, asset[1], u, latestAccess.owner),
