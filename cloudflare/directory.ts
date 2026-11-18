@@ -16,6 +16,10 @@ import {
   thinkingList,
   thinkingCommand,
 } from "../src/thinkingTools.ts";
+import {
+  learningRecord,
+  myLearningRecord,
+} from "../src/learningRecord.ts";
 import { groupSchema, groupList, groupCommand } from "../src/groups.ts";
 import {
   addUserApp,
@@ -2053,6 +2057,28 @@ export class Directory extends DurableObject<Env> {
             ? { createdId: extraResult.createdId }
             : {}),
         });
+      });
+    }
+    if (extra === "record" || extra === "record/me") {
+      insist(method === "GET", 405, "この操作には対応していません。");
+      const current = this.access(id, user);
+      const host = current.owner === user.id;
+      if (extra === "record")
+        insist(host, 403, "みんなの記録を見られるのは先生だけです。");
+      const deckResponse = await checked(
+        await room(this.env, id).fetch(internal("/deck-json")),
+      );
+      const deck = parseDeck(JSON.stringify(await deckResponse.json()));
+      const filter =
+        new URL(request.url).searchParams.get("user") ?? undefined;
+      return this.ctx.storage.transactionSync(() => {
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        return json(
+          extra === "record"
+            ? { students: learningRecord(sql, deck, id, user.id, filter) }
+            : { record: myLearningRecord(sql, deck, id, user.id) },
+        );
       });
     }
     if (extra === "join-requests" && method === "GET") {

@@ -23,6 +23,10 @@ import {
   ThinkingError,
 } from "../src/thinkingTools.ts";
 import {
+  learningRecord,
+  myLearningRecord,
+} from "../src/learningRecord.ts";
+import {
   groupSchema,
   groupList,
   groupCommand,
@@ -2214,6 +2218,23 @@ export function createApplication(options: Options) {
             db.exec("ROLLBACK");
             throw error;
           }
+        }
+        if (extra === "record" || extra === "record/me") {
+          insist(method === "GET", 405, "この操作には対応していません。");
+          const current = member(id, u);
+          const host = current.owner === u.id;
+          if (extra === "record")
+            insist(host, 403, "みんなの記録を見られるのは先生だけです。");
+          const deck = readSharedDeck(room(id).doc);
+          if (extra === "record") {
+            const filter = url.searchParams.get("user") ?? undefined;
+            return json(res, 200, {
+              students: learningRecord(historySQL, deck, id, u.id, filter),
+            });
+          }
+          return json(res, 200, {
+            record: myLearningRecord(historySQL, deck, id, u.id),
+          });
         }
         if (extra === "join-requests" && method === "GET") {
           member(id, u, true);

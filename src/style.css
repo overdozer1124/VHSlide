@@ -7954,6 +7954,42 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-tool-actions button { font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
 .thinking-scene-switch label { display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;color:#2e2440; }
 .thinking-results { display:flex;flex-direction:column;gap:10px;border-top:1px dashed #ddd3f2;padding-top:10px; }
+.learning-record { flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:14px 18px;background:#f7f5fb; }
+.learning-record-head { display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+.learning-record-head h2 { margin:0;font-size:19px;color:#2e2440; }
+.learning-record-actions { display:flex;gap:6px;flex-wrap:wrap; }
+.learning-record-actions button { font-size:12.5px;padding:5px 12px;border-radius:8px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
+.learning-record-actions button:disabled { opacity:.45;cursor:default; }
+.record-students { display:flex;gap:6px;flex-wrap:wrap; }
+.record-students button { font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer;display:inline-flex;gap:7px;align-items:baseline; }
+.record-students button.is-active { background:#5b4a8a;border-color:#5b4a8a;color:#fff; }
+.record-count { font-size:11px;font-weight:400;opacity:.75; }
+.record-mine-note { margin:0;font-size:13px;color:#4a3a6b; }
+.record-error { margin:0;font-size:13px;color:#a33; }
+.record-none { font-size:13px;color:#7a6f96; }
+.record-timeline { display:flex;flex-direction:column;gap:14px;max-width:860px; }
+.record-time h3 { margin:0 0 6px;font-size:14.5px;color:#5b4a8a;border-bottom:2px solid #d9cff0;padding-bottom:3px; }
+.record-entry { background:#fff;border:1px solid #ddd3f0;border-radius:10px;padding:9px 12px;margin-bottom:8px; }
+.record-entry-head { display:flex;gap:8px;align-items:baseline;flex-wrap:wrap; }
+.record-kind { font-size:10.5px;font-weight:700;color:#fff;background:#8a76b8;border-radius:999px;padding:1px 8px; }
+.record-entry-title { font-size:13.5px;font-weight:700;color:#2e2440; }
+.record-group { font-size:11.5px;color:#5b4a8a; }
+.record-slide { font-size:11.5px;color:#7a6f96; }
+.record-fields { margin:7px 0 0;display:flex;flex-direction:column;gap:4px; }
+.record-field { display:flex;gap:10px;font-size:13px; }
+.record-field dt { flex:0 0 9em;color:#7a6f96; }
+.record-field dd { margin:0;color:#2e2440;white-space:pre-wrap;word-break:break-word; }
+.record-reason { display:block;font-size:11.5px;color:#7a6f96;margin-top:2px; }
+.record-answer { margin:7px 0 0;font-size:13px;color:#2e2440;white-space:pre-wrap;word-break:break-word; }
+.record-zones { margin-top:7px;display:flex;flex-direction:column;gap:5px; }
+.record-zone { display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;font-size:13px; }
+.record-zone-label { flex:0 0 9em;color:#7a6f96;font-size:13px; }
+.record-card { background:#fff8e1;border:1px solid #e3d5a8;border-radius:7px;padding:2px 8px;font-size:12.5px;color:#2e2440; }
+.record-card.is-none { background:#f4f1fa;border-color:#cfc3e8; }
+.record-empty { color:#7a6f96;font-size:12.5px; }
+.learning-record-print { color:#000; }
+.learning-record-print h1 { font-size:17px;margin:0 0 10px; }
+.learning-record-print .record-entry { border-color:#bbb; }
 .thinking-results-head { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
 .thinking-results-head > button { font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
 .thinking-results-count { font-size:12px;color:#7a6f96; }
