@@ -851,6 +851,17 @@ export function CloudPanel({
               <details>
                 <summary>保存容量とご利用について</summary>
                 <p>{cloud.notice}</p>
+                {cloud.usage && (
+                  <p>
+                    あなたの写真の保存容量：
+                    {cloud.usage.used >= 1_000_000
+                      ? `${(cloud.usage.used / 1_000_000).toFixed(1)}MB`
+                      : `${Math.max(1, Math.round(cloud.usage.used / 1_000))}KB`}
+                    {" / "}
+                    {`${Math.round(cloud.usage.limit / 1_000_000)}MB`}
+                    （同じ写真は1回だけ数えます）
+                  </p>
+                )}
               </details>
             )}
             {cloud.active && (

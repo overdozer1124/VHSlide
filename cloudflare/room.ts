@@ -182,6 +182,16 @@ export class SlideRoom extends DurableObject<Env> {
       user,
     );
   }
+  /** The one media-visibility rule, shared by asset reads and by the
+   * directory's check for deduplicated images whose bytes it serves. */
+  private mediaVisible(asset: string, request: Request) {
+    const viewer = request.headers.get("X-Media-User") ?? "";
+    return (
+      request.headers.get("X-Media-Host") === "1" ||
+      this.currentMedia().has(`/api/decks/${this.id()}/assets/${asset}`) ||
+      this.ownsPending(asset, viewer)
+    );
+  }
   private peers() {
     return this.ctx
       .getWebSockets()
@@ -511,7 +521,13 @@ export class SlideRoom extends DurableObject<Env> {
     }
     const asset = /^\/assets\/([a-f0-9-]{36})$/.exec(path);
     if (asset && request.method === "POST") {
-      const data = await body(request, 6_000_000),
+      // Deduplicated images keep their bytes in the directory; the room
+      // only records the binding (id, type, size) it needs for document
+      // validation and media visibility.
+      const shared = request.headers.get("X-Shared-Blob") === "1",
+        data = shared
+          ? new Uint8Array(0)
+          : await body(request, 6_000_000),
         mime = request.headers.get("Content-Type")!;
       const existing = one(
         this.sql,
@@ -529,7 +545,9 @@ export class SlideRoom extends DurableObject<Env> {
           "INSERT INTO assets VALUES(?,?,?)",
           asset[1],
           mime,
-          data.length,
+          shared
+            ? Number(request.headers.get("X-Shared-Bytes") ?? 0)
+            : data.length,
         );
         const uploader = request.headers.get("X-Uploaded-By");
         if (uploader)
@@ -548,14 +566,18 @@ export class SlideRoom extends DurableObject<Env> {
       });
       return json({ ok: true }, 201);
     }
-    if (asset && request.method === "GET") {
-      const viewer = request.headers.get("X-Media-User") ?? "";
+    const assetCheck = /^\/assets\/([a-f0-9-]{36})\/check$/.exec(path);
+    if (assetCheck && request.method === "GET") {
       insist(
-        request.headers.get("X-Media-Host") === "1" ||
-          this.currentMedia().has(
-            `/api/decks/${this.id()}/assets/${asset[1]}`,
-          ) ||
-          this.ownsPending(asset[1], viewer),
+        this.mediaVisible(assetCheck[1], request),
+        404,
+        "写真が見つかりません。",
+      );
+      return json({ ok: true });
+    }
+    if (asset && request.method === "GET") {
+      insist(
+        this.mediaVisible(asset[1], request),
         404,
         "写真が見つかりません。",
       );
