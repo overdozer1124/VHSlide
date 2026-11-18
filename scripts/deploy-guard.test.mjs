@@ -72,6 +72,29 @@ test("fails closed for missing, ambiguous or split production deployments", () =
       }),
     ),
   );
+  const chart = {
+    id: "chart",
+    annotations: { "workers/message": "0.140.2 X chart shape (PR #25)" },
+    versions: [
+      {
+        version_id: "23b6490e-0fed-4337-99ed-e35548a0abf8",
+        percentage: 100,
+      },
+    ],
+  };
+  assert.deepEqual(deployedVersion(payload(chart)), {
+    version: "0.140.2",
+    id: "chart",
+    commit: "f152568eb05d72279f6ef017583a387f7fd9e104",
+  });
+  assert.throws(() =>
+    deployedVersion(
+      payload({
+        ...chart,
+        versions: [{ version_id: "other", percentage: 100 }],
+      }),
+    ),
+  );
   assert.throws(() =>
     deployedVersion(
       payload({

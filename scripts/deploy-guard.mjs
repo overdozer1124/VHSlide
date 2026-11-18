@@ -56,6 +56,19 @@ export function deployedVersion(payload) {
       commit: "694d1d995cee322f58130e92ec4428c6e4f4f2c6",
     };
   }
+  // The 0.140.2 production deploy used a message outside the Deploy prefix.
+  // Match this exact deployment only; do not parse other free-form messages.
+  if (
+    message === "0.140.2 X chart shape (PR #25)" &&
+    deployment.versions[0].version_id ===
+      "23b6490e-0fed-4337-99ed-e35548a0abf8"
+  ) {
+    return {
+      version: "0.140.2",
+      id: deployment.id,
+      commit: "f152568eb05d72279f6ef017583a387f7fd9e104",
+    };
+  }
   const match =
     typeof message === "string" &&
     /^Deploy (\d+\.\d+\.\d+)(?:\s|:|$)/.exec(message);
