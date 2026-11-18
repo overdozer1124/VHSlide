@@ -720,6 +720,36 @@ describe("thinking owner labels", () => {
     const studentView = thinkingList(sql, "deck", "ana", false);
     expect(studentView[0].roster).toBeUndefined();
   });
+
+  it("numbers by join order, so a midway joiner never shifts others (stage-4 🔴)", () => {
+    const { db, sql } = fixture();
+    const tool = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "emotion",
+      unit: "individual",
+      definition: { title: "気持ち", xMin: "いや", xMax: "よい" },
+    });
+    thinkingCommand(sql, "deck", "host", true, "status", tool!.createdId, {
+      status: "open",
+    });
+    const before = thinkingList(sql, "deck", "host", true)[0].roster;
+    expect(before).toEqual(["ana", "bob", "eve"]);
+    expect(
+      thinkingOwnerLabels(["eve"], names, false, before).map((l) => l.label),
+    ).toEqual(["生徒3"]);
+    // A student whose id sorts before everyone's joins midway.
+    db.prepare("INSERT INTO users VALUES(?,?,?)").run("aaron", "あろん", "");
+    db.prepare("INSERT INTO members VALUES(?,?)").run("deck", "aaron");
+    const after = thinkingList(sql, "deck", "host", true)[0].roster;
+    // Join order: the newcomer takes the next number at the end and
+    // nobody already there moves.
+    expect(after).toEqual(["ana", "bob", "eve", "aaron"]);
+    expect(
+      thinkingOwnerLabels(["eve", "aaron"], names, false, after),
+    ).toEqual([
+      { owner: "eve", label: "生徒3" },
+      { owner: "aaron", label: "生徒4" },
+    ]);
+  });
 });
 
 function thinkingGroups(sql: HistorySQL): string[] {

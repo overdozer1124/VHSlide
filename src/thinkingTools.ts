@@ -120,11 +120,11 @@ export type ThinkingView = ThinkingTool & {
   locks: ThinkingLock[];
   /** The group the viewer belongs to (group-unit tools). */
   myGroupId?: string;
-  /** Host only: every member's id in a fixed order, so the
-   * pseudonym numbers （生徒1・生徒2…) stay put for the whole
-   * lesson even when a student answers for the first time midway
-   * (stage-4 🟡3). Never sent to students — it lists other
-   * students' ids. */
+  /** Host only: every member's id in join order, so the pseudonym
+   * numbers （生徒1・生徒2…) stay put for the whole lesson even
+   * when a student answers for the first time midway or joins the
+   * deck midway (stage-4 🟡3). Never sent to students — it lists
+   * other students' ids. */
   roster?: string[];
 };
 export class ThinkingError extends Error {
@@ -737,13 +737,16 @@ export function thinkingList(
   caps?: { board?: boolean },
 ): ThinkingView[] {
   const now = Date.now();
-  // The host's fixed member order for stable pseudonym numbers.
-  // Students never receive it (it lists other students' ids).
+  // The host's fixed member order for stable pseudonym numbers:
+  // JOIN order (the members table's rowid), never id order — a
+  // student who joins the deck midway takes the next number at the
+  // end instead of slotting into the id order and pushing everyone
+  // after them down by one. Students never receive the roster (it
+  // lists other students' ids).
   const roster = host
-    ? [...sql("SELECT user_id FROM members WHERE deck=?", deck)]
+    ? [...sql("SELECT user_id FROM members WHERE deck=? ORDER BY rowid", deck)]
         .map((row) => String(row.user_id))
         .filter((id) => id !== actor)
-        .sort()
     : undefined;
   return [
     ...sql(
