@@ -1,1035 +1,1150 @@
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>学校の運用</title>
-    <style>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学校の運用</title>
+<style>
       :root {
-        --bg: #edf0f4;
+        --bg: #f6f8f5;
         --card: #ffffff;
-        --ink: #1e2732;
-        --muted: #5c6875;
-        --line: #ccd4dd;
-        --accent: #31559f;
-        --accent-dark: #26437e;
-        --tint: #e3ebf7;
-        --step-bg: #f2f5f9;
-        --chip-bg: #e6ebf1;
-        --ok: #177245;
-        --ok-bg: #e7f4ec;
-        --err: #b3261e;
-        --err-bg: #fbeae8;
-        --warn-line: #d9a92c;
+        --ink: #1f2a24;
+        --muted: #56625b;
+        --faint: #8b958f;
+        --line: #d3dcd5;
+        --line-soft: #e6ece7;
+        --accent: #3c5a4c;
+        --accent-dark: #2d4539;
+        --accent-ink: #ffffff;
+        --tint: #eaf0e9;
+        --soft: #f3f6f2;
+        --ok: #2f6a45;
+        --ok-bg: #edf5ea;
+        --err: #a8321f;
+        --err-bg: #fbece8;
+        --warn: #6e5410;
+        --warn-bg: #f8f2df;
+        --warn-line: #c9a540;
+        --focus: #3c5a4c;
+        --shadow: 0 1px 2px rgba(30, 50, 40, 0.05);
       }
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
       body {
         margin: 0;
-        font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo", sans-serif;
         background: var(--bg);
         color: var(--ink);
-        font-size: 16.5px;
+        font-size: 16px;
         line-height: 1.7;
       }
-      main {
-        max-width: 62rem;
-        margin: 0 auto;
-        padding: 1.5rem 1.25rem 4rem;
-      }
-      h1 {
-        font-size: 1.6rem;
-        margin: 0 0 0.3rem;
-      }
-      h2 {
-        font-size: 1.3rem;
-        margin: 0;
-      }
-      h3 {
-        font-size: 1.1rem;
-        margin: 0 0 0.3rem;
-      }
-      p {
-        margin: 0.4rem 0;
-      }
-      .card {
+      :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+      h1, h2, h3 { line-height: 1.35; }
+      h2 { font-size: 1.25rem; margin: 0; }
+      h3 { font-size: 1.05rem; margin: 0; }
+      p { margin: 0.35rem 0; }
+      .muted { color: var(--muted); }
+      .small { font-size: 0.9rem; }
+
+      /* ---------- top bar ---------- */
+      .topbar {
+        position: sticky; top: 0; z-index: 20;
         background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 1.3rem 1.4rem;
-        margin: 1.1rem 0;
-        box-shadow: 0 1px 3px rgba(30, 45, 70, 0.08);
+        border-bottom: 1px solid var(--line);
       }
-      .card-head {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.4rem;
+      .topbar-inner {
+        max-width: 60rem; margin: 0 auto;
+        padding: 0.6rem 1rem;
+        display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
       }
-      .tag {
-        font-size: 0.78rem;
-        color: var(--accent-dark);
-        background: var(--tint);
-        border-radius: 999px;
-        padding: 0.1rem 0.6rem;
-        white-space: nowrap;
+      .brand { font-weight: bold; font-size: 1.1rem; margin-right: auto; }
+      .brand small { font-weight: normal; color: var(--muted); font-size: 0.82rem; margin-left: 0.5rem; }
+      .me { display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; }
+      .avatar {
+        width: 2rem; height: 2rem; border-radius: 50%;
+        background: var(--tint); color: var(--accent-dark);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 0.85rem; flex: 0 0 auto;
       }
-      .purpose {
-        background: var(--step-bg);
-        border-radius: 10px;
-        padding: 0.7rem 0.9rem;
-        margin: 0.6rem 0;
-      }
-      .steps-box {
-        border: 1px dashed var(--line);
-        border-radius: 10px;
-        padding: 0.7rem 0.9rem 0.7rem 0.7rem;
-        margin: 0.6rem 0;
-      }
-      .steps-box .steps-title {
-        font-weight: bold;
+
+      main { max-width: 60rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
+
+      /* ---------- mock banner ---------- */
+      .mock-banner {
+        display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;
+        background: var(--warn-bg); color: var(--warn);
+        border: 1px dashed var(--warn-line);
+        border-radius: 10px; padding: 0.55rem 0.9rem; margin-bottom: 1rem;
         font-size: 0.9rem;
-        color: var(--muted);
-        margin: 0 0 0.2rem 0.4rem;
       }
-      .steps-box ol {
-        margin: 0.2rem 0 0.2rem 1.5rem;
-        padding: 0;
+      .mock-banner .grow { flex: 1 1 18rem; }
+      .mock-banner select { font: inherit; font-size: 0.88rem; padding: 0.25rem 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+
+      .intro h1 { font-size: 1.5rem; margin: 0.2rem 0 0.2rem; }
+      .intro p { color: var(--muted); max-width: 44rem; }
+
+      /* ---------- section nav ---------- */
+      .jump {
+        display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0 0.4rem;
       }
-      .steps-box li {
-        margin: 0.25rem 0;
+      .jump a {
+        text-decoration: none; color: var(--accent-dark);
+        background: var(--card); border: 1px solid var(--line);
+        border-radius: 999px; padding: 0.3rem 0.9rem; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.4rem;
       }
-      .warn {
-        background: var(--step-bg);
-        border-left: 4px solid var(--warn-line);
-        border-radius: 10px;
-        padding: 0.7rem 0.9rem;
-        margin: 0.6rem 0;
+      .jump a:hover { background: var(--tint); }
+
+      /* ---------- cards ---------- */
+      .card {
+        background: var(--card); border: 1px solid var(--line);
+        border-radius: 14px; padding: 1.2rem 1.3rem; margin: 1rem 0;
+        box-shadow: var(--shadow);
       }
-      label.field {
-        display: block;
-        margin: 0.8rem 0 0.3rem;
-        font-weight: bold;
-        font-size: 0.95rem;
+      .card-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+      .card-head .grow { flex: 1 1 auto; }
+      .lead { color: var(--muted); margin: 0.4rem 0 0.2rem; }
+      .section-label {
+        font-size: 0.8rem; font-weight: bold; letter-spacing: 0.06em;
+        color: var(--muted); margin: 1.8rem 0 -0.3rem 0.2rem;
       }
-      input[type="text"],
-      input[type="email"],
-      select {
-        width: 100%;
-        max-width: 26rem;
-        font: inherit;
-        padding: 0.55rem 0.7rem;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-      }
-      .btn {
-        font: inherit;
-        display: inline-block;
-        padding: 0.6rem 1.2rem;
-        min-height: 44px;
-        border-radius: 10px;
-        border: 1px solid var(--accent);
-        background: #fff;
-        color: var(--accent-dark);
-        cursor: pointer;
-        margin: 0.3rem 0.4rem 0.3rem 0;
-      }
-      .btn:hover {
-        background: var(--tint);
-      }
-      .btn.primary {
-        background: var(--accent);
-        color: #fff;
-        font-weight: bold;
-      }
-      .btn.primary:hover {
-        background: var(--accent-dark);
-      }
-      .btn.small {
-        padding: 0.3rem 0.8rem;
-        min-height: 38px;
-        font-size: 0.92rem;
-      }
-      .btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-      .btn:disabled:hover {
-        background: #fff;
-      }
-      .btn.primary:disabled:hover {
-        background: var(--accent);
-      }
-      .result {
-        display: none;
-        border-radius: 10px;
-        padding: 0.7rem 0.9rem;
-        margin-top: 0.8rem;
-      }
-      .result.show {
-        display: block;
-      }
-      .result.ok {
-        background: var(--ok-bg);
-        color: #0d4d29;
-      }
-      .result.err {
-        background: var(--err-bg);
-        color: var(--err);
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .account-bar {
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-        flex-wrap: wrap;
-      }
-      .account-bar .who {
-        font-weight: bold;
-      }
-      .row-item {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-        padding: 0.55rem 0;
-        border-top: 1px solid var(--step-bg);
-      }
-      .row-item .grow {
-        flex: 1 1 auto;
-        min-width: 12rem;
-      }
+
+      /* ---------- chips / badges ---------- */
       .chip {
-        font-size: 0.78rem;
-        border-radius: 999px;
-        padding: 0.05rem 0.55rem;
-        background: var(--chip-bg);
-        color: var(--muted);
-        white-space: nowrap;
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        font-size: 0.78rem; border-radius: 999px; padding: 0.05rem 0.6rem;
+        background: var(--soft); color: var(--muted); border: 1px solid var(--line-soft);
+        white-space: nowrap; line-height: 1.6;
       }
-      .chip.on {
-        background: var(--ok-bg);
-        color: var(--ok);
+      .chip.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+      .chip.off { background: var(--soft); color: var(--faint); }
+      .chip.accent { background: var(--tint); color: var(--accent-dark); border-color: transparent; }
+      .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+      .chip .dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; }
+      .count {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 1.35rem; height: 1.35rem; padding: 0 0.35rem;
+        border-radius: 999px; font-size: 0.75rem; font-weight: bold;
+        background: var(--soft); color: var(--muted);
       }
-      .sub-block {
-        border-top: 2px solid var(--step-bg);
-        margin-top: 1.1rem;
-        padding-top: 1rem;
+      .count.hot { background: var(--warn-line); color: #2b2000; }
+
+      /* ---------- help (collapsible steps) ---------- */
+      details.help { margin: 0.5rem 0 0.2rem; }
+      details.help summary {
+        cursor: pointer; color: var(--accent-dark); font-size: 0.9rem;
+        list-style: none; display: inline-flex; align-items: center; gap: 0.35rem;
       }
-      .task-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.6rem;
-        margin: 0.7rem 0;
+      details.help summary::-webkit-details-marker { display: none; }
+      details.help summary::before {
+        content: "?"; display: inline-flex; align-items: center; justify-content: center;
+        width: 1.2rem; height: 1.2rem; border-radius: 50%;
+        border: 1.5px solid currentColor; font-size: 0.75rem; font-weight: bold;
       }
-      @media (max-width: 620px) {
-        .task-grid {
-          grid-template-columns: 1fr;
-        }
+      details.help[open] summary { margin-bottom: 0.3rem; }
+      details.help ol {
+        margin: 0; padding: 0.6rem 0.9rem 0.6rem 2.2rem;
+        background: var(--soft); border-radius: 10px; font-size: 0.93rem;
       }
+      details.help li { margin: 0.15rem 0; }
+
+      /* ---------- forms ---------- */
+      .form-row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: flex-end; margin: 0.8rem 0 0.2rem; }
+      .field { display: flex; flex-direction: column; gap: 0.25rem; flex: 1 1 14rem; min-width: 0; }
+      .field.narrow { flex: 0 1 auto; }
+      .field-label { font-weight: bold; font-size: 0.9rem; }
+      .field-note { font-size: 0.82rem; color: var(--muted); }
+      input[type="text"], input[type="email"] {
+        width: 100%; font: inherit; padding: 0.55rem 0.75rem; min-height: 44px;
+        border: 1px solid var(--line); border-radius: 8px;
+        background: var(--card); color: var(--ink);
+      }
+      input[aria-invalid="true"] { border-color: var(--err); background: var(--err-bg); }
+      .segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-height: 44px; }
+      .segmented label { display: flex; align-items: center; cursor: pointer; }
+      .segmented input { position: absolute; opacity: 0; pointer-events: none; }
+      .segmented span { padding: 0.5rem 1.1rem; color: var(--muted); }
+      .segmented label + label span { border-left: 1px solid var(--line); }
+      .segmented input:checked + span { background: var(--accent); color: var(--accent-ink); font-weight: bold; }
+      .segmented input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: -3px; }
+
+      /* ---------- buttons ---------- */
+      .btn {
+        font: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+        padding: 0.5rem 1.1rem; min-height: 44px; border-radius: 9px;
+        border: 1px solid var(--line); background: var(--card); color: var(--ink);
+        cursor: pointer; white-space: nowrap;
+      }
+      .btn:hover { background: var(--soft); }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: bold; }
+      .btn.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+      .btn.danger { color: var(--err); border-color: var(--line); }
+      .btn.danger:hover { background: var(--err-bg); }
+      .btn.danger.solid { background: var(--err); border-color: var(--err); color: #fff; font-weight: bold; }
+      .btn.ghost { border-color: transparent; background: transparent; color: var(--accent-dark); }
+      .btn.ghost:hover { background: var(--tint); }
+      .btn.sm { padding: 0.25rem 0.75rem; min-height: 36px; font-size: 0.88rem; }
+      .btn:disabled, .btn:disabled:hover { opacity: 0.45; cursor: not-allowed; background: var(--card); }
+      .btn.primary:disabled, .btn.primary:disabled:hover { background: var(--accent); border-color: var(--accent); }
+      .btn.danger.solid:disabled, .btn.danger.solid:disabled:hover { background: var(--err); }
+
+      /* ---------- inline result ---------- */
+      .result { display: none; border-radius: 10px; padding: 0.55rem 0.9rem; margin-top: 0.7rem; font-size: 0.93rem; }
+      .result.show { display: block; }
+      .result.ok { background: var(--ok-bg); color: var(--ok); border: 1px solid #cfe0c9; }
+      .result.err { background: var(--err-bg); color: var(--err); }
+
+      /* ---------- tabs ---------- */
+      .tabs { display: flex; gap: 0.2rem; border-bottom: 1px solid var(--line); margin: 1rem 0 0.2rem; overflow-x: auto; }
+      .tab {
+        font: inherit; background: none; border: none; cursor: pointer;
+        padding: 0.55rem 0.9rem; color: var(--muted); white-space: nowrap;
+        border-bottom: 3px solid transparent; margin-bottom: -1px;
+        display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px;
+      }
+      .tab:hover { color: var(--ink); }
+      .tab[aria-selected="true"] { color: var(--accent-dark); border-bottom-color: var(--accent); font-weight: bold; }
+      .tab-panel { padding-top: 0.6rem; }
+
+      /* ---------- lists ---------- */
+      .list { margin: 0.8rem 0 0; border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden; }
+      .list-head {
+        display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+        padding: 0.45rem 0.9rem; background: var(--soft); font-size: 0.85rem; color: var(--muted);
+      }
+      .list-head .grow { flex: 1 1 auto; }
+      .list-head label { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+      .row {
+        display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+        padding: 0.6rem 0.9rem; border-top: 1px solid var(--line-soft);
+      }
+      .row.dim .who-main, .row.dim .who-sub { color: var(--faint); }
+      .row.dim .who-main { text-decoration: line-through; }
+      .who { display: flex; align-items: center; gap: 0.6rem; flex: 1 1 16rem; min-width: 0; }
+      .who-text { min-width: 0; }
+      .who-main { font-weight: bold; overflow-wrap: anywhere; }
+      .who-sub { font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
+      .badges { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+      .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; align-items: center; }
+      .confirm-text { font-size: 0.85rem; color: var(--err); font-weight: bold; }
+      .empty {
+        text-align: center; color: var(--muted); padding: 1.3rem 1rem; font-size: 0.93rem;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      /* ---------- callouts ---------- */
+      .callout { border-radius: 10px; padding: 0.65rem 0.9rem; margin: 0.7rem 0; font-size: 0.93rem; display: flex; gap: 0.6rem; align-items: flex-start; }
+      .callout.warn { background: var(--warn-bg); color: var(--warn); }
+      .callout.info { background: var(--tint); color: var(--accent-dark); }
+      .callout .grow { flex: 1 1 auto; }
+      .timer { font-variant-numeric: tabular-nums; font-weight: bold; font-size: 1.05rem; white-space: nowrap; }
+
+      /* ---------- operator task picker ---------- */
+      .task-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin: 0.5rem 0 0.2rem; }
+      @media (max-width: 640px) { .task-grid { grid-template-columns: 1fr; } }
       .task-card {
-        border: 2px solid var(--line);
-        border-radius: 12px;
-        padding: 0.8rem 0.9rem;
-        cursor: pointer;
-        display: block;
+        border: 2px solid var(--line); border-radius: 12px; padding: 0.75rem 0.9rem;
+        cursor: pointer; display: block; position: relative; background: var(--card);
       }
-      .task-card input {
-        margin-right: 0.4rem;
-      }
-      .task-card .task-name {
-        font-weight: bold;
-      }
-      .task-card .task-desc {
-        font-size: 0.9rem;
-        color: var(--muted);
-        margin-top: 0.2rem;
-      }
-      .task-card.selected {
-        border-color: var(--accent);
-        background: var(--tint);
-      }
-      .stepper {
-        list-style: none;
-        margin: 0.8rem 0;
-        padding: 0;
-      }
+      .task-card:hover { border-color: var(--accent); }
+      .task-card input { position: absolute; opacity: 0; pointer-events: none; }
+      .task-card:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+      .task-name { font-weight: bold; display: block; }
+      .task-desc { font-size: 0.88rem; color: var(--muted); }
+      .task-card.selected { border-color: var(--accent); background: var(--tint); }
+      .task-card.selected .task-name::after { content: " ✓"; color: var(--accent-dark); }
+      fieldset.plain { border: none; padding: 0; margin: 1rem 0 0; }
+      fieldset.plain legend { font-weight: bold; padding: 0; }
+      fieldset.plain:disabled .task-card { opacity: 0.55; cursor: not-allowed; }
+
+      /* ---------- stepper ---------- */
+      .stepper { list-style: none; margin: 0.8rem 0; padding: 0; position: relative; }
       .stepper li {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.8rem;
-        padding: 0.7rem 0.8rem;
-        border-radius: 12px;
-        margin: 0.4rem 0;
-        border: 1px solid transparent;
+        display: grid; grid-template-columns: 2.2rem 1fr auto; gap: 0.2rem 0.8rem; align-items: center;
+        padding: 0.7rem 0.8rem; border-radius: 12px; margin: 0.35rem 0;
+        border: 1px solid var(--line-soft); background: var(--card);
       }
-      .stepper li.current {
-        border-color: var(--accent);
-        background: var(--tint);
-      }
-      .stepper li.done {
-        background: var(--ok-bg);
-      }
+      .stepper li.current { border: 2px solid var(--accent); background: var(--tint); }
+      .stepper li.done { background: var(--ok-bg); border-color: transparent; }
       .step-num {
-        flex: 0 0 auto;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 50%;
-        background: var(--chip-bg);
-        color: var(--muted);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
+        width: 2.2rem; height: 2.2rem; border-radius: 50%;
+        background: var(--soft); color: var(--muted); border: 1px solid var(--line);
+        display: flex; align-items: center; justify-content: center; font-weight: bold;
       }
-      li.current .step-num {
-        background: var(--accent);
-        color: #fff;
+      li.current .step-num { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+      li.done .step-num { background: var(--ok); color: #fff; border-color: var(--ok); }
+      .step-title { font-weight: bold; }
+      .step-desc { font-size: 0.88rem; color: var(--muted); }
+      .step-signin { grid-column: 2 / -1; margin-top: 0.4rem; }
+      .step-redo { font-size: 0.85rem; }
+
+      .submit-bar {
+        display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+        border-top: 1px solid var(--line-soft); padding-top: 0.9rem; margin-top: 0.6rem;
       }
-      li.done .step-num {
-        background: var(--ok);
-        color: #fff;
+      .submit-bar .hint { flex: 1 1 14rem; font-size: 0.92rem; color: var(--muted); }
+      .submit-bar .hint.ready { color: var(--ok); font-weight: bold; }
+
+      .mock-google-btn {
+        display: inline-flex; align-items: center; gap: 10px;
+        background: #fff; border: 1px solid #dadce0; border-radius: 6px;
+        padding: 8px 16px; font: inherit; font-size: 15px; color: #3c4043;
+        cursor: pointer; min-height: 44px;
       }
-      .step-body {
-        flex: 1 1 auto;
+      .mock-google-btn:hover { background: #f8f9fa; }
+      .mock-google-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* ---------- sign-in / states ---------- */
+      .center { text-align: center; }
+      .signin-card { max-width: 28rem; margin: 3rem auto; text-align: center; padding: 2rem 1.5rem; }
+      .loading { text-align: center; color: var(--muted); padding: 3rem 0; }
+      #status:empty { display: none; }
+      #status { color: var(--err); background: var(--err-bg); border-radius: 10px; padding: 0.6rem 0.9rem; font-weight: bold; }
+
+      /* ---------- toast ---------- */
+      .toast-wrap { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 0.4rem; align-items: center; width: min(92vw, 30rem); pointer-events: none; }
+      .toast {
+        background: var(--ink); color: var(--bg); border-radius: 10px;
+        padding: 0.65rem 1rem; font-size: 0.93rem; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        animation: toast-in 0.18s ease-out; pointer-events: auto;
       }
-      .step-title {
-        font-weight: bold;
+      .toast.err { background: var(--err); color: #fff; }
+      @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .toast { animation: none; } html { scroll-behavior: auto; } }
+
+      @media (max-width: 640px) {
+        .card { padding: 1rem; border-radius: 12px; }
+        .actions { margin-left: 0; width: 100%; }
+        .brand small { display: none; }
+        .stepper li { grid-template-columns: 2.2rem 1fr; }
+        .stepper li > .chip { grid-column: 2; justify-self: start; }
       }
-      .step-desc {
-        font-size: 0.92rem;
-        color: var(--muted);
+    
+      /* ---------- operate v2 additions ---------- */
+      select {
+        width: 100%; font: inherit; padding: 0.55rem 0.75rem; min-height: 44px;
+        border: 1px solid var(--line); border-radius: 8px;
+        background: var(--card); color: var(--ink);
       }
       .dock {
-        background: var(--step-bg);
-        border-radius: 12px;
-        padding: 1rem;
-        margin: 0.8rem 0;
-        text-align: left;
+        border: 2px solid var(--accent); background: var(--tint);
+        border-radius: 12px; padding: 0.9rem 1rem; margin: 0.9rem 0;
       }
-      .dock .dock-label {
-        font-weight: bold;
-        margin-bottom: 0.5rem;
+      .dock.waiting { border-color: var(--line); background: var(--soft); }
+      .dock-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+      .dock-head .grow { flex: 1 1 auto; }
+      .gsi-host { min-height: 44px; display: flex; align-items: center; margin-top: 0.5rem; }
+      .school-pick { max-width: 26rem; }
+      .divider { border-top: 1px solid var(--line-soft); margin: 1.1rem 0 0.4rem; }
+</style>
+</head>
+<body data-page="stage1-operate">
+<header class="topbar"><div class="topbar-inner">
+  <div class="brand">学校の運用<small>VHSlide</small></div>
+  <div class="me" id="me"></div>
+</div></header>
+<main>
+  <div id="status" role="alert"></div>
+  <div id="app"><p class="loading">読み込んでいます…</p></div>
+</main>
+<div class="toast-wrap" id="toasts" aria-live="polite"></div>
+<script>
+"use strict";
+/* 学校の運用ページ（招待制・運営者欄つき）
+   画面の作りだけを扱い、経路と送る内容はサーバーの契約どおりに固定する。 */
+
+function h(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, "");
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const c of children.flat(9)) {
+    if (c == null) continue;
+    e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return e;
+}
+
+async function send(path, opts = {}) {
+  const res = await fetch(path, {
+    method: opts.method || "GET",
+    headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  let data = null;
+  try { data = await res.json(); } catch { /* 応答が空のことがある */ }
+  if (!res.ok) throw new Error((data && data.error) || `通信に失敗しました（${res.status}）`);
+  return data;
+}
+
+function toast(msg, isErr) {
+  const wrap = document.getElementById("toasts");
+  const t = h("div", { class: "toast" + (isErr ? " err" : ""), role: "status" }, msg);
+  wrap.append(t);
+  setTimeout(() => t.remove(), 4200);
+}
+
+function makeResult() {
+  const el = h("div", { class: "result", role: "status" });
+  return {
+    el,
+    show(msg, ok) {
+      el.textContent = (ok ? "✓ " : "！ ") + msg;
+      el.className = "result show " + (ok ? "ok" : "err");
+    },
+    clear() { el.className = "result"; el.textContent = ""; },
+  };
+}
+
+/* 取り消しのきく、その場の確認（押す→確認文と実行ボタンに変わる） */
+function confirmInline(actionsEl, text, confirmLabel, onConfirm) {
+  const original = [...actionsEl.childNodes];
+  actionsEl.replaceChildren(
+    h("span", { class: "confirm-text" }, text),
+    h("button", {
+      class: "btn sm danger solid", type: "button",
+      onclick: () => { restore(); onConfirm(); },
+    }, confirmLabel),
+    h("button", {
+      class: "btn sm ghost", type: "button",
+      onclick: () => restore(),
+    }, "やめる"),
+  );
+  function restore() { actionsEl.replaceChildren(...original); }
+}
+
+function fmtDate(ms) {
+  return new Date(ms).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" });
+}
+
+/* ---------- Google サインイン ---------- */
+let gsiScriptPromise = null;
+function ensureGsiScript() {
+  if (!gsiScriptPromise) {
+    gsiScriptPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://accounts.google.com/gsi/client";
+      s.onload = resolve; s.onerror = reject;
+      document.head.append(s);
+    });
+  }
+  return gsiScriptPromise;
+}
+async function initGsi(clientId, nonce, onCredential) {
+  await ensureGsiScript();
+  const opts = { client_id: clientId, callback: (resp) => onCredential(resp.credential) };
+  if (nonce) opts.nonce = nonce;
+  google.accounts.id.initialize(opts);
+}
+function renderGsiButton(host) {
+  host.replaceChildren();
+  google.accounts.id.renderButton(host, { theme: "outline", size: "large", text: "signin_with", locale: "ja" });
+}
+
+/* ---------- 起動 ---------- */
+let clientId = null;
+
+async function boot() {
+  const status = document.getElementById("status");
+  try {
+    const cfg = await send("/api/config");
+    clientId = cfg.clientId;
+    const session = await send("/api/session");
+    if (!session.user) { drawSignIn(); return; }
+    drawAccount(session.user);
+    const view = await send("/api/stage1/console");
+    draw(view);
+  } catch (e) {
+    status.textContent = e.message;
+    document.getElementById("app").replaceChildren();
+  }
+}
+
+function drawAccount(user) {
+  const me = document.getElementById("me");
+  me.replaceChildren(
+    h("span", { class: "avatar", "aria-hidden": "true" }, (user.name || "?").slice(0, 1)),
+    h("span", null, user.name),
+    h("button", {
+      class: "btn sm", type: "button",
+      onclick: async () => { await send("/api/logout", { method: "POST", body: {} }); location.reload(); },
+    }, "サインアウト"),
+  );
+}
+
+function drawSignIn() {
+  const app = document.getElementById("app");
+  const result = makeResult();
+  const host = h("div", { class: "gsi-host", style: "justify-content:center" });
+  const card = h("section", { class: "card signin-card" },
+    h("h2", null, "サインインしてください"),
+    h("p", { class: "lead" }, "学校の運用ページは、Google アカウントでサインインした人だけが使えます。あなたの役割に合った欄だけが表示されます。"),
+    host,
+    result.el,
+  );
+  app.replaceChildren(card);
+  initGsi(clientId, null, async (credential) => {
+    try {
+      await send("/api/auth/google", { method: "POST", body: { credential } });
+      location.reload();
+    } catch (e) { result.show(e.message, false); }
+  }).then(() => renderGsiButton(host))
+    .catch(() => result.show("Google のサインインを読み込めませんでした。", false));
+}
+
+/* ---------- 本体 ---------- */
+function draw(view) {
+  const app = document.getElementById("app");
+  const parts = [];
+  parts.push(h("div", { class: "intro" },
+    h("h1", null, "学校の運用"),
+    h("p", null, "学校の作成、事前登録、所属の管理、学校管理者の申請、運営者の招待と失効を行うページです。あなたの役割に合った欄だけが表示されています。"),
+  ));
+  parts.push(rolesCard());
+  if (view.myInvitation) parts.push(invitationCard(view.myInvitation));
+  if (view.createSchool) parts.push(createSchoolCard());
+  if (view.schools.length) parts.push(schoolsCard(view));
+  const apply = applyCard(view);
+  if (apply) parts.push(apply);
+  if (view.operator) parts.push(operatorCard(view));
+  const hasApplyTargets = view.applyTo.some((s) => !view.schools.some((m) => m.id === s.id));
+  if (!view.myInvitation && !view.createSchool && !view.schools.length && !view.operator && !hasApplyTargets) {
+    parts.push(h("section", { class: "card" },
+      h("h2", null, "この操作は利用できません"),
+      h("p", { class: "lead" }, "いまのサインインには、ここで使う役割がありません。学校の管理者になりたいときは、スーパー管理者に申請の受付を相談してください。運営者への招待が届いている場合は、このページに承諾の欄が表示されます。"),
+    ));
+  }
+  app.replaceChildren(...parts);
+}
+
+/* ---------- 役割について ---------- */
+function rolesCard() {
+  const row = (name, text) => h("div", { class: "row" },
+    h("div", { class: "who" }, h("div", { class: "who-text" },
+      h("div", { class: "who-main" }, name),
+      h("div", { class: "who-sub" }, text),
+    )),
+  );
+  return h("section", { class: "card", id: "roles" },
+    h("h2", null, "役割について"),
+    h("div", { class: "list" },
+      row("スーパー管理者", "アプリ全体の管理者です。学校を作り、学校管理者の申請を判断します。ふだんの運用はこの役割で行います。"),
+      row("運営者", "スーパー管理者を立てるときだけ使う、非常用の役割です。学校の運営には関わりません。スーパー管理者のアカウントが使えなくなったときに、立て直すためにあります。"),
+      row("学校管理者", "1つの学校の中の管理者です。その学校の事前登録と、所属している人の管理をします。他の学校には何もできません。"),
+    ),
+  );
+}
+
+/* ---------- 運営者への招待（承諾） ---------- */
+function invitationCard(inv) {
+  const result = makeResult();
+  const actions = h("div", { class: "actions" });
+  const acceptBtn = h("button", {
+    class: "btn primary", type: "button",
+    onclick: () => confirmInline(actions, "運営者として登録されます。", "承諾する", async () => {
+      try {
+        await send(`/api/stage1/operators/invitations/${inv.id}/accept`, { method: "POST", body: {} });
+        result.show("運営者として登録されました。画面を読み直します。", true);
+        toast("運営者として登録されました");
+        setTimeout(() => location.reload(), 1200);
+      } catch (e) { result.show(e.message, false); }
+    }),
+  }, "承諾する");
+  actions.append(acceptBtn);
+  return h("section", { class: "card", id: "my-invitation" },
+    h("div", { class: "card-head" },
+      h("h2", null, "運営者への招待"),
+      h("span", { class: "chip accent" }, "あなた宛て"),
+    ),
+    h("p", { class: "lead" }, "あなたは VHSlide の運営者に招待されています。運営者は、スーパー管理者を立てるときだけ使う非常用の役割です。学校を作ったり、学校の所属を変えたりする権限は付きません。承諾すると、この Google アカウントが運営者として登録されます。"),
+    h("p", { class: "small muted" }, `招待の期限：${fmtDate(inv.expiresAt)}まで`),
+    h("div", { class: "submit-bar" }, actions),
+    result.el,
+  );
+}
+
+/* ---------- 学校を作る ---------- */
+function createSchoolCard() {
+  const result = makeResult();
+  const input = h("input", { type: "text", maxlength: "40", placeholder: "例：〇〇学園", "aria-label": "学校の名前" });
+  const btn = h("button", {
+    class: "btn primary", type: "submit",
+  }, "学校を作る");
+  const form = h("form", {
+    onsubmit: async (ev) => {
+      ev.preventDefault();
+      const name = input.value.trim();
+      if (!name) { result.show("学校の名前を入れてください。", false); input.focus(); return; }
+      btn.disabled = true; btn.textContent = "作っています…";
+      try {
+        await send("/api/organizations", { method: "POST", body: { name } });
+        result.show(`「${name}」を作りました。画面を読み直します。`, true);
+        setTimeout(() => location.reload(), 900);
+      } catch (e) {
+        result.show(e.message, false);
+        btn.disabled = false; btn.textContent = "学校を作る";
       }
-      .hint {
-        font-size: 0.92rem;
-        color: var(--muted);
-        margin-top: 0.3rem;
-      }
-      #status {
-        color: var(--err);
-        font-weight: bold;
-      }
-      .center {
-        text-align: center;
-      }
-    </style>
-  </head>
-  <body data-page="stage1-operate">
-    <main>
-      <h1>学校の運用</h1>
-      <p class="muted">
-        学校を作る、学校の人を管理する、運営者を管理するためのページです。作品の画面とは別のページで、作品のメニューからは開きません。サインインした人に許されている欄だけが表示されます。
-      </p>
-      <p id="status"></p>
-      <div id="sign-in" hidden></div>
-      <div id="app" hidden></div>
-    </main>
-    <script>
-      const status = document.querySelector("#status");
-      const signIn = document.querySelector("#sign-in");
-      const app = document.querySelector("#app");
-      const show = (message) => {
-        status.textContent = message || "";
-      };
-      async function send(path, method, body) {
-        const response = await fetch(path, {
-          method,
-          headers:
-            body === undefined ? {} : { "Content-Type": "application/json" },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        });
-        const text = await response.text();
-        let payload = {};
+    },
+  },
+    h("div", { class: "form-row" },
+      h("label", { class: "field" },
+        h("span", { class: "field-label" }, "学校の名前"),
+        input,
+        h("span", { class: "field-note" }, "40文字まで。同じ名前の学校は作れません。"),
+      ),
+      btn,
+    ),
+  );
+  return h("section", { class: "card", id: "create-school" },
+    h("div", { class: "card-head" },
+      h("h2", null, "学校を作る"),
+      h("span", { class: "chip accent" }, "スーパー管理者だけ"),
+    ),
+    h("p", { class: "lead" }, "新しい学校の枠を作ります。作ったあとは、下の「学校」の欄で事前登録や所属の管理ができます。"),
+    form,
+    result.el,
+  );
+}
+
+/* ---------- 学校管理者への申請 ---------- */
+function applyCard(view) {
+  const targets = view.applyTo.filter((s) => !view.schools.some((m) => m.id === s.id));
+  if (!targets.length) return null;
+  const result = makeResult();
+  const list = h("div", { class: "list" });
+  for (const school of targets) {
+    const actions = h("div", { class: "actions" });
+    const btn = h("button", {
+      class: "btn sm", type: "button",
+      onclick: async () => {
+        btn.disabled = true; btn.textContent = "送っています…";
         try {
-          payload = text ? JSON.parse(text) : {};
-        } catch {
-          payload = {};
+          await send(`/api/organizations/${school.id}/school-admin-applications`, { method: "POST", body: {} });
+          btn.textContent = "申請済み";
+          result.show(`「${school.name}」へ申請を受け付けました。`, true);
+        } catch (e) {
+          result.show(e.message, false);
+          btn.disabled = false; btn.textContent = "申請する";
         }
-        if (!response.ok)
-          throw new Error(payload.error || "操作できませんでした。");
-        return payload;
+      },
+    }, "申請する");
+    actions.append(btn);
+    list.append(h("div", { class: "row" },
+      h("div", { class: "who" }, h("div", { class: "who-text" },
+        h("div", { class: "who-main" }, school.name),
+      )),
+      actions,
+    ));
+  }
+  return h("section", { class: "card", id: "apply" },
+    h("h2", null, "学校管理者に申請する"),
+    h("p", { class: "lead" }, "学校の管理者になりたいときは、ここから申請します。申請はスーパー管理者が確認し、登録されると「学校」の欄にその学校が表示されます。"),
+    list,
+    result.el,
+  );
+}
+
+/* ---------- 学校（1つの枠＋学校切り替え） ---------- */
+const ROLE_LABEL = { teacher: "教師", student: "生徒" };
+const roleLabel = (r) => ROLE_LABEL[r] || r || "";
+
+function schoolsCard(view) {
+  const panel = h("div", null);
+  const state = { schoolId: view.schools[0].id, tab: null, data: null };
+  const result = makeResult();
+
+  const card = h("section", { class: "card", id: "schools" },
+    h("div", { class: "card-head" },
+      h("h2", null, "学校"),
+      h("span", { class: "chip" }, `${view.schools.length} 校`),
+    ),
+    h("p", { class: "lead" }, "学校を選ぶと、その学校の事前登録・所属している人・管理者の申請が切り替わります。"),
+  );
+  if (view.schools.length > 1) {
+    const select = h("select", {
+      class: "school-pick", "aria-label": "表示する学校",
+      onchange: () => { state.schoolId = select.value; state.tab = null; load(); },
+    }, ...view.schools.map((s) => h("option", { value: s.id }, s.name)));
+    card.append(h("div", { class: "form-row" },
+      h("label", { class: "field" },
+        h("span", { class: "field-label" }, "表示する学校"),
+        select,
+      ),
+    ));
+  } else {
+    card.append(h("h3", null, view.schools[0].name));
+  }
+  card.append(panel, result.el);
+
+  async function load() {
+    panel.replaceChildren(h("p", { class: "loading" }, "読み込んでいます…"));
+    const id = state.schoolId;
+    try {
+      const [preregs, members, applications] = await Promise.all([
+        send(`/api/organizations/${id}/preregistrations`),
+        send(`/api/organizations/${id}/members`),
+        view.decideApplications
+          ? send(`/api/organizations/${id}/school-admin-applications`)
+          : Promise.resolve({ applications: [] }),
+      ]);
+      state.data = {
+        preregs: preregs.preregistrations,
+        members: members.members,
+        applications: applications.applications,
+      };
+      if (!state.tab) {
+        const pending = state.data.applications.filter((a) => a.status === "申請中").length;
+        state.tab = view.decideApplications && pending > 0 ? "applications" : "prereg";
       }
-      function el(tag, className, text) {
-        const node = document.createElement(tag);
-        if (className) node.className = className;
-        if (text !== undefined) node.textContent = text;
-        return node;
-      }
-      function paragraph(text, className) {
-        return el("p", className, text);
-      }
-      function purposeBox(text) {
-        return el("div", "purpose", text);
-      }
-      function stepsBox(lines) {
-        const box = el("div", "steps-box");
-        box.append(el("p", "steps-title", "手順"));
-        const list = document.createElement("ol");
-        for (const line of lines) {
-          list.append(el("li", "", line));
-        }
-        box.append(list);
-        return box;
-      }
-      function resultBox() {
-        const node = el("div", "result");
-        node.setAttribute("role", "status");
-        return node;
-      }
-      function report(box, message, error) {
-        box.textContent = message ? (error ? "！ " : "✓ ") + message : "";
-        box.className = message
-          ? "result show " + (error ? "err" : "ok")
-          : "result";
-      }
-      function fieldLabel(title, control) {
-        const label = el("label", "field", title);
-        label.append(control);
-        return label;
-      }
-      function button(title, action, box, className) {
-        const node = el("button", className || "btn", title);
-        node.type = "button";
-        node.addEventListener("click", () =>
-          action().catch((error) => report(box, error.message, true)),
-        );
-        return node;
-      }
-      async function loadGoogle(clientId, nonce, onCredential) {
-        await new Promise((resolve, reject) => {
-          if (window.google) return resolve();
-          const script = document.createElement("script");
-          script.src = "https://accounts.google.com/gsi/client";
-          script.onload = () => resolve();
-          script.onerror = () =>
-            reject(new Error("Googleのサインインを読み込めませんでした。"));
-          document.head.append(script);
-        });
-        const host = document.createElement("div");
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          nonce,
-          callback: (result) => onCredential(result.credential),
-        });
-        window.google.accounts.id.renderButton(host, {
-          theme: "outline",
-          size: "large",
-          locale: "ja",
-          text: "signin_with",
-        });
-        return host;
-      }
-      async function draw(config) {
-        const session = await send("/api/session", "GET");
-        if (!session.user) {
-          signIn.hidden = false;
-          app.hidden = true;
-          const box = resultBox();
-          const host = await loadGoogle(
-            config.clientId,
-            undefined,
-            (credential) =>
-              send("/api/auth/google", "POST", { credential })
-                .then(() => location.reload())
-                .catch((error) => report(box, error.message, true)),
-          );
-          const card = el("section", "card center");
-          card.append(
-            el("h2", "", "サインイン"),
-            paragraph(
-              "下のボタンで Google アカウントにサインインしてください。サインインすると、あなたが使える欄だけが表示されます。",
-            ),
-            host,
-            box,
-          );
-          signIn.replaceChildren(card);
-          show("");
-          return;
-        }
-        signIn.hidden = true;
-        const view = await send("/api/stage1/console", "GET");
-        app.replaceChildren();
-        const accountBox = resultBox();
-        const accountCard = el("section", "card");
-        const bar = el("div", "account-bar");
-        bar.append(
-          el("span", "who", `${session.user.name} としてサインインしています`),
-          button(
-            "サインアウト",
-            async () => {
-              await send("/api/logout", "POST");
-              location.reload();
-            },
-            accountBox,
-            "btn small",
-          ),
-        );
-        accountCard.append(
-          bar,
-          paragraph(
-            "別のアカウントで操作するときは、サインアウトしてから入り直してください。",
-            "muted",
-          ),
-          accountBox,
-        );
-        app.append(accountCard);
-        if (
-          !view.createSchool &&
-          !view.operator &&
-          !view.applyTo.length &&
-          !view.schools.length
-        ) {
-          const card = el("section", "card");
-          card.append(
-            el("h2", "", "この操作は利用できません"),
-            paragraph(
-              "このアカウントには、運用の権限がありません。権限のあるアカウントでサインインし直してください。",
-            ),
-          );
-          app.append(card);
-          app.hidden = false;
-          show("");
-          return;
-        }
-        app.hidden = false;
-        show("");
-        if (view.createSchool) {
-          const box = resultBox();
-          const name = document.createElement("input");
-          name.type = "text";
-          name.maxLength = 40;
-          const card = el("section", "card");
-          const head = el("div", "card-head");
-          head.append(
-            el("h2", "", "学校を作る"),
-            el("span", "tag", "スーパー管理者だけ"),
-          );
-          card.append(
-            head,
-            purposeBox(
-              "新しい学校を1つ作ります。学校を作らないと、その学校の事前登録や所属の管理はできません。",
-            ),
-            stepsBox([
-              "学校の名前を入れます（1文字から40文字）。",
-              "「学校を作る」を押します。",
-              "作った学校の欄が、このページの下に表示されます。",
-            ]),
-            fieldLabel("学校の名前", name),
-            button(
-              "学校を作る",
-              async () => {
-                if (!name.value.trim()) {
-                  report(box, "学校の名前を入れてください。", true);
-                  return;
-                }
-                await send("/api/organizations", "POST", {
-                  name: name.value,
-                });
-                location.reload();
-              },
-              box,
-              "btn primary",
-            ),
-            paragraph(
-              "同じ名前の有効な学校があるときは作れません。",
-              "hint",
-            ),
-            box,
-          );
-          app.append(card);
-        }
-        for (const school of view.applyTo) {
-          const managed = view.schools.find((item) => item.id === school.id);
-          const card = el("section", "card");
-          const head = el("div", "card-head");
-          head.append(el("h2", "", school.name));
-          card.append(head);
-          if (!managed) {
-            const box = resultBox();
-            const block = el("div", "");
-            block.append(
-              el("h3", "", "学校管理者の申請"),
-              purposeBox(
-                "この学校の学校管理者を申請できます。申請しただけでは管理者にはなりません。スーパー管理者が「登録」か「却下」を決めます。",
-              ),
-              stepsBox([
-                "「学校管理者を申請する」を押します。",
-                "受け付けたことが、この欄に表示されます。",
-              ]),
-              button(
-                "学校管理者を申請する",
-                () =>
-                  send(
-                    `/api/organizations/${school.id}/school-admin-applications`,
-                    "POST",
-                    {},
-                  ).then(() => report(box, "申請を受け付けました。")),
-                box,
-                "btn primary",
-              ),
-              box,
-            );
-            card.append(block);
-          }
-          if (managed?.preregistration) {
-            const box = resultBox();
-            const block = el("div", "sub-block");
-            const email = document.createElement("input");
-            email.type = "email";
-            email.autocomplete = "off";
-            const role = document.createElement("select");
-            role.innerHTML =
-              "<option value='teacher'>教師</option><option value='student'>生徒</option>";
-            block.append(
-              el("h3", "", "事前登録"),
-              purposeBox(
-                "まだこの学校に入っていない人を、メールアドレスで予約します。その人が次にサインインすると、選んだ役割で所属します。取り消した登録は使われません。",
-              ),
-              stepsBox([
-                "メールアドレスを入れます。",
-                "教師か生徒を選びます。",
-                "「事前登録を作る」を押します。",
-                "取り消すときは、一覧の「取り消す」を押します。",
-              ]),
-              fieldLabel("事前登録するメールアドレス", email),
-              fieldLabel("予定の役割", role),
-              button(
-                "事前登録を作る",
-                async () => {
-                  await send(
-                    `/api/organizations/${school.id}/preregistrations`,
-                    "POST",
-                    { email: email.value, plannedRole: role.value },
-                  );
-                  location.reload();
-                },
-                box,
-                "btn primary",
-              ),
-              box,
-            );
-            const rows = await send(
-              `/api/organizations/${school.id}/preregistrations`,
-              "GET",
-            );
-            if (!rows.preregistrations.length)
-              block.append(paragraph("事前登録はありません。", "muted"));
-            for (const row of rows.preregistrations) {
-              const line = el("div", "row-item");
-              const grow = el(
-                "span",
-                "grow",
-                `${row.email}（${row.plannedRole === "student" ? "生徒" : "教師"}）`,
-              );
-              line.append(grow, el("span", "chip", row.status));
-              if (row.status === "有効")
-                line.append(
-                  button(
-                    "取り消す",
-                    () =>
-                      send(`/api/preregistrations/${row.id}`, "DELETE").then(
-                        () => location.reload(),
-                      ),
-                    box,
-                    "btn small",
-                  ),
-                );
-              block.append(line);
-            }
-            card.append(block);
-          }
-          if (managed?.membership) {
-            const box = resultBox();
-            const block = el("div", "sub-block");
-            block.append(
-              el("h3", "", "所属"),
-              purposeBox(
-                "この学校に入っている人です。無効にすると、その人はこの学校の所属としては扱えなくなります。再有効化すると、また有効な所属に戻ります。学校管理者の解除は、スーパー管理者だけができます。",
-              ),
-              box,
-            );
-            const members = await send(
-              `/api/organizations/${school.id}/members`,
-              "GET",
-            );
-            if (!members.members.length)
-              block.append(paragraph("所属している人はいません。", "muted"));
-            for (const member of members.members) {
-              const line = el("div", "row-item");
-              line.append(
-                el("span", "grow", `${member.name}（${member.email}）`),
-                el(
-                  "span",
-                  "chip" + (member.status === "有効" ? " on" : ""),
-                  member.status,
-                ),
-              );
-              if (member.schoolAdmin)
-                line.append(el("span", "chip", "学校管理者"));
-              if (member.status === "有効")
-                line.append(
-                  button(
-                    "無効化する",
-                    () =>
-                      send(
-                        `/api/organizations/${school.id}/members/${member.id}/invalidate`,
-                        "POST",
-                        {},
-                      ).then(() => location.reload()),
-                    box,
-                    "btn small",
-                  ),
-                );
-              if (member.status === "無効")
-                line.append(
-                  button(
-                    "再有効化する",
-                    () =>
-                      send(
-                        `/api/organizations/${school.id}/members/${member.id}/reactivate`,
-                        "POST",
-                        { role: member.role },
-                      ).then(() => location.reload()),
-                    box,
-                    "btn small",
-                  ),
-                );
-              if (view.revokeSchoolAdmin && member.schoolAdmin)
-                line.append(
-                  button(
-                    "学校管理者を解除する",
-                    () =>
-                      send(
-                        `/api/organizations/${school.id}/school-admins/${member.id}`,
-                        "DELETE",
-                      ).then(() => location.reload()),
-                    box,
-                    "btn small",
-                  ),
-                );
-              block.append(line);
-            }
-            card.append(block);
-          }
-          if (view.decideApplications) {
-            const box = resultBox();
-            const block = el("div", "sub-block");
-            block.append(
-              el("h3", "", "学校管理者の申請"),
-              purposeBox(
-                "申請中の人を、学校管理者として登録するか、却下します。「登録」で学校管理者にします。「却下」で申請を閉じます。",
-              ),
-              box,
-            );
-            const applications = await send(
-              `/api/organizations/${school.id}/school-admin-applications`,
-              "GET",
-            );
-            const pending = applications.applications.filter(
-              (application) => application.status === "申請中",
-            );
-            if (!pending.length)
-              block.append(paragraph("申請中の人はいません。", "muted"));
-            for (const application of pending) {
-              const line = el("div", "row-item");
-              line.append(
-                el(
-                  "span",
-                  "grow",
-                  `${application.applicant.name}（${application.applicant.email}）の申請`,
-                ),
-              );
-              for (const decision of ["登録", "却下"])
-                line.append(
-                  button(
-                    decision,
-                    () =>
-                      send(
-                        `/api/school-admin-applications/${application.id}/decide`,
-                        "POST",
-                        { decision },
-                      ).then(() => location.reload()),
-                    box,
-                    "btn small" + (decision === "登録" ? " primary" : ""),
-                  ),
-                );
-              block.append(line);
-            }
-            card.append(block);
-          }
-          app.append(card);
-        }
-        if (view.operator) {
-          const box = resultBox();
-          const card = el("section", "card");
-          const head = el("div", "card-head");
-          head.append(
-            el("h2", "", "運営者"),
-            el("span", "tag", "運営者だけ"),
-          );
-          const generationLine = el(
-            "p",
-            "",
-            `現在の登録簿の世代は ${view.operatorGeneration} です。世代は、運営者の顔ぶれが変わるたびに1つ増える番号です。`,
-          );
-          card.append(
-            head,
-            purposeBox(
-              "運営者は、学校の機能全体を管理できる人です。ここでは運営者の追加・失効・交代をします。なりすましを防ぐため、操作する人と相手の両方に、その場でサインインしてもらいます。相手の名前や番号は、画面のどこにも表示しません。",
-            ),
-            generationLine,
-            el(
-              "div",
-              "warn",
-              "この欄を開いてから5分以内に、必要なサインインを済ませてください。過ぎてしまったときは、下の「ページを読み込み直す」を押してからやり直してください。1回の操作が終わったら、ページを読み込み直してから次の操作をします。",
-            ),
-          );
-          const held = {};
-          let task = "add";
-          let current = "self";
-          let finished = false;
-          const stepDefs = {
-            add: [
-              {
-                key: "self",
-                title: "あなた（操作する運営者）",
-                desc: "ふだん運営者として使っている、あなたのアカウントでサインインします。",
-              },
-              {
-                key: "target",
-                title: "追加する人",
-                desc: "新しく運営者になる人に、その場でサインインしてもらいます。",
-              },
-            ],
-            revoke: [
-              {
-                key: "self",
-                title: "あなた（操作する運営者）",
-                desc: "ふだん運営者として使っている、あなたのアカウントでサインインします。",
-              },
-              {
-                key: "target",
-                title: "失効する運営者",
-                desc: "資格を取り消す運営者に、その場でサインインしてもらいます。",
-              },
-            ],
-            rotate: [
-              {
-                key: "self",
-                title: "あなた（操作する運営者）",
-                desc: "ふだん運営者として使っている、あなたのアカウントでサインインします。",
-              },
-              {
-                key: "target",
-                title: "交代元の運営者",
-                desc: "交代で外れる運営者に、その場でサインインしてもらいます。",
-              },
-              {
-                key: "next",
-                title: "交代先の人",
-                desc: "新しく運営者になる人に、その場でサインインしてもらいます。",
-              },
-            ],
-          };
-          const actionLabels = {
-            add: "運営者を追加する",
-            revoke: "運営者を失効する",
-            rotate: "運営者を交代する",
-          };
-          const taskField = document.createElement("fieldset");
-          taskField.style.border = "none";
-          taskField.style.padding = "0";
-          taskField.style.margin = "0.4rem 0";
-          const legend = el("legend", "", "まず、することを選んでください");
-          legend.style.fontWeight = "bold";
-          taskField.append(legend);
-          const grid = el("div", "task-grid");
-          const taskCards = {};
-          for (const [value, name, desc] of [
-            ["add", "追加する", "新しい運営者を1人加えます。"],
-            ["revoke", "失効する", "運営者1人の資格を取り消します。"],
-            ["rotate", "交代する", "運営者1人を、別の人に代えます。"],
-          ]) {
-            const label = el("label", "task-card");
-            const radio = document.createElement("input");
-            radio.type = "radio";
-            radio.name = "op-task";
-            radio.value = value;
-            if (value === task) radio.checked = true;
-            radio.addEventListener("change", () => {
-              task = value;
-              const keys = stepDefs[task].map((step) => step.key);
-              if (!keys.includes(current)) current = "self";
-              paint();
+      renderPanel();
+    } catch (e) { result.show(e.message, false); panel.replaceChildren(); }
+  }
+
+  function renderPanel() {
+    const d = state.data;
+    const pending = d.applications.filter((a) => a.status === "申請中").length;
+    const tabsDef = [
+      { key: "prereg", label: "事前登録", count: d.preregs.filter((p) => p.status === "有効").length },
+      { key: "members", label: "所属している人", count: d.members.filter((m) => m.status === "有効").length },
+    ];
+    if (view.decideApplications) tabsDef.push({ key: "applications", label: "管理者の申請", count: pending });
+    const tabs = h("div", { class: "tabs", role: "tablist" },
+      ...tabsDef.map((t) => h("button", {
+        class: "tab", type: "button", role: "tab",
+        "aria-selected": state.tab === t.key ? "true" : "false",
+        onclick: () => { state.tab = t.key; renderPanel(); },
+      }, t.label, h("span", { class: "count" }, String(t.count)))),
+    );
+    const body = h("div", { class: "tab-panel" });
+    if (state.tab === "prereg") body.append(preregPanel());
+    else if (state.tab === "members") body.append(membersPanel());
+    else body.append(applicationsPanel());
+    panel.replaceChildren(tabs, body);
+  }
+
+  async function refresh(keepTab = true) {
+    if (!keepTab) state.tab = null;
+    await load();
+  }
+
+  function preregPanel() {
+    const wrap = h("div", null);
+    const local = makeResult();
+    const email = h("input", { type: "email", placeholder: "例：taro@example.jp", "aria-label": "メールアドレス" });
+    let plannedRole = "teacher";
+    const seg = h("div", { class: "segmented", role: "radiogroup", "aria-label": "役割" },
+      ...["teacher", "student"].map((r) => h("label", null,
+        h("input", { type: "radio", name: `role-${state.schoolId}`, ...(r === "teacher" ? { checked: true } : {}),
+          onchange: () => { plannedRole = r; } }),
+        h("span", null, ROLE_LABEL[r]),
+      )),
+    );
+    const addBtn = h("button", { class: "btn primary", type: "submit" }, "事前登録を作る");
+    wrap.append(
+      h("p", { class: "small muted" }, "メールアドレスを事前に登録しておくと、その人がサインインしたときに自動でこの学校の所属になります。"),
+      h("form", {
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          const value = email.value.trim();
+          if (!value) { local.show("メールアドレスを入れてください。", false); email.focus(); return; }
+          addBtn.disabled = true;
+          try {
+            await send(`/api/organizations/${state.schoolId}/preregistrations`, {
+              method: "POST", body: { email: value, plannedRole },
             });
-            label.append(
-              radio,
-              el("span", "task-name", name),
-              el("div", "task-desc", desc),
-            );
-            taskCards[value] = label;
-            grid.append(label);
-          }
-          taskField.append(grid);
-          card.append(taskField);
-          const stepper = el("ol", "stepper");
-          card.append(stepper);
-          const dock = el("div", "dock");
-          const dockLabel = el("div", "dock-label");
-          dock.append(
-            dockLabel,
-            paragraph(
-              "下のボタンを押すと Google の画面が開きます。いまの順番の人のアカウントでサインインしてください。",
-              "hint",
-            ),
-          );
-          card.append(dock);
-          const actionButton = button(
-            actionLabels[task],
-            async () => {
-              let result;
-              if (task === "add")
-                result = await send(
-                  "/api/stage1/operators/add-by-sign-in",
-                  "POST",
-                  {
-                    credential: held.self,
-                    targetCredential: held.target,
-                    expectedGeneration: view.operatorGeneration,
-                  },
-                );
-              else if (task === "revoke")
-                result = await send(
-                  "/api/stage1/operators/revoke-by-sign-in",
-                  "POST",
-                  {
-                    credential: held.self,
-                    targetCredential: held.target,
-                    expectedGeneration: view.operatorGeneration,
-                  },
-                );
-              else
-                result = await send(
-                  "/api/stage1/operators/rotate-by-sign-in",
-                  "POST",
-                  {
-                    credential: held.self,
-                    fromCredential: held.target,
-                    toCredential: held.next,
-                    expectedGeneration: view.operatorGeneration,
-                  },
-                );
-              finished = true;
-              generationLine.textContent = `現在の登録簿の世代は ${result.generation} です。世代は、運営者の顔ぶれが変わるたびに1つ増える番号です。`;
-              report(
-                box,
-                `${task === "add" ? "追加しました" : task === "revoke" ? "失効しました" : "交代しました"}。世代は ${result.generation} です。次の操作は、ページを読み込み直してから行ってください。`,
-              );
-              paint();
-            },
-            box,
-            "btn primary",
-          );
-          const hint = el("p", "hint");
-          card.append(
-            actionButton,
-            hint,
-            button(
-              "ページを読み込み直す",
-              async () => location.reload(),
-              box,
-              "btn",
-            ),
-            box,
-          );
-          function paint() {
-            for (const [value, label] of Object.entries(taskCards))
-              label.classList.toggle("selected", value === task);
-            const steps = stepDefs[task];
-            stepper.replaceChildren();
-            steps.forEach((step, index) => {
-              const item = el("li");
-              if (held[step.key]) item.classList.add("done");
-              else if (current === step.key && !finished)
-                item.classList.add("current");
-              const num = el(
-                "span",
-                "step-num",
-                held[step.key] ? "✓" : String(index + 1),
-              );
-              const body = el("div", "step-body");
-              body.append(
-                el("div", "step-title", step.title),
-                el("div", "step-desc", step.desc),
-              );
-              const chip = el(
-                "span",
-                "chip" + (held[step.key] ? " on" : ""),
-                held[step.key] ? "受け取り済み" : "まだ",
-              );
-              item.append(num, body, chip);
-              item.addEventListener("click", () => {
-                if (finished) return;
-                current = step.key;
-                paint();
-              });
-              stepper.append(item);
-            });
-            const currentStep = steps.find((step) => step.key === current);
-            dockLabel.textContent = finished
-              ? "この操作は終わりました"
-              : `いまのサインイン：${currentStep ? currentStep.title : ""}`;
-            actionButton.textContent = actionLabels[task];
-            const missing = steps.find((step) => !held[step.key]);
-            actionButton.disabled = finished || !!missing;
-            hint.textContent = finished
-              ? ""
-              : missing
-                ? `あと「${missing.title}」のサインインが必要です。`
-                : "そろいました。下のボタンを押してください。";
-          }
-          const issued = await send("/api/stage1/operators/nonce", "POST", {});
-          const google = await loadGoogle(
-            config.clientId,
-            issued.nonce,
-            (credential) => {
-              held[current] = credential;
-              const doneStep = stepDefs[task].find(
-                (step) => step.key === current,
-              );
-              report(
-                box,
-                `「${doneStep ? doneStep.title : ""}」のサインインを受け取りました。まだ送信していません。`,
-              );
-              const nextStep = stepDefs[task].find((step) => !held[step.key]);
-              if (nextStep) current = nextStep.key;
-              paint();
-            },
-          );
-          dock.append(google);
-          paint();
-          app.append(card);
-        }
+            local.show(`${value} を事前登録しました。`, true);
+            email.value = "";
+            await refresh();
+          } catch (e) { local.show(e.message, false); }
+          addBtn.disabled = false;
+        },
+      }, h("div", { class: "form-row" },
+        h("label", { class: "field" }, h("span", { class: "field-label" }, "メールアドレス"), email),
+        h("div", { class: "field narrow" }, h("span", { class: "field-label" }, "役割"), seg),
+        addBtn,
+      )),
+      local.el,
+    );
+    const rows = state.data.preregs;
+    if (!rows.length) { wrap.append(h("div", { class: "empty" }, "事前登録はまだありません。")); return wrap; }
+    const list = h("div", { class: "list" });
+    for (const p of rows) {
+      const actions = h("div", { class: "actions" });
+      if (p.status === "有効") {
+        actions.append(h("button", {
+          class: "btn sm danger", type: "button",
+          onclick: () => confirmInline(actions, "この事前登録を取り消しますか？", "取り消す", async () => {
+            try {
+              await send(`/api/preregistrations/${p.id}`, { method: "DELETE" });
+              result.show("事前登録を取り消しました。", true);
+              await refresh();
+            } catch (e) { result.show(e.message, false); }
+          }),
+        }, "取り消す"));
       }
-      send("/api/config", "GET")
-        .then(draw)
-        .catch((error) => show(error.message, true));
-    </script>
-  </body>
+      list.append(h("div", { class: "row" + (p.status !== "有効" ? " dim" : "") },
+        h("div", { class: "who" }, h("div", { class: "who-text" },
+          h("div", { class: "who-main" }, p.email),
+          h("div", { class: "who-sub" }, roleLabel(p.plannedRole)),
+        )),
+        h("span", { class: "badges" },
+          p.status === "有効" ? h("span", { class: "chip ok" }, "有効") : h("span", { class: "chip off" }, p.status),
+        ),
+        actions,
+      ));
+    }
+    wrap.append(list);
+    return wrap;
+  }
+
+  function membersPanel() {
+    const wrap = h("div", null);
+    const rows = state.data.members;
+    if (!rows.length) { wrap.append(h("div", { class: "empty" }, "所属している人はまだいません。")); return wrap; }
+    const list = h("div", { class: "list" });
+    for (const m of rows) {
+      const actions = h("div", { class: "actions" });
+      if (m.status === "有効") {
+        actions.append(h("button", {
+          class: "btn sm danger", type: "button",
+          onclick: () => confirmInline(actions, "この所属を無効にしますか？", "無効にする", async () => {
+            try {
+              await send(`/api/organizations/${state.schoolId}/members/${m.id}/invalidate`, { method: "POST", body: {} });
+              result.show(`${m.name} さんの所属を無効にしました。`, true);
+              await refresh();
+            } catch (e) { result.show(e.message, false); }
+          }),
+        }, "無効にする"));
+      } else {
+        actions.append(h("button", {
+          class: "btn sm", type: "button",
+          onclick: async () => {
+            try {
+              await send(`/api/organizations/${state.schoolId}/members/${m.id}/reactivate`, { method: "POST", body: { role: m.role } });
+              result.show(`${m.name} さんの所属を有効に戻しました。`, true);
+              await refresh();
+            } catch (e) { result.show(e.message, false); }
+          },
+        }, "有効に戻す"));
+      }
+      if (view.revokeSchoolAdmin && m.schoolAdmin && m.status === "有効") {
+        actions.append(h("button", {
+          class: "btn sm danger", type: "button",
+          onclick: () => confirmInline(actions, "学校管理者を解除しますか？", "解除する", async () => {
+            try {
+              await send(`/api/organizations/${state.schoolId}/school-admins/${m.id}`, { method: "DELETE" });
+              result.show(`${m.name} さんの学校管理者を解除しました。`, true);
+              await refresh();
+            } catch (e) { result.show(e.message, false); }
+          }),
+        }, "管理者を解除する"));
+      }
+      list.append(h("div", { class: "row" + (m.status !== "有効" ? " dim" : "") },
+        h("div", { class: "who" }, h("div", { class: "who-text" },
+          h("div", { class: "who-main" }, m.name),
+          h("div", { class: "who-sub" }, m.email),
+        )),
+        h("span", { class: "badges" },
+          m.status === "有効" ? h("span", { class: "chip ok" }, "有効") : h("span", { class: "chip off" }, "無効"),
+          m.schoolAdmin ? h("span", { class: "chip accent" }, "学校管理者") : null,
+          m.role ? h("span", { class: "chip" }, roleLabel(m.role)) : null,
+        ),
+        actions,
+      ));
+    }
+    wrap.append(
+      h("p", { class: "small muted" }, "所属を無効にすると、その人はこの学校の作品に入れなくなります。元に戻すこともできます。"),
+      list,
+    );
+    return wrap;
+  }
+
+  function applicationsPanel() {
+    const wrap = h("div", null);
+    const rows = state.data.applications;
+    if (!rows.length) { wrap.append(h("div", { class: "empty" }, "申請はまだありません。")); return wrap; }
+    const list = h("div", { class: "list" });
+    for (const a of rows) {
+      const actions = h("div", { class: "actions" });
+      if (a.status === "申請中") {
+        actions.append(
+          h("button", {
+            class: "btn sm primary", type: "button",
+            onclick: async () => {
+              try {
+                await send(`/api/school-admin-applications/${a.id}/decide`, { method: "POST", body: { decision: "登録" } });
+                result.show(`${a.applicant.name} さんを学校管理者に登録しました。`, true);
+                await refresh();
+              } catch (e) { result.show(e.message, false); }
+            },
+          }, "登録する"),
+          h("button", {
+            class: "btn sm danger", type: "button",
+            onclick: () => confirmInline(actions, "この申請を却下しますか？", "却下する", async () => {
+              try {
+                await send(`/api/school-admin-applications/${a.id}/decide`, { method: "POST", body: { decision: "却下" } });
+                result.show("申請を却下しました。", true);
+                await refresh();
+              } catch (e) { result.show(e.message, false); }
+            }),
+          }, "却下する"),
+        );
+      }
+      list.append(h("div", { class: "row" },
+        h("div", { class: "who" }, h("div", { class: "who-text" },
+          h("div", { class: "who-main" }, a.applicant.name),
+          h("div", { class: "who-sub" }, a.applicant.email),
+        )),
+        h("span", { class: "badges" },
+          a.status === "申請中" ? h("span", { class: "chip warn" }, "申請中")
+            : a.status === "登録" ? h("span", { class: "chip ok" }, "登録済み")
+            : h("span", { class: "chip off" }, a.status),
+        ),
+        actions,
+      ));
+    }
+    wrap.append(
+      h("p", { class: "small muted" }, "学校管理者への申請です。「登録する」を押すと、その人がこの学校の管理者になります。"),
+      list,
+    );
+    return wrap;
+  }
+
+  load();
+  return card;
+}
+
+/* ---------- 運営者（招待と失効） ---------- */
+function operatorCard(view) {
+  const result = makeResult();
+  const op = {
+    credential: null, busy: false, timer: null, armSeq: 0,
+    expiresAt: 0, generation: view.operatorGeneration,
+  };
+
+  const stateChip = h("span", { class: "chip" }, "未確認");
+  const dockText = h("p", { class: "small", style: "margin:0.3rem 0 0" },
+    "まず本人確認をしてください。確認すると、下の操作を1つだけ実行できます。");
+  const gsiHost = h("div", { class: "gsi-host" });
+  const dock = h("div", { class: "dock waiting" },
+    h("div", { class: "dock-head" },
+      h("strong", null, "本人確認（運営者本人）"),
+      h("span", { class: "grow" }),
+      stateChip,
+    ),
+    h("p", { class: "small muted", style: "margin:0.3rem 0 0" },
+      "招待を作る・取り消す、運営者を失効させる操作には、その都度、あなた自身の Google サインインが必要です。確認は5分間・1つの操作だけに使えます。相手の同席やサインインは要りません。"),
+    gsiHost,
+    dockText,
+  );
+
+  const genLine = h("p", { class: "small muted" }, "");
+  const opsWrap = h("div", null);
+  const invitesWrap = h("div", null);
+
+  const emailInput = h("input", { type: "email", placeholder: "例：taro@example.jp", "aria-label": "招待するメールアドレス" });
+  const inviteBtn = h("button", { class: "btn primary op-action", type: "submit" }, "招待を作る");
+  const inviteForm = h("form", {
+    onsubmit: (ev) => {
+      ev.preventDefault();
+      const email = emailInput.value.trim();
+      if (!email) { result.show("メールアドレスを入れてください。", false); emailInput.focus(); return; }
+      runAction(
+        (cred) => send("/api/stage1/operators/invitations", { method: "POST", body: { credential: cred, email } }),
+        () => { emailInput.value = ""; return `${email} への招待を作りました。相手がサインインして承諾すると、運営者になります。`; },
+      );
+    },
+  }, h("div", { class: "form-row" },
+    h("label", { class: "field" }, h("span", { class: "field-label" }, "招待するメールアドレス"), emailInput),
+    inviteBtn,
+  ));
+
+  const card = h("section", { class: "card", id: "operator" },
+    h("div", { class: "card-head" },
+      h("h2", null, "運営者"),
+      h("span", { class: "chip accent" }, "運営者だけ"),
+    ),
+    h("p", { class: "lead" }, "運営者の追加は招待で、失効はこの一覧から行います。Google の識別子は画面に表示されません。"),
+    h("div", { class: "callout info" }, h("span", { class: "grow" },
+      "運営者は、スーパー管理者を立てるときだけ使う非常用の役割です。学校を作ったり、学校の所属を変えたりすることはできません。スーパー管理者のアカウントが使えなくなったときに、別の人をスーパー管理者に立て直すためにあります。ふだんは使うことのない欄です。")),
+    dock,
+    h("div", { class: "divider" }),
+    h("h3", null, "運営者の一覧"),
+    genLine,
+    opsWrap,
+    h("div", { class: "divider" }),
+    h("h3", null, "運営者を招待する"),
+    h("p", { class: "small muted" }, "招待の期限は7日です。相手が自分の端末でサインインし、このページで承諾すると運営者になります。異動の引き継ぎも、相手の同席なしで進められます。スーパー管理者とは別のアカウントを1つ招待しておくと、万一のときの立て直しに使えます。"),
+    inviteForm,
+    h("div", { class: "divider" }),
+    h("h3", null, "招待の一覧"),
+    invitesWrap,
+    result.el,
+  );
+
+  function setActionsEnabled() {
+    const on = !!op.credential && !op.busy;
+    card.querySelectorAll(".op-action").forEach((b) => { b.disabled = !on; });
+  }
+
+  function setChip() {
+    const left = Math.max(0, op.expiresAt - Date.now());
+    const mm = Math.floor(left / 60000), ss = String(Math.floor((left % 60000) / 1000)).padStart(2, "0");
+    if (op.credential) {
+      stateChip.className = "chip ok";
+      stateChip.textContent = `確認済み（あと ${mm}:${ss}）`;
+      dock.className = "dock";
+      dockText.textContent = "確認済みです。下の操作を1つ実行できます。実行すると確認は終わります。";
+    } else {
+      stateChip.className = "chip";
+      stateChip.textContent = `未確認（あと ${mm}:${ss}）`;
+      dock.className = "dock waiting";
+      dockText.textContent = "まず本人確認をしてください。確認すると、下の操作を1つだけ実行できます。";
+    }
+  }
+
+  async function arm() {
+    const seq = ++op.armSeq;
+    clearInterval(op.timer);
+    op.credential = null;
+    setActionsEnabled();
+    let nonce;
+    try {
+      ({ nonce } = await send("/api/stage1/operators/nonce", { method: "POST", body: {} }));
+    } catch (e) {
+      result.show("本人確認の準備に失敗しました。画面を読み直してください。", false);
+      return;
+    }
+    if (seq !== op.armSeq) return;
+    op.expiresAt = Date.now() + 5 * 60 * 1000;
+    try {
+      await initGsi(clientId, nonce, (cred) => {
+        if (seq !== op.armSeq) return;
+        op.credential = cred;
+        setChip(); setActionsEnabled();
+      });
+      if (seq !== op.armSeq) return;
+      renderGsiButton(gsiHost);
+    } catch { result.show("Google のサインインを読み込めませんでした。", false); return; }
+    setChip();
+    op.timer = setInterval(() => {
+      if (Date.now() >= op.expiresAt) {
+        const had = !!op.credential;
+        arm();
+        if (had) result.show("本人確認の期限が切れました。もう一度サインインしてください。", false);
+      } else setChip();
+    }, 1000);
+  }
+
+  async function runAction(request, successMsg) {
+    if (!op.credential || op.busy) {
+      result.show("先に本人確認をしてください。", false);
+      return;
+    }
+    op.busy = true; setActionsEnabled();
+    const cred = op.credential;
+    try {
+      const r = await request(cred);
+      result.show(successMsg(r), true);
+      toast("完了しました");
+    } catch (e) {
+      result.show(e.message, false);
+    } finally {
+      op.busy = false;
+      op.credential = null;
+      await refreshLists();
+      arm();
+    }
+  }
+
+  async function refreshLists() {
+    try {
+      const [ops, invs] = await Promise.all([
+        send("/api/stage1/operators"),
+        send("/api/stage1/operators/invitations"),
+      ]);
+      op.generation = ops.generation;
+      genLine.textContent = `登録簿の世代：${ops.generation}（操作のたびに、古い画面との食い違いを防ぐために使われます）`;
+      renderOperators(ops.operators);
+      renderInvitations(invs.invitations);
+      setActionsEnabled();
+    } catch (e) { result.show(e.message, false); }
+  }
+
+  function renderOperators(operators) {
+    if (!operators.length) { opsWrap.replaceChildren(h("div", { class: "empty" }, "運営者がいません。")); return; }
+    const list = h("div", { class: "list" });
+    for (const o of operators) {
+      const actions = h("div", { class: "actions" });
+      const btn = h("button", {
+        class: "btn sm danger op-action", type: "button",
+        onclick: () => confirmInline(actions, `${o.name} さんを失効させますか？`, "失効させる", () => {
+          runAction(
+            (cred) => send(`/api/stage1/operators/${o.id}/revoke`, {
+              method: "POST", body: { credential: cred, expectedGeneration: op.generation },
+            }),
+            (r) => `${o.name} さんを失効させました。世代は ${r.generation} になりました。`,
+          );
+        }),
+      }, "失効させる");
+      actions.append(btn);
+      list.append(h("div", { class: "row" },
+        h("div", { class: "who" }, h("div", { class: "who-text" },
+          h("div", { class: "who-main" }, o.name),
+          h("div", { class: "who-sub" }, o.email),
+        )),
+        actions,
+      ));
+    }
+    opsWrap.replaceChildren(
+      list,
+      operators.length <= 1
+        ? h("p", { class: "small muted" }, "運営者が1人だけのときは、最後の1人を失効させることはできません。先に別の人を招待して承諾してもらってください。")
+        : h("p", { class: "small muted" }, "失効させると、その人は運営者の操作ができなくなります。相手のサインインは要りません。"),
+    );
+  }
+
+  function renderInvitations(invitations) {
+    if (!invitations.length) { invitesWrap.replaceChildren(h("div", { class: "empty" }, "招待はまだありません。")); return; }
+    const list = h("div", { class: "list" });
+    for (const inv of invitations) {
+      const actions = h("div", { class: "actions" });
+      if (inv.status === "招待中") {
+        actions.append(h("button", {
+          class: "btn sm danger op-action", type: "button",
+          onclick: () => confirmInline(actions, "この招待を取り消しますか？", "取り消す", () => {
+            runAction(
+              (cred) => send(`/api/stage1/operators/invitations/${inv.id}`, { method: "DELETE", body: { credential: cred } }),
+              () => `${inv.email} への招待を取り消しました。`,
+            );
+          }),
+        }, "取り消す"));
+      }
+      const chip = inv.status === "招待中" ? h("span", { class: "chip ok" }, "招待中")
+        : inv.status === "承諾済み" ? h("span", { class: "chip accent" }, "承諾済み")
+        : inv.status === "期限切れ" ? h("span", { class: "chip off" }, "期限切れ")
+        : h("span", { class: "chip off" }, inv.status);
+      list.append(h("div", { class: "row" + (inv.status !== "招待中" ? " dim" : "") },
+        h("div", { class: "who" }, h("div", { class: "who-text" },
+          h("div", { class: "who-main" }, inv.email),
+          h("div", { class: "who-sub" }, `期限：${fmtDate(inv.expiresAt)}まで`),
+        )),
+        h("span", { class: "badges" }, chip),
+        actions,
+      ));
+    }
+    invitesWrap.replaceChildren(list);
+  }
+
+  refreshLists();
+  arm();
+  return card;
+}
+
+boot();
+</script>
+</body>
 </html>
