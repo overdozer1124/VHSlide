@@ -12,9 +12,13 @@ import type { WorksheetDefinition } from "./worksheets.ts";
  * their own, and the "own" side is always keyed by the signed-in
  * actor, never by a client-supplied id.
  *
- * Group tools appear in a student's record as their group's work
- * (labelled with the group name). Class tools contribute the points
- * and cards that student authored inside the shared chart. */
+ * Group tools appear in a student's record as the work of the
+ * board(s) they actually wrote on (labelled with that group's
+ * name) — membership changes over time, authorship does not. A
+ * student who wrote nothing on a group tool still sees their
+ * current group's board, marked as such. Class tools contribute
+ * the points and cards that student authored inside the shared
+ * chart. */
 
 export type RecordPlacement = {
   slideId: string;
@@ -48,6 +52,9 @@ export type RecordEntry = {
   template?: string;
   unit?: string;
   groupName?: string;
+  /** Group entry filled from the student's current group only
+   * (they wrote nothing on this tool themselves). */
+  groupCurrent?: boolean;
   nameA?: string;
   nameB?: string;
   scenes?: { id: string; label: string; value: ThinkingPointValue; reason: string }[];
@@ -144,6 +151,7 @@ function buildRecords(
   };
 
   for (const row of worksheets) {
+    if (row.status === "draft") continue;
     const definition = parseJson<WorksheetDefinition>(row.definition, {
       title: "",
       description: "",
@@ -182,6 +190,7 @@ function buildRecords(
   }
 
   for (const row of surveys) {
+    if (row.status === "draft") continue;
     const options = parseJson<string[]>(row.options, []);
     const answers = new Map(
       [...sql("SELECT author, value, updated FROM survey_answers WHERE survey=?", row.id)].map(
@@ -210,7 +219,15 @@ function buildRecords(
     }
   }
 
+  const groupNames = new Map(
+    [...sql("SELECT id, name FROM deck_groups WHERE deck=?", deckId)].map((g) => [
+      String(g.id),
+      String(g.name),
+    ]),
+  );
+
   for (const row of tools) {
+    if (row.status === "draft") continue;
     let parsed: ReturnType<typeof parseThinkingDefinition>;
     try {
       parsed = parseThinkingDefinition(
@@ -225,14 +242,11 @@ function buildRecords(
     const points = [...sql("SELECT owner, scene, value, reason, author FROM thinking_points WHERE tool=?", row.id)];
     const cards = [...sql("SELECT owner, zone, text, color, author FROM thinking_cards WHERE tool=? ORDER BY sort, created", row.id)];
     const isBoard = (definition.zones ?? []).length > 0;
-    for (const uid of userIds) {
-      const group = groupOf.get(uid);
-      const owns = (owner: string, author: string): boolean =>
-        unit === "individual"
-          ? owner === uid
-          : unit === "group"
-            ? !!group && owner === group.id
-            : author === uid;
+    const buildEntry = (
+      uid: string,
+      keep: (owner: string, author: string) => boolean,
+      extra: Partial<RecordEntry>,
+    ): void => {
       const entry: RecordEntry = {
         kind: "thinking",
         refId: String(row.id),
@@ -242,11 +256,11 @@ function buildRecords(
         nameA: definition.nameA,
         nameB: definition.nameB,
         updated: 0,
-        ...(unit === "group" && group ? { groupName: group.name } : {}),
+        ...extra,
       };
       if (isBoard) {
-        const own = cards.filter((c) => owns(String(c.owner), String(c.author)));
-        if (!own.length) continue;
+        const own = cards.filter((c) => keep(String(c.owner), String(c.author)));
+        if (!own.length) return;
         entry.zones = (definition.zones ?? []).map((z) => ({
           id: z.id,
           label: z.label,
@@ -255,8 +269,8 @@ function buildRecords(
             .map((c) => ({ text: String(c.text), color: String(c.color ?? "") })),
         }));
       } else {
-        const own = points.filter((p) => owns(String(p.owner), String(p.author)));
-        if (!own.length) continue;
+        const own = points.filter((p) => keep(String(p.owner), String(p.author)));
+        if (!own.length) return;
         entry.scenes = (definition.scenes ?? []).map((s) => {
           const point = own.find((p) => String(p.scene) === s.id);
           return point
@@ -270,6 +284,43 @@ function buildRecords(
         });
       }
       push(uid, entry, Number(row.created) || 0);
+    };
+    for (const uid of userIds) {
+      if (unit === "group") {
+        // The boards in this student's record are the ones they
+        // actually wrote on (a point or card with their name on it).
+        // Membership changes over time; authorship does not.
+        const authored: string[] = [];
+        for (const r of [...points, ...cards]) {
+          const owner = String(r.owner);
+          if (String(r.author) === uid && !authored.includes(owner))
+            authored.push(owner);
+        }
+        const boards = authored.map((owner) => ({ owner, current: false }));
+        if (!boards.length) {
+          // Nothing written by this student: fall back to their
+          // current group's board, marked as the current group.
+          const group = groupOf.get(uid);
+          const hasBoard =
+            !!group &&
+            (points.some((p) => String(p.owner) === group.id) ||
+              cards.some((c) => String(c.owner) === group.id));
+          if (group && hasBoard) boards.push({ owner: group.id, current: true });
+        }
+        for (const b of boards) {
+          buildEntry(uid, (owner) => owner === b.owner, {
+            groupName: groupNames.get(b.owner) ?? "班",
+            ...(b.current ? { groupCurrent: true } : {}),
+          });
+        }
+      } else {
+        buildEntry(
+          uid,
+          (owner, author) =>
+            unit === "individual" ? owner === uid : author === uid,
+          {},
+        );
+      }
     }
   }
 

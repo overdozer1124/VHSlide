@@ -57,7 +57,9 @@ function EntryView({ entry }: { entry: RecordEntry }) {
         <span className="record-kind">{kindLabel}</span>
         <span className="record-entry-title">{entry.title}</span>
         {entry.groupName && (
-          <span className="record-group">{entry.groupName}の活動</span>
+          <span className="record-group">
+            {entry.groupName}の活動{entry.groupCurrent ? "（今の班）" : ""}
+          </span>
         )}
         {entry.placement?.slideTitle &&
           entry.placement.slideTitle !== entry.title && (

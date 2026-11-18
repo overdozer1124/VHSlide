@@ -207,6 +207,44 @@ describe("learning record", () => {
     expect(bob.entries.some((e) => e.title === "班のベン図")).toBe(false);
   });
 
+  it("follows the board a student wrote on, not their current group", () => {
+    const { sql, deck } = fixture();
+    const boardId = String(
+      [...sql("SELECT id FROM thinking_tools WHERE unit=?", "group")][0].id,
+    );
+    const g2 = groupList(sql, "deck", "host", true).groups[1];
+    // Coco is in group 2 and wrote on the group board there.
+    sql("INSERT INTO users VALUES(?,?,?)", "coco", "ここ", "");
+    sql("INSERT INTO members VALUES(?,?)", "deck", "coco");
+    groupCommand(sql, "deck", "coco", false, "join", undefined, {
+      groupId: g2.id,
+    });
+    thinkingCommand(sql, "deck", "coco", false, "card", boardId, {
+      zone: "a",
+      text: "2班のカード",
+      color: "",
+    });
+    // Ana wrote in group 1 (fixture) but has since moved to group 2.
+    sql("UPDATE deck_group_members SET grp=? WHERE deck=? AND user=?", g2.id, "deck", "ana");
+    const ana = myLearningRecord(sql, deck, "deck", "ana");
+    const anaBoards = ana.entries.filter((e) => e.title === "班のベン図");
+    expect(anaBoards).toHaveLength(1);
+    expect(anaBoards[0].groupName).toBe("1班");
+    expect(anaBoards[0].groupCurrent).toBeUndefined();
+    expect(JSON.stringify(ana)).toContain("班のカード");
+    expect(JSON.stringify(ana)).not.toContain("2班のカード");
+    // Bob joins group 2 without writing anything: he sees its board
+    // as his current group's, marked as such.
+    groupCommand(sql, "deck", "bob", false, "join", undefined, {
+      groupId: g2.id,
+    });
+    const bob = myLearningRecord(sql, deck, "deck", "bob");
+    const bobBoard = bob.entries.find((e) => e.title === "班のベン図");
+    expect(bobBoard?.groupName).toBe("2班");
+    expect(bobBoard?.groupCurrent).toBe(true);
+    expect(JSON.stringify(bobBoard)).toContain("2班のカード");
+  });
+
   it("lists every student for the host and narrows with a filter", () => {
     const { sql, deck } = fixture();
     const all = learningRecord(sql, deck, "deck", "host");

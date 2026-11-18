@@ -82,14 +82,6 @@ test("learning record: host sees each student, students see only their own", asy
   ).json();
   expect(JSON.stringify(mine)).toContain("ひとりめの感想");
   expect(JSON.stringify(mine)).not.toContain("ふたりめの感想");
-  const mineWithParam = await (
-    await student1.request.get(`/api/decks/${id}/record/me?user=someone-else`, {
-      headers,
-    })
-  ).json();
-  expect(JSON.stringify(mineWithParam)).toContain("ひとりめの感想");
-  expect(JSON.stringify(mineWithParam)).not.toContain("ふたりめの感想");
-
   const all = await (
     await page.request.get(`/api/decks/${id}/record`, { headers })
   ).json();
@@ -97,6 +89,16 @@ test("learning record: host sees each student, students see only their own", asy
   const other = all.students.find(
     (s: { name: string }) => s.name === guest2Name,
   );
+  // Even with the other student's real id in the query, "me" stays
+  // keyed by the signed-in account alone.
+  const mineWithParam = await (
+    await student1.request.get(
+      `/api/decks/${id}/record/me?user=${other.userId}`,
+      { headers },
+    )
+  ).json();
+  expect(JSON.stringify(mineWithParam)).toContain("ひとりめの感想");
+  expect(JSON.stringify(mineWithParam)).not.toContain("ふたりめの感想");
   const filtered = await (
     await page.request.get(`/api/decks/${id}/record?user=${other.userId}`, {
       headers,
