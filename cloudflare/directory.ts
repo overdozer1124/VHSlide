@@ -10,21 +10,13 @@ import {
   surveyCommand,
   SurveyError,
 } from "../src/surveys.ts";
-import {
-  webbingSchema,
-  webbingList,
-  webbingCommand,
-} from "../src/webbing.ts";
+import { webbingSchema, webbingList, webbingCommand } from "../src/webbing.ts";
 import {
   thinkingSchema,
   thinkingList,
   thinkingCommand,
 } from "../src/thinkingTools.ts";
-import {
-  groupSchema,
-  groupList,
-  groupCommand,
-} from "../src/groups.ts";
+import { groupSchema, groupList, groupCommand } from "../src/groups.ts";
 import {
   addUserApp,
   deleteUserApp,
@@ -104,6 +96,15 @@ import {
   invalidateOrganizationMember,
   reactivateOrganizationMember,
 } from "../src/stage1Generation.ts";
+import {
+  consoleView,
+  createSchool,
+  durableOperateSql,
+  listApplications,
+  listMembers,
+  listPreregistrations,
+  OperateError,
+} from "../src/stage1Operate.ts";
 import { DurableObject } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { parseDeck } from "../src/model.ts";
@@ -593,6 +594,93 @@ export class Directory extends DurableObject<Env> {
         "Set-Cookie": `vhslide_admin_ctx=${ctx}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300${secure}`,
       });
     }
+    const signedOperator =
+      /^\/api\/stage1\/operators\/(add|revoke|rotate)-by-sign-in$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      signedOperator &&
+      method === "POST"
+    ) {
+      const kind = signedOperator[1];
+      const data = await input(request);
+      insist(
+        typeof data.credential === "string",
+        400,
+        "サインイン情報を確認できません。",
+      );
+      const readCredential = async (credential: unknown) => {
+        insist(
+          typeof credential === "string",
+          400,
+          "サインイン情報を確認できません。",
+        );
+        try {
+          const { payload } = await jwtVerify(credential, keys, {
+            audience: [
+              this.env.GOOGLE_CLIENT_ID,
+              this.env.GOOGLE_SCHOOL_CLIENT_ID,
+            ].filter((value): value is string => !!value),
+            issuer: ["https://accounts.google.com", "accounts.google.com"],
+            algorithms: ["RS256"],
+          });
+          insist(
+            payload.email_verified === true &&
+              typeof payload.sub === "string" &&
+              typeof payload.nonce === "string",
+            401,
+            "確認用の番号が無効です。",
+          );
+          return { sub: payload.sub, nonce: payload.nonce };
+        } catch (error) {
+          if (error instanceof HttpError) throw error;
+          throw new HttpError(
+            401,
+            "Googleのサインインを確認できませんでした。",
+          );
+        }
+      };
+      const actor = await readCredential(data.credential);
+      const targetSubject = async (credential: unknown) => {
+        const target = await readCredential(credential);
+        insist(
+          target.nonce === actor.nonce,
+          401,
+          "確認用の番号が一致しません。",
+        );
+        return target.sub;
+      };
+      const fields: Record<string, unknown> = {
+        expectedGeneration: data.expectedGeneration,
+      };
+      if (kind === "rotate") {
+        fields.oldSubject = await targetSubject(data.fromCredential);
+        fields.newSubject = await targetSubject(data.toCredential);
+      } else fields.subject = await targetSubject(data.targetCredential);
+      const ctx =
+        /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+          request.headers.get("Cookie") || "",
+        )?.[1] ?? null;
+      const ctxHash = ctx ? await sha(ctx) : null;
+      try {
+        const action = operatorActionFromBody(kind, fields);
+        const result = this.ctx.storage.transactionSync(() =>
+          performOperatorAction(durableOperatorSql(this.sql), {
+            action,
+            actor: actor.sub,
+            nonce: actor.nonce,
+            ctxHash,
+            now: Date.now(),
+            envId: this.env.STAGE1_ENV_ID || "",
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json({ ok: result.ok, generation: result.generation });
+      } catch (error) {
+        if (error instanceof InitialRegistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
     const operatorKind =
       /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
         path,
@@ -727,6 +815,117 @@ export class Directory extends DurableObject<Env> {
     const identity = await this.identity(request),
       user = identity.user;
     if (path !== "/api/logout") await this.claim(user);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/console" &&
+      method === "GET"
+    )
+      return json(consoleView(durableOperateSql(this.sql), user.id));
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/organizations" &&
+      method === "POST"
+    ) {
+      const data = await input(request, 20_000);
+      insist(
+        typeof data.name === "string",
+        400,
+        "学校の名前を確認してください。",
+      );
+      try {
+        const school = this.ctx.storage.transactionSync(() =>
+          createSchool(durableOperateSql(this.sql), {
+            id: crypto.randomUUID(),
+            name: data.name,
+            actorId: user.id,
+            now: Date.now(),
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json({ school }, 201);
+      } catch (error) {
+        if (error instanceof OperateError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/organizations" &&
+      method === "GET"
+    ) {
+      const view = consoleView(durableOperateSql(this.sql), user.id);
+      insist(
+        view.createSchool || view.schools.length > 0,
+        403,
+        "学校の一覧を見る権限がありません。",
+      );
+      return json({
+        schools: view.createSchool
+          ? view.applyTo
+          : view.schools.map((school) => ({
+              id: school.id,
+              name: school.name,
+            })),
+      });
+    }
+    const preregList = /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(
+      path,
+    );
+    if (stage1FeaturesEnabled(this.env) && preregList && method === "GET") {
+      const organizationId = decodeURIComponent(preregList[1]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の事前登録を見る権限がありません。",
+      );
+      return json({
+        preregistrations: listPreregistrations(
+          durableOperateSql(this.sql),
+          organizationId,
+        ),
+      });
+    }
+    const applicationList =
+      /^\/api\/organizations\/([^/]+)\/school-admin-applications$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      applicationList &&
+      method === "GET"
+    ) {
+      const organizationId = decodeURIComponent(applicationList[1]);
+      insist(
+        consoleView(durableOperateSql(this.sql), user.id).decideApplications,
+        403,
+        "申請を確認できるのはスーパー管理者だけです。",
+      );
+      return json({
+        applications: listApplications(
+          durableOperateSql(this.sql),
+          organizationId,
+        ),
+      });
+    }
+    const memberList = /^\/api\/organizations\/([^/]+)\/members$/.exec(path);
+    if (stage1FeaturesEnabled(this.env) && memberList && method === "GET") {
+      const organizationId = decodeURIComponent(memberList[1]);
+      insist(
+        canManageOrganizationPrereg(
+          durablePreregSql(this.sql),
+          user.id,
+          organizationId,
+        ),
+        403,
+        "この学校の所属を見る権限がありません。",
+      );
+      return json({
+        members: listMembers(durableOperateSql(this.sql), organizationId),
+      });
+    }
     const orgPrereg = /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(
       path,
     );
@@ -1410,9 +1609,12 @@ export class Directory extends DurableObject<Env> {
       insist(
         (method === "GET" && extra === "gallery") ||
           (method === "POST" &&
-            ["gallery/preview", "gallery/publish", "gallery/stop", "gallery/counts"].includes(
-              extra,
-            )),
+            [
+              "gallery/preview",
+              "gallery/publish",
+              "gallery/stop",
+              "gallery/counts",
+            ].includes(extra)),
         405,
         "この操作には対応していません。",
       );
@@ -1518,7 +1720,8 @@ export class Directory extends DurableObject<Env> {
           const v = new URL(request.url).searchParams.get("v");
           if (v !== null) {
             const version = featureVersion(sql, id, "worksheets");
-            if (String(version) === v) return json({ unchanged: true, version });
+            if (String(version) === v)
+              return json({ unchanged: true, version });
             return json({
               worksheets: worksheetList(sql, id, user.id, host),
               version,
@@ -1576,9 +1779,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^groups(?:\/(add|join|leave)|\/([a-f0-9-]{36})\/rename)?$/.exec(
-          extra,
-        );
+        /^groups(?:\/(add|join|leave)|\/([a-f0-9-]{36})\/rename)?$/.exec(extra);
       insist(
         route && (method === "GET" ? extra === "groups" : true),
         404,
@@ -1606,7 +1807,8 @@ export class Directory extends DurableObject<Env> {
           const v = new URL(request.url).searchParams.get("v");
           if (v !== null) {
             const version = featureVersion(sql, id, "groups");
-            if (String(version) === v) return json({ unchanged: true, version });
+            if (String(version) === v)
+              return json({ unchanged: true, version });
             return json({ ...groupList(sql, id, user.id, host), version });
           }
         }
@@ -1656,7 +1858,8 @@ export class Directory extends DurableObject<Env> {
           const v = new URL(request.url).searchParams.get("v");
           if (v !== null) {
             const version = featureVersion(sql, id, "webbing");
-            if (String(version) === v) return json({ unchanged: true, version });
+            if (String(version) === v)
+              return json({ unchanged: true, version });
             return json({ webbing: webbingList(sql, id, host), version });
           }
         }
@@ -1708,15 +1911,16 @@ export class Directory extends DurableObject<Env> {
           );
         }
         const caps = {
-          board: (
-            new URL(request.url).searchParams.get("caps") ?? ""
-          ).includes("board"),
+          board: (new URL(request.url).searchParams.get("caps") ?? "").includes(
+            "board",
+          ),
         };
         if (method === "GET") {
           const v = new URL(request.url).searchParams.get("v");
           if (v !== null) {
             const version = featureVersion(sql, id, "thinking");
-            if (String(version) === v) return json({ unchanged: true, version });
+            if (String(version) === v)
+              return json({ unchanged: true, version });
             return json({
               thinking: thinkingList(sql, id, user.id, host, caps),
               version,

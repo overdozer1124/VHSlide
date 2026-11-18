@@ -134,6 +134,15 @@ import {
   nodeGenerationSql,
   reactivateOrganizationMember,
 } from "../src/stage1Generation.ts";
+import {
+  consoleView,
+  createSchool,
+  listApplications,
+  listMembers,
+  listPreregistrations,
+  nodeOperateSql,
+  OperateError,
+} from "../src/stage1Operate.ts";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DatabaseSync } from "node:sqlite";
@@ -831,6 +840,86 @@ export function createApplication(options: Options) {
         );
         return json(res, 200, { nonce: nonceValue });
       }
+      const signedOperator =
+        /^\/api\/stage1\/operators\/(add|revoke|rotate)-by-sign-in$/.exec(path);
+      if (stage1On && signedOperator && method === "POST") {
+        const kind = signedOperator[1];
+        const input = JSON.parse(
+          (await body(req, 20_000)).toString(),
+        ) as Record<string, unknown>;
+        insist(
+          typeof input.credential === "string",
+          400,
+          "サインイン情報を確認できません。",
+        );
+        let actor: { sub: string; nonce: string };
+        try {
+          actor = await verifyOperatorCredential(input.credential);
+        } catch (error) {
+          if (error instanceof HttpError) throw error;
+          throw new HttpError(
+            401,
+            "Googleのサインインを確認できませんでした。",
+          );
+        }
+        const targetSubject = async (value: unknown) => {
+          insist(
+            typeof value === "string",
+            400,
+            "相手のサインインを確認できません。",
+          );
+          let target: { sub: string; nonce: string };
+          try {
+            target = await verifyOperatorCredential(value);
+          } catch (error) {
+            if (error instanceof HttpError) throw error;
+            throw new HttpError(
+              401,
+              "相手のサインインを確認できませんでした。",
+            );
+          }
+          insist(
+            target.nonce === actor.nonce,
+            401,
+            "確認用の番号が一致しません。",
+          );
+          return target.sub;
+        };
+        const fields: Record<string, unknown> = {
+          expectedGeneration: input.expectedGeneration,
+        };
+        if (kind === "rotate") {
+          fields.oldSubject = await targetSubject(input.fromCredential);
+          fields.newSubject = await targetSubject(input.toCredential);
+        } else fields.subject = await targetSubject(input.targetCredential);
+        const ctx =
+          /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+            req.headers.cookie ?? "",
+          )?.[1] ?? null;
+        const action = operatorActionFromBody(kind, fields);
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          const result = performOperatorAction(nodeOperatorSql(db), {
+            action,
+            actor: actor.sub,
+            nonce: actor.nonce,
+            ctxHash: ctx ? sha(ctx) : null,
+            now: Date.now(),
+            envId: stage1EnvId,
+            auditId: randomBytes(16).toString("hex"),
+          });
+          db.exec("COMMIT");
+          return json(res, 200, {
+            ok: result.ok,
+            generation: result.generation,
+          });
+        } catch (error) {
+          db.exec("ROLLBACK");
+          if (error instanceof InitialRegistrationError)
+            throw new HttpError(error.status, error.message);
+          throw error;
+        }
+      }
       const operatorKind =
         /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
           path,
@@ -884,6 +973,99 @@ export function createApplication(options: Options) {
         const u = user(req);
         claim(u);
         if (method !== "GET") rateLimit(`api:${u.id}`, 120);
+        if (stage1On && path === "/api/stage1/console" && method === "GET")
+          return json(res, 200, consoleView(nodeOperateSql(db), u.id));
+        if (stage1On && path === "/api/organizations" && method === "POST") {
+          const input = JSON.parse((await body(req, 20_000)).toString());
+          insist(
+            typeof input.name === "string",
+            400,
+            "学校の名前を確認してください。",
+          );
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const school = createSchool(nodeOperateSql(db), {
+              id: randomUUID(),
+              name: input.name,
+              actorId: u.id,
+              now: Date.now(),
+              auditId: randomBytes(16).toString("hex"),
+            });
+            db.exec("COMMIT");
+            return json(res, 201, { school });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof OperateError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
+        if (stage1On && path === "/api/organizations" && method === "GET") {
+          const view = consoleView(nodeOperateSql(db), u.id);
+          if (!view.createSchool && view.schools.length === 0)
+            throw new HttpError(403, "学校の一覧を見る権限がありません。");
+          return json(res, 200, {
+            schools: view.createSchool
+              ? view.applyTo
+              : view.schools.map((school) => ({
+                  id: school.id,
+                  name: school.name,
+                })),
+          });
+        }
+        const preregList =
+          /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
+        if (stage1On && preregList && method === "GET") {
+          const organizationId = decodeURIComponent(preregList[1]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の事前登録を見る権限がありません。",
+          );
+          return json(res, 200, {
+            preregistrations: listPreregistrations(
+              nodeOperateSql(db),
+              organizationId,
+            ),
+          });
+        }
+        const applicationList =
+          /^\/api\/organizations\/([^/]+)\/school-admin-applications$/.exec(
+            path,
+          );
+        if (stage1On && applicationList && method === "GET") {
+          const organizationId = decodeURIComponent(applicationList[1]);
+          insist(
+            consoleView(nodeOperateSql(db), u.id).decideApplications,
+            403,
+            "申請を確認できるのはスーパー管理者だけです。",
+          );
+          return json(res, 200, {
+            applications: listApplications(nodeOperateSql(db), organizationId),
+          });
+        }
+        const memberList = /^\/api\/organizations\/([^/]+)\/members$/.exec(
+          path,
+        );
+        if (stage1On && memberList && method === "GET") {
+          const organizationId = decodeURIComponent(memberList[1]);
+          insist(
+            canManageOrganizationPrereg(
+              nodePreregSql(db),
+              u.id,
+              organizationId,
+            ),
+            403,
+            "この学校の所属を見る権限がありません。",
+          );
+          return json(res, 200, {
+            members: listMembers(nodeOperateSql(db), organizationId),
+          });
+        }
         const orgPrereg =
           /^\/api\/organizations\/([^/]+)\/preregistrations$/.exec(path);
         if (stage1On && orgPrereg && method === "POST") {
@@ -1236,9 +1418,7 @@ export function createApplication(options: Options) {
         if (path === "/api/user-apps" && method === "GET")
           return json(res, 200, { apps: listUserApps(historySQL, u.id) });
         if (path === "/api/user-apps" && method === "POST") {
-          const data = JSON.parse(
-            (await body(req, 24_000_000)).toString(),
-          );
+          const data = JSON.parse((await body(req, 24_000_000)).toString());
           rateLimit(`userapp:${u.id}`, 30);
           db.exec("BEGIN IMMEDIATE");
           try {
@@ -1532,9 +1712,12 @@ export function createApplication(options: Options) {
           insist(
             (method === "GET" && extra === "gallery") ||
               (method === "POST" &&
-                ["gallery/preview", "gallery/publish", "gallery/stop", "gallery/counts"].includes(
-                  extra,
-                )),
+                [
+                  "gallery/preview",
+                  "gallery/publish",
+                  "gallery/stop",
+                  "gallery/counts",
+                ].includes(extra)),
             405,
             "この操作には対応していません。",
           );
@@ -1769,7 +1952,9 @@ export function createApplication(options: Options) {
                 return json(
                   res,
                   200,
-                  groups ? { ...groups, version } : { unchanged: true, version },
+                  groups
+                    ? { ...groups, version }
+                    : { unchanged: true, version },
                 );
               }
             }
@@ -1821,9 +2006,7 @@ export function createApplication(options: Options) {
                 return json(
                   res,
                   200,
-                  webbing
-                    ? { webbing, version }
-                    : { unchanged: true, version },
+                  webbing ? { webbing, version } : { unchanged: true, version },
                 );
               }
             }
