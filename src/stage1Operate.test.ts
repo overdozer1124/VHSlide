@@ -8,6 +8,7 @@ import {
 import {
   consoleView,
   createSchool,
+  operateEntry,
   listApplications,
   listMembers,
   listPreregistrations,
@@ -76,6 +77,17 @@ describe("stage1Operate", () => {
       { id: "org1", name: "加賀小学校" },
     ]);
     expect(consoleView(sql, "plain").myInvitation).toBeNull();
+    expect(operateEntry(sql, "super")).toEqual({ href: "/operate.html" });
+    expect(JSON.stringify(operateEntry(sql, "super"))).not.toContain(
+      "is_super_admin",
+    );
+    expect(() => operateEntry(sql, "plain")).toThrow(OperateError);
+    try {
+      operateEntry(sql, "plain");
+    } catch (error) {
+      expect(error).toBeInstanceOf(OperateError);
+      expect((error as OperateError).status).toBe(404);
+    }
   });
 
   it("lists preregistrations, applications and members without operator subjects", () => {

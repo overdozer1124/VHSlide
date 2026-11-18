@@ -107,6 +107,7 @@ import {
 import {
   consoleView,
   createSchool,
+  operateEntry,
   durableOperateSql,
   listApplications,
   listMembers,
@@ -874,6 +875,19 @@ export class Directory extends DurableObject<Env> {
       method === "GET"
     )
       return json(consoleView(durableOperateSql(this.sql), user.id));
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/operate-entry" &&
+      method === "GET"
+    ) {
+      try {
+        return json(operateEntry(durableOperateSql(this.sql), user.id));
+      } catch (error) {
+        if (error instanceof OperateError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
     if (
       stage1FeaturesEnabled(this.env) &&
       path === "/api/stage1/operators" &&
