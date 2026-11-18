@@ -116,21 +116,26 @@ test("board results analyze card words per zone, counted by author", async ({
     const student = await context.newPage();
     await scopeLogin(student, name);
     await student.goto(`/?room=${id}`);
-    // The map re-renders as presence/sync updates land, and a click
-    // in that window can be swallowed; retry the entry until the
-    // placed board is on screen.
+    // The map keeps re-rendering as presence/sync updates land, so
+    // a click can stall on actionability or be swallowed. Every
+    // wait here is explicitly bounded (an unbounded locator wait
+    // would run to the test timeout) and the entry is retried
+    // until the placed board is on screen.
     const board = student.locator(".slide-thinking.is-interactive");
     let entered = false;
-    for (let attempt = 0; attempt < 4 && !entered; attempt++) {
-      await student.locator(".slide-card").first().click();
-      entered = await board
-        .isVisible({ timeout: 6_000 })
+    for (let attempt = 0; attempt < 5 && !entered; attempt++) {
+      const cards = student.locator(".slide-card");
+      if ((await cards.count()) > 0)
+        await cards.first().click({ timeout: 8_000 }).catch(() => {});
+      entered = await expect(board)
+        .toBeVisible({ timeout: 5_000 })
+        .then(() => true)
         .catch(() => false);
-      if (!entered)
-        await student
-          .getByRole("button", { name: "全体マップへ" })
-          .click()
-          .catch(() => {});
+      if (!entered) {
+        const back = student.getByRole("button", { name: "全体マップへ" });
+        if ((await back.count()) > 0)
+          await back.first().click({ timeout: 5_000 }).catch(() => {});
+      }
     }
     await expect(board).toBeVisible({ timeout: 15_000 });
     for (const [zone, text] of writes) await writeCard(student, zone, text);

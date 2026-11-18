@@ -232,8 +232,13 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
             </div>
             <TextMinePanel
               key={mineZone}
-              texts={textMineCardTexts(tool.cards, mineZone || null)}
-              idleNote="カードの文章を言葉に分けて、よく出る言葉を人数順に並べます。同じ人が同じ言葉を何枚に書いても1人と数えます。解析はこの端末の中で行われ、カードの内容が外部へ送られることはありません。"
+              texts={textMineCardTexts(
+                // The host's own cards are demonstrations, not
+                // student answers: they stay out of the counts.
+                tool.cards.filter((c) => !c.mine),
+                mineZone || null,
+              )}
+              idleNote="カードの文章を言葉に分けて、よく出る言葉を人数順に並べます。同じ人が同じ言葉を何枚に書いても1人と数え、先生のカードは人数に入りません。解析はこの端末の中で行われ、カードの内容が外部へ送られることはありません。"
             />
           </div>
         </>

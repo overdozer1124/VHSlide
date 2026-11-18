@@ -138,7 +138,7 @@ export function TextMinePanel({
           </table>
           {state.result.pairs.length > 0 && (
             <>
-              <p className="console-textmine-note">よく一緒に出る言葉：</p>
+              <p className="console-textmine-note">よく一緒に出る言葉（同じ人が書いた言葉の組み合わせです）：</p>
               <ul className="console-textmine-pairs">
                 {state.result.pairs.slice(0, 8).map((p) => (
                   <li key={p.a + "\0" + p.b}>
