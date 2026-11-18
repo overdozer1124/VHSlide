@@ -503,6 +503,7 @@ function draw(view) {
     h("h1", null, "学校の運用"),
     h("p", null, "学校の作成、事前登録、所属の管理、学校管理者の申請、運営者の招待と失効を行うページです。あなたの役割に合った欄だけが表示されています。"),
   ));
+  parts.push(rolesCard());
   if (view.myInvitation) parts.push(invitationCard(view.myInvitation));
   if (view.createSchool) parts.push(createSchoolCard());
   if (view.schools.length) parts.push(schoolsCard(view));
@@ -517,6 +518,24 @@ function draw(view) {
     ));
   }
   app.replaceChildren(...parts);
+}
+
+/* ---------- 役割について ---------- */
+function rolesCard() {
+  const row = (name, text) => h("div", { class: "row" },
+    h("div", { class: "who" }, h("div", { class: "who-text" },
+      h("div", { class: "who-main" }, name),
+      h("div", { class: "who-sub" }, text),
+    )),
+  );
+  return h("section", { class: "card", id: "roles" },
+    h("h2", null, "役割について"),
+    h("div", { class: "list" },
+      row("スーパー管理者", "アプリ全体の管理者です。学校を作り、学校管理者の申請を判断します。ふだんの運用はこの役割で行います。"),
+      row("運営者", "スーパー管理者を立てるときだけ使う、非常用の役割です。学校の運営には関わりません。スーパー管理者のアカウントが使えなくなったときに、立て直すためにあります。"),
+      row("学校管理者", "1つの学校の中の管理者です。その学校の事前登録と、所属している人の管理をします。他の学校には何もできません。"),
+    ),
+  );
 }
 
 /* ---------- 運営者への招待（承諾） ---------- */
@@ -540,7 +559,7 @@ function invitationCard(inv) {
       h("h2", null, "運営者への招待"),
       h("span", { class: "chip accent" }, "あなた宛て"),
     ),
-    h("p", { class: "lead" }, "あなたは VHSlide の運営者に招待されています。承諾すると、この Google アカウントが運営者として登録され、運営者の欄が使えるようになります。"),
+    h("p", { class: "lead" }, "あなたは VHSlide の運営者に招待されています。運営者は、スーパー管理者を立てるときだけ使う非常用の役割です。学校を作ったり、学校の所属を変えたりする権限は付きません。承諾すると、この Google アカウントが運営者として登録されます。"),
     h("p", { class: "small muted" }, `招待の期限：${fmtDate(inv.expiresAt)}まで`),
     h("div", { class: "submit-bar" }, actions),
     result.el,
@@ -949,6 +968,8 @@ function operatorCard(view) {
       h("span", { class: "chip accent" }, "運営者だけ"),
     ),
     h("p", { class: "lead" }, "運営者の追加は招待で、失効はこの一覧から行います。Google の識別子は画面に表示されません。"),
+    h("div", { class: "callout info" }, h("span", { class: "grow" },
+      "運営者は、スーパー管理者を立てるときだけ使う非常用の役割です。学校を作ったり、学校の所属を変えたりすることはできません。スーパー管理者のアカウントが使えなくなったときに、別の人をスーパー管理者に立て直すためにあります。ふだんは使うことのない欄です。")),
     dock,
     h("div", { class: "divider" }),
     h("h3", null, "運営者の一覧"),
@@ -956,7 +977,7 @@ function operatorCard(view) {
     opsWrap,
     h("div", { class: "divider" }),
     h("h3", null, "運営者を招待する"),
-    h("p", { class: "small muted" }, "招待の期限は7日です。相手が自分の端末でサインインし、このページで承諾すると運営者になります。異動の引き継ぎも、相手の同席なしで進められます。"),
+    h("p", { class: "small muted" }, "招待の期限は7日です。相手が自分の端末でサインインし、このページで承諾すると運営者になります。異動の引き継ぎも、相手の同席なしで進められます。スーパー管理者とは別のアカウントを1つ招待しておくと、万一のときの立て直しに使えます。"),
     inviteForm,
     h("div", { class: "divider" }),
     h("h3", null, "招待の一覧"),
