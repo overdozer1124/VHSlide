@@ -120,6 +120,12 @@ export type ThinkingView = ThinkingTool & {
   locks: ThinkingLock[];
   /** The group the viewer belongs to (group-unit tools). */
   myGroupId?: string;
+  /** Host only: every member's id in join order, so the pseudonym
+   * numbers （生徒1・生徒2…) stay put for the whole lesson even
+   * when a student answers for the first time midway or joins the
+   * deck midway (stage-4 🟡3). Never sent to students — it lists
+   * other students' ids. */
+  roster?: string[];
 };
 export class ThinkingError extends Error {
   status: number;
@@ -278,15 +284,47 @@ export function templateKind(template: ThinkingTemplate): ThinkingKind {
  * last-updated order, so first-appearance order would shuffle the
  * numbers whenever a student moves a point or a card. Point tools
  * and card boards share this helper, so a student keeps the same
- * number in both views. */
+ * number in both views.
+ *
+ * When the host's roster (every member, in a fixed order) is known,
+ * the number is the owner's place in the roster instead of their
+ * place among the owners who happen to have answered: a student who
+ * answers for the first time midway through the lesson then takes
+ * their own fixed number instead of pushing everyone after them
+ * down by one (stage-4 🟡3). Owners missing from the roster (they
+ * left the deck) are numbered after it, in id order. */
 export function thinkingOwnerLabels(
   owners: readonly string[],
   nameOf: (owner: string) => string | undefined,
   showNames: boolean,
+  roster?: readonly string[],
 ): { owner: string; label: string }[] {
-  return [...new Set(owners)].sort().map((owner, i) => ({
+  const unique = [...new Set(owners)];
+  if (!roster) {
+    return unique.sort().map((owner, i) => ({
+      owner,
+      label: showNames ? nameOf(owner) || "名前未登録" : `生徒${i + 1}`,
+    }));
+  }
+  const place = new Map(roster.map((id, i) => [id, i]));
+  const ordered = unique.sort(
+    (a, b) =>
+      (place.get(a) ?? Number.MAX_SAFE_INTEGER) -
+        (place.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+      (a < b ? -1 : a > b ? 1 : 0),
+  );
+  let extra = roster.length;
+  const numbers = new Map(
+    ordered.map((owner) => {
+      const at = place.get(owner);
+      return [owner, at !== undefined ? at + 1 : ++extra] as const;
+    }),
+  );
+  return ordered.map((owner) => ({
     owner,
-    label: showNames ? nameOf(owner) || "名前未登録" : `生徒${i + 1}`,
+    label: showNames
+      ? nameOf(owner) || "名前未登録"
+      : `生徒${numbers.get(owner)}`,
   }));
 }
 /** Which zone of a board template contains the point (x, y in 0..1)?
@@ -699,6 +737,17 @@ export function thinkingList(
   caps?: { board?: boolean },
 ): ThinkingView[] {
   const now = Date.now();
+  // The host's fixed member order for stable pseudonym numbers:
+  // JOIN order (the members table's rowid), never id order — a
+  // student who joins the deck midway takes the next number at the
+  // end instead of slotting into the id order and pushing everyone
+  // after them down by one. Students never receive the roster (it
+  // lists other students' ids).
+  const roster = host
+    ? [...sql("SELECT user_id FROM members WHERE deck=? ORDER BY rowid", deck)]
+        .map((row) => String(row.user_id))
+        .filter((id) => id !== actor)
+    : undefined;
   return [
     ...sql(
       "SELECT * FROM thinking_tools WHERE deck=? ORDER BY created DESC,id",
@@ -793,6 +842,7 @@ export function thinkingList(
           cards,
           locks,
           ...(myGroupId ? { myGroupId } : {}),
+          ...(roster ? { roster } : {}),
         };
       }
       const { owners, myGroupId } = visibleOwners(sql, deck, tool, actor, host);
@@ -874,6 +924,7 @@ export function thinkingList(
         cards: [],
         locks,
         ...(myGroupId ? { myGroupId } : {}),
+        ...(roster ? { roster } : {}),
       };
     });
 }

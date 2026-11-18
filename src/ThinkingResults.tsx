@@ -5,8 +5,15 @@ import type {
   ThinkingPointValue,
   ThinkingView,
 } from "./thinkingTools";
+import {
+  BOARD_ZONE_SPECS,
+  VENN_CIRCLES,
+  XCHART_CENTER,
+  thinkingOwnerLabels,
+} from "./thinkingTools";
 import { useGroups } from "./GroupsContext";
 import { csvCell } from "./surveyCsv";
+import { ThinkingThumbBoard } from "./ThinkingThumbBoard";
 
 function ownerHue(owner: string): number {
   let h = 0;
@@ -35,6 +42,9 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
   const groupsCtx = useGroups();
   const def = tool.definition;
   const [zoneFilter, setZoneFilter] = useState("");
+  const [view, setView] = useState<"zone" | "charts">("zone");
+  const [showNames, setShowNames] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const nameOfCard = (c: ThinkingCard): string => {
     if (tool.unit === "group")
       return (
@@ -69,32 +79,65 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
   const zones = zoneFilter
     ? def.zones.filter((z) => z.id === zoneFilter)
     : def.zones;
+  // The chart gallery: one miniature per student (or group). Names
+  // follow the teacher-slide rule — pseudonyms until the host asks
+  // for names; group names are not personal and always show. A class
+  // tool has a single shared chart.
+  const owners = [...new Set(tool.cards.map((c) => c.owner))];
+  const nameOfOwner = (owner: string): string | undefined =>
+    tool.unit === "group"
+      ? groupsCtx.groups.find((g) => g.id === owner)?.name
+      : tool.cards.find((c) => c.owner === owner)?.authorName;
+  const chartOwners: { owner: string; label: string }[] =
+    tool.unit === "class"
+      ? [{ owner: "", label: "全員" }]
+      : thinkingOwnerLabels(
+          owners,
+          nameOfOwner,
+          tool.unit === "group" || showNames,
+          tool.roster,
+        );
+  const chartsLabel =
+    tool.unit === "group"
+      ? "班ごと"
+      : tool.unit === "class"
+        ? "全員のチャート"
+        : "生徒ごと";
+  const expandedOwner = chartOwners.find((o) => o.owner === expanded);
   return (
     <div className="thinking-results">
       <div className="thinking-results-head">
-        <div className="thinking-scenes" role="tablist" aria-label="区切り">
+        <div className="thinking-scenes" role="tablist" aria-label="見方">
           <button
             type="button"
             role="tab"
-            aria-selected={zoneFilter === ""}
-            className={zoneFilter === "" ? "is-active" : ""}
-            onClick={() => setZoneFilter("")}
+            aria-selected={view === "zone"}
+            className={view === "zone" ? "is-active" : ""}
+            onClick={() => setView("zone")}
           >
-            すべての区切り
+            区切りごと
           </button>
-          {def.zones.map((z) => (
+          {tool.unit !== "class" && (
             <button
-              key={z.id}
               type="button"
               role="tab"
-              aria-selected={zoneFilter === z.id}
-              className={zoneFilter === z.id ? "is-active" : ""}
-              onClick={() => setZoneFilter(z.id)}
+              aria-selected={view === "charts"}
+              className={view === "charts" ? "is-active" : ""}
+              onClick={() => setView("charts")}
             >
-              {z.label}（{tool.cards.filter((c) => c.zone === z.id).length}）
+              {chartsLabel}
             </button>
-          ))}
+          )}
         </div>
+        {view === "charts" && tool.unit === "individual" && (
+          <button
+            type="button"
+            aria-pressed={showNames}
+            onClick={() => setShowNames(!showNames)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        )}
         <button type="button" onClick={downloadCsv}>
           CSVで保存
         </button>
@@ -102,34 +145,219 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
           カード{tool.cards.length}枚
         </span>
       </div>
-      {zones.map((z) => {
-        const cards = tool.cards
-          .filter((c) => c.zone === z.id)
-          .sort((a, b) => a.sort - b.sort || a.created - b.created);
-        return (
-          <div key={z.id} className="thinking-zone-results">
-            <h4>
-              {z.label}
-              <span className="thinking-zone-count">{cards.length}枚</span>
-            </h4>
-            {cards.length === 0 ? (
-              <p className="thinking-zone-empty">まだカードがありません。</p>
-            ) : (
-              <ul className="thinking-zone-card-list">
-                {cards.map((c) => (
-                  <li key={c.id} className={`is-${c.color || "none"}`}>
-                    <span className="thinking-zone-card-text">{c.text}</span>
-                    <span className="thinking-zone-card-name">
-                      {nameOfCard(c)}
-                      {colorLabel(c.color) ? ` · ${colorLabel(c.color)}` : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+      {view === "zone" && (
+        <>
+          <div className="thinking-results-head">
+            <div className="thinking-scenes" role="tablist" aria-label="区切り">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={zoneFilter === ""}
+                className={zoneFilter === "" ? "is-active" : ""}
+                onClick={() => setZoneFilter("")}
+              >
+                すべての区切り
+              </button>
+              {def.zones.map((z) => (
+                <button
+                  key={z.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={zoneFilter === z.id}
+                  className={zoneFilter === z.id ? "is-active" : ""}
+                  onClick={() => setZoneFilter(z.id)}
+                >
+                  {z.label}（{tool.cards.filter((c) => c.zone === z.id).length}）
+                </button>
+              ))}
+            </div>
           </div>
-        );
-      })}
+          {zones.map((z) => {
+            const cards = tool.cards
+              .filter((c) => c.zone === z.id)
+              .sort((a, b) => a.sort - b.sort || a.created - b.created);
+            return (
+              <div key={z.id} className="thinking-zone-results">
+                <h4>
+                  {z.label}
+                  <span className="thinking-zone-count">{cards.length}枚</span>
+                </h4>
+                {cards.length === 0 ? (
+                  <p className="thinking-zone-empty">まだカードがありません。</p>
+                ) : (
+                  <ul className="thinking-zone-card-list">
+                    {cards.map((c) => (
+                      <li key={c.id} className={`is-${c.color || "none"}`}>
+                        <span className="thinking-zone-card-text">{c.text}</span>
+                        <span className="thinking-zone-card-name">
+                          {nameOfCard(c)}
+                          {colorLabel(c.color) ? ` · ${colorLabel(c.color)}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+      {view === "charts" && (
+        <div className="thinking-gallery">
+          <div className="thinking-thumbs">
+            {chartOwners.map(({ owner, label }) => {
+              const own = tool.cards.filter((c) => c.owner === owner);
+              return (
+                <button
+                  type="button"
+                  key={owner || "all"}
+                  className={`thinking-thumb${expanded === owner ? " is-active" : ""}`}
+                  aria-expanded={expanded === owner}
+                  onClick={() =>
+                    setExpanded(expanded === owner ? null : owner)
+                  }
+                >
+                  <ThinkingThumbBoard template={tool.template} cards={own} />
+                  <span className="thinking-thumb-label">
+                    {label}（{own.length}枚）
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {chartOwners.length === 0 && (
+            <p className="thinking-zone-empty">まだカードがありません。</p>
+          )}
+          {expandedOwner && (
+            <ExpandedChart
+              tool={tool}
+              cards={tool.cards.filter((c) => c.owner === expandedOwner.owner)}
+              label={expandedOwner.label}
+              colorLabel={colorLabel}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One student's (or group's) chart, enlarged and read-only, in the
+ * results gallery: the real board shape with the card texts in their
+ * zones. */
+function ExpandedChart({
+  tool,
+  cards,
+  label,
+  colorLabel,
+}: {
+  tool: ThinkingView;
+  cards: ThinkingCard[];
+  label: string;
+  colorLabel: (color: string) => string;
+}) {
+  const def = tool.definition;
+  const spec = BOARD_ZONE_SPECS[tool.template] ?? [];
+  const circles = VENN_CIRCLES[tool.template];
+  const zoneLabel = (id: string) =>
+    def.zones.find((z) => z.id === id)?.label ?? "";
+  return (
+    <div className="thinking-gallery-expanded">
+      <h4>{label}のチャート</h4>
+      <div className="thinking-board thinking-gallery-board">
+        {tool.template === "xchart" && (
+          <>
+            <svg
+              className="thinking-x"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <line x1="0" y1="0" x2="100" y2="100" vectorEffect="non-scaling-stroke" />
+              <line x1="100" y1="0" x2="0" y2="100" vectorEffect="non-scaling-stroke" />
+              <circle
+                cx={XCHART_CENTER.x * 100}
+                cy={XCHART_CENTER.y * 100}
+                r={XCHART_CENTER.r * 100}
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            <div className="thinking-x-topic" aria-hidden="true">
+              <span>{def.title}</span>
+            </div>
+          </>
+        )}
+        {circles && (
+          <svg
+            className="thinking-venn"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {circles.map((c, i) => (
+              <circle
+                key={i}
+                cx={c.x * 100}
+                cy={c.y * 100}
+                r={c.r * 100}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+        )}
+        {spec.map((zoneSpec) => {
+          const zoneCards = cards
+            .filter((c) => c.zone === zoneSpec.id)
+            .sort((a, b) => a.sort - b.sort || a.created - b.created);
+          const inner = (
+            <>
+              <span className="thinking-zone-label">
+                {zoneLabel(zoneSpec.id)}
+              </span>
+              <div className="thinking-zone-cards">
+                {zoneCards.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`thinking-card is-${c.color || "none"}`}
+                  >
+                    <span className="thinking-card-text">{c.text}</span>
+                    {colorLabel(c.color) && (
+                      <span className="thinking-card-note">
+                        {colorLabel(c.color)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+          return zoneSpec.rect ? (
+            <div
+              key={zoneSpec.id}
+              className={`thinking-zone${zoneSpec.wedge ? " is-wedge" : ""}`}
+              style={{
+                left: `${zoneSpec.rect[0] * 100}%`,
+                top: `${zoneSpec.rect[1] * 100}%`,
+                width: `${zoneSpec.rect[2] * 100}%`,
+                height: `${zoneSpec.rect[3] * 100}%`,
+              }}
+            >
+              {inner}
+            </div>
+          ) : (
+            <div
+              key={zoneSpec.id}
+              className="thinking-zone is-anchor"
+              style={{
+                left: `${zoneSpec.anchor[0] * 100}%`,
+                top: `${zoneSpec.anchor[1] * 100}%`,
+              }}
+            >
+              {inner}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

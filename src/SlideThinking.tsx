@@ -17,6 +17,7 @@ import type {
   ThinkingView,
 } from "./thinkingTools";
 import { canDragForm } from "./formDrag";
+import { ThinkingThumbBoard } from "./ThinkingThumbBoard";
 
 const FACES = ["😞", "😕", "😐", "🙂", "😄"];
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
@@ -279,6 +280,7 @@ function ThinkingSurface({
             tool.points.find((p) => p.owner === owner)?.authorName ||
             undefined,
           showNames,
+          tool.roster,
         );
   const ghosts = myPoints
     .filter((p) => p.scene !== scene)
@@ -839,6 +841,7 @@ function BoardSurface({
             tool.cards.find((c) => c.owner === owner)?.authorName ||
             undefined,
           showNames,
+          tool.roster,
         );
   const focusLabel =
     chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
@@ -1055,55 +1058,7 @@ function BoardSurface({
             className="thinking-thumb"
             onClick={() => setFocusOwner(owner)}
           >
-            <span className="thinking-thumb-board">
-              {xUnderlay}
-              {circles && (
-                <svg
-                  className="thinking-venn"
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
-                  aria-hidden="true"
-                >
-                  {circles.map((c, i) => (
-                    <circle
-                      key={i}
-                      cx={c.x * 100}
-                      cy={c.y * 100}
-                      r={c.r * 100}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
-                </svg>
-              )}
-              {spec.map((zoneSpec) => (
-                <span
-                  key={zoneSpec.id}
-                  className={`thinking-thumb-zone${zoneSpec.wedge ? " is-wedge" : zoneSpec.rect ? "" : " is-anchor"}`}
-                  style={
-                    zoneSpec.rect
-                      ? {
-                          left: `${zoneSpec.rect[0] * 100}%`,
-                          top: `${zoneSpec.rect[1] * 100}%`,
-                          width: `${zoneSpec.rect[2] * 100}%`,
-                          height: `${zoneSpec.rect[3] * 100}%`,
-                        }
-                      : {
-                          left: `${(zoneSpec.anchor?.[0] ?? 0.5) * 100}%`,
-                          top: `${(zoneSpec.anchor?.[1] ?? 0.5) * 100}%`,
-                        }
-                  }
-                >
-                  {own
-                    .filter((c) => c.zone === zoneSpec.id)
-                    .map((c) => (
-                      <span
-                        key={c.id}
-                        className={`thinking-thumb-card is-${c.color || "none"}`}
-                      />
-                    ))}
-                </span>
-              ))}
-            </span>
+            <ThinkingThumbBoard template={tool.template} cards={own} />
             <span className="thinking-thumb-label">
               {label}（{own.length}枚）
             </span>
