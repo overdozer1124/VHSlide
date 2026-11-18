@@ -47,8 +47,7 @@ export function deployedVersion(payload) {
   // Match this exact deployment only; do not parse other free-form messages.
   if (
     message === "0.138.0 point focus switch (PR #15)" &&
-    deployment.versions[0].version_id ===
-      "01579746-04a4-4eb9-95e6-204927f5bc8c"
+    deployment.versions[0].version_id === "01579746-04a4-4eb9-95e6-204927f5bc8c"
   ) {
     return {
       version: "0.138.0",
@@ -60,13 +59,24 @@ export function deployedVersion(payload) {
   // Match this exact deployment only; do not parse other free-form messages.
   if (
     message === "0.140.2 X chart shape (PR #25)" &&
-    deployment.versions[0].version_id ===
-      "23b6490e-0fed-4337-99ed-e35548a0abf8"
+    deployment.versions[0].version_id === "23b6490e-0fed-4337-99ed-e35548a0abf8"
   ) {
     return {
       version: "0.140.2",
       id: deployment.id,
       commit: "f152568eb05d72279f6ef017583a387f7fd9e104",
+    };
+  }
+  // The 0.142.0 production deploy used a message outside the Deploy prefix.
+  // Match this exact deployment only; do not parse other free-form messages.
+  if (
+    message === "段階3a 学びの記録 0.142.0" &&
+    deployment.versions[0].version_id === "7567534b-3e9a-4168-963e-3d0a3a8a5057"
+  ) {
+    return {
+      version: "0.142.0",
+      id: deployment.id,
+      commit: "275cf82991499e7dcceaa1a5b27bb02ed20bfd31",
     };
   }
   const match =

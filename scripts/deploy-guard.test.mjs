@@ -87,6 +87,29 @@ test("fails closed for missing, ambiguous or split production deployments", () =
     id: "chart",
     commit: "f152568eb05d72279f6ef017583a387f7fd9e104",
   });
+  const learning = {
+    id: "learning",
+    annotations: { "workers/message": "段階3a 学びの記録 0.142.0" },
+    versions: [
+      {
+        version_id: "7567534b-3e9a-4168-963e-3d0a3a8a5057",
+        percentage: 100,
+      },
+    ],
+  };
+  assert.deepEqual(deployedVersion(payload(learning)), {
+    version: "0.142.0",
+    id: "learning",
+    commit: "275cf82991499e7dcceaa1a5b27bb02ed20bfd31",
+  });
+  assert.throws(() =>
+    deployedVersion(
+      payload({
+        ...learning,
+        versions: [{ version_id: "other", percentage: 100 }],
+      }),
+    ),
+  );
   assert.throws(() =>
     deployedVersion(
       payload({
