@@ -70,12 +70,20 @@ test("cloudflare operations console stays closed without the feature and refuses
       },
     );
     assert.equal(closed.status, 404, await closed.clone().text());
+    const entry = await mf.dispatchFetch(`${origin}/api/stage1/operate-entry`, {
+      headers: { Origin: origin, Cookie: cookie },
+    });
+    assert.equal(entry.status, 404, await entry.clone().text());
+    assert.equal(
+      (await entry.clone().text()).includes("is_super_admin"),
+      false,
+    );
     const page = await mf.dispatchFetch(`${origin}/operate.html`);
     const html = await page.text();
     assert.equal(page.status, 200);
     assert.equal(html.includes('data-page="stage1-operate"'), true);
     assert.equal(html.includes("サインアウト"), true);
-    assert.equal(html.includes("受け取り済み"), true);
+    assert.equal(html.includes("役割について"), true);
     assert.equal(html.includes("いまのサインイン"), true);
     await mf.dispose();
   } finally {

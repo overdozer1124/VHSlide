@@ -115,6 +115,35 @@ test("session stays free of the super-admin flag and only a super admin creates 
   assert.deepEqual((plainView as { applyTo: { name: string }[] }).applyTo, [
     { id: school.id, name: "加賀小学校" },
   ]);
+  const entry = await request("/api/stage1/operate-entry");
+  const entryBody = await entry.json();
+  assert.equal(entry.status, 200);
+  assert.deepEqual(entryBody, { href: "/operate.html" });
+  assert.equal(JSON.stringify(entryBody).includes("is_super_admin"), false);
+  const operatorDb = new DatabaseSync(join(directory, "vhslide.sqlite"));
+  operatorDb
+    .prepare(
+      "INSERT INTO stage1_operators(subject, public_id, added_at, added_by) VALUES(?,?,?,?)",
+    )
+    .run("plain", "public-plain", Date.now(), "plain");
+  operatorDb.close();
+  const hidden = await request(
+    "/api/stage1/operate-entry",
+    "GET",
+    undefined,
+    plainCookie,
+  );
+  assert.equal(hidden.status, 404);
+  const cleanup = new DatabaseSync(join(directory, "vhslide.sqlite"));
+  cleanup
+    .prepare("DELETE FROM stage1_operators WHERE subject=?")
+    .run("plain");
+  cleanup.close();
+  const sessionAfter = await request("/api/session");
+  assert.equal(
+    JSON.stringify(await sessionAfter.json()).includes("is_super_admin"),
+    false,
+  );
 });
 
 test("lists stay on public columns and operator sign-in does not return a subject", async () => {

@@ -149,6 +149,7 @@ import {
 import {
   consoleView,
   createSchool,
+  operateEntry,
   listApplications,
   listMembers,
   listPreregistrations,
@@ -1025,6 +1026,19 @@ export function createApplication(options: Options) {
         if (method !== "GET") rateLimit(`api:${u.id}`, 120);
         if (stage1On && path === "/api/stage1/console" && method === "GET")
           return json(res, 200, consoleView(nodeOperateSql(db), u.id));
+        if (
+          stage1On &&
+          path === "/api/stage1/operate-entry" &&
+          method === "GET"
+        ) {
+          try {
+            return json(res, 200, operateEntry(nodeOperateSql(db), u.id));
+          } catch (error) {
+            if (error instanceof OperateError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
         if (stage1On && path === "/api/stage1/operators" && method === "GET") {
           if (
             !db

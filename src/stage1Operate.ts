@@ -172,6 +172,11 @@ export function consoleView(
   };
 }
 
+export function operateEntry(sql: OperateSql, userId: string) {
+  if (!superAdmin(sql, userId)) throw new OperateError(404, "見つかりません。");
+  return { href: "/operate.html" };
+}
+
 export function listPreregistrations(sql: OperateSql, organizationId: string) {
   return sql
     .all<{

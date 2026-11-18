@@ -176,6 +176,25 @@ export default function App() {
   const [boot] = useState(initial);
   const [responseGalleryOpen, setResponseGalleryOpen] = useState(false);
   const [cloud] = useState(() => new CloudWorkspace());
+  const [operatePage, setOperatePage] = useState(false);
+  useEffect(() => {
+    const userId = cloud.user?.id;
+    if (!userId) {
+      setOperatePage(false);
+      return;
+    }
+    let cancel = false;
+    void fetch("/api/stage1/operate-entry")
+      .then((response) => {
+        if (!cancel) setOperatePage(response.ok);
+      })
+      .catch(() => {
+        if (!cancel) setOperatePage(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [cloud.user?.id]);
   const [surveyData, setSurveyData] = useState<SurveySlideData>({
     surveys: [],
   });
@@ -1046,9 +1065,9 @@ export default function App() {
   } | null>(null);
   const dragMoveRef = useRef(dragMove);
   dragMoveRef.current = dragMove;
-  const [mapDropTargetId, setMapDropTargetId] = useState<
-    string | undefined
-  >(undefined);
+  const [mapDropTargetId, setMapDropTargetId] = useState<string | undefined>(
+    undefined,
+  );
   const [ghostPoint, setGhostPoint] = useState({ x: 0, y: 0 });
   function startDragMoveToMap(
     elements: Element[],
@@ -1917,7 +1936,9 @@ export default function App() {
         }
         const file = dataUrlToFile(e.src, `pptx-image-${++count}`);
         if (!file)
-          throw new Error("読み込むファイルの画像を写真として登録できませんでした。");
+          throw new Error(
+            "読み込むファイルの画像を写真として登録できませんでした。",
+          );
         const src = await cloud.upload(file, roomId);
         cache.set(e.src, src);
         elements.push({ ...e, src: src });
@@ -2573,6 +2594,16 @@ export default function App() {
           { label: "更新履歴", action: openUpdates },
           { label: "使い方", action: toggleHelp },
           { label: "ファイルサイズ", action: () => setDeckSizeOpen(true) },
+          ...(operatePage
+            ? [
+                {
+                  label: "運用ページ",
+                  action: () => {
+                    location.assign("/operate.html");
+                  },
+                },
+              ]
+            : []),
         ]}
       />
     </>
@@ -2586,7 +2617,9 @@ export default function App() {
   // Editor toolbar layout (UI review M2): undo/redo sit at the left end,
   // right after the back-to-map button, while the help menu stays at the
   // right end. The map toolbar keeps the combined block above.
-  const editorUndoRedo = <div className="history undo-actions">{undoRedoButtons}</div>;
+  const editorUndoRedo = (
+    <div className="history undo-actions">{undoRedoButtons}</div>
+  );
   const editorHelp = <div className="history help-actions">{helpMenu}</div>;
   if (cloud.viewingRevoked)
     return (
@@ -2808,221 +2841,220 @@ export default function App() {
               <div className="header-actions">
                 <div
                   className="header-scroll"
-                  data-role={
-                    cloud.active && !cloud.isHost ? "guest" : "host"
-                  }
+                  data-role={cloud.active && !cloud.isHost ? "guest" : "host"}
                 >
-                <div className="file-actions">
-                  <ActionMenu
-                    label="ファイル"
-                    showLabel
-                    portal
-                    icon={<FolderOpen size={17} aria-hidden="true" />}
-                    items={[
-                      {
-                        label: "新しく",
-                        action: () => {
-                          if (cloud.active && !returnToLocal()) return;
-                          const next: Deck = {
-                            version: 1,
-                            title: "あたらしい作品",
-                            slides: [blank(0, 0)],
-                          };
-                          setViewFilters({});
-                          setFitRequest(undefined);
-                          setDeferredFit(undefined);
-                          setPdfResume(undefined);
-                          setMapReturnScroll(undefined);
-                          commitWorkbook(next);
-                          setActiveId(next.slides[0].id);
-                          setSelected(undefined);
-                          setView("map");
-                          notify(
-                            "白紙の作品を作りました。前の作品は「もとに戻す」で戻せます。",
-                          );
+                  <div className="file-actions">
+                    <ActionMenu
+                      label="ファイル"
+                      showLabel
+                      portal
+                      icon={<FolderOpen size={17} aria-hidden="true" />}
+                      items={[
+                        {
+                          label: "新しく",
+                          action: () => {
+                            if (cloud.active && !returnToLocal()) return;
+                            const next: Deck = {
+                              version: 1,
+                              title: "あたらしい作品",
+                              slides: [blank(0, 0)],
+                            };
+                            setViewFilters({});
+                            setFitRequest(undefined);
+                            setDeferredFit(undefined);
+                            setPdfResume(undefined);
+                            setMapReturnScroll(undefined);
+                            commitWorkbook(next);
+                            setActiveId(next.slides[0].id);
+                            setSelected(undefined);
+                            setView("map");
+                            notify(
+                              "白紙の作品を作りました。前の作品は「もとに戻す」で戻せます。",
+                            );
+                          },
                         },
-                      },
-                      {
-                        label: "開く",
-                        action: () => jsonRef.current?.click(),
-                      },
-                      {
-                        label: "PPTXを1行として読み込む",
-                        detail: "今のシートの末尾に新しい行として追加",
-                        action: () => pptxRowRef.current?.click(),
-                      },
-                      {
-                        label: "JSONを現在のシートに追加",
-                        detail: "行・列の配置を保ち、現在のシートの下に追加",
-                        action: () => jsonAppendRef.current?.click(),
-                      },
+                        {
+                          label: "開く",
+                          action: () => jsonRef.current?.click(),
+                        },
+                        {
+                          label: "PPTXを1行として読み込む",
+                          detail: "今のシートの末尾に新しい行として追加",
+                          action: () => pptxRowRef.current?.click(),
+                        },
+                        {
+                          label: "JSONを現在のシートに追加",
+                          detail: "行・列の配置を保ち、現在のシートの下に追加",
+                          action: () => jsonAppendRef.current?.click(),
+                        },
 
-                      {
-                        label: "JSONで保存",
-                        detail:
-                          "全シートのページ・写真。付箋・共有設定は含みません",
-                        action: () => void download(),
-                      },
-                      {
-                        label: "PDFで保存",
-                        detail: "印刷・配布・提出する",
-                        action: () => {
-                          setPdfResume(undefined);
-                          setToolsOpen("pdf");
+                        {
+                          label: "JSONで保存",
+                          detail:
+                            "全シートのページ・写真。付箋・共有設定は含みません",
+                          action: () => void download(),
                         },
-                      },
-                      {
-                        label: "完全バックアップ（ZIP）・復元",
-                        detail: "付箋・共有設定を含む保管と復旧",
-                        action: () => setBackupOpen(true),
-                      },
-                      {
-                        label: "保存した版",
-                        detail: "版の保存・確認・別作品への復元",
-                        action: () => setToolsOpen("history"),
-                      },
-                    ]}
-                  />
-                </div>
-                {cloud.available && (
-                  <button
-                    className="button outline"
-                    onClick={() => {
-                      setCloudInitialTab(undefined);
-                      cloud.panel = true;
-                      cloud.error = "";
-                      cloud.onState();
-                      void cloud.refresh().catch((error: Error) => {
-                        cloud.error = error.message;
+                        {
+                          label: "PDFで保存",
+                          detail: "印刷・配布・提出する",
+                          action: () => {
+                            setPdfResume(undefined);
+                            setToolsOpen("pdf");
+                          },
+                        },
+                        {
+                          label: "完全バックアップ（ZIP）・復元",
+                          detail: "付箋・共有設定を含む保管と復旧",
+                          action: () => setBackupOpen(true),
+                        },
+                        {
+                          label: "保存した版",
+                          detail: "版の保存・確認・別作品への復元",
+                          action: () => setToolsOpen("history"),
+                        },
+                      ]}
+                    />
+                  </div>
+                  {cloud.available && (
+                    <button
+                      className="button outline"
+                      onClick={() => {
+                        setCloudInitialTab(undefined);
+                        cloud.panel = true;
+                        cloud.error = "";
                         cloud.onState();
-                      });
-                    }}
-                  >
-                    <Cloud size={17} />
-                    <span>クラウド</span>
-                  </button>
-                )}
-                {cloud.active && cloud.isHost && (
-                  <GuestSettings>
-                    {cloud.active && cloud.isHost && (
-                      <label className="guest-display-policy">
-                        ゲストの表示
-                        <select
-                          aria-label="ゲストの表示範囲"
-                          value={workbook.restrictGuests ? "assigned" : "all"}
-                          onChange={(event) =>
-                            commitWorkbook({
-                              ...latestWorkbook.current,
-                              restrictGuests: event.target.value === "assigned",
-                            })
-                          }
-                        >
-                          <option value="all">全員のスライド</option>
-                          <option value="assigned">自分の担当のみ</option>
-                        </select>
-                      </label>
-                    )}
-                    {cloud.active &&
-                      cloud.isHost &&
-                      workbook.restrictGuests && (
-                        <label
-                          className="guest-display-policy guest-add-policy"
-                          title="担当のみ表示中の追加方法。途中挿入はその担当行だけを右へずらします。"
-                        >
-                          追加方法
+                        void cloud.refresh().catch((error: Error) => {
+                          cloud.error = error.message;
+                          cloud.onState();
+                        });
+                      }}
+                    >
+                      <Cloud size={17} />
+                      <span>クラウド</span>
+                    </button>
+                  )}
+                  {cloud.active && cloud.isHost && (
+                    <GuestSettings>
+                      {cloud.active && cloud.isHost && (
+                        <label className="guest-display-policy">
+                          ゲストの表示
                           <select
-                            aria-label="ゲストのページ追加"
-                            value={workbook.guestPageCreation ?? "append"}
+                            aria-label="ゲストの表示範囲"
+                            value={workbook.restrictGuests ? "assigned" : "all"}
                             onChange={(event) =>
                               commitWorkbook({
                                 ...latestWorkbook.current,
-                                guestPageCreation: event.target.value as
-                                  "none" | "append" | "insert",
+                                restrictGuests:
+                                  event.target.value === "assigned",
                               })
                             }
                           >
-                            <option value="append">末尾のみ</option>
-                            <option value="insert">途中挿入可</option>
-                            <option value="none">追加不可</option>
+                            <option value="all">全員のスライド</option>
+                            <option value="assigned">自分の担当のみ</option>
                           </select>
                         </label>
                       )}
-                  </GuestSettings>
-                )}
+                      {cloud.active &&
+                        cloud.isHost &&
+                        workbook.restrictGuests && (
+                          <label
+                            className="guest-display-policy guest-add-policy"
+                            title="担当のみ表示中の追加方法。途中挿入はその担当行だけを右へずらします。"
+                          >
+                            追加方法
+                            <select
+                              aria-label="ゲストのページ追加"
+                              value={workbook.guestPageCreation ?? "append"}
+                              onChange={(event) =>
+                                commitWorkbook({
+                                  ...latestWorkbook.current,
+                                  guestPageCreation: event.target.value as
+                                    "none" | "append" | "insert",
+                                })
+                              }
+                            >
+                              <option value="append">末尾のみ</option>
+                              <option value="insert">途中挿入可</option>
+                              <option value="none">追加不可</option>
+                            </select>
+                          </label>
+                        )}
+                    </GuestSettings>
+                  )}
                 </div>
                 <div className="header-pinned">
                   {followControls}
-                <div className="split-action present-action">
-                  <button
-                    className="button primary"
-                    aria-label={
-                      actionScope.kind === "filter"
-                        ? `この${actionResolvedScope.ids.length}ページを発表`
-                        : "発表する"
-                    }
-                    title={`${actionResolvedScope.summary}を縦横に移動して発表`}
-                    disabled={!actionResolvedScope.ids.length}
-                    onClick={() => startPresent()}
-                  >
-                    <Presentation size={iconSize} />
-                    <span>
-                      {actionScope.kind === "filter"
-                        ? `この${actionResolvedScope.ids.length}ページを発表`
-                        : "発表する"}
-                    </span>
-                  </button>
-                  <ActionMenu
-                    primary
-                    label="発表方法を選ぶ"
-                    items={[
-                      {
-                        label:
-                          actionScope.kind === "filter"
-                            ? "絞り込んだページを縦横に発表"
-                            : "縦横に移動して発表",
-                        detail: actionResolvedScope.summary,
-                        disabled: !actionResolvedScope.ids.length,
-                        action: () => startPresent(),
-                      },
-                      {
-                        label: "ノートを見ながら発表する",
-                        detail: `${actionResolvedScope.summary}・発表者用ノートを別ウィンドウで開く`,
-                        disabled: !actionResolvedScope.ids.length,
-                        action: () => startPresent(actionScope, false, true),
-                      },
-                      {
-                        label: "現在のページから縦横に発表",
-                        detail: actionResolvedScope.summary,
-                        disabled: !actionResolvedScope.ids.includes(slide.id),
-                        action: () => startPresent(actionScope, true),
-                      },
-                      ...(actionScope.kind === "filter"
-                        ? [
-                            {
-                              label: "シート全体を縦横に発表",
-                              detail: `${activeSheet(workbook).name}・全${deck.slides.length}ページ`,
-                              action: () =>
-                                startPresent({
-                                  kind: "sheet",
-                                  sheetId: currentSheetId,
-                                }),
-                            },
-                          ]
-                        : []),
-                      ...(workbook.routes ?? []).map((r) => ({
-                        label: `${r.name}で発表`,
-                        detail: `保存した順番 · ${routeSlides(workbook, r).length}枚`,
-                        disabled: !routeSlides(workbook, r).length,
-                        action: () => startRoute(r.id),
-                      })),
-                      {
-                        label: "発表ルートを編集",
-                        detail: "発表するスライドと順番を決める",
-                        action: () => setToolsOpen("routes"),
-                      },
-                    ]}
-                  />
-                </div>
+                  <div className="split-action present-action">
+                    <button
+                      className="button primary"
+                      aria-label={
+                        actionScope.kind === "filter"
+                          ? `この${actionResolvedScope.ids.length}ページを発表`
+                          : "発表する"
+                      }
+                      title={`${actionResolvedScope.summary}を縦横に移動して発表`}
+                      disabled={!actionResolvedScope.ids.length}
+                      onClick={() => startPresent()}
+                    >
+                      <Presentation size={iconSize} />
+                      <span>
+                        {actionScope.kind === "filter"
+                          ? `この${actionResolvedScope.ids.length}ページを発表`
+                          : "発表する"}
+                      </span>
+                    </button>
+                    <ActionMenu
+                      primary
+                      label="発表方法を選ぶ"
+                      items={[
+                        {
+                          label:
+                            actionScope.kind === "filter"
+                              ? "絞り込んだページを縦横に発表"
+                              : "縦横に移動して発表",
+                          detail: actionResolvedScope.summary,
+                          disabled: !actionResolvedScope.ids.length,
+                          action: () => startPresent(),
+                        },
+                        {
+                          label: "ノートを見ながら発表する",
+                          detail: `${actionResolvedScope.summary}・発表者用ノートを別ウィンドウで開く`,
+                          disabled: !actionResolvedScope.ids.length,
+                          action: () => startPresent(actionScope, false, true),
+                        },
+                        {
+                          label: "現在のページから縦横に発表",
+                          detail: actionResolvedScope.summary,
+                          disabled: !actionResolvedScope.ids.includes(slide.id),
+                          action: () => startPresent(actionScope, true),
+                        },
+                        ...(actionScope.kind === "filter"
+                          ? [
+                              {
+                                label: "シート全体を縦横に発表",
+                                detail: `${activeSheet(workbook).name}・全${deck.slides.length}ページ`,
+                                action: () =>
+                                  startPresent({
+                                    kind: "sheet",
+                                    sheetId: currentSheetId,
+                                  }),
+                              },
+                            ]
+                          : []),
+                        ...(workbook.routes ?? []).map((r) => ({
+                          label: `${r.name}で発表`,
+                          detail: `保存した順番 · ${routeSlides(workbook, r).length}枚`,
+                          disabled: !routeSlides(workbook, r).length,
+                          action: () => startRoute(r.id),
+                        })),
+                        {
+                          label: "発表ルートを編集",
+                          detail: "発表するスライドと順番を決める",
+                          action: () => setToolsOpen("routes"),
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
               </div>
             </header>
@@ -4136,10 +4168,7 @@ export default function App() {
         </Suspense>
       )}
       {deckSizeOpen && (
-        <DeckSizeDialog
-          deck={workbook}
-          close={() => setDeckSizeOpen(false)}
-        />
+        <DeckSizeDialog deck={workbook} close={() => setDeckSizeOpen(false)} />
       )}
     </CloudDocument.Provider>,
   );
@@ -4156,42 +4185,40 @@ export default function App() {
       },
       createElement(
         WorksheetProvider,
-      worksheetProps,
-      createElement(
-        WebbingProvider,
-        {
-          deckId: cloud.active?.id,
-          userId: cloud.user?.id,
-          host: cloud.isHost,
-          blocked: cloud.viewingRevoked || cloud.recoveryOnly,
-          pollActive: !!displayedFormSlide?.elements.some((e) => e.webbing),
-        },
+        worksheetProps,
         createElement(
-          GroupsProvider,
+          WebbingProvider,
           {
             deckId: cloud.active?.id,
             userId: cloud.user?.id,
             host: cloud.isHost,
             blocked: cloud.viewingRevoked || cloud.recoveryOnly,
-            pollActive: !!displayedFormSlide?.elements.some(
-              (e) => e.webbing,
-            ),
+            pollActive: !!displayedFormSlide?.elements.some((e) => e.webbing),
           },
           createElement(
-            ThinkingProvider,
+            GroupsProvider,
             {
               deckId: cloud.active?.id,
               userId: cloud.user?.id,
               host: cloud.isHost,
               blocked: cloud.viewingRevoked || cloud.recoveryOnly,
-              pollActive: !!displayedFormSlide?.elements.some(
-                (e) => e.thinking,
-              ),
+              pollActive: !!displayedFormSlide?.elements.some((e) => e.webbing),
             },
-            createElement(ActivityPanelProvider, { children: content }),
+            createElement(
+              ThinkingProvider,
+              {
+                deckId: cloud.active?.id,
+                userId: cloud.user?.id,
+                host: cloud.isHost,
+                blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+                pollActive: !!displayedFormSlide?.elements.some(
+                  (e) => e.thinking,
+                ),
+              },
+              createElement(ActivityPanelProvider, { children: content }),
+            ),
           ),
         ),
-      ),
       ),
     ),
   });

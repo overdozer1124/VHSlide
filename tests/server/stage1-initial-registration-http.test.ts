@@ -88,6 +88,10 @@ test("stage 1 routes stay hidden when the feature is off", async () => {
       headers: { Origin: origin },
     });
     assert.equal(issued.status, 404);
+    const entry = await fetch(offBase + "/api/stage1/operate-entry", {
+      headers: { Origin: origin },
+    });
+    assert.equal(entry.status, 404);
   } finally {
     await off.close();
     await rm(offDir, { recursive: true, force: true });
