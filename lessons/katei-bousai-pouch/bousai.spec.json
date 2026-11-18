@@ -89,7 +89,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/design.png",
+         "image": "src/redesign/design.min.png",
          "alt": "完成の図（約22cm×約24cm、上部約10cm、広げた状態約34cm）",
          "x": 36,
          "y": 100,
@@ -945,7 +945,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/jinaoshi.png",
+         "image": "src/redesign/jinaoshi.min.png",
          "alt": "図：製作の前に：地直しをする",
          "x": 45.95744680851061,
          "y": 98,
@@ -980,7 +980,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s1.png",
+         "image": "src/redesign/s1.min.png",
          "alt": "図：1. 本体用布地に印をつける",
          "x": 188.5714285714286,
          "y": 98,
@@ -1015,7 +1015,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s2.png",
+         "image": "src/redesign/s2.min.png",
          "alt": "図：2. 平ひもをカットする",
          "x": 36.0,
          "y": 98,
@@ -1050,7 +1050,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s3.png",
+         "image": "src/redesign/s3.min.png",
          "alt": "図：3. バッグの上部になる部分を縫う",
          "x": 87.69230769230774,
          "y": 98,
@@ -1085,7 +1085,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s4.png",
+         "image": "src/redesign/s4.min.png",
          "alt": "図：4. 平ひもを縫い付ける",
          "x": 134.23728813559325,
          "y": 98,
@@ -1120,7 +1120,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s5.png",
+         "image": "src/redesign/s5.min.png",
          "alt": "図：5. ポケットを準備する",
          "x": 115.71428571428572,
          "y": 98,
@@ -1155,7 +1155,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s6.png",
+         "image": "src/redesign/s6.min.png",
          "alt": "図：6. ポケットを付ける",
          "x": 140.0,
          "y": 98,
@@ -1190,7 +1190,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s7.png",
+         "image": "src/redesign/s7.min.png",
          "alt": "図：7. 丸ひも通し用平ひもを付ける",
          "x": 87.69230769230774,
          "y": 98,
@@ -1225,7 +1225,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s8.png",
+         "image": "src/redesign/s8.min.png",
          "alt": "図：8. 両脇を縫う",
          "x": 145.57377049180326,
          "y": 98,
@@ -1260,7 +1260,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s9.png",
+         "image": "src/redesign/s9.min.png",
          "alt": "図：9. 表に返して形をととのえる",
          "x": 115.71428571428572,
          "y": 98,
@@ -1295,7 +1295,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s10a.png",
+         "image": "src/redesign/s10a.min.png",
          "alt": "図：10. 丸ひもを結ぶ（例1）",
          "x": 36.0,
          "y": 98,
@@ -1325,7 +1325,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s10b.png",
+         "image": "src/redesign/s10b.min.png",
          "alt": "図：丸ひもの結び方 例2",
          "x": 36.0,
          "y": 98,
@@ -1360,7 +1360,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s11.png",
+         "image": "src/redesign/s11.min.png",
          "alt": "図：11. 完成",
          "x": 45.95744680851061,
          "y": 98,
@@ -1410,7 +1410,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/s12.png",
+         "image": "src/redesign/s12.min.png",
          "alt": "図：12. 防災のまめ知識2を作成する",
          "x": 36.0,
          "y": 98,
@@ -1445,7 +1445,7 @@
        "items": [
         {
          "type": "image",
-         "image": "src/redesign/machine.png",
+         "image": "src/redesign/machine.min.png",
          "alt": "図：ミシン縫いの方法",
          "x": 45.95744680851061,
          "y": 98,

@@ -142,6 +142,9 @@ try {
   const marks = [deck.title, ...(deck.sheets ?? []).map(s => s.name)].map(t => String(t).slice(0, 12)).filter(Boolean);
   if (!marks.some(m => headerText.includes(m) || loadedTitle.includes(m)))
     throw Error("アプリでJSONを開けませんでした（ファイルの読み込み口が変わった可能性があります）。check.mjs の opener を確認してください。");
+  // VHSlide auto-saves the open deck to browser storage (~5MB); a deck that does not fit shows this in the header.
+  if (headerText.includes("保存容量が不足")) console.log("端末への自動保存: 失敗（「端末の保存容量が不足」）。画像を小さくするか作品を分ける");
+  else console.log("端末への自動保存: OK");
   await page.addStyleTag({ content: ".toast{display:none!important}" });
   const sheets = deck.sheets ?? [{ id: "main", name: "" }];
   const shots = [];

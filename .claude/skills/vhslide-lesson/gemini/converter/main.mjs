@@ -22,8 +22,13 @@ const io = {
       const c = document.createElement("canvas");
       c.width = Math.ceil(w * scale); c.height = Math.ceil(h * scale);
       const g = c.getContext("2d");
-      if (o.type === "jpeg" || !o.transparent) { g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); }
+      if (o.type === "jpeg" || o.type === "webp" || !o.transparent) { g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); }
       g.drawImage(im, 0, 0, c.width, c.height);
+      if (o.type === "webp") { // Safari cannot encode WebP and falls back to PNG: use JPEG there
+        const webp = c.toDataURL("image/webp", (o.quality ?? 72) / 100);
+        if (webp.startsWith("data:image/webp")) return webp;
+        return c.toDataURL("image/jpeg", 0.8);
+      }
       return o.type === "jpeg" ? c.toDataURL("image/jpeg", (o.quality ?? 82) / 100) : c.toDataURL("image/png");
     } finally { URL.revokeObjectURL(url); }
   },

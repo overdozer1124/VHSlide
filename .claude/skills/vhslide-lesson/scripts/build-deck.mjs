@@ -20,7 +20,7 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const io = {
   async svgToDataUrl(svg, o = {}) {
     const buf = await svgToPng(svg, o);
-    return `data:image/${o.type === "jpeg" ? "jpeg" : "png"};base64,${buf.toString("base64")}`;
+    return `data:image/${o.type === "jpeg" ? "jpeg" : o.type === "webp" ? "webp" : "png"};base64,${buf.toString("base64")}`;
   },
   async loadImage(ref) {
     const m = /^data:(image\/[a-z+]+);base64,(.*)$/s.exec(ref);
@@ -39,5 +39,8 @@ try {
   });
   fs.writeFileSync(outPath, JSON.stringify(deck, null, 1));
   const layout = opt("layout") ?? spec.layout ?? "lesson-rows";
+  // VHSlide auto-saves the open deck to the browser's local storage (about 5MB per site, 2 bytes per character).
+  const chars = fs.readFileSync(outPath, "utf8").length;
+  if (chars > 2_000_000) console.warn(`※ ファイルが大きく（約${(chars / 1e6).toFixed(1)}M文字）、VHSlide の「この端末に保存」（ブラウザーの保存領域・約5MB）に入りきらない場合があります。図をPNGの減色・WebP・小さい画像にするか、作品を分けてください（クラウドへの保存は25MBまで可能）。`);
   console.log(`${deck.slides.length}ページ・${deck.sheets.length}シート・レイアウト ${layout}・テーマ ${themeArg ?? (typeof spec.theme === "string" ? spec.theme : "custom")} → ${outPath} (${Math.round(fs.statSync(outPath).size / 1024)}KB)`);
 } finally { await closeRenderer(); }

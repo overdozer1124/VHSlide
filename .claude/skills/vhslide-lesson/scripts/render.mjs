@@ -39,11 +39,23 @@ export async function svgToPng(svg, { scale = 2, transparent = false, type = "pn
   const h = Number(/\bheight=["'](\d+(?:\.\d+)?)/.exec(head)?.[1]);
   if (!w || !h) throw Error("SVGに width / height 属性が必要です。");
   const b = await getBrowser();
-  if (!b) { if (type === "jpeg") throw Error("JPEG needs Chromium"); return svgToPngWithoutBrowser(svg, scale); }
+  if (!b) { if (type !== "png") throw Error(`${type.toUpperCase()} needs Chromium`); return svgToPngWithoutBrowser(svg, scale); }
   const page = await b.newPage({ viewport: { width: Math.ceil(w), height: Math.ceil(h) }, deviceScaleFactor: scale });
   await page.setContent(`<html><body style="margin:0;background:transparent">${svg}</body></html>`);
   await page.evaluate(() => document.fonts.ready);
-  const png = await page.screenshot({ type, ...(type === "jpeg" ? { quality } : { omitBackground: transparent }), clip: { x: 0, y: 0, width: w, height: h } });
+  const shot = type === "webp" ? "png" : type;
+  const png = await page.screenshot({ type: shot, ...(shot === "jpeg" ? { quality } : { omitBackground: transparent }), clip: { x: 0, y: 0, width: w, height: h } });
+  if (type === "webp") {
+    // WebP is far smaller for the soft decorated backdrops that repeat on every page (VHSlide auto-saves to ~5MB of browser storage).
+    const url = await page.evaluate(async ([b64, q, alpha]) => {
+      const im = new Image(); im.src = `data:image/png;base64,${b64}`; await im.decode();
+      const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const g = c.getContext("2d"); if (!alpha) { g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); }
+      g.drawImage(im, 0, 0); return c.toDataURL("image/webp", q / 100);
+    }, [png.toString("base64"), quality, transparent]);
+    await page.close();
+    return Buffer.from(url.split(",")[1], "base64");
+  }
   await page.close();
   return png;
 }

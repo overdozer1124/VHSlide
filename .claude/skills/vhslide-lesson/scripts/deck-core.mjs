@@ -146,7 +146,8 @@ async function backdrop(kind) {
   if (!(kind in backdrops)) {
     try {
       const svgText = decorSvg(T, kind);
-      backdrops[kind] = await io.svgToDataUrl(svgText, { scale: 1.25, type: "jpeg", quality: 84 });
+      // WebP: the same backdrop is stored on every page, and VHSlide auto-saves the whole deck to ~5MB of browser storage.
+      backdrops[kind] = await io.svgToDataUrl(svgText, { scale: 1, type: "webp", quality: 72 });
     } catch (e) { decorFailed = true; warn("※ 装飾の背景を描画できないため、背景なしで作ります:", e.message); return undefined; }
   }
   return backdrops[kind];

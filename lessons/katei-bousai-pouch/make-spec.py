@@ -10,6 +10,14 @@ SRC = "src"
 FIGDIR = "src/redesign"  # redrawn figures (figures.py → render-figures.mjs)
 
 
+def light(name):
+    """64-colour PNG of a redrawn figure: a third of the size, same look (the deck must fit VHSlide's ~5MB auto-save)."""
+    src, dst = f"{FIGDIR}/{name}.png", f"{FIGDIR}/{name}.min.png"
+    with Image.open(src) as im:
+        im.convert("RGB").quantize(64, method=Image.Quantize.MEDIANCUT).save(dst, optimize=True)
+    return dst
+
+
 def ratio(name):
     with Image.open(f"{FIGDIR}/{name}.png") as im:
         return im.width / im.height
@@ -33,7 +41,7 @@ def step_page(sid, tag, heading, img, points, notes, alt):
     ih = min(888 / r, 340)
     iw = ih * r
     caution = CAUTION.get(sid, points[0])
-    items = [{"type": "image", "image": f"{FIGDIR}/{img}.png", "alt": alt.replace("説明書の図：", "図："), "x": 36 + (888 - iw) / 2, "y": 98, "w": iw, "h": ih},
+    items = [{"type": "image", "image": light(img), "alt": alt.replace("説明書の図：", "図："), "x": 36 + (888 - iw) / 2, "y": 98, "w": iw, "h": ih},
              {"type": "card", "text": "注意！　" + caution, "tone": "accent", "x": 36, "y": 98 + ih + 10, "w": 888, "h": 516 - (98 + ih + 10),
               "fontSize": 21, "valign": "middle", "align": "center"}]
     full = "【手順】\n" + "\n".join(f"・{p}" for p in points) + (f"\n{notes}" if notes else "")
@@ -139,7 +147,7 @@ phases = [
          "fields": [{"id": "q1", "label": "入れて持ち歩きたいもの（理由も）", "placeholder": "例：ホイッスル（助けを呼ぶため）"}],
          "notes": "完成したポーチにはカラビナでホイッスルなどを付けられ、「防災のまめ知識2」のミニブックも入れて活用できる。持ち物の話題から製作の目的を意識させる。"},
         {"kind": "form", "tag": "完成のイメージ", "heading": "防災ポーチ＆サコッシュ", "items": [
-            {"type": "image", "image": f"{FIGDIR}/design.png", "alt": "完成の図（約22cm×約24cm、上部約10cm、広げた状態約34cm）", "x": 36, "y": 100, "w": 540, "h": 300},
+            {"type": "image", "image": light("design"), "alt": "完成の図（約22cm×約24cm、上部約10cm、広げた状態約34cm）", "x": 36, "y": 100, "w": 540, "h": 300},
             {"type": "card", "title": "大きさ", "text": "・約22cm×約24cm（上部約10cm）\n・広げた状態 約34cm\n・丸ひもの長さ 約110〜120cm（結び目を除く）\n・肩から下げるときは、結んで長さを調節", "tone": "primary", "x": 592, "y": 100, "w": 332, "h": 300, "fontSize": 17},
             {"type": "card", "text": "ひもを外すとポーチ、ひもを付けるとサコッシュ。カラビナでホイッスルなどを付けられる。", "tone": "accent", "x": 36, "y": 414, "w": 888, "h": 96, "fontSize": 18, "valign": "middle"}]},
         {"kind": "table", "tag": "材料", "heading": "材料をそろえよう",
