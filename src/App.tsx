@@ -2895,7 +2895,7 @@ export default function App() {
                           action: () => void download(),
                         },
                         {
-                          label: "PDFで保存",
+                          label: "印刷・PDFで出力",
                           detail: "印刷・配布・提出する",
                           action: () => {
                             setPdfResume(undefined);

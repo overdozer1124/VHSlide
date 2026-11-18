@@ -62,7 +62,7 @@ export function SlideActionDialog({
   );
   const title = {
     compare: "スライドを比較",
-    pdf: "PDFで保存",
+    pdf: "印刷・PDFで出力",
     routes: "発表ルート",
     history: "保存した版",
   }[mode];

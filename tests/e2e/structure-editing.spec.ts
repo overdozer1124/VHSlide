@@ -263,7 +263,7 @@ test("chart data and type persist, render in presentation and print", async ({
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "ファイル", exact: true }).click();
-  await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
+  await page.getByRole("menuitem", { name: /^印刷・PDFで出力/ }).click();
   await page.getByRole("button", { name: "選択を解除", exact: true }).click();
   await page
     .getByLabel("対象スライド")

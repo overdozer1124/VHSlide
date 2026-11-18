@@ -40,7 +40,7 @@ test("file/cloud are distinct, presentation is last, and the map toolbar stays o
     "新しく",
     "開く",
     "JSONで保存",
-    "PDFで保存",
+    "印刷・PDFで出力",
     "完全バックアップ（ZIP）・復元",
     "保存した版",
   ])
