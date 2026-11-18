@@ -127,7 +127,7 @@ const images = {};
 async function mascot(pose) {
   if (!useMascot) return undefined;
   if (!images[pose]) {
-    try { images[pose] = await io.svgToDataUrl(mascotSvg(mascotArg, pose, T.mascot), { scale: 1.2, transparent: true }); }
+    try { images[pose] = await io.svgToDataUrl(mascotSvg(mascotArg, pose, T.mascot), { scale: 1.2, transparent: true, type: "webp", quality: 82 }); }
     catch (e) { // no SVG renderer: use a pre-rendered character of the base theme, if the host has one
       const fb = io.mascotFallback ? await io.mascotFallback(T.name, mascotArg, pose) : undefined;
       if (!fb) throw e;
@@ -147,7 +147,7 @@ async function backdrop(kind) {
     try {
       const svgText = decorSvg(T, kind);
       // WebP: the same backdrop is stored on every page, and VHSlide auto-saves the whole deck to ~5MB of browser storage.
-      backdrops[kind] = await io.svgToDataUrl(svgText, { scale: 1, type: "webp", quality: 72 });
+      backdrops[kind] = await io.svgToDataUrl(svgText, { scale: 0.8, type: "webp", quality: 62 });
     } catch (e) { decorFailed = true; warn("※ 装飾の背景を描画できないため、背景なしで作ります:", e.message); return undefined; }
   }
   return backdrops[kind];

@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.142.0 (55754b8): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.148.0 (7f6d49a): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -610,6 +610,52 @@ function parseThinkingBindingLenient(value) {
   }
 }
 
+// src/prevAnswer.ts
+var UUID = /^[a-f0-9-]{36}$/;
+function parsePrevAnswerBinding(value) {
+  const v = value;
+  if (!v || typeof v.deckId !== "string" || typeof v.refId !== "string" || !UUID.test(v.deckId) || !UUID.test(v.refId) || v.source !== "worksheet" && v.source !== "survey" && v.source !== "thinking" || typeof v.title !== "string" || !v.title.trim() || v.title.length > 100 || typeof v.label !== "string" || v.label.length > 100)
+    throw new Error("\u524D\u306E\u56DE\u7B54\u306E\u90E8\u54C1\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
+  if (v.source === "worksheet") {
+    if (typeof v.fieldId !== "string" || !v.fieldId || v.fieldId.length > 64)
+      throw new Error("\u524D\u306E\u56DE\u7B54\u306E\u90E8\u54C1\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
+    return {
+      deckId: v.deckId,
+      source: v.source,
+      refId: v.refId,
+      fieldId: v.fieldId,
+      title: v.title,
+      label: v.label
+    };
+  }
+  if (v.source === "thinking") {
+    if (typeof v.sceneId !== "string" || !v.sceneId || v.sceneId.length > 64)
+      throw new Error("\u524D\u306E\u56DE\u7B54\u306E\u90E8\u54C1\u306E\u5F62\u5F0F\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093\u3002");
+    return {
+      deckId: v.deckId,
+      source: v.source,
+      refId: v.refId,
+      sceneId: v.sceneId,
+      title: v.title,
+      label: v.label
+    };
+  }
+  return {
+    deckId: v.deckId,
+    source: v.source,
+    refId: v.refId,
+    title: v.title,
+    label: v.label
+  };
+}
+function parsePrevAnswerBindingLenient(value) {
+  try {
+    return parsePrevAnswerBinding(value);
+  } catch {
+    return void 0;
+  }
+}
+
 // src/embedBinding.ts
 var EMBED_POSTER_MAX_CHARS = 54e4;
 var POSTER_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
@@ -1092,22 +1138,28 @@ function parseDeck(input) {
         }
         if (base.x + base.w > W + 0.1 || base.y + base.h > H + 0.1) fail();
         if (e.responseField !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.prevAnswer !== void 0 || e.embed !== void 0)
             fail();
           base.responseField = parseResponseField(e.responseField);
         }
         if (e.webbing !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.thinking !== void 0 || e.prevAnswer !== void 0 || e.embed !== void 0)
             fail();
           base.webbing = parseWebbingBinding(e.webbing);
         }
         if (e.thinking !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.prevAnswer !== void 0 || e.embed !== void 0)
             fail();
           base.thinking = parseThinkingBindingLenient(e.thinking);
         }
+        if (e.prevAnswer !== void 0) {
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
+            fail();
+          const prev = parsePrevAnswerBindingLenient(e.prevAnswer);
+          if (prev) base.prevAnswer = prev;
+        }
         if (e.embed !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.thinking !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.worksheet !== void 0 || e.surveyResult !== void 0 || e.responseField !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.prevAnswer !== void 0)
             fail();
           base.embed = parseEmbedBinding(e.embed);
         }
@@ -1122,12 +1174,12 @@ function parseDeck(input) {
           base.formFontSize = num(e.formFontSize, 12, 60);
         }
         if (e.worksheet !== void 0) {
-          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.survey !== void 0 || e.webbing !== void 0 || e.thinking !== void 0 || e.prevAnswer !== void 0 || e.embed !== void 0)
             fail();
           base.worksheet = parseWorksheetBinding(e.worksheet);
         }
         if (e.survey !== void 0) {
-          if (e.type !== "shape" || e.webbing !== void 0 || e.thinking !== void 0 || e.embed !== void 0)
+          if (e.type !== "shape" || e.webbing !== void 0 || e.thinking !== void 0 || e.prevAnswer !== void 0 || e.embed !== void 0)
             fail();
           base.survey = parseSurveyBinding(e.survey);
         }
