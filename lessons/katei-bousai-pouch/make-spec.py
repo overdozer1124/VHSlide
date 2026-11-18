@@ -7,27 +7,37 @@ from PIL import Image
 SRC = "src"
 
 
+FIGDIR = "src/redesign"  # redrawn figures (figures.py → render-figures.mjs)
+
+
 def ratio(name):
-    with Image.open(f"{SRC}/{name}.jpg") as im:
+    with Image.open(f"{FIGDIR}/{name}.png") as im:
         return im.width / im.height
 
 
+CAUTION = {
+    "st0": "表からアイロンをかけるときは、当て布をする", "st1": "（A）より下にある印が（B）。印は布の裏側に付ける",
+    "st2": "②は、ほつれ止め加工されている側から切る", "st3": "縫い始めと縫い終わりは返し縫い。上下の両方を縫う",
+    "st4": "（A）に合わせないように注意。平ひもがずれないように", "st5": "ポケット用布地は、斜めの織り目が見える方が表",
+    "st6": "本体とポケットの中心を合わせる。ポケット口は縫わない", "st7": "輪が内側（布の中心側）になるように置く",
+    "st8": "★の所と、縫い始め・縫い終わりは返し縫い", "st9": "返す前に、縫い目にそってアイロンで折っておく",
+    "st10": "しっかり結べば、結び方は自由", "st10b": "例1・例2以外の結び方で、好みのサコッシュにしてもよい",
+    "st11": "サコッシュにするときは、ひもを結んで長さを調節", "st12": "家族と話し合いながら書き込もう",
+    "machine": "縫い始めと縫い終わりは、必ず返し縫い",
+}
+
+
 def step_page(sid, tag, heading, img, points, notes, alt):
-    """Figure from the manual + the points to watch. Wide figures go on top, tall ones on the left."""
+    """The redrawn figure fills the slide; one key caution below; the full points go to the speaker notes."""
     r = ratio(img)
-    if r >= 1.6:
-        # leave enough room for the points: title + one line per ~50 characters
-        lines = sum(1 + len(p) // 50 for p in points)
-        ih = min(888 / r, 404 - (52 + 27 * lines))
-        items = [{"type": "image", "image": f"{SRC}/{img}.jpg", "alt": alt, "x": 36, "y": 100, "w": 888, "h": ih},
-                 {"type": "card", "title": "ポイント", "text": "\n".join(f"・{p}" for p in points), "tone": "accent",
-                  "x": 36, "y": 100 + ih + 12, "w": 888, "h": 516 - (100 + ih + 12), "fontSize": 17}]
-    else:
-        iw = min(520, 410 * r)
-        items = [{"type": "image", "image": f"{SRC}/{img}.jpg", "alt": alt, "x": 36, "y": 100, "w": iw, "h": 410},
-                 {"type": "card", "title": "ポイント", "text": "\n".join(f"・{p}" for p in points), "tone": "accent",
-                  "x": 36 + iw + 16, "y": 100, "w": 924 - (36 + iw + 16), "h": 410, "fontSize": 17}]
-    return {"kind": "form", "id": sid, "tag": tag, "heading": heading, "items": items, "notes": notes}
+    ih = min(888 / r, 340)
+    iw = ih * r
+    caution = CAUTION.get(sid, points[0])
+    items = [{"type": "image", "image": f"{FIGDIR}/{img}.png", "alt": alt.replace("説明書の図：", "図："), "x": 36 + (888 - iw) / 2, "y": 98, "w": iw, "h": ih},
+             {"type": "card", "text": "注意！　" + caution, "tone": "accent", "x": 36, "y": 98 + ih + 10, "w": 888, "h": 516 - (98 + ih + 10),
+              "fontSize": 21, "valign": "middle", "align": "center"}]
+    full = "【手順】\n" + "\n".join(f"・{p}" for p in points) + (f"\n{notes}" if notes else "")
+    return {"kind": "form", "id": sid, "tag": tag, "heading": heading, "items": items, "notes": full}
 
 
 STEPS = [  # (id, map label, heading, figure, points, notes)
@@ -129,7 +139,7 @@ phases = [
          "fields": [{"id": "q1", "label": "入れて持ち歩きたいもの（理由も）", "placeholder": "例：ホイッスル（助けを呼ぶため）"}],
          "notes": "完成したポーチにはカラビナでホイッスルなどを付けられ、「防災のまめ知識2」のミニブックも入れて活用できる。持ち物の話題から製作の目的を意識させる。"},
         {"kind": "form", "tag": "完成のイメージ", "heading": "防災ポーチ＆サコッシュ", "items": [
-            {"type": "image", "image": f"{SRC}/design.jpg", "alt": "完成の図（約22cm×約24cm、上部約10cm、広げた状態約34cm）", "x": 36, "y": 100, "w": 540, "h": 300},
+            {"type": "image", "image": f"{FIGDIR}/design.png", "alt": "完成の図（約22cm×約24cm、上部約10cm、広げた状態約34cm）", "x": 36, "y": 100, "w": 540, "h": 300},
             {"type": "card", "title": "大きさ", "text": "・約22cm×約24cm（上部約10cm）\n・広げた状態 約34cm\n・丸ひもの長さ 約110〜120cm（結び目を除く）\n・肩から下げるときは、結んで長さを調節", "tone": "primary", "x": 592, "y": 100, "w": 332, "h": 300, "fontSize": 17},
             {"type": "card", "text": "ひもを外すとポーチ、ひもを付けるとサコッシュ。カラビナでホイッスルなどを付けられる。", "tone": "accent", "x": 36, "y": 414, "w": 888, "h": 96, "fontSize": 18, "valign": "middle"}]},
         {"kind": "table", "tag": "材料", "heading": "材料をそろえよう",
