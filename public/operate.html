@@ -5,65 +5,328 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>学校の運用</title>
     <style>
+      :root {
+        --bg: #edf0f4;
+        --card: #ffffff;
+        --ink: #1e2732;
+        --muted: #5c6875;
+        --line: #ccd4dd;
+        --accent: #31559f;
+        --accent-dark: #26437e;
+        --tint: #e3ebf7;
+        --step-bg: #f2f5f9;
+        --chip-bg: #e6ebf1;
+        --ok: #177245;
+        --ok-bg: #e7f4ec;
+        --err: #b3261e;
+        --err-bg: #fbeae8;
+        --warn-line: #d9a92c;
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
-        font-family: sans-serif;
-        background: #f6f4ef;
-        color: #1d1a16;
-        line-height: 1.5;
+        font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        font-size: 16.5px;
+        line-height: 1.7;
       }
       main {
-        max-width: 42rem;
+        max-width: 62rem;
         margin: 0 auto;
-        padding: 1.5rem 1rem 3rem;
+        padding: 1.5rem 1.25rem 4rem;
       }
       h1 {
-        font-size: 1.4rem;
+        font-size: 1.6rem;
+        margin: 0 0 0.3rem;
       }
       h2 {
-        font-size: 1.15rem;
-        margin: 0 0 0.4rem;
+        font-size: 1.3rem;
+        margin: 0;
       }
       h3 {
-        font-size: 1rem;
-        margin: 1rem 0 0.3rem;
+        font-size: 1.1rem;
+        margin: 0 0 0.3rem;
       }
-      section,
-      form {
-        background: white;
-        border: 1px solid #ddd6cb;
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 1rem 0;
+      p {
+        margin: 0.4rem 0;
       }
-      label {
-        display: block;
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1.3rem 1.4rem;
+        margin: 1.1rem 0;
+        box-shadow: 0 1px 3px rgba(30, 45, 70, 0.08);
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.4rem;
+      }
+      .tag {
+        font-size: 0.78rem;
+        color: var(--accent-dark);
+        background: var(--tint);
+        border-radius: 999px;
+        padding: 0.1rem 0.6rem;
+        white-space: nowrap;
+      }
+      .purpose {
+        background: var(--step-bg);
+        border-radius: 10px;
+        padding: 0.7rem 0.9rem;
         margin: 0.6rem 0;
       }
-      button,
-      select,
-      input {
+      .steps-box {
+        border: 1px dashed var(--line);
+        border-radius: 10px;
+        padding: 0.7rem 0.9rem 0.7rem 0.7rem;
+        margin: 0.6rem 0;
+      }
+      .steps-box .steps-title {
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin: 0 0 0.2rem 0.4rem;
+      }
+      .steps-box ol {
+        margin: 0.2rem 0 0.2rem 1.5rem;
+        padding: 0;
+      }
+      .steps-box li {
+        margin: 0.25rem 0;
+      }
+      .warn {
+        background: var(--step-bg);
+        border-left: 4px solid var(--warn-line);
+        border-radius: 10px;
+        padding: 0.7rem 0.9rem;
+        margin: 0.6rem 0;
+      }
+      label.field {
+        display: block;
+        margin: 0.8rem 0 0.3rem;
+        font-weight: bold;
+        font-size: 0.95rem;
+      }
+      input[type="text"],
+      input[type="email"],
+      select {
+        width: 100%;
+        max-width: 26rem;
         font: inherit;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
       }
-      button {
-        margin: 0.2rem 0.4rem 0.2rem 0;
+      .btn {
+        font: inherit;
+        display: inline-block;
+        padding: 0.6rem 1.2rem;
+        min-height: 44px;
+        border-radius: 10px;
+        border: 1px solid var(--accent);
+        background: #fff;
+        color: var(--accent-dark);
+        cursor: pointer;
+        margin: 0.3rem 0.4rem 0.3rem 0;
       }
-      button:disabled {
-        opacity: 0.45;
+      .btn:hover {
+        background: var(--tint);
       }
-      ol {
-        margin: 0.3rem 0 0.8rem;
-        padding-left: 1.4rem;
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        font-weight: bold;
       }
-      .muted {
-        color: #5c564e;
+      .btn.primary:hover {
+        background: var(--accent-dark);
       }
-      .error {
-        color: #8d1d1d;
+      .btn.small {
+        padding: 0.3rem 0.8rem;
+        min-height: 38px;
+        font-size: 0.92rem;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn:disabled:hover {
+        background: #fff;
+      }
+      .btn.primary:disabled:hover {
+        background: var(--accent);
       }
       .result {
-        min-height: 1.4em;
-        margin: 0.6rem 0 0;
+        display: none;
+        border-radius: 10px;
+        padding: 0.7rem 0.9rem;
+        margin-top: 0.8rem;
+      }
+      .result.show {
+        display: block;
+      }
+      .result.ok {
+        background: var(--ok-bg);
+        color: #0d4d29;
+      }
+      .result.err {
+        background: var(--err-bg);
+        color: var(--err);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .account-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+      .account-bar .who {
+        font-weight: bold;
+      }
+      .row-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        padding: 0.55rem 0;
+        border-top: 1px solid var(--step-bg);
+      }
+      .row-item .grow {
+        flex: 1 1 auto;
+        min-width: 12rem;
+      }
+      .chip {
+        font-size: 0.78rem;
+        border-radius: 999px;
+        padding: 0.05rem 0.55rem;
+        background: var(--chip-bg);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .chip.on {
+        background: var(--ok-bg);
+        color: var(--ok);
+      }
+      .sub-block {
+        border-top: 2px solid var(--step-bg);
+        margin-top: 1.1rem;
+        padding-top: 1rem;
+      }
+      .task-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.6rem;
+        margin: 0.7rem 0;
+      }
+      @media (max-width: 620px) {
+        .task-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .task-card {
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        cursor: pointer;
+        display: block;
+      }
+      .task-card input {
+        margin-right: 0.4rem;
+      }
+      .task-card .task-name {
+        font-weight: bold;
+      }
+      .task-card .task-desc {
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin-top: 0.2rem;
+      }
+      .task-card.selected {
+        border-color: var(--accent);
+        background: var(--tint);
+      }
+      .stepper {
+        list-style: none;
+        margin: 0.8rem 0;
+        padding: 0;
+      }
+      .stepper li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.8rem;
+        padding: 0.7rem 0.8rem;
+        border-radius: 12px;
+        margin: 0.4rem 0;
+        border: 1px solid transparent;
+      }
+      .stepper li.current {
+        border-color: var(--accent);
+        background: var(--tint);
+      }
+      .stepper li.done {
+        background: var(--ok-bg);
+      }
+      .step-num {
+        flex: 0 0 auto;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: var(--chip-bg);
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+      }
+      li.current .step-num {
+        background: var(--accent);
+        color: #fff;
+      }
+      li.done .step-num {
+        background: var(--ok);
+        color: #fff;
+      }
+      .step-body {
+        flex: 1 1 auto;
+      }
+      .step-title {
+        font-weight: bold;
+      }
+      .step-desc {
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+      .dock {
+        background: var(--step-bg);
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 0.8rem 0;
+        text-align: left;
+      }
+      .dock .dock-label {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+      }
+      .hint {
+        font-size: 0.92rem;
+        color: var(--muted);
+        margin-top: 0.3rem;
+      }
+      #status {
+        color: var(--err);
+        font-weight: bold;
+      }
+      .center {
+        text-align: center;
       }
     </style>
   </head>
@@ -71,7 +334,7 @@
     <main>
       <h1>学校の運用</h1>
       <p class="muted">
-        作品の画面とは別のページです。作品のメニューからは開きません。サインインした人に許されている欄だけが表示されます。
+        学校を作る、学校の人を管理する、運営者を管理するためのページです。作品の画面とは別のページで、作品のメニューからは開きません。サインインした人に許されている欄だけが表示されます。
       </p>
       <p id="status"></p>
       <div id="sign-in" hidden></div>
@@ -81,9 +344,8 @@
       const status = document.querySelector("#status");
       const signIn = document.querySelector("#sign-in");
       const app = document.querySelector("#app");
-      const show = (message, error) => {
+      const show = (message) => {
         status.textContent = message || "";
-        status.className = error ? "error" : "muted";
       };
       async function send(path, method, body) {
         const response = await fetch(path, {
@@ -103,42 +365,49 @@
           throw new Error(payload.error || "操作できませんでした。");
         return payload;
       }
-      function paragraph(text, className) {
-        const node = document.createElement("p");
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
         if (className) node.className = className;
-        node.textContent = text;
+        if (text !== undefined) node.textContent = text;
         return node;
       }
-      function steps(lines) {
+      function paragraph(text, className) {
+        return el("p", className, text);
+      }
+      function purposeBox(text) {
+        return el("div", "purpose", text);
+      }
+      function stepsBox(lines) {
+        const box = el("div", "steps-box");
+        box.append(el("p", "steps-title", "手順"));
         const list = document.createElement("ol");
         for (const line of lines) {
-          const item = document.createElement("li");
-          item.textContent = line;
-          list.append(item);
+          list.append(el("li", "", line));
         }
-        return list;
+        box.append(list);
+        return box;
       }
-      function resultSlot() {
-        const node = document.createElement("p");
-        node.className = "result";
+      function resultBox() {
+        const node = el("div", "result");
         node.setAttribute("role", "status");
         return node;
       }
-      function report(slot, message, error) {
-        slot.textContent = message || "";
-        slot.className = error ? "result error" : "result";
+      function report(box, message, error) {
+        box.textContent = message ? (error ? "！ " : "✓ ") + message : "";
+        box.className = message
+          ? "result show " + (error ? "err" : "ok")
+          : "result";
       }
-      function field(title, control) {
-        const label = document.createElement("label");
-        label.append(document.createTextNode(title), control);
+      function fieldLabel(title, control) {
+        const label = el("label", "field", title);
+        label.append(control);
         return label;
       }
-      function button(title, action, slot) {
-        const node = document.createElement("button");
+      function button(title, action, box, className) {
+        const node = el("button", className || "btn", title);
         node.type = "button";
-        node.textContent = title;
         node.addEventListener("click", () =>
-          action().catch((error) => report(slot, error.message, true)),
+          action().catch((error) => report(box, error.message, true)),
         );
         return node;
       }
@@ -171,107 +440,137 @@
         if (!session.user) {
           signIn.hidden = false;
           app.hidden = true;
-          const slot = resultSlot();
+          const box = resultBox();
           const host = await loadGoogle(
             config.clientId,
             undefined,
             (credential) =>
               send("/api/auth/google", "POST", { credential })
                 .then(() => location.reload())
-                .catch((error) => report(slot, error.message, true)),
+                .catch((error) => report(box, error.message, true)),
           );
-          signIn.replaceChildren(
+          const card = el("section", "card center");
+          card.append(
+            el("h2", "", "サインイン"),
             paragraph(
-              "下のボタンで Google アカウントにサインインしてください。サインインすると、使える欄だけが表示されます。",
+              "下のボタンで Google アカウントにサインインしてください。サインインすると、あなたが使える欄だけが表示されます。",
             ),
             host,
-            slot,
+            box,
           );
+          signIn.replaceChildren(card);
           show("");
           return;
         }
         signIn.hidden = true;
         const view = await send("/api/stage1/console", "GET");
-        if (
-          !view.createSchool &&
-          !view.operator &&
-          !view.applyTo.length &&
-          !view.schools.length
-        ) {
-          app.hidden = true;
-          show("この操作は利用できません。");
-          return;
-        }
-        app.hidden = false;
         app.replaceChildren();
-        show("");
-        const accountSlot = resultSlot();
-        const account = document.createElement("section");
-        account.append(
-          paragraph(
-            `${session.user.name} として開いています。別のアカウントで操作するときは、先にサインアウトしてから入り直してください。別のウィンドウは要りません。`,
-          ),
+        const accountBox = resultBox();
+        const accountCard = el("section", "card");
+        const bar = el("div", "account-bar");
+        bar.append(
+          el("span", "who", `${session.user.name} としてサインインしています`),
           button(
             "サインアウト",
             async () => {
               await send("/api/logout", "POST");
               location.reload();
             },
-            accountSlot,
+            accountBox,
+            "btn small",
           ),
-          accountSlot,
         );
-        app.append(account);
-        if (view.createSchool) {
-          const slot = resultSlot();
-          const name = document.createElement("input");
-          name.maxLength = 40;
-          name.required = true;
-          const form = document.createElement("form");
-          form.addEventListener("submit", (event) => event.preventDefault());
-          form.append(
-            paragraph("学校を作る", ""),
+        accountCard.append(
+          bar,
+          paragraph(
+            "別のアカウントで操作するときは、サインアウトしてから入り直してください。",
+            "muted",
+          ),
+          accountBox,
+        );
+        app.append(accountCard);
+        if (
+          !view.createSchool &&
+          !view.operator &&
+          !view.applyTo.length &&
+          !view.schools.length
+        ) {
+          const card = el("section", "card");
+          card.append(
+            el("h2", "", "この操作は利用できません"),
             paragraph(
-              "新しい学校を1つ作ります。名前は1文字から40文字です。同じ名前の有効な学校があるときは作れません。",
+              "このアカウントには、運用の権限がありません。権限のあるアカウントでサインインし直してください。",
             ),
-            steps([
-              "学校の名前を入れます。",
+          );
+          app.append(card);
+          app.hidden = false;
+          show("");
+          return;
+        }
+        app.hidden = false;
+        show("");
+        if (view.createSchool) {
+          const box = resultBox();
+          const name = document.createElement("input");
+          name.type = "text";
+          name.maxLength = 40;
+          const card = el("section", "card");
+          const head = el("div", "card-head");
+          head.append(
+            el("h2", "", "学校を作る"),
+            el("span", "tag", "スーパー管理者だけ"),
+          );
+          card.append(
+            head,
+            purposeBox(
+              "新しい学校を1つ作ります。学校を作らないと、その学校の事前登録や所属の管理はできません。",
+            ),
+            stepsBox([
+              "学校の名前を入れます（1文字から40文字）。",
               "「学校を作る」を押します。",
-              "作った学校が、このページの下に表示されます。",
+              "作った学校の欄が、このページの下に表示されます。",
             ]),
-            field("学校の名前", name),
+            fieldLabel("学校の名前", name),
             button(
               "学校を作る",
               async () => {
-                await send("/api/organizations", "POST", { name: name.value });
+                if (!name.value.trim()) {
+                  report(box, "学校の名前を入れてください。", true);
+                  return;
+                }
+                await send("/api/organizations", "POST", {
+                  name: name.value,
+                });
                 location.reload();
               },
-              slot,
+              box,
+              "btn primary",
             ),
-            slot,
+            paragraph(
+              "同じ名前の有効な学校があるときは作れません。",
+              "hint",
+            ),
+            box,
           );
-          form.querySelector("p").replaceWith(
-            Object.assign(document.createElement("h2"), {
-              textContent: "学校を作る",
-            }),
-          );
-          app.append(form);
+          app.append(card);
         }
         for (const school of view.applyTo) {
           const managed = view.schools.find((item) => item.id === school.id);
-          const section = document.createElement("section");
-          const title = document.createElement("h2");
-          title.textContent = school.name;
-          section.append(title);
+          const card = el("section", "card");
+          const head = el("div", "card-head");
+          head.append(el("h2", "", school.name));
+          card.append(head);
           if (!managed) {
-            const slot = resultSlot();
-            section.append(
-              paragraph(
+            const box = resultBox();
+            const block = el("div", "");
+            block.append(
+              el("h3", "", "学校管理者の申請"),
+              purposeBox(
                 "この学校の学校管理者を申請できます。申請しただけでは管理者にはなりません。スーパー管理者が「登録」か「却下」を決めます。",
               ),
-              steps([
-                "この学校の欄で「学校管理者を申請する」を押します。",
-                "受け付けたことは、この欄に表示されます。",
+              stepsBox([
+                "「学校管理者を申請する」を押します。",
+                "受け付けたことが、この欄に表示されます。",
               ]),
               button(
                 "学校管理者を申請する",
@@ -280,35 +579,36 @@
                     `/api/organizations/${school.id}/school-admin-applications`,
                     "POST",
                     {},
-                  ).then(() => report(slot, "申請を受け付けました。")),
-                slot,
+                  ).then(() => report(box, "申請を受け付けました。")),
+                box,
+                "btn primary",
               ),
-              slot,
+              box,
             );
+            card.append(block);
           }
           if (managed?.preregistration) {
-            const slot = resultSlot();
+            const box = resultBox();
+            const block = el("div", "sub-block");
             const email = document.createElement("input");
             email.type = "email";
             email.autocomplete = "off";
             const role = document.createElement("select");
             role.innerHTML =
               "<option value='teacher'>教師</option><option value='student'>生徒</option>";
-            const heading = document.createElement("h3");
-            heading.textContent = "事前登録";
-            section.append(
-              heading,
-              paragraph(
+            block.append(
+              el("h3", "", "事前登録"),
+              purposeBox(
                 "まだこの学校に入っていない人を、メールアドレスで予約します。その人が次にサインインすると、選んだ役割で所属します。取り消した登録は使われません。",
               ),
-              steps([
+              stepsBox([
                 "メールアドレスを入れます。",
                 "教師か生徒を選びます。",
                 "「事前登録を作る」を押します。",
                 "取り消すときは、一覧の「取り消す」を押します。",
               ]),
-              field("事前登録するメールアドレス", email),
-              field("予定の役割", role),
+              fieldLabel("事前登録するメールアドレス", email),
+              fieldLabel("予定の役割", role),
               button(
                 "事前登録を作る",
                 async () => {
@@ -319,19 +619,25 @@
                   );
                   location.reload();
                 },
-                slot,
+                box,
+                "btn primary",
               ),
-              slot,
+              box,
             );
             const rows = await send(
               `/api/organizations/${school.id}/preregistrations`,
               "GET",
             );
             if (!rows.preregistrations.length)
-              section.append(paragraph("事前登録はありません。", "muted"));
+              block.append(paragraph("事前登録はありません。", "muted"));
             for (const row of rows.preregistrations) {
-              const line = document.createElement("p");
-              line.textContent = `${row.email}（${row.plannedRole === "student" ? "生徒" : "教師"}、${row.status}）`;
+              const line = el("div", "row-item");
+              const grow = el(
+                "span",
+                "grow",
+                `${row.email}（${row.plannedRole === "student" ? "生徒" : "教師"}）`,
+              );
+              line.append(grow, el("span", "chip", row.status));
               if (row.status === "有効")
                 line.append(
                   button(
@@ -340,32 +646,42 @@
                       send(`/api/preregistrations/${row.id}`, "DELETE").then(
                         () => location.reload(),
                       ),
-                    slot,
+                    box,
+                    "btn small",
                   ),
                 );
-              section.append(line);
+              block.append(line);
             }
+            card.append(block);
           }
           if (managed?.membership) {
-            const slot = resultSlot();
-            const heading = document.createElement("h3");
-            heading.textContent = "所属";
-            section.append(
-              heading,
-              paragraph(
+            const box = resultBox();
+            const block = el("div", "sub-block");
+            block.append(
+              el("h3", "", "所属"),
+              purposeBox(
                 "この学校に入っている人です。無効にすると、その人はこの学校の所属としては扱えなくなります。再有効化すると、また有効な所属に戻ります。学校管理者の解除は、スーパー管理者だけができます。",
               ),
-              slot,
+              box,
             );
             const members = await send(
               `/api/organizations/${school.id}/members`,
               "GET",
             );
             if (!members.members.length)
-              section.append(paragraph("所属している人はいません。", "muted"));
+              block.append(paragraph("所属している人はいません。", "muted"));
             for (const member of members.members) {
-              const line = document.createElement("p");
-              line.textContent = `${member.name}（${member.email}、${member.status}${member.schoolAdmin ? "、学校管理者" : ""}）`;
+              const line = el("div", "row-item");
+              line.append(
+                el("span", "grow", `${member.name}（${member.email}）`),
+                el(
+                  "span",
+                  "chip" + (member.status === "有効" ? " on" : ""),
+                  member.status,
+                ),
+              );
+              if (member.schoolAdmin)
+                line.append(el("span", "chip", "学校管理者"));
               if (member.status === "有効")
                 line.append(
                   button(
@@ -376,7 +692,8 @@
                         "POST",
                         {},
                       ).then(() => location.reload()),
-                    slot,
+                    box,
+                    "btn small",
                   ),
                 );
               if (member.status === "無効")
@@ -389,7 +706,8 @@
                         "POST",
                         { role: member.role },
                       ).then(() => location.reload()),
-                    slot,
+                    box,
+                    "btn small",
                   ),
                 );
               if (view.revokeSchoolAdmin && member.schoolAdmin)
@@ -401,22 +719,23 @@
                         `/api/organizations/${school.id}/school-admins/${member.id}`,
                         "DELETE",
                       ).then(() => location.reload()),
-                    slot,
+                    box,
+                    "btn small",
                   ),
                 );
-              section.append(line);
+              block.append(line);
             }
+            card.append(block);
           }
           if (view.decideApplications) {
-            const slot = resultSlot();
-            const heading = document.createElement("h3");
-            heading.textContent = "学校管理者の申請";
-            section.append(
-              heading,
-              paragraph(
+            const box = resultBox();
+            const block = el("div", "sub-block");
+            block.append(
+              el("h3", "", "学校管理者の申請"),
+              purposeBox(
                 "申請中の人を、学校管理者として登録するか、却下します。「登録」で学校管理者にします。「却下」で申請を閉じます。",
               ),
-              slot,
+              box,
             );
             const applications = await send(
               `/api/organizations/${school.id}/school-admin-applications`,
@@ -426,10 +745,16 @@
               (application) => application.status === "申請中",
             );
             if (!pending.length)
-              section.append(paragraph("申請中の人はいません。", "muted"));
+              block.append(paragraph("申請中の人はいません。", "muted"));
             for (const application of pending) {
-              const line = document.createElement("p");
-              line.textContent = `${application.applicant.name}（${application.applicant.email}）の申請`;
+              const line = el("div", "row-item");
+              line.append(
+                el(
+                  "span",
+                  "grow",
+                  `${application.applicant.name}（${application.applicant.email}）の申請`,
+                ),
+              );
               for (const decision of ["登録", "却下"])
                 line.append(
                   button(
@@ -440,149 +765,266 @@
                         "POST",
                         { decision },
                       ).then(() => location.reload()),
-                    slot,
+                    box,
+                    "btn small" + (decision === "登録" ? " primary" : ""),
                   ),
                 );
-              section.append(line);
+              block.append(line);
             }
+            card.append(block);
           }
-          app.append(section);
+          app.append(card);
         }
         if (view.operator) {
-          const slot = resultSlot();
-          const section = document.createElement("section");
-          const title = document.createElement("h2");
-          title.textContent = "運営者";
-          const generation = paragraph(
-            `登録簿の世代は ${view.operatorGeneration} です。相手の名前や番号は、この欄にもページのどこにも表示しません。`,
-            "muted",
+          const box = resultBox();
+          const card = el("section", "card");
+          const head = el("div", "card-head");
+          head.append(
+            el("h2", "", "運営者"),
+            el("span", "tag", "運営者だけ"),
+          );
+          const generationLine = el(
+            "p",
+            "",
+            `現在の登録簿の世代は ${view.operatorGeneration} です。世代は、運営者の顔ぶれが変わるたびに1つ増える番号です。`,
+          );
+          card.append(
+            head,
+            purposeBox(
+              "運営者は、学校の機能全体を管理できる人です。ここでは運営者の追加・失効・交代をします。なりすましを防ぐため、操作する人と相手の両方に、その場でサインインしてもらいます。相手の名前や番号は、画面のどこにも表示しません。",
+            ),
+            generationLine,
+            el(
+              "div",
+              "warn",
+              "この欄を開いてから5分以内に、必要なサインインを済ませてください。過ぎてしまったときは、下の「ページを読み込み直す」を押してからやり直してください。1回の操作が終わったら、ページを読み込み直してから次の操作をします。",
+            ),
           );
           const held = {};
-          const labels = { self: "自分", target: "相手", next: "交代先" };
-          const received = document.createElement("ul");
-          const addButton = button(
-            "運営者を追加する",
-            async () => {
-              const result = await send(
-                "/api/stage1/operators/add-by-sign-in",
-                "POST",
-                {
-                  credential: held.self,
-                  targetCredential: held.target,
-                  expectedGeneration: view.operatorGeneration,
-                },
-              );
-              finish(result.generation, "追加しました。");
-            },
-            slot,
-          );
-          const revokeButton = button(
-            "運営者を失効する",
-            async () => {
-              const result = await send(
-                "/api/stage1/operators/revoke-by-sign-in",
-                "POST",
-                {
-                  credential: held.self,
-                  targetCredential: held.target,
-                  expectedGeneration: view.operatorGeneration,
-                },
-              );
-              finish(result.generation, "失効しました。");
-            },
-            slot,
-          );
-          const rotateButton = button(
-            "運営者を交代する",
-            async () => {
-              const result = await send(
-                "/api/stage1/operators/rotate-by-sign-in",
-                "POST",
-                {
-                  credential: held.self,
-                  fromCredential: held.target,
-                  toCredential: held.next,
-                  expectedGeneration: view.operatorGeneration,
-                },
-              );
-              finish(result.generation, "交代しました。");
-            },
-            slot,
-          );
-          function paintHeld() {
-            received.replaceChildren();
-            for (const key of ["self", "target", "next"]) {
-              const item = document.createElement("li");
-              item.textContent = `${labels[key]}: ${held[key] ? "受け取り済み" : "まだ"}`;
-              received.append(item);
-            }
-            addButton.disabled = !(held.self && held.target);
-            revokeButton.disabled = !(held.self && held.target);
-            rotateButton.disabled = !(held.self && held.target && held.next);
-          }
-          function finish(nextGeneration, message) {
-            generation.textContent = `登録簿の世代は ${nextGeneration} です。相手の名前や番号は、この欄にもページのどこにも表示しません。`;
-            addButton.disabled = true;
-            revokeButton.disabled = true;
-            rotateButton.disabled = true;
-            report(
-              slot,
-              `${message}世代は ${nextGeneration} です。次の操作は、ページを読み込み直してから行ってください。`,
+          let task = "add";
+          let current = "self";
+          let finished = false;
+          const stepDefs = {
+            add: [
+              {
+                key: "self",
+                title: "あなた（操作する運営者）",
+                desc: "ふだん運営者として使っている、あなたのアカウントでサインインします。",
+              },
+              {
+                key: "target",
+                title: "追加する人",
+                desc: "新しく運営者になる人に、その場でサインインしてもらいます。",
+              },
+            ],
+            revoke: [
+              {
+                key: "self",
+                title: "あなた（操作する運営者）",
+                desc: "ふだん運営者として使っている、あなたのアカウントでサインインします。",
+              },
+              {
+                key: "target",
+                title: "失効する運営者",
+                desc: "資格を取り消す運営者に、その場でサインインしてもらいます。",
+              },
+            ],
+            rotate: [
+              {
+                key: "self",
+                title: "あなた（操作する運営者）",
+                desc: "ふだん運営者として使っている、あなたのアカウントでサインインします。",
+              },
+              {
+                key: "target",
+                title: "交代元の運営者",
+                desc: "交代で外れる運営者に、その場でサインインしてもらいます。",
+              },
+              {
+                key: "next",
+                title: "交代先の人",
+                desc: "新しく運営者になる人に、その場でサインインしてもらいます。",
+              },
+            ],
+          };
+          const actionLabels = {
+            add: "運営者を追加する",
+            revoke: "運営者を失効する",
+            rotate: "運営者を交代する",
+          };
+          const taskField = document.createElement("fieldset");
+          taskField.style.border = "none";
+          taskField.style.padding = "0";
+          taskField.style.margin = "0.4rem 0";
+          const legend = el("legend", "", "まず、することを選んでください");
+          legend.style.fontWeight = "bold";
+          taskField.append(legend);
+          const grid = el("div", "task-grid");
+          const taskCards = {};
+          for (const [value, name, desc] of [
+            ["add", "追加する", "新しい運営者を1人加えます。"],
+            ["revoke", "失効する", "運営者1人の資格を取り消します。"],
+            ["rotate", "交代する", "運営者1人を、別の人に代えます。"],
+          ]) {
+            const label = el("label", "task-card");
+            const radio = document.createElement("input");
+            radio.type = "radio";
+            radio.name = "op-task";
+            radio.value = value;
+            if (value === task) radio.checked = true;
+            radio.addEventListener("change", () => {
+              task = value;
+              const keys = stepDefs[task].map((step) => step.key);
+              if (!keys.includes(current)) current = "self";
+              paint();
+            });
+            label.append(
+              radio,
+              el("span", "task-name", name),
+              el("div", "task-desc", desc),
             );
+            taskCards[value] = label;
+            grid.append(label);
           }
-          const slotSelect = document.createElement("select");
-          slotSelect.innerHTML =
-            "<option value='self'>自分</option><option value='target'>相手</option><option value='next'>交代先</option>";
+          taskField.append(grid);
+          card.append(taskField);
+          const stepper = el("ol", "stepper");
+          card.append(stepper);
+          const dock = el("div", "dock");
+          const dockLabel = el("div", "dock-label");
+          dock.append(
+            dockLabel,
+            paragraph(
+              "下のボタンを押すと Google の画面が開きます。いまの順番の人のアカウントでサインインしてください。",
+              "hint",
+            ),
+          );
+          card.append(dock);
+          const actionButton = button(
+            actionLabels[task],
+            async () => {
+              let result;
+              if (task === "add")
+                result = await send(
+                  "/api/stage1/operators/add-by-sign-in",
+                  "POST",
+                  {
+                    credential: held.self,
+                    targetCredential: held.target,
+                    expectedGeneration: view.operatorGeneration,
+                  },
+                );
+              else if (task === "revoke")
+                result = await send(
+                  "/api/stage1/operators/revoke-by-sign-in",
+                  "POST",
+                  {
+                    credential: held.self,
+                    targetCredential: held.target,
+                    expectedGeneration: view.operatorGeneration,
+                  },
+                );
+              else
+                result = await send(
+                  "/api/stage1/operators/rotate-by-sign-in",
+                  "POST",
+                  {
+                    credential: held.self,
+                    fromCredential: held.target,
+                    toCredential: held.next,
+                    expectedGeneration: view.operatorGeneration,
+                  },
+                );
+              finished = true;
+              generationLine.textContent = `現在の登録簿の世代は ${result.generation} です。世代は、運営者の顔ぶれが変わるたびに1つ増える番号です。`;
+              report(
+                box,
+                `${task === "add" ? "追加しました" : task === "revoke" ? "失効しました" : "交代しました"}。世代は ${result.generation} です。次の操作は、ページを読み込み直してから行ってください。`,
+              );
+              paint();
+            },
+            box,
+            "btn primary",
+          );
+          const hint = el("p", "hint");
+          card.append(
+            actionButton,
+            hint,
+            button(
+              "ページを読み込み直す",
+              async () => location.reload(),
+              box,
+              "btn",
+            ),
+            box,
+          );
+          function paint() {
+            for (const [value, label] of Object.entries(taskCards))
+              label.classList.toggle("selected", value === task);
+            const steps = stepDefs[task];
+            stepper.replaceChildren();
+            steps.forEach((step, index) => {
+              const item = el("li");
+              if (held[step.key]) item.classList.add("done");
+              else if (current === step.key && !finished)
+                item.classList.add("current");
+              const num = el(
+                "span",
+                "step-num",
+                held[step.key] ? "✓" : String(index + 1),
+              );
+              const body = el("div", "step-body");
+              body.append(
+                el("div", "step-title", step.title),
+                el("div", "step-desc", step.desc),
+              );
+              const chip = el(
+                "span",
+                "chip" + (held[step.key] ? " on" : ""),
+                held[step.key] ? "受け取り済み" : "まだ",
+              );
+              item.append(num, body, chip);
+              item.addEventListener("click", () => {
+                if (finished) return;
+                current = step.key;
+                paint();
+              });
+              stepper.append(item);
+            });
+            const currentStep = steps.find((step) => step.key === current);
+            dockLabel.textContent = finished
+              ? "この操作は終わりました"
+              : `いまのサインイン：${currentStep ? currentStep.title : ""}`;
+            actionButton.textContent = actionLabels[task];
+            const missing = steps.find((step) => !held[step.key]);
+            actionButton.disabled = finished || !!missing;
+            hint.textContent = finished
+              ? ""
+              : missing
+                ? `あと「${missing.title}」のサインインが必要です。`
+                : "そろいました。下のボタンを押してください。";
+          }
           const issued = await send("/api/stage1/operators/nonce", "POST", {});
           const google = await loadGoogle(
             config.clientId,
             issued.nonce,
             (credential) => {
-              held[slotSelect.value] = credential;
-              paintHeld();
-              report(
-                slot,
-                `${labels[slotSelect.value]}のサインインを受け取りました。まだ送信していません。`,
+              held[current] = credential;
+              const doneStep = stepDefs[task].find(
+                (step) => step.key === current,
               );
+              report(
+                box,
+                `「${doneStep ? doneStep.title : ""}」のサインインを受け取りました。まだ送信していません。`,
+              );
+              const nextStep = stepDefs[task].find((step) => !held[step.key]);
+              if (nextStep) current = nextStep.key;
+              paint();
             },
           );
-          paintHeld();
-          section.append(
-            title,
-            generation,
-            paragraph(
-              "運営者の追加、失効、交代をします。サインインの情報は、この欄の中だけで保持し、画面には出しません。この欄を開いてから5分以内に、必要なサインインを済ませてください。1回の操作が終わったら、ページを読み込み直してから次の操作をします。",
-            ),
-            paragraph("運営者を追加するとき"),
-            steps([
-              "「このサインインの相手」で「自分」を選び、Google でサインインします。",
-              "「相手」に切り替え、追加したい人のアカウントでサインインします。",
-              "「自分」と「相手」が「受け取り済み」になってから、「運営者を追加する」を押します。",
-            ]),
-            paragraph("運営者を失効するとき"),
-            steps([
-              "「自分」でサインインします。",
-              "「相手」で、失効したい運営者のアカウントでサインインします。",
-              "「自分」と「相手」が「受け取り済み」になってから、「運営者を失効する」を押します。",
-            ]),
-            paragraph("運営者を交代するとき"),
-            steps([
-              "「自分」でサインインします。",
-              "「相手」で、今の運営者（交代元）としてサインインします。",
-              "「交代先」で、新しく運営者になる人としてサインインします。",
-              "3つとも「受け取り済み」になってから、「運営者を交代する」を押します。",
-            ]),
-            field("このサインインの相手", slotSelect),
-            google,
-            paragraph("サインインの受け取り", "muted"),
-            received,
-            addButton,
-            revokeButton,
-            rotateButton,
-            button("ページを読み込み直す", async () => location.reload(), slot),
-            slot,
-          );
-          app.append(section);
+          dock.append(google);
+          paint();
+          app.append(card);
         }
       }
       send("/api/config", "GET")
