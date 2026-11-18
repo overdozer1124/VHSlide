@@ -20,7 +20,7 @@ import {
 function fixture() {
   const db = new DatabaseSync(":memory:");
   db.exec(
-    "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT)",
+    "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT); CREATE TABLE members(deck TEXT, user_id TEXT)",
   );
   db.exec(groupSchema);
   db.exec(thinkingSchema);
@@ -30,8 +30,10 @@ function fixture() {
     ["ana", "あな"],
     ["bob", "ぼぶ"],
     ["eve", "いぶ"],
-  ])
+  ]) {
     db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+    db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+  }
   const sql: HistorySQL = (query, ...args) => db.prepare(query).all(...args);
   return { db, sql };
 }
@@ -680,6 +682,43 @@ describe("thinking owner labels", () => {
     expect(thinkingOwnerLabels(["user-c"], names, true)).toEqual([
       { owner: "user-c", label: "名前未登録" },
     ]);
+  });
+
+  it("keeps roster numbers fixed when a student answers midway (stage-4 🟡3)", () => {
+    const roster = ["user-a", "user-b", "user-c"];
+    // Only user-c has answered so far: they are still 生徒3.
+    expect(thinkingOwnerLabels(["user-c"], names, false, roster)).toEqual([
+      { owner: "user-c", label: "生徒3" },
+    ]);
+    // When user-a joins in, nobody's number moves.
+    expect(
+      thinkingOwnerLabels(["user-c", "user-a"], names, false, roster),
+    ).toEqual([
+      { owner: "user-a", label: "生徒1" },
+      { owner: "user-c", label: "生徒3" },
+    ]);
+    // An owner who left the roster is numbered after it.
+    expect(
+      thinkingOwnerLabels(["user-x", "user-b"], names, false, roster),
+    ).toEqual([
+      { owner: "user-b", label: "生徒2" },
+      { owner: "user-x", label: "生徒4" },
+    ]);
+    // The host's list carries the roster; a student's never does.
+    const { sql } = fixture();
+    const createdTool = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "emotion",
+      unit: "individual",
+      definition: { title: "気持ち", xMin: "いや", xMax: "よい" },
+    });
+    thinkingCommand(sql, "deck", "host", true, "status", createdTool!.createdId, {
+      status: "open",
+    });
+    const hostView = thinkingList(sql, "deck", "host", true);
+    expect(hostView.length).toBeGreaterThan(0);
+    expect(hostView[0].roster).toEqual(["ana", "bob", "eve"]);
+    const studentView = thinkingList(sql, "deck", "ana", false);
+    expect(studentView[0].roster).toBeUndefined();
   });
 });
 
