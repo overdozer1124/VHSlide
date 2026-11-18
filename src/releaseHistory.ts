@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.143.2",
+    date: "2026-11-18",
+    title: "ファイルメニューの「PDFで保存」を「印刷・PDFで出力」に変えました",
+    changes: [
+      "ファイルメニューの項目名を「PDFで保存」から「印刷・PDFで出力」に変えました。印刷もこの項目から行うことが分かるようにするためです。開いた先の画面の題も同じ名前にそろえました。",
+    ],
+    retrospective: false,
+  },
+  {
     version: "0.143.1",
     date: "2026-11-18",
     title: "写真の保存容量を広げ、同じ写真は1回だけ数えるようにしました",

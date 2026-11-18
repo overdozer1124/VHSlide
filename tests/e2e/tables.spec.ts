@@ -128,7 +128,7 @@ test("creates and directly edits a table, preserves layout, undo, resize, JSON a
   await page.mouse.move(100, 10);
   await page.getByRole("button", { name: "発表をおわる", exact: true }).click();
   await page.getByRole("button", { name: "ファイル", exact: true }).click();
-  await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
+  await page.getByRole("menuitem", { name: /^印刷・PDFで出力/ }).click();
   await page
     .getByRole("button", { name: "対象をすべて選ぶ", exact: true })
     .click();

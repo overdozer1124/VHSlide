@@ -32,7 +32,7 @@ async function filterIds(page: Page, positions: [number, number][]) {
     .getByRole("button", { name: "フィルタを適用", exact: true })
     .click();
 }
-async function tool(page: Page, name: "比較" | "PDFで保存") {
+async function tool(page: Page, name: "比較" | "印刷・PDFで出力") {
   if (name === "比較") {
     const select = page.getByRole("button", {
       name: "スライドを複数選択",
@@ -60,7 +60,7 @@ async function tool(page: Page, name: "比較" | "PDFで保存") {
     return;
   }
   await page.getByRole("button", { name: "ファイル", exact: true }).click();
-  await page.getByRole("menuitem", { name: /PDFで保存/ }).click();
+  await page.getByRole("menuitem", { name: /印刷・PDFで出力/ }).click();
 }
 const current = (page: Page) => page.locator(".present-slide .slide-canvas");
 async function pinch(
@@ -240,7 +240,7 @@ test("comparison candidates and PDF defaults share the visible scope and never k
     page.getByLabel("スライドの比較").locator(".slide-canvas"),
   ).toHaveCount(2);
   await page.getByRole("button", { name: "閉じる", exact: true }).click();
-  await tool(page, "PDFで保存");
+  await tool(page, "印刷・PDFで出力");
   await expect(picker.getByRole("checkbox", { checked: true })).toHaveCount(2);
   await scope.selectOption("sheet");
   await expect(picker.getByRole("checkbox", { checked: true })).toHaveCount(9);
@@ -308,7 +308,7 @@ test("an editor showing all pages does not inherit the hidden map filter for PDF
   await expect(
     page.getByRole("button", { name: "発表する", exact: true }),
   ).toBeVisible();
-  await tool(page, "PDFで保存");
+  await tool(page, "印刷・PDFで出力");
   await expect(
     page.getByLabel("対象スライド").getByRole("checkbox", { checked: true }),
   ).toHaveCount(9);

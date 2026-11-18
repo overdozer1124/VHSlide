@@ -69,7 +69,7 @@ const button = (p: Page, name: string) =>
   p.getByRole("button", { name, exact: true });
 async function pdf(p: Page) {
   await button(p, "ファイル").click();
-  await p.getByRole("menuitem", { name: /PDFで保存/ }).click();
+  await p.getByRole("menuitem", { name: /印刷・PDFで出力/ }).click();
 }
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/config", (r) =>

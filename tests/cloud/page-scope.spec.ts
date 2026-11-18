@@ -75,7 +75,7 @@ test("PDF preparation is invalidated by source changes and selected deletions in
     .getByRole("button", { name: "フィルタを適用", exact: true })
     .click();
   await page.getByRole("button", { name: "ファイル", exact: true }).click();
-  await page.getByRole("menuitem", { name: /PDFで保存/ }).click();
+  await page.getByRole("menuitem", { name: /印刷・PDFで出力/ }).click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "印刷・PDFに保存", exact: true }),
