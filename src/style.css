@@ -8121,3 +8121,5 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-gallery-board { flex:none;width:100%;max-width:760px;aspect-ratio:4/3; }
 .thinking-gallery-board .thinking-card { cursor:default; }
 .thinking-card-note { display:block;font-size:10.5px;color:#7a6f96;margin-top:2px; }
+.thinking-textmine { margin-top:16px;border-top:1px solid #e3ddf0;padding-top:10px; }
+.thinking-textmine h4 { margin:0 0 6px;font-size:13.5px;color:#2e2440; }
