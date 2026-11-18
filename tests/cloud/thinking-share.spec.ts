@@ -129,13 +129,31 @@ test("host shows one student's chart to the class, then stops", async ({
   await expect(board).toBeVisible({ timeout: 15_000 });
   await writeCard(student, "A", "あなの考えカード");
 
-  // Watch the share payload the student receives.
-  const shareResponse = student.waitForResponse(
-    (r) => r.url().includes("/thinking-share") && r.status() === 200,
-    { timeout: 30_000 },
+  // The teacher writes on the student's chart too — before the
+  // review fix, a names-on share labeled the chart with the
+  // teacher's name, taken from this card's author (🔴1).
+  const hostList = await (
+    await page.request.get(`/api/decks/${id}/thinking?caps=board`)
+  ).json();
+  const anaCard = hostList.thinking[0].cards.find(
+    (c: { text: string }) => c.text === "あなの考えカード",
   );
+  expect(anaCard).toBeTruthy();
+  const teacherCard = await page.request.post(
+    `/api/decks/${id}/thinking/${toolId}/card?caps=board`,
+    {
+      headers,
+      data: {
+        zone: "a",
+        text: "先生の書き込み",
+        color: "",
+        owner: anaCard.owner,
+      },
+    },
+  );
+  expect(teacherCard.status()).toBe(200);
 
-  // Host: console → thinking results → per-student gallery → show.
+  // Host: console → thinking results → per-student gallery.
   await page.getByRole("button", { name: "授業コンソール" }).click();
   const console_ = page.getByRole("region", { name: "授業コンソール" });
   await console_.getByRole("tab", { name: "思考ツール" }).click();
@@ -144,15 +162,26 @@ test("host shows one student's chart to the class, then stops", async ({
   const thumb = results.locator(".thinking-thumb", { hasText: "生徒1" });
   await expect(thumb).toBeVisible({ timeout: 20_000 });
   await thumb.click();
-  const showButton = results.getByRole("button", { name: "全員に見せる" });
-  await expect(showButton).toBeVisible({ timeout: 15_000 });
-  await showButton.click();
 
-  // The student sees the chart large, read-only, with the roster
-  // number label — and the payload holds no ids or author names.
   const overlay = student.locator(
     '.host-follow-overlay[data-mode="thinking"]',
   );
+  const stopButton = results.getByRole("button", {
+    name: "見せるのをやめる",
+  });
+
+  // Show WITHOUT names (the explicit choice, 🔴2): the student
+  // sees the roster number label, and the payload holds no ids or
+  // author names.
+  const anonResponse = student.waitForResponse(
+    (r) => r.url().includes("/thinking-share") && r.status() === 200,
+    { timeout: 30_000 },
+  );
+  const anonButton = results.getByRole("button", {
+    name: "名前を出さずに全員に見せる",
+  });
+  await expect(anonButton).toBeVisible({ timeout: 15_000 });
+  await anonButton.click();
   await expect(overlay).toBeVisible({ timeout: 20_000 });
   await expect(overlay.locator(".thinking-gallery-expanded h4")).toHaveText(
     "生徒1のチャート",
@@ -160,20 +189,47 @@ test("host shows one student's chart to the class, then stops", async ({
   await expect(
     overlay.locator(".thinking-card", { hasText: "あなの考えカード" }),
   ).toHaveCount(1);
-  const payload = await (await shareResponse).text();
+  await expect(
+    overlay.locator(".thinking-card", { hasText: "先生の書き込み" }),
+  ).toHaveCount(1);
+  await expect(
+    results.locator(".thinking-gallery-show"),
+  ).toContainText("（名前なし）");
+  const payload = await (await anonResponse).text();
   expect(payload).not.toContain(guestName);
   expect(payload).not.toContain("author");
   expect(payload).not.toContain(toolId);
 
   // Stopping the share removes the overlay and cuts the endpoint.
-  const shareUrl = (await shareResponse).url();
-  const stopButton = results.getByRole("button", {
-    name: "見せるのをやめる",
-  });
+  const shareUrl = (await anonResponse).url();
   await expect(stopButton).toBeVisible({ timeout: 15_000 });
   await stopButton.click();
   await expect(overlay).toHaveCount(0, { timeout: 20_000 });
   const after = await student.request.get(shareUrl);
   expect(after.status()).toBe(404);
+
+  // Show WITH names: the heading is the OWNER's name even though
+  // the teacher's card sits on the chart (🔴1), and the host's
+  // status line says so (🔴2).
+  const namedResponse = student.waitForResponse(
+    (r) => r.url().includes("/thinking-share") && r.status() === 200,
+    { timeout: 30_000 },
+  );
+  const namedButton = results.getByRole("button", {
+    name: "名前つきで全員に見せる",
+  });
+  await expect(namedButton).toBeVisible({ timeout: 15_000 });
+  await namedButton.click();
+  await expect(overlay).toBeVisible({ timeout: 20_000 });
+  await expect(overlay.locator(".thinking-gallery-expanded h4")).toHaveText(
+    `${guestName}のチャート`,
+  );
+  await expect(
+    results.locator(".thinking-gallery-show"),
+  ).toContainText("（名前つき）");
+  await namedResponse;
+  await expect(stopButton).toBeVisible({ timeout: 15_000 });
+  await stopButton.click();
+  await expect(overlay).toHaveCount(0, { timeout: 20_000 });
   await ctx.close();
 });

@@ -277,6 +277,7 @@ function ThinkingSurface({
             .filter((p) => p.owner !== myOwner)
             .map((p) => p.owner),
           (owner) =>
+            tool.ownerNames?.[owner] ||
             tool.points.find((p) => p.owner === owner)?.authorName ||
             undefined,
           showNames,
@@ -838,6 +839,7 @@ function BoardSurface({
       : thinkingOwnerLabels(
           tool.cards.map((c) => c.owner),
           (owner) =>
+            tool.ownerNames?.[owner] ||
             tool.cards.find((c) => c.owner === owner)?.authorName ||
             undefined,
           showNames,

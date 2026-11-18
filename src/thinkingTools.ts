@@ -126,6 +126,12 @@ export type ThinkingView = ThinkingTool & {
    * deck midway (stage-4 🟡3). Never sent to students — it lists
    * other students' ids. */
   roster?: string[];
+  /** Host only: member id → display name, so an owner's label can
+   * be resolved from the owner themself. Taking the name from a
+   * card's author instead mislabels a student's chart with the
+   * teacher's name whenever the teacher wrote on it first (stage-4c
+   * review 🔴1). Never sent to students. */
+  ownerNames?: Record<string, string>;
 };
 export class ThinkingError extends Error {
   status: number;
@@ -743,10 +749,33 @@ export function thinkingList(
   // end instead of slotting into the id order and pushing everyone
   // after them down by one. Students never receive the roster (it
   // lists other students' ids).
+  // The roster excludes the DECK OWNER (not the viewer), so a
+  // co-teacher hosting a session numbers students exactly as the
+  // class-wide share does (stage-4c review 🟡1). Minimal test
+  // schemas may lack the owner column; fall back to the viewer.
+  let excluded = actor;
+  try {
+    const deckOwnerRow = [
+      ...sql("SELECT owner FROM decks WHERE id=?", deck),
+    ][0];
+    if (deckOwnerRow?.owner) excluded = String(deckOwnerRow.owner);
+  } catch {
+    /* keep the viewer fallback */
+  }
   const roster = host
     ? [...sql("SELECT user_id FROM members WHERE deck=? ORDER BY rowid", deck)]
         .map((row) => String(row.user_id))
-        .filter((id) => id !== actor)
+        .filter((id) => id !== excluded)
+    : undefined;
+  const ownerNames = host
+    ? Object.fromEntries(
+        [
+          ...sql(
+            "SELECT m.user_id AS id, u.name AS name FROM members m LEFT JOIN users u ON u.id=m.user_id WHERE m.deck=?",
+            deck,
+          ),
+        ].map((row) => [String(row.id), row.name ? String(row.name) : ""]),
+      )
     : undefined;
   return [
     ...sql(
@@ -843,6 +872,7 @@ export function thinkingList(
           locks,
           ...(myGroupId ? { myGroupId } : {}),
           ...(roster ? { roster } : {}),
+          ...(ownerNames ? { ownerNames } : {}),
         };
       }
       const { owners, myGroupId } = visibleOwners(sql, deck, tool, actor, host);
@@ -925,6 +955,7 @@ export function thinkingList(
         locks,
         ...(myGroupId ? { myGroupId } : {}),
         ...(roster ? { roster } : {}),
+        ...(ownerNames ? { ownerNames } : {}),
       };
     });
 }
@@ -1226,14 +1257,13 @@ export function thinkingShareView(
         ][0];
         return g ? String(g.name) : undefined;
       }
-      const c = [
-        ...sql(
-          "SELECT u.name AS name FROM thinking_cards c LEFT JOIN users u ON u.id=c.author WHERE c.tool=? AND c.owner=? LIMIT 1",
-          toolId,
-          o,
-        ),
+      // The name comes from the owner themself — never from a
+      // card's author, or a chart the teacher wrote on first would
+      // be labeled with the teacher's name (stage-4c review 🔴1).
+      const u = [
+        ...sql("SELECT name FROM users WHERE id=?", o),
       ][0];
-      return c?.name ? String(c.name) : undefined;
+      return u?.name ? String(u.name) : undefined;
     };
     label =
       thinkingOwnerLabels(

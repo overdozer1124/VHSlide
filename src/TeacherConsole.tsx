@@ -1096,6 +1096,11 @@ function ConsoleThinking({
             ? chartShow.owner
             : undefined
         }
+        showingNames={
+          chartShow && chartShow.toolId === tool.id
+            ? chartShow.showNames
+            : undefined
+        }
         onShowChart={
           onChartShow && placed
             ? (req) =>

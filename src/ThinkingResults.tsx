@@ -40,11 +40,14 @@ export type ChartShowPick = {
 export function ThinkingResults({
   tool,
   showingOwner,
+  showingNames,
   onShowChart,
 }: {
   tool: ThinkingView;
   /** The owner whose chart is currently shown to the class. */
   showingOwner?: string;
+  /** Whether the chart being shown carries student names. */
+  showingNames?: boolean;
   /** Show one chart to the whole class (undefined stops). Only
    * wired in the teacher console; the form panel passes nothing. */
   onShowChart?: (req?: ChartShowPick) => void;
@@ -54,6 +57,7 @@ export function ThinkingResults({
       <BoardResults
         tool={tool}
         showingOwner={showingOwner}
+        showingNames={showingNames}
         onShowChart={onShowChart}
       />
     );
@@ -66,10 +70,12 @@ export function ThinkingResults({
 function BoardResults({
   tool,
   showingOwner,
+  showingNames,
   onShowChart,
 }: {
   tool: ThinkingView;
   showingOwner?: string;
+  showingNames?: boolean;
   onShowChart?: (req?: ChartShowPick) => void;
 }) {
   const groupsCtx = useGroups();
@@ -121,7 +127,7 @@ function BoardResults({
   const nameOfOwner = (owner: string): string | undefined =>
     tool.unit === "group"
       ? groupsCtx.groups.find((g) => g.id === owner)?.name
-      : tool.cards.find((c) => c.owner === owner)?.authorName;
+      : tool.ownerNames?.[owner] || undefined;
   const chartOwners: { owner: string; label: string }[] =
     tool.unit === "class"
       ? [{ owner: "", label: "全員" }]
@@ -313,7 +319,12 @@ function BoardResults({
               {onShowChart &&
                 (showingOwner === expandedOwner.owner ? (
                   <div className="thinking-gallery-show">
-                    <span>いま全員にこのチャートを見せています。</span>
+                    <span>
+                      いま全員にこのチャートを見せています
+                      {tool.unit === "individual" &&
+                        (showingNames ? "（名前つき）" : "（名前なし）")}
+                      。
+                    </span>
                     <button
                       type="button"
                       className="button outline"
@@ -327,19 +338,50 @@ function BoardResults({
                     {showingOwner !== undefined && (
                       <span>ほかのチャートを全員に見せています。</span>
                     )}
-                    <button
-                      type="button"
-                      className="button"
-                      onClick={() =>
-                        onShowChart({
-                          toolId: tool.id,
-                          owner: expandedOwner.owner,
-                          showNames,
-                        })
-                      }
-                    >
-                      全員に見せる
-                    </button>
+                    {tool.unit === "individual" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() =>
+                            onShowChart({
+                              toolId: tool.id,
+                              owner: expandedOwner.owner,
+                              showNames: false,
+                            })
+                          }
+                        >
+                          名前を出さずに全員に見せる
+                        </button>
+                        <button
+                          type="button"
+                          className="button outline"
+                          onClick={() =>
+                            onShowChart({
+                              toolId: tool.id,
+                              owner: expandedOwner.owner,
+                              showNames: true,
+                            })
+                          }
+                        >
+                          名前つきで全員に見せる
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() =>
+                          onShowChart({
+                            toolId: tool.id,
+                            owner: expandedOwner.owner,
+                            showNames,
+                          })
+                        }
+                      >
+                        全員に見せる
+                      </button>
+                    )}
                   </div>
                 ))}
             </>
