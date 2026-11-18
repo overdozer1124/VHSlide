@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" font-family="IPAPGothic, sans-serif">
+<rect width="1200" height="560" fill="#ffffff"/>
+<defs>
+ <pattern id="cloth" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#e4ecff"/><path d="M0 10 L10 0" stroke="#d2dcf5" stroke-width="1.5"/></pattern>
+ <pattern id="pocket" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#ffe8d6"/><path d="M0 8 L8 0" stroke="#f5cfb0" stroke-width="1.5"/></pattern>
+ <marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#e0782f"/></marker>
+</defs>
+<!-- ① 置く -->
+<g>
+ <circle cx="44" cy="44" r="24" fill="#2b5fd9"/><text x="44" y="53" font-size="26" fill="#fff" text-anchor="middle" font-weight="700">1</text>
+ <text x="80" y="54" font-size="28" fill="#1f2430" font-weight="700">平ひもの1.5cm下に置き、仮止め</text>
+ <rect x="110" y="90" width="300" height="440" rx="6" fill="url(#cloth)" stroke="#1f2430" stroke-width="3"/>
+ <line x1="110" y1="128" x2="410" y2="128" stroke="#5b6170" stroke-width="2.5" stroke-dasharray="10 7"/>
+ <rect x="110" y="186" width="300" height="30" fill="#c7ccd6" stroke="#1f2430" stroke-width="2"/>
+ <text x="260" y="208" font-size="18" fill="#1f2430" text-anchor="middle">平ひも</text>
+ <rect x="135" y="246" width="250" height="215" rx="4" fill="url(#pocket)" stroke="#e0782f" stroke-width="3"/>
+ <text x="260" y="365" font-size="24" fill="#b5541b" text-anchor="middle" font-weight="700">ポケット</text>
+ <path d="M425 216 L425 246" stroke="#e0782f" stroke-width="3" marker-start="url(#ar)" marker-end="url(#ar)"/>
+ <text x="435" y="240" font-size="22" fill="#e0782f" font-weight="700">1.5cm</text>
+ <line x1="260" y1="461" x2="260" y2="510" stroke="#1f8a5b" stroke-width="2.5" stroke-dasharray="4 4"/>
+ <text x="272" y="503" font-size="20" fill="#1f8a5b" font-weight="700">中心を合わせる</text>
+ <g fill="#2b5fd9"><circle cx="175" cy="440" r="5"/><circle cx="345" cy="440" r="5"/><circle cx="175" cy="270" r="5"/><circle cx="345" cy="270" r="5"/></g>
+ <text x="120" y="552" font-size="18" fill="#5b6170">● しつけ・まち針で仮止め</text>
+</g>
+<path d="M548 280 L600 280 L600 262 L640 300 L600 338 L600 320 L548 320 Z" fill="#c7ccd6"/>
+<!-- ② 縫う -->
+<g>
+ <circle cx="664" cy="44" r="24" fill="#2b5fd9"/><text x="664" y="53" font-size="26" fill="#fff" text-anchor="middle" font-weight="700">2</text>
+ <text x="700" y="54" font-size="28" fill="#1f2430" font-weight="700">ポケット口以外の3辺を縫う</text>
+ <rect x="720" y="90" width="300" height="440" rx="6" fill="url(#cloth)" stroke="#1f2430" stroke-width="3"/>
+ <line x1="720" y1="128" x2="1020" y2="128" stroke="#5b6170" stroke-width="2.5" stroke-dasharray="10 7"/>
+ <rect x="720" y="186" width="300" height="30" fill="#c7ccd6" stroke="#1f2430" stroke-width="2"/>
+ <rect x="745" y="246" width="250" height="215" rx="4" fill="url(#pocket)" stroke="#e0782f" stroke-width="3"/>
+ <path d="M755 250 L755 451 L985 451 L985 250" fill="none" stroke="#c2417c" stroke-width="4" stroke-dasharray="12 7"/>
+ <path d="M870 300 L870 256" stroke="#b5541b" stroke-width="3" marker-end="url(#ar)"/>
+ <text x="870" y="330" font-size="22" fill="#b5541b" text-anchor="middle" font-weight="700">上の辺＝ポケット口</text>
+ <text x="870" y="358" font-size="20" fill="#b5541b" text-anchor="middle">（ここは縫わない）</text>
+ <path d="M1030 452 L1100 452" stroke="#c2417c" stroke-width="3"/>
+ <text x="1040" y="440" font-size="22" fill="#c2417c" font-weight="700">端から</text>
+ <text x="1040" y="480" font-size="22" fill="#c2417c" font-weight="700">0.2〜0.3cm</text>
+ <text x="730" y="552" font-size="18" fill="#5b6170">縫い始めと縫い終わりは返し縫い</text>
+</g>
+</svg>
