@@ -5,6 +5,7 @@
  */
 
 import { writeAuditLog } from "./stage1Audit.ts";
+import { normalizeEmail } from "./preSharing.ts";
 
 export class OperateError extends Error {
   status: number;
@@ -45,6 +46,7 @@ export type ConsoleView = {
   operatorGeneration: number | null;
   schools: ManagedSchool[];
   applyTo: { id: string; name: string }[];
+  myInvitation: { id: string; expiresAt: number } | null;
 };
 
 const schoolName = (value: string) => {
@@ -94,7 +96,11 @@ export function createSchool(
   return { id: input.id, name };
 }
 
-export function consoleView(sql: OperateSql, userId: string): ConsoleView {
+export function consoleView(
+  sql: OperateSql,
+  userId: string,
+  now = Date.now(),
+): ConsoleView {
   const admin = superAdmin(sql, userId);
   const operator = !!sql.one(
     "SELECT subject FROM stage1_operators WHERE subject=?",
@@ -137,6 +143,19 @@ export function consoleView(sql: OperateSql, userId: string): ConsoleView {
           preregistration: true,
           membership: true,
         }));
+  const viewer = sql.one<{ email: string }>(
+    "SELECT email FROM users WHERE id=?",
+    userId,
+  );
+  const invitation = viewer
+    ? sql.one<{ id: string; expires_at: number }>(
+        `SELECT id, expires_at FROM stage1_operator_invitations
+         WHERE email=? AND status='招待中' AND expires_at>?
+         ORDER BY expires_at LIMIT 1`,
+        normalizeEmail(viewer.email),
+        now,
+      )
+    : undefined;
   return {
     createSchool: admin,
     decideApplications: admin,
@@ -147,6 +166,9 @@ export function consoleView(sql: OperateSql, userId: string): ConsoleView {
     applyTo: sql.all<{ id: string; name: string }>(
       "SELECT id, name FROM organizations WHERE status='有効' ORDER BY created_at, id",
     ),
+    myInvitation: invitation
+      ? { id: invitation.id, expiresAt: Number(invitation.expires_at) }
+      : null,
   };
 }
 
