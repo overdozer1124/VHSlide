@@ -9,7 +9,7 @@ import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
 import { W, type Deck, type Slide } from "./model";
 import { api, type CloudWorkspace } from "./cloud";
-import type { FollowTarget } from "./hostFollow";
+import type { FollowTarget, ChartShowRequest } from "./hostFollow";
 import { useWorksheets } from "./WorksheetContext";
 import { useWebbing } from "./WebbingContext";
 import { useThinking } from "./ThinkingContext";
@@ -49,6 +49,8 @@ export function TeacherConsole({
   onOpenGallery,
   groupShow,
   onGroupShow,
+  chartShow,
+  onChartShow,
 }: {
   workbook: Deck;
   cloud: CloudWorkspace;
@@ -56,6 +58,8 @@ export function TeacherConsole({
   onOpenGallery?: () => void;
   groupShow?: FollowTarget;
   onGroupShow?: (target?: FollowTarget) => void;
+  chartShow?: ChartShowRequest;
+  onChartShow?: (req?: ChartShowRequest) => void;
 }) {
   const follow = cloud.follow;
   const sheets = consoleSheets(workbook);
@@ -341,12 +345,15 @@ export function TeacherConsole({
         </aside>
         <ConsoleMain
           cloud={cloud}
+          workbook={workbook}
           focus={focus}
           mode={mode}
           setMode={setMode}
           onOpenGallery={onOpenGallery}
           groupShow={groupShow}
           onGroupShow={onGroupShow}
+          chartShow={chartShow}
+          onChartShow={onChartShow}
         />
       </div>
     </section>
@@ -355,20 +362,26 @@ export function TeacherConsole({
 
 function ConsoleMain({
   cloud,
+  workbook,
   focus,
   mode,
   setMode,
   onOpenGallery,
   groupShow,
   onGroupShow,
+  chartShow,
+  onChartShow,
 }: {
   cloud: CloudWorkspace;
+  workbook: Deck;
   focus?: Slide;
   mode: ConsoleMode;
   setMode: (mode: ConsoleMode) => void;
   onOpenGallery?: () => void;
   groupShow?: FollowTarget;
   onGroupShow?: (target?: FollowTarget) => void;
+  chartShow?: ChartShowRequest;
+  onChartShow?: (req?: ChartShowRequest) => void;
 }) {
   const ctx = useWorksheets();
   const webbingCtx = useWebbing();
@@ -507,7 +520,11 @@ function ConsoleMain({
           onGroupShow={onGroupShow}
         />
       ) : mode === "thinking" ? (
-        <ConsoleThinking />
+        <ConsoleThinking
+          workbook={workbook}
+          chartShow={chartShow}
+          onChartShow={onChartShow}
+        />
       ) : !ctx.enabled ? (
         <p className="console-note">
           クラウドの作品を開くと、ワークシートの回答がここに表示されます。
@@ -1033,7 +1050,15 @@ function ConsoleStudentSlides({
  * trajectory view as the form panel's results, kept fresh by the
  * console's 5-second refresh so the host can watch points move
  * during the lesson. */
-function ConsoleThinking() {
+function ConsoleThinking({
+  workbook,
+  chartShow,
+  onChartShow,
+}: {
+  workbook: Deck;
+  chartShow?: ChartShowRequest;
+  onChartShow?: (req?: ChartShowRequest) => void;
+}) {
   const thinkingCtx = useThinking();
   const [toolId, setToolId] = useState("");
   const tool =
@@ -1044,6 +1069,10 @@ function ConsoleThinking() {
         思考ツールはまだありません。「フォーム」の「思考ツール」から作成できます。
       </p>
     );
+  // The slide the tool is placed on: the follow target needs it.
+  const placed = workbook.slides.find((s) =>
+    s.elements.some((e) => e.thinking?.toolId === tool.id),
+  );
   return (
     <div className="console-thinking">
       {thinkingCtx.tools.length > 1 && (
@@ -1059,7 +1088,29 @@ function ConsoleThinking() {
           ))}
         </select>
       )}
-      <ThinkingResults key={tool.id} tool={tool} />
+      <ThinkingResults
+        key={tool.id}
+        tool={tool}
+        showingOwner={
+          chartShow && chartShow.toolId === tool.id
+            ? chartShow.owner
+            : undefined
+        }
+        onShowChart={
+          onChartShow && placed
+            ? (req) =>
+                onChartShow(
+                  req
+                    ? {
+                        ...req,
+                        sheetId: placed.sheetId ?? "main",
+                        pageId: placed.id,
+                      }
+                    : undefined,
+                )
+            : undefined
+        }
+      />
     </div>
   );
 }

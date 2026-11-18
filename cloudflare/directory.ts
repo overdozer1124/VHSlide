@@ -15,6 +15,7 @@ import {
   thinkingSchema,
   thinkingList,
   thinkingCommand,
+  thinkingShareView,
 } from "../src/thinkingTools.ts";
 import {
   learningRecordFull,
@@ -2251,6 +2252,43 @@ export class Directory extends DurableObject<Env> {
             ? learningRecordFull(sql, deck, id, user.id, filter)
             : { record: myLearningRecord(sql, deck, id, user.id) },
         );
+      });
+    }
+    if (extra === "thinking-share") {
+      insist(method === "GET", 405, "この操作には対応していません。");
+      const current = this.access(id, user);
+      const followResponse = await checked(
+        await room(this.env, id).fetch(internal("/internal/follow-share")),
+      );
+      const follow = (await followResponse.json()) as {
+        active: boolean;
+        shareId?: string;
+        toolId?: string;
+        owner?: string;
+        showNames?: boolean;
+      };
+      const shareId = new URL(request.url).searchParams.get("share") ?? "";
+      insist(
+        follow.active &&
+          follow.shareId === shareId &&
+          typeof follow.toolId === "string" &&
+          typeof follow.owner === "string",
+        404,
+        "いま見せているチャートはありません。",
+      );
+      return this.ctx.storage.transactionSync(() => {
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        const view = thinkingShareView(
+          sql,
+          id,
+          follow.toolId!,
+          follow.owner!,
+          follow.showNames === true,
+          current.owner,
+        );
+        insist(view, 404, "いま見せているチャートはありません。");
+        return json({ share: view });
       });
     }
     if (extra === "prev-answer") {

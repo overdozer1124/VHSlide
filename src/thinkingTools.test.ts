@@ -6,6 +6,7 @@ import {
   thinkingSchema,
   thinkingList,
   thinkingCommand,
+  thinkingShareView,
   parseThinkingDefinition,
   templateKind,
   thinkingOwnerLabels,
@@ -757,3 +758,60 @@ function thinkingGroups(sql: HistorySQL): string[] {
     (r) => r.id as string,
   );
 }
+
+describe("thinking share view (stage 4c)", () => {
+  it("labels by roster number, names only on request, and strips every id", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql, { unit: "individual" });
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "あなの考え",
+      color: "yellow",
+    });
+    thinkingCommand(sql, "deck", "bob", false, "card", id, {
+      zone: "b",
+      text: "ぼぶの考え",
+      color: "yellow",
+    });
+    const anon = thinkingShareView(sql, "deck", id, "ana", false, "host");
+    expect(anon?.label).toBe("生徒1");
+    expect(anon?.cards).toHaveLength(1);
+    expect(anon?.cards[0].text).toBe("あなの考え");
+    // Nothing a student could identify anyone with: no ids, no
+    // owner, no author anywhere in the payload.
+    const raw = JSON.stringify(anon);
+    expect(raw).not.toContain("ana");
+    expect(raw).not.toContain("author");
+    expect(Object.keys(anon!.cards[0]).sort()).toEqual([
+      "color",
+      "created",
+      "sort",
+      "text",
+      "zone",
+    ]);
+    const named = thinkingShareView(sql, "deck", id, "ana", true, "host");
+    expect(named?.label).toBe("あな");
+    const second = thinkingShareView(sql, "deck", id, "bob", false, "host");
+    expect(second?.label).toBe("生徒2");
+  });
+  it("labels a class board 全員 and refuses point tools", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql);
+    open(sql, id);
+    expect(thinkingShareView(sql, "deck", id, "", false, "host")?.label).toBe(
+      "全員",
+    );
+    const points = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "axis2",
+      unit: "individual",
+      definition: axisDef,
+    });
+    expect(
+      thinkingShareView(sql, "deck", points!.createdId!, "ana", false, "host"),
+    ).toBeUndefined();
+    expect(
+      thinkingShareView(sql, "deck", "missing", "ana", false, "host"),
+    ).toBeUndefined();
+  });
+});

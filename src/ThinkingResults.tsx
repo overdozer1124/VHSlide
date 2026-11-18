@@ -32,15 +32,46 @@ export function valueText(tool: ThinkingView, v: ThinkingPointValue): string {
   return pct(v.v ?? 0);
 }
 
-export function ThinkingResults({ tool }: { tool: ThinkingView }) {
-  if (tool.kind === "board") return <BoardResults tool={tool} />;
+export type ChartShowPick = {
+  toolId: string;
+  owner: string;
+  showNames: boolean;
+};
+export function ThinkingResults({
+  tool,
+  showingOwner,
+  onShowChart,
+}: {
+  tool: ThinkingView;
+  /** The owner whose chart is currently shown to the class. */
+  showingOwner?: string;
+  /** Show one chart to the whole class (undefined stops). Only
+   * wired in the teacher console; the form panel passes nothing. */
+  onShowChart?: (req?: ChartShowPick) => void;
+}) {
+  if (tool.kind === "board")
+    return (
+      <BoardResults
+        tool={tool}
+        showingOwner={showingOwner}
+        onShowChart={onShowChart}
+      />
+    );
   return <PointResults tool={tool} />;
 }
 
 /** Host results for a board tool: every card gathered per zone
  * （区切りごとの集約）, with the author/group for each card and a CSV
  * export. Cards arrive host-filtered from the server. */
-function BoardResults({ tool }: { tool: ThinkingView }) {
+function BoardResults({
+  tool,
+  showingOwner,
+  onShowChart,
+}: {
+  tool: ThinkingView;
+  showingOwner?: string;
+  onShowChart?: (req?: ChartShowPick) => void;
+}) {
   const groupsCtx = useGroups();
   const def = tool.definition;
   const [zoneFilter, setZoneFilter] = useState("");
@@ -270,12 +301,48 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
             <p className="thinking-zone-empty">まだカードがありません。</p>
           )}
           {expandedOwner && (
-            <ExpandedChart
-              tool={tool}
-              cards={tool.cards.filter((c) => c.owner === expandedOwner.owner)}
-              label={expandedOwner.label}
-              colorLabel={colorLabel}
-            />
+            <>
+              <ExpandedChart
+                tool={tool}
+                cards={tool.cards.filter(
+                  (c) => c.owner === expandedOwner.owner,
+                )}
+                label={expandedOwner.label}
+                colorLabel={colorLabel}
+              />
+              {onShowChart &&
+                (showingOwner === expandedOwner.owner ? (
+                  <div className="thinking-gallery-show">
+                    <span>いま全員にこのチャートを見せています。</span>
+                    <button
+                      type="button"
+                      className="button outline"
+                      onClick={() => onShowChart(undefined)}
+                    >
+                      見せるのをやめる
+                    </button>
+                  </div>
+                ) : (
+                  <div className="thinking-gallery-show">
+                    {showingOwner !== undefined && (
+                      <span>ほかのチャートを全員に見せています。</span>
+                    )}
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() =>
+                        onShowChart({
+                          toolId: tool.id,
+                          owner: expandedOwner.owner,
+                          showNames,
+                        })
+                      }
+                    >
+                      全員に見せる
+                    </button>
+                  </div>
+                ))}
+            </>
           )}
         </div>
       )}
@@ -285,8 +352,9 @@ function BoardResults({ tool }: { tool: ThinkingView }) {
 
 /** One student's (or group's) chart, enlarged and read-only, in the
  * results gallery: the real board shape with the card texts in their
- * zones. */
-function ExpandedChart({
+ * zones. Also renders the chart the host shows the whole class
+ * (stage 4c), fed with the sanitized share payload. */
+export function ExpandedChart({
   tool,
   cards,
   label,

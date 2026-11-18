@@ -39,7 +39,7 @@ import { insertSurveyResults } from "./surveySlides";
 import { importPptx, dataUrlToFile } from "./pptx";
 import { prepareImportedForms } from "./importForms";
 import { useFollowLock } from "./useFollowLock";
-import type { FollowTarget } from "./hostFollow";
+import type { FollowTarget, ChartShowRequest } from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
 import { TeacherConsole } from "./TeacherConsole";
 import { LearningRecord } from "./LearningRecord";
@@ -2369,6 +2369,21 @@ export default function App() {
   // that target overrides the view-derived one until they stop.
   const [groupShow, setGroupShow] = useState<FollowTarget | undefined>();
   const groupShowStartedFollow = useRef(false);
+  // While the teacher shows one student's (or group's) thinking
+  // chart from the console, that target overrides too. The two
+  // overrides are exclusive: taking one over hands the follow to it.
+  const [chartShow, setChartShow] = useState<ChartShowRequest | undefined>();
+  const chartShowStartedFollow = useRef(false);
+  const chartTarget: FollowTarget | undefined = chartShow
+    ? { mode: "thinking", sheetId: chartShow.sheetId, pageId: chartShow.pageId }
+    : undefined;
+  const chartShare = chartShow
+    ? {
+        toolId: chartShow.toolId,
+        owner: chartShow.owner,
+        showNames: chartShow.showNames,
+      }
+    : undefined;
   const handleGroupShow = (target?: FollowTarget) => {
     if (!target) {
       setGroupShow(undefined);
@@ -2380,6 +2395,11 @@ export default function App() {
             .catch((error) => notify((error as Error).message));
       }
       return;
+    }
+    if (chartShow) {
+      groupShowStartedFollow.current = chartShowStartedFollow.current;
+      chartShowStartedFollow.current = false;
+      setChartShow(undefined);
     }
     const wasActive = cloud.follow.active;
     setGroupShow(target);
@@ -2397,16 +2417,63 @@ export default function App() {
     }
     // Active and unpinned: the move effect below carries the target.
   };
+  const handleChartShow = (req?: ChartShowRequest) => {
+    if (!req) {
+      setChartShow(undefined);
+      if (chartShowStartedFollow.current) {
+        chartShowStartedFollow.current = false;
+        if (cloud.follow.active)
+          void cloud
+            .stopFollow()
+            .catch((error) => notify((error as Error).message));
+      }
+      return;
+    }
+    if (groupShow) {
+      chartShowStartedFollow.current = groupShowStartedFollow.current;
+      groupShowStartedFollow.current = false;
+      setGroupShow(undefined);
+    }
+    const target: FollowTarget = {
+      mode: "thinking",
+      sheetId: req.sheetId,
+      pageId: req.pageId,
+    };
+    const share = {
+      toolId: req.toolId,
+      owner: req.owner,
+      showNames: req.showNames,
+    };
+    const wasActive = cloud.follow.active;
+    setChartShow(req);
+    if (!wasActive) {
+      chartShowStartedFollow.current = true;
+      void cloud.startFollow(target, share).catch((error) => {
+        chartShowStartedFollow.current = false;
+        setChartShow(undefined);
+        notify((error as Error).message);
+      });
+    } else if (cloud.follow.pinned) {
+      void cloud
+        .resumeFollow(target, share)
+        .catch((error) => notify((error as Error).message));
+    }
+    // Active and unpinned: the move effect below carries the target.
+  };
   const followWasActive = useRef(false);
   useEffect(() => {
-    // Clear the show override when follow ends by any other route —
+    // Clear the show overrides when follow ends by any other route —
     // but not while a start from the console is still in flight.
     if (followWasActive.current && !cloud.follow.active && groupShow) {
       setGroupShow(undefined);
       groupShowStartedFollow.current = false;
     }
+    if (followWasActive.current && !cloud.follow.active && chartShow) {
+      setChartShow(undefined);
+      chartShowStartedFollow.current = false;
+    }
     followWasActive.current = cloud.follow.active;
-  }, [cloud.follow.active, groupShow]);
+  }, [cloud.follow.active, groupShow, chartShow]);
   // When follow ends, a guest stays on the page they were shown instead of
   // returning to the page they had open before follow started. A guest in
   // the middle of editing text keeps the old behaviour: their live editor
@@ -2446,21 +2513,32 @@ export default function App() {
           sheetId: followPage?.sheetId ?? currentSheetId,
           pageId: followPage?.id,
         };
-  const followTarget: FollowTarget = groupShow ?? viewFollowTarget;
-  const followTargetKey = JSON.stringify(followTarget),
+  const followTarget: FollowTarget =
+    chartTarget ?? groupShow ?? viewFollowTarget;
+  const followShare =
+    followTarget.mode === "thinking" ? chartShare : undefined;
+  const followTargetKey = JSON.stringify({
+      target: followTarget,
+      share: followShare ?? null,
+    }),
     lastFollowTarget = useRef("");
   useEffect(() => {
     if (!cloud.drivesFollow || !cloud.follow.active || cloud.follow.pinned) {
       lastFollowTarget.current = "";
       return;
     }
-    if (JSON.stringify(cloud.follow.target) === followTargetKey) {
+    if (
+      followTarget.mode !== "thinking" &&
+      JSON.stringify(cloud.follow.target) === JSON.stringify(followTarget)
+    ) {
       lastFollowTarget.current = followTargetKey;
       return;
     }
     if (lastFollowTarget.current === followTargetKey) return;
     lastFollowTarget.current = followTargetKey;
-    void cloud.moveFollow(followTarget).catch((error) => notify(error.message));
+    void cloud
+      .moveFollow(followTarget, followShare)
+      .catch((error) => notify(error.message));
   }, [
     followTargetKey,
     cloud.follow.active,
@@ -2494,7 +2572,7 @@ export default function App() {
                 void (
                   cloud.follow.active
                     ? cloud.stopFollow()
-                    : cloud.startFollow(followTarget)
+                    : cloud.startFollow(followTarget, followShare)
                 ).catch((error) => notify(error.message))
               }
             >
@@ -3262,6 +3340,8 @@ export default function App() {
             onOpenGallery={() => setResponseGalleryOpen(true)}
             groupShow={groupShow}
             onGroupShow={handleGroupShow}
+            chartShow={chartShow}
+            onChartShow={handleChartShow}
           />
         )}
         {view === "record" && cloud.active && (
@@ -4164,6 +4244,7 @@ export default function App() {
         <HostFollowView
           key={cloud.follow.sessionId}
           book={workbook}
+          deckId={cloud.active.id}
           state={cloud.follow}
         />
       )}

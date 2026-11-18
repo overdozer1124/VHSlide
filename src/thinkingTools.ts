@@ -1167,6 +1167,105 @@ function cleanCardPos(raw: unknown, fallback: number): number {
 
 /** Must run within the caller's transaction after membership validation.
  * Returns extra response fields (create reports the new id). */
+export type ThinkingShareCard = {
+  zone: string;
+  text: string;
+  color: string;
+  sort: number;
+  created: number;
+};
+export type ThinkingShareView = {
+  label: string;
+  unit: ThinkingUnit;
+  template: ThinkingTemplate;
+  definition: ThinkingDefinition;
+  cards: ThinkingShareCard[];
+};
+/** The one chart the host is showing to the whole class (stage 4c),
+ * built for students: the owner's display label is resolved here,
+ * with the same roster numbering the host's gallery uses, and the
+ * cards carry no id, owner or author — nothing a student could use
+ * to identify who wrote what beyond the label the host chose to
+ * show. Returns undefined when the tool is not a card board. */
+export function thinkingShareView(
+  sql: HistorySQL,
+  deck: string,
+  toolId: string,
+  owner: string,
+  showNames: boolean,
+  hostId: string,
+): ThinkingShareView | undefined {
+  const row = [
+    ...sql("SELECT * FROM thinking_tools WHERE id=? AND deck=?", toolId, deck),
+  ][0];
+  if (!row) return undefined;
+  const tool = readTool(row);
+  if (tool.kind !== "board") return undefined;
+  let label = "";
+  if (tool.unit === "class") label = "全員";
+  else {
+    const owners = [
+      ...new Set(
+        [...sql("SELECT owner FROM thinking_cards WHERE tool=?", toolId)].map(
+          (r) => String(r.owner),
+        ),
+      ),
+    ];
+    const roster = [
+      ...sql(
+        "SELECT user_id FROM members WHERE deck=? ORDER BY rowid",
+        deck,
+      ),
+    ]
+      .map((r) => String(r.user_id))
+      .filter((id) => id !== hostId);
+    const nameOf = (o: string): string | undefined => {
+      if (tool.unit === "group") {
+        const g = [
+          ...sql("SELECT name FROM deck_groups WHERE deck=? AND id=?", deck, o),
+        ][0];
+        return g ? String(g.name) : undefined;
+      }
+      const c = [
+        ...sql(
+          "SELECT u.name AS name FROM thinking_cards c LEFT JOIN users u ON u.id=c.author WHERE c.tool=? AND c.owner=? LIMIT 1",
+          toolId,
+          o,
+        ),
+      ][0];
+      return c?.name ? String(c.name) : undefined;
+    };
+    label =
+      thinkingOwnerLabels(
+        owners,
+        nameOf,
+        tool.unit === "group" || showNames,
+        roster,
+      ).find((e) => e.owner === owner)?.label ?? "";
+  }
+  const cards = [
+    ...sql(
+      "SELECT zone,text,color,sort,created FROM thinking_cards WHERE tool=? AND owner=? ORDER BY zone,sort,created",
+      toolId,
+      owner,
+    ),
+  ].map(
+    (c): ThinkingShareCard => ({
+      zone: String(c.zone),
+      text: String(c.text),
+      color: String(c.color),
+      sort: Number(c.sort),
+      created: Number(c.created),
+    }),
+  );
+  return {
+    label,
+    unit: tool.unit,
+    template: tool.template,
+    definition: tool.definition,
+    cards,
+  };
+}
 export function thinkingCommand(
   sql: HistorySQL,
   deck: string,

@@ -1,13 +1,34 @@
 import type { Deck } from "./model.ts";
 export const FOLLOW_LEASE_MS = 45_000;
 export type FollowTarget = {
-  mode: "map" | "page" | "group";
+  mode: "map" | "page" | "group" | "thinking";
   sheetId: string;
   pageId?: string;
   /** Group mode only: the webbing map to show, and the deck group
    * whose writings fill it ("" shows the whole map). */
   mapId?: string;
   groupId?: string;
+  /** Thinking mode only: an opaque id for the chart being shown.
+   * The chart itself (tool, owner, name setting) stays server-side
+   * in the follow state's share, so no participant id ever reaches
+   * the students' screens through the follow state. */
+  shareId?: string;
+};
+/** The host's request to show one chart to the class: the follow
+ * target's slide plus the share it carries. */
+export type ChartShowRequest = FollowShare & {
+  sheetId: string;
+  pageId: string;
+};
+/** Thinking mode only, server-side: which chart the host is showing
+ * and whether names may be shown with it. Never broadcast: the
+ * public follow state carries only the target's shareId, and the
+ * chart data itself is served by a dedicated share endpoint that
+ * strips every id and author field. */
+export type FollowShare = {
+  toolId: string;
+  owner: string;
+  showNames: boolean;
 };
 export type FollowState =
   | { active: false; revision: number }
@@ -25,6 +46,9 @@ export type FollowState =
       /** The host is in the presentation view: guests show the slide
        * alone, without any follow chrome. */
       presenting?: boolean;
+      /** Thinking targets only: the chart being shown. Server-side
+       * only; publicFollow strips it. */
+      share?: FollowShare;
     };
 export const idleFollow = (revision = 0): FollowState => ({
   active: false,
@@ -41,7 +65,7 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
   const v = value as FollowTarget;
   if (
     !v ||
-    !["map", "page", "group"].includes(v.mode) ||
+    !["map", "page", "group", "thinking"].includes(v.mode) ||
     typeof v.sheetId !== "string" ||
     !v.sheetId ||
     v.sheetId.length > 100 ||
@@ -57,8 +81,13 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
       ))
   )
     throw new FollowError(400, "追従先のページが見つかりません。");
-  if ((v.mode === "page" || v.mode === "group") && !v.pageId)
+  if (
+    (v.mode === "page" || v.mode === "group" || v.mode === "thinking") &&
+    !v.pageId
+  )
     throw new FollowError(400, "追従先のページを指定してください。");
+  if (v.mode === "thinking")
+    return { mode: v.mode, sheetId: v.sheetId, pageId: v.pageId };
   if (v.mode === "group") {
     if (
       typeof v.mapId !== "string" ||
@@ -82,6 +111,42 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
     ...(v.pageId === undefined ? {} : { pageId: v.pageId }),
   };
 }
+function followShare(value: unknown): FollowShare {
+  const v = value as FollowShare;
+  if (
+    !v ||
+    typeof v.toolId !== "string" ||
+    !v.toolId ||
+    v.toolId.length > 100 ||
+    typeof v.owner !== "string" ||
+    v.owner.length > 100 ||
+    typeof v.showNames !== "boolean"
+  )
+    throw new FollowError(400, "見せるチャートの指定が正しくありません。");
+  return { toolId: v.toolId, owner: v.owner, showNames: v.showNames };
+}
+/** Apply a target the host sent: for a thinking target, validate
+ * the share it carries and stamp the public shareId, keeping the
+ * existing id while the same chart stays up (a new chart gets a
+ * new id, so a stale share id stops working). Other modes carry
+ * no share. */
+function withShare(
+  target: FollowTarget,
+  value: unknown,
+  current: FollowState,
+): { target: FollowTarget; share?: FollowShare } {
+  if (target.mode !== "thinking") return { target };
+  const share = followShare(value);
+  const keep =
+    current.active &&
+    current.share &&
+    current.share.toolId === share.toolId &&
+    current.share.owner === share.owner &&
+    current.share.showNames === share.showNames
+      ? current.target.shareId
+      : undefined;
+  return { target: { ...target, shareId: keep ?? crypto.randomUUID() }, share };
+}
 export function transitionFollow(
   current: FollowState,
   value: unknown,
@@ -102,6 +167,7 @@ export function transitionFollow(
     sessionId?: string;
     target?: unknown;
     presenting?: unknown;
+    share?: unknown;
   };
   if (
     !v ||
@@ -117,6 +183,7 @@ export function transitionFollow(
         409,
         "すでに追従中です。終了してから開始してください。",
       );
+    const applied = withShare(followTarget(v.target, book), v.share, current);
     return {
       active: true,
       revision: current.revision + 1,
@@ -126,7 +193,8 @@ export function transitionFollow(
       startedAt: now,
       updatedAt: now,
       expiresAt: now + FOLLOW_LEASE_MS,
-      target: followTarget(v.target, book),
+      target: applied.target,
+      ...(applied.share ? { share: applied.share } : {}),
       ...(v.presenting === true ? { presenting: true } : {}),
     };
   }
@@ -140,8 +208,19 @@ export function transitionFollow(
     throw new FollowError(409, "追従を開始した画面から操作してください。");
   if (v.action === "pin" && current.target.mode !== "page")
     throw new FollowError(400, "固定するスライドを表示してください。");
+  const replaced =
+    v.action === "resume"
+      ? followTarget(v.target, book)
+      : v.action === "move" && !current.pinned
+        ? followTarget(v.target, book)
+        : current.target;
+  const applied =
+    replaced === current.target
+      ? { target: current.target, share: current.share }
+      : withShare(replaced, v.share, current);
+  const { share: _dropped, ...rest } = current;
   return {
-    ...current,
+    ...rest,
     revision: current.revision + 1,
     updatedAt: now,
     expiresAt: now + FOLLOW_LEASE_MS,
@@ -151,12 +230,8 @@ export function transitionFollow(
         : v.action === "resume"
           ? false
           : current.pinned,
-    target:
-      v.action === "resume"
-        ? followTarget(v.target, book)
-        : v.action === "move" && !current.pinned
-          ? followTarget(v.target, book)
-          : current.target,
+    target: applied.target,
+    ...(applied.share ? { share: applied.share } : {}),
     ...(typeof v.presenting === "boolean"
       ? { presenting: v.presenting }
       : {}),
@@ -164,7 +239,7 @@ export function transitionFollow(
 }
 export function publicFollow(state: FollowState) {
   if (!state.active) return state;
-  const { controller: _, ...result } = state;
+  const { controller: _, share: _share, ...result } = state;
   return result;
 }
 export type PublicFollowState = ReturnType<typeof publicFollow>;
@@ -187,13 +262,15 @@ export function isPublicFollowState(
     typeof v.host.id === "string" &&
     typeof v.host.name === "string" &&
     !!v.target &&
-    ["map", "page", "group"].includes(v.target.mode) &&
+    ["map", "page", "group", "thinking"].includes(v.target.mode) &&
     typeof v.target.sheetId === "string" &&
     (v.pinned === undefined || typeof v.pinned === "boolean") &&
     (v.presenting === undefined || typeof v.presenting === "boolean") &&
     (v.target.pageId === undefined || typeof v.target.pageId === "string") &&
     (v.target.mapId === undefined || typeof v.target.mapId === "string") &&
     (v.target.groupId === undefined || typeof v.target.groupId === "string") &&
+    (v.target.shareId === undefined ||
+      (typeof v.target.shareId === "string" && v.target.shareId.length <= 100)) &&
     Number.isFinite(v.startedAt) &&
     Number.isFinite(v.updatedAt) &&
     Number.isFinite(v.expiresAt)
