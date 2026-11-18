@@ -20,6 +20,7 @@ import {
   learningRecord,
   myLearningRecord,
 } from "../src/learningRecord.ts";
+import { prevAnswerFor } from "../src/prevAnswer.ts";
 import { groupSchema, groupList, groupCommand } from "../src/groups.ts";
 import {
   addUserApp,
@@ -2250,6 +2251,23 @@ export class Directory extends DurableObject<Env> {
             ? { students: learningRecord(sql, deck, id, user.id, filter) }
             : { record: myLearningRecord(sql, deck, id, user.id) },
         );
+      });
+    }
+    if (extra === "prev-answer") {
+      insist(method === "GET", 405, "この操作には対応していません。");
+      this.access(id, user);
+      const params = new URL(request.url).searchParams;
+      return this.ctx.storage.transactionSync(() => {
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        return json({
+          answer: prevAnswerFor(sql, id, user.id, {
+            source: params.get("source") ?? "",
+            refId: params.get("ref") ?? "",
+            fieldId: params.get("field") ?? undefined,
+            sceneId: params.get("scene") ?? undefined,
+          }),
+        });
       });
     }
     if (extra === "join-requests" && method === "GET") {

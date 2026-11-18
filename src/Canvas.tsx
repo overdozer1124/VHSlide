@@ -7,6 +7,7 @@ import { SlideWorksheet } from "./SlideWorksheet";
 import { SlideSurvey } from "./SlideSurvey";
 import { SlideWebbing } from "./SlideWebbing";
 import { SlideThinking } from "./SlideThinking";
+import { SlidePrevAnswer } from "./SlidePrevAnswer";
 import { SlideEmbed } from "./SlideEmbed";
 import { InkObject } from "./InkObject";
 import { ChartGraphic } from "./ChartGraphic";
@@ -48,6 +49,7 @@ export function ElementView({ element: e }: { element: Element }) {
   if (e.survey) return <SlideSurvey element={e} />;
   if (e.webbing) return <SlideWebbing element={e} />;
   if (e.thinking) return <SlideThinking element={e} />;
+  if (e.prevAnswer) return <SlidePrevAnswer element={e} />;
   if (e.embed) return <SlideEmbed element={e} />;
   if (e.type === "chart") return <ChartGraphic element={e} />;
   if (e.type === "table") return <SlideTable element={e} />;
@@ -1044,6 +1046,11 @@ export function Canvas({
                         ? (event) => start(event, e, false, false)
                         : undefined
                     }
+                  />
+                ) : e.prevAnswer ? (
+                  <SlidePrevAnswer
+                    key={`${e.prevAnswer.deckId}:${e.prevAnswer.refId}`}
+                    element={e}
                   />
                 ) : e.embed ? (
                   <SlideEmbed

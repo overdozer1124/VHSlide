@@ -7990,6 +7990,24 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .learning-record-print { color:#000; }
 .learning-record-print h1 { font-size:17px;margin:0 0 10px; }
 .learning-record-print .record-entry { border-color:#bbb; }
+.prev-answer { width:100%;height:100%;box-sizing:border-box;border:2px solid #5b7fa6;border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;overflow:auto;background:#fff;color:#24425e;text-align:left; }
+.prev-answer-head { display:flex;gap:8px;align-items:baseline;flex-wrap:wrap; }
+.prev-answer-tag { font-size:10.5px;font-weight:700;color:#fff;background:#5b7fa6;border-radius:999px;padding:1px 8px;flex:none; }
+.prev-answer-source { font-size:12.5px;font-weight:700;color:#24425e; }
+.prev-answer-value { margin:0;font-size:15px;color:#1d2f42;white-space:pre-wrap;word-break:break-word; }
+.prev-answer-reason { margin:0;font-size:12px;color:#5a7189;white-space:pre-wrap;word-break:break-word; }
+.prev-answer-group { margin:0;font-size:12px;font-weight:700;color:#47617c; }
+.prev-answer-note { margin:0;font-size:12.5px;color:#5a7189; }
+.prev-answer-tools { display:flex;flex-direction:column;gap:10px;max-width:520px; }
+.prev-answer-tools h3 { margin:0;font-size:15px;color:#24425e; }
+.prev-answer-tools p { margin:0;font-size:13px;color:#42566b; }
+.prev-answer-tools label { display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:#24425e; }
+.prev-answer-tools select { font-size:14px;padding:6px 8px;border:1px solid #b9c9da;border-radius:8px;background:#fff;color:#1d2f42; }
+.prev-answer-source-tabs { display:flex;gap:6px; }
+.prev-answer-source-tabs button { font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid #b9c9da;background:#fff;color:#24425e;cursor:pointer; }
+.prev-answer-source-tabs button.active { background:#5b7fa6;border-color:#5b7fa6;color:#fff; }
+.prev-answer-tools-note { font-size:12.5px;color:#5a7189; }
+.prev-answer-tools-error { font-size:12.5px;color:#a33; }
 .thinking-results-head { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
 .thinking-results-head > button { font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #b7a8d9;background:#fff;color:#4a3a6b;cursor:pointer; }
 .thinking-results-count { font-size:12px;color:#7a6f96; }

@@ -10,6 +10,8 @@ import { parseWebbingBinding } from "./webbingBinding.ts";
 import type { WebbingBinding } from "./webbingBinding.ts";
 import { parseThinkingBindingLenient } from "./thinkingBinding.ts";
 import type { ThinkingBinding } from "./thinkingBinding.ts";
+import { parsePrevAnswerBindingLenient } from "./prevAnswer.ts";
+import type { PrevAnswerBinding } from "./prevAnswer.ts";
 import { parseEmbedBinding } from "./embedBinding.ts";
 import type { EmbedBinding } from "./embedBinding.ts";
 import { webLink } from "./webLink.ts";
@@ -45,6 +47,7 @@ export interface Element {
   surveyResult?: SurveyResultBinding;
   webbing?: WebbingBinding;
   thinking?: ThinkingBinding;
+  prevAnswer?: PrevAnswerBinding;
   embed?: EmbedBinding;
   id: string;
   type: "text" | "image" | "shape" | "table" | "line" | "chart";
@@ -706,6 +709,7 @@ export function parseDeck(input: string): Deck {
             e.surveyResult !== undefined ||
             e.webbing !== undefined ||
             e.thinking !== undefined ||
+            e.prevAnswer !== undefined ||
             e.embed !== undefined
           )
             fail();
@@ -719,6 +723,7 @@ export function parseDeck(input: string): Deck {
             e.surveyResult !== undefined ||
             e.responseField !== undefined ||
             e.thinking !== undefined ||
+            e.prevAnswer !== undefined ||
             e.embed !== undefined
           )
             fail();
@@ -732,10 +737,26 @@ export function parseDeck(input: string): Deck {
             e.surveyResult !== undefined ||
             e.responseField !== undefined ||
             e.webbing !== undefined ||
+            e.prevAnswer !== undefined ||
             e.embed !== undefined
           )
             fail();
           base.thinking = parseThinkingBindingLenient(e.thinking);
+        }
+        if (e.prevAnswer !== undefined) {
+          if (
+            e.type !== "shape" ||
+            e.survey !== undefined ||
+            e.worksheet !== undefined ||
+            e.surveyResult !== undefined ||
+            e.responseField !== undefined ||
+            e.webbing !== undefined ||
+            e.thinking !== undefined ||
+            e.embed !== undefined
+          )
+            fail();
+          const prev = parsePrevAnswerBindingLenient(e.prevAnswer);
+          if (prev) base.prevAnswer = prev;
         }
         if (e.embed !== undefined) {
           if (
@@ -745,7 +766,8 @@ export function parseDeck(input: string): Deck {
             e.surveyResult !== undefined ||
             e.responseField !== undefined ||
             e.webbing !== undefined ||
-            e.thinking !== undefined
+            e.thinking !== undefined ||
+            e.prevAnswer !== undefined
           )
             fail();
           base.embed = parseEmbedBinding(e.embed);
@@ -770,6 +792,7 @@ export function parseDeck(input: string): Deck {
             e.survey !== undefined ||
             e.webbing !== undefined ||
             e.thinking !== undefined ||
+            e.prevAnswer !== undefined ||
             e.embed !== undefined
           )
             fail();
@@ -780,6 +803,7 @@ export function parseDeck(input: string): Deck {
             e.type !== "shape" ||
             e.webbing !== undefined ||
             e.thinking !== undefined ||
+            e.prevAnswer !== undefined ||
             e.embed !== undefined
           )
             fail();

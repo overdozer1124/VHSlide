@@ -26,6 +26,7 @@ import {
   learningRecord,
   myLearningRecord,
 } from "../src/learningRecord.ts";
+import { prevAnswerFor } from "../src/prevAnswer.ts";
 import {
   groupSchema,
   groupList,
@@ -2348,6 +2349,18 @@ export function createApplication(options: Options) {
           }
           return json(res, 200, {
             record: myLearningRecord(historySQL, deck, id, u.id),
+          });
+        }
+        if (extra === "prev-answer") {
+          insist(method === "GET", 405, "この操作には対応していません。");
+          member(id, u);
+          return json(res, 200, {
+            answer: prevAnswerFor(historySQL, id, u.id, {
+              source: url.searchParams.get("source") ?? "",
+              refId: url.searchParams.get("ref") ?? "",
+              fieldId: url.searchParams.get("field") ?? undefined,
+              sceneId: url.searchParams.get("scene") ?? undefined,
+            }),
           });
         }
         if (extra === "join-requests" && method === "GET") {
