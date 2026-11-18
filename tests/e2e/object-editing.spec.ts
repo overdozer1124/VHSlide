@@ -154,10 +154,10 @@ test("palette inserts labeled shapes and editable arrow endpoints, settings surv
   await page.screenshot({ path: info.outputPath("objects-present.png") });
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "ファイル", exact: true }).click();
-  await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
+  await page.getByRole("menuitem", { name: /^印刷・PDFで出力/ }).click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "印刷・PDFに保存", exact: true }),
+    page.getByRole("button", { name: "印刷・PDFで出力", exact: true }),
   ).toBeEnabled();
   await expect(page.locator(".print-export")).toContainText("直接入力の図形");
   await expect(page.locator(".print-export marker")).toHaveCount(2);

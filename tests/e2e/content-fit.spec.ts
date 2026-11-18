@@ -69,7 +69,7 @@ const button = (p: Page, name: string) =>
   p.getByRole("button", { name, exact: true });
 async function pdf(p: Page) {
   await button(p, "ファイル").click();
-  await p.getByRole("menuitem", { name: /PDFで保存/ }).click();
+  await p.getByRole("menuitem", { name: /印刷・PDFで出力/ }).click();
 }
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/config", (r) =>
@@ -193,7 +193,7 @@ test("PDF fix and resume keeps the exact chosen IDs and rechecks edited cells be
     page.getByLabel("対象スライド").getByRole("checkbox", { checked: true }),
   ).toHaveCount(1);
   await button(page, "PDFの準備").click();
-  await expect(button(page, "印刷・PDFに保存")).toBeEnabled();
+  await expect(button(page, "印刷・PDFで出力")).toBeEnabled();
   await expect(page.locator(".print-page")).toHaveCount(1);
   await expect(page.locator(".print-export .cell-overflow-flag")).toHaveCount(
     0,
@@ -206,7 +206,7 @@ test("acknowledged warnings stay out of print and do not bypass failed image dec
   await pdf(page);
   await button(page, "PDFの準備").click();
   await button(page, "このまま進む").click();
-  await expect(button(page, "印刷・PDFに保存")).toBeEnabled();
+  await expect(button(page, "印刷・PDFで出力")).toBeEnabled();
   await expect(page.locator(".print-page")).toHaveCount(3);
   await expect(page.locator(".print-export .cell-overflow-flag")).toHaveCount(
     0,

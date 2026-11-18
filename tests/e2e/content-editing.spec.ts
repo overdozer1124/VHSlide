@@ -186,10 +186,10 @@ test("selected text has persistent range styles and paragraphs; local undo and p
   await page.screenshot({ path: info.outputPath("text-formatting.png") });
   await again.press("Escape");
   await page.getByRole("button", { name: "ファイル", exact: true }).click();
-  await page.getByRole("menuitem", { name: /^PDFで保存/ }).click();
+  await page.getByRole("menuitem", { name: /^印刷・PDFで出力/ }).click();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "印刷・PDFに保存", exact: true }),
+    page.getByRole("button", { name: "印刷・PDFで出力", exact: true }),
   ).toBeEnabled();
   const exported = page
     .locator(".print-export .rich-text-view span")

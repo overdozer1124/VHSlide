@@ -56,16 +56,16 @@ test("selects, compares, prints and follows a saved route without changing sourc
     page.getByLabel("スライドの比較").locator(".slide-canvas"),
   ).toHaveCount(2);
   await page.getByRole("button", { name: "閉じる", exact: true }).click();
-  await openTools(page, "PDFで保存");
+  await openTools(page, "印刷・PDFで出力");
   await page
-    .getByRole("dialog", { name: "PDFで保存", exact: true })
+    .getByRole("dialog", { name: "印刷・PDFで出力", exact: true })
     .getByRole("button", { name: "選択を解除", exact: true })
     .click();
   await checkboxes.nth(0).check();
   await checkboxes.nth(2).check();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "印刷・PDFに保存", exact: true }),
+    page.getByRole("button", { name: "印刷・PDFで出力", exact: true }),
   ).toBeEnabled();
   await expect(page.locator(".print-export .print-page")).toHaveCount(2);
   if (test.info().project.name === "desktop") {
@@ -170,7 +170,7 @@ test("does not offer successful PDF output when an image cannot be decoded", asy
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(book)),
     });
-  await openTools(page, "PDFで保存");
+  await openTools(page, "印刷・PDFで出力");
   await page.getByLabel("対象スライド").getByRole("checkbox").first().check();
   await page.getByRole("button", { name: "PDFの準備", exact: true }).click();
   await expect(
@@ -180,7 +180,7 @@ test("does not offer successful PDF output when an image cannot be decoded", asy
     ),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "印刷・PDFに保存", exact: true }),
+    page.getByRole("button", { name: "印刷・PDFで出力", exact: true }),
   ).toBeDisabled();
 });
 
@@ -331,11 +331,11 @@ test("purpose-specific entrances keep menus keyboard-accessible and restore focu
   ).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(
-    page.getByRole("menuitem", { name: /^PDFで保存/ }),
+    page.getByRole("menuitem", { name: /^印刷・PDFで出力/ }),
   ).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("dialog", { name: "PDFで保存", exact: true }),
+    page.getByRole("dialog", { name: "印刷・PDFで出力", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", {
