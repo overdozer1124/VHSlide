@@ -57,11 +57,19 @@ import {
 } from "../src/stage1OrgSchema.ts";
 import {
   InitialRegistrationError,
+  acceptOperatorInvitation,
+  applyStage1OperatorInviteMigration,
   applyStage1OperatorMigration,
+  assignOperatorPublicIds,
+  cancelOperatorInvitation,
+  createOperatorInvitation,
   durableOperatorSql,
   issueAdminNonce,
+  listOperatorInvitations,
+  listOperators,
   operatorActionFromBody,
   performOperatorAction,
+  revokeOperatorByPublicId,
 } from "../src/stage1InitialRegistration.ts";
 import { blank } from "../src/model.ts";
 import type { SlideComment } from "../src/permissions.ts";
@@ -184,6 +192,10 @@ export class Directory extends DurableObject<Env> {
       SELECT id,owner,'legacy:'||id,'',-1,title,'uploading',updated FROM decks WHERE status='restoring'`);
     applyStage1OrgMigration(durableStage1OrgDb(this.sql));
     applyStage1OperatorMigration(durableStage1OrgDb(this.sql));
+    applyStage1OperatorInviteMigration(durableStage1OrgDb(this.sql));
+    assignOperatorPublicIds(durableOperatorSql(this.sql), () =>
+      crypto.randomUUID(),
+    );
   }
   private revision(id: string) {
     return (
@@ -594,78 +606,59 @@ export class Directory extends DurableObject<Env> {
         "Set-Cookie": `vhslide_admin_ctx=${ctx}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300${secure}`,
       });
     }
-    const signedOperator =
-      /^\/api\/stage1\/operators\/(add|revoke|rotate)-by-sign-in$/.exec(path);
     if (
       stage1FeaturesEnabled(this.env) &&
-      signedOperator &&
-      method === "POST"
-    ) {
-      const kind = signedOperator[1];
-      const data = await input(request);
+      /^\/api\/stage1\/operators\/(add|revoke|rotate)(-by-sign-in)?$/.test(path)
+    )
+      throw new HttpError(404, "見つかりません。");
+    const readOperatorCredential = async (credential: unknown) => {
       insist(
-        typeof data.credential === "string",
+        typeof credential === "string",
         400,
         "サインイン情報を確認できません。",
       );
-      const readCredential = async (credential: unknown) => {
+      try {
+        const { payload } = await jwtVerify(credential, keys, {
+          audience: [
+            this.env.GOOGLE_CLIENT_ID,
+            this.env.GOOGLE_SCHOOL_CLIENT_ID,
+          ].filter((value): value is string => !!value),
+          issuer: ["https://accounts.google.com", "accounts.google.com"],
+          algorithms: ["RS256"],
+        });
         insist(
-          typeof credential === "string",
-          400,
-          "サインイン情報を確認できません。",
-        );
-        try {
-          const { payload } = await jwtVerify(credential, keys, {
-            audience: [
-              this.env.GOOGLE_CLIENT_ID,
-              this.env.GOOGLE_SCHOOL_CLIENT_ID,
-            ].filter((value): value is string => !!value),
-            issuer: ["https://accounts.google.com", "accounts.google.com"],
-            algorithms: ["RS256"],
-          });
-          insist(
-            payload.email_verified === true &&
-              typeof payload.sub === "string" &&
-              typeof payload.nonce === "string",
-            401,
-            "確認用の番号が無効です。",
-          );
-          return { sub: payload.sub, nonce: payload.nonce };
-        } catch (error) {
-          if (error instanceof HttpError) throw error;
-          throw new HttpError(
-            401,
-            "Googleのサインインを確認できませんでした。",
-          );
-        }
-      };
-      const actor = await readCredential(data.credential);
-      const targetSubject = async (credential: unknown) => {
-        const target = await readCredential(credential);
-        insist(
-          target.nonce === actor.nonce,
+          payload.email_verified === true &&
+            typeof payload.sub === "string" &&
+            typeof payload.nonce === "string",
           401,
-          "確認用の番号が一致しません。",
+          "確認用の番号が無効です。",
         );
-        return target.sub;
-      };
-      const fields: Record<string, unknown> = {
-        expectedGeneration: data.expectedGeneration,
-      };
-      if (kind === "rotate") {
-        fields.oldSubject = await targetSubject(data.fromCredential);
-        fields.newSubject = await targetSubject(data.toCredential);
-      } else fields.subject = await targetSubject(data.targetCredential);
+        return { sub: payload.sub, nonce: payload.nonce };
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw new HttpError(401, "Googleのサインインを確認できませんでした。");
+      }
+    };
+    const operatorCtxHash = async () => {
       const ctx =
         /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
           request.headers.get("Cookie") || "",
         )?.[1] ?? null;
-      const ctxHash = ctx ? await sha(ctx) : null;
+      return ctx ? await sha(ctx) : null;
+    };
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/operators/invitations" &&
+      method === "POST"
+    ) {
+      const data = await input(request);
+      const actor = await readOperatorCredential(data.credential);
+      const ctxHash = await operatorCtxHash();
       try {
-        const action = operatorActionFromBody(kind, fields);
-        const result = this.ctx.storage.transactionSync(() =>
-          performOperatorAction(durableOperatorSql(this.sql), {
-            action,
+        const invitation = this.ctx.storage.transactionSync(() =>
+          createOperatorInvitation(durableOperatorSql(this.sql), {
+            id: crypto.randomUUID(),
+            email: String(data.email ?? ""),
             actor: actor.sub,
             nonce: actor.nonce,
             ctxHash,
@@ -674,7 +667,67 @@ export class Directory extends DurableObject<Env> {
             auditId: crypto.randomUUID(),
           }),
         );
-        return json({ ok: result.ok, generation: result.generation });
+        return json({ invitation }, 201);
+      } catch (error) {
+        if (error instanceof InitialRegistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const invitationId =
+      /^\/api\/stage1\/operators\/invitations\/([^/]+)$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      invitationId &&
+      method === "DELETE"
+    ) {
+      const data = await input(request);
+      const actor = await readOperatorCredential(data.credential);
+      const ctxHash = await operatorCtxHash();
+      try {
+        this.ctx.storage.transactionSync(() =>
+          cancelOperatorInvitation(durableOperatorSql(this.sql), {
+            id: invitationId[1],
+            actor: actor.sub,
+            nonce: actor.nonce,
+            ctxHash,
+            now: Date.now(),
+            envId: this.env.STAGE1_ENV_ID || "",
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json({ ok: true });
+      } catch (error) {
+        if (error instanceof InitialRegistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
+    const revokeOperator = /^\/api\/stage1\/operators\/([^/]+)\/revoke$/.exec(
+      path,
+    );
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      revokeOperator &&
+      method === "POST"
+    ) {
+      const data = await input(request);
+      const actor = await readOperatorCredential(data.credential);
+      const ctxHash = await operatorCtxHash();
+      try {
+        const result = this.ctx.storage.transactionSync(() =>
+          revokeOperatorByPublicId(durableOperatorSql(this.sql), {
+            publicId: revokeOperator[1],
+            expectedGeneration: Number(data.expectedGeneration),
+            actor: actor.sub,
+            nonce: actor.nonce,
+            ctxHash,
+            now: Date.now(),
+            envId: this.env.STAGE1_ENV_ID || "",
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json(result);
       } catch (error) {
         if (error instanceof InitialRegistrationError)
           throw new HttpError(error.status, error.message);
@@ -682,11 +735,11 @@ export class Directory extends DurableObject<Env> {
       }
     }
     const operatorKind =
-      /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
+      /^\/api\/stage1\/(?:operators\/verify|super-admin\/(bind|recover))$/.exec(
         path,
       );
     if (stage1FeaturesEnabled(this.env) && operatorKind && method === "POST") {
-      const kind = operatorKind[1] || operatorKind[2];
+      const kind = path.endsWith("/verify") ? "verify" : operatorKind[1];
       const data = await input(request);
       insist(
         typeof data.credential === "string",
@@ -821,6 +874,73 @@ export class Directory extends DurableObject<Env> {
       method === "GET"
     )
       return json(consoleView(durableOperateSql(this.sql), user.id));
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/operators" &&
+      method === "GET"
+    ) {
+      if (
+        !one(
+          this.sql,
+          "SELECT public_id FROM stage1_operators WHERE subject=?",
+          user.id,
+        )
+      )
+        throw new HttpError(403, "運営者として登録されていません。");
+      const generation = one<{ value: string }>(
+        this.sql,
+        "SELECT value FROM stage1_operator_meta WHERE key='generation'",
+      );
+      return json({
+        operators: listOperators(durableOperatorSql(this.sql)),
+        generation: Number(generation?.value ?? 0),
+      });
+    }
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      path === "/api/stage1/operators/invitations" &&
+      method === "GET"
+    ) {
+      if (
+        !one(
+          this.sql,
+          "SELECT public_id FROM stage1_operators WHERE subject=?",
+          user.id,
+        )
+      )
+        throw new HttpError(403, "運営者として登録されていません。");
+      return json({
+        invitations: listOperatorInvitations(
+          durableOperatorSql(this.sql),
+          Date.now(),
+        ),
+      });
+    }
+    const acceptInvitation =
+      /^\/api\/stage1\/operators\/invitations\/([^/]+)\/accept$/.exec(path);
+    if (
+      stage1FeaturesEnabled(this.env) &&
+      acceptInvitation &&
+      method === "POST"
+    ) {
+      try {
+        const result = this.ctx.storage.transactionSync(() =>
+          acceptOperatorInvitation(durableOperatorSql(this.sql), {
+            id: acceptInvitation[1],
+            userId: user.id,
+            email: user.email,
+            publicId: crypto.randomUUID(),
+            now: Date.now(),
+            auditId: crypto.randomUUID(),
+          }),
+        );
+        return json(result);
+      } catch (error) {
+        if (error instanceof InitialRegistrationError)
+          throw new HttpError(error.status, error.message);
+        throw error;
+      }
+    }
     if (
       stage1FeaturesEnabled(this.env) &&
       path === "/api/organizations" &&

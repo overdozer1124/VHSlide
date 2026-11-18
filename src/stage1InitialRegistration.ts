@@ -1,6 +1,7 @@
 /** Stage 1 Phase 2 procedure 4: operator registry and first super-admin. */
 
 import { writeAuditLog } from "./stage1Audit.ts";
+import { normalizeEmail, validEmail } from "./preSharing.ts";
 import type { Stage1OrgDb } from "./stage1OrgSchema.ts";
 
 export const STAGE1_OPERATOR_MIGRATION_ID = "stage1_operator_v1";
@@ -92,6 +93,57 @@ export function applyStage1OperatorMigration(
   return { applied: true, already: false };
 }
 
+export const STAGE1_OPERATOR_INVITE_MIGRATION_ID = "stage1_operator_invite_v1";
+export const OPERATOR_INVITE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const stage1OperatorInviteSql = `
+CREATE TABLE IF NOT EXISTS stage1_operator_invitations (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  invited_by TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('招待中','承諾済み','取消')),
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  accepted_at INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS stage1_operators_public_id
+  ON stage1_operators(public_id) WHERE public_id IS NOT NULL;
+`;
+
+/** Adds the public operator id and the invitation table. Safe to re-run. */
+export function applyStage1OperatorInviteMigration(
+  db: Stage1OrgDb,
+  now = Date.now(),
+): { applied: boolean; already: boolean } {
+  if (!db.tableColumns("stage1_operators").includes("public_id")) {
+    db.exec("ALTER TABLE stage1_operators ADD COLUMN public_id TEXT");
+  }
+  db.exec(stage1OperatorInviteSql);
+  if (db.migrationApplied(STAGE1_OPERATOR_INVITE_MIGRATION_ID)) {
+    return { applied: false, already: true };
+  }
+  db.recordMigration(STAGE1_OPERATOR_INVITE_MIGRATION_ID, now);
+  return { applied: true, already: false };
+}
+
+/** Fills public ids for operator rows created before invitations existed. */
+export function assignOperatorPublicIds(
+  sql: OperatorSql,
+  newId: () => string,
+): void {
+  for (;;) {
+    const row = sql.one<{ subject: string }>(
+      "SELECT subject FROM stage1_operators WHERE public_id IS NULL LIMIT 1",
+    );
+    if (!row) return;
+    sql.exec(
+      "UPDATE stage1_operators SET public_id=? WHERE subject=? AND public_id IS NULL",
+      newId(),
+      row.subject,
+    );
+  }
+}
+
 export function issueAdminNonce(
   sql: OperatorSql,
   input: { nonce: string; ctxHash: string; expiresAt: number },
@@ -169,8 +221,9 @@ export function applyPlatformApproval(
   const generation = Number(meta(sql, "generation") ?? "0") + 1;
   sql.exec("DELETE FROM stage1_operators");
   sql.exec(
-    "INSERT INTO stage1_operators(subject, added_at, added_by) VALUES(?,?,?)",
+    "INSERT INTO stage1_operators(subject, public_id, added_at, added_by) VALUES(?,?,?,?)",
     subject,
+    crypto.randomUUID(),
     input.now,
     `platform:${operationId}`,
   );
@@ -204,14 +257,6 @@ export function applyPlatformApproval(
 
 export type OperatorAction =
   | { type: "verify" }
-  | { type: "add"; subject: string; expectedGeneration: number }
-  | { type: "revoke"; subject: string; expectedGeneration: number }
-  | {
-      type: "rotate";
-      oldSubject: string;
-      newSubject: string;
-      expectedGeneration: number;
-    }
   | { type: "bind"; subject: string; operationId: string }
   | { type: "recover"; oldSubject: string; newSubject: string };
 
@@ -220,20 +265,8 @@ export function operatorActionFromBody(
   body: Record<string, unknown>,
 ): OperatorAction {
   if (kind === "verify") return { type: "verify" };
-  if (kind === "add" || kind === "revoke") {
-    return {
-      type: kind,
-      subject: String(body.subject ?? ""),
-      expectedGeneration: requireGeneration(body.expectedGeneration),
-    };
-  }
-  if (kind === "rotate") {
-    return {
-      type: "rotate",
-      oldSubject: String(body.oldSubject ?? ""),
-      newSubject: String(body.newSubject ?? ""),
-      expectedGeneration: requireGeneration(body.expectedGeneration),
-    };
+  if (kind === "add" || kind === "revoke" || kind === "rotate") {
+    throw new InitialRegistrationError(404, "見つかりません。");
   }
   if (kind === "bind") {
     return {
@@ -250,13 +283,6 @@ export function operatorActionFromBody(
     };
   }
   throw new InitialRegistrationError(404, "見つかりません。");
-}
-
-function requireGeneration(value: unknown) {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new InitialRegistrationError(400, "登録簿の世代を確認してください。");
-  }
-  return value;
 }
 
 export function performOperatorAction(
@@ -282,104 +308,6 @@ export function performOperatorAction(
   const generation = Number(meta(sql, "generation") ?? "0");
   const action = input.action;
   if (action.type === "verify") return { ok: true, generation };
-  if (action.type !== "bind" && action.type !== "recover") {
-    if (action.expectedGeneration !== generation) {
-      throw new InitialRegistrationError(409, "登録簿の世代が一致しません。");
-    }
-  }
-  if (action.type === "add") {
-    const subject = requireSubject(action.subject, "追加する運営者");
-    if (
-      sql.one("SELECT subject FROM stage1_operators WHERE subject=?", subject)
-    ) {
-      throw new InitialRegistrationError(
-        409,
-        "その運営者は既に登録されています。",
-      );
-    }
-    sql.exec(
-      "INSERT INTO stage1_operators(subject, added_at, added_by) VALUES(?,?,?)",
-      subject,
-      input.now,
-      actor,
-    );
-    const next = generation + 1;
-    setMeta(sql, "generation", String(next));
-    audit(sql, input, actor, "operator.add", `sub:${subject}`);
-    return { ok: true, generation: next };
-  }
-  if (action.type === "revoke") {
-    const subject = requireSubject(action.subject, "失効する運営者");
-    if (
-      !sql.one("SELECT subject FROM stage1_operators WHERE subject=?", subject)
-    ) {
-      throw new InitialRegistrationError(
-        404,
-        "失効する運営者が見つかりません。",
-      );
-    }
-    const count = sql.one<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM stage1_operators",
-    );
-    if (!count || Number(count.n) <= 1) {
-      throw new InitialRegistrationError(409, "最後の運営者は失効できません。");
-    }
-    const removed = sql.exec(
-      "DELETE FROM stage1_operators WHERE subject=?",
-      subject,
-    );
-    if (!removed.changes) {
-      throw new InitialRegistrationError(
-        404,
-        "失効する運営者が見つかりません。",
-      );
-    }
-    const next = generation + 1;
-    setMeta(sql, "generation", String(next));
-    audit(sql, input, actor, "operator.revoke", `sub:${subject}`);
-    return { ok: true, generation: next };
-  }
-  if (action.type === "rotate") {
-    const oldSubject = requireSubject(action.oldSubject, "現在の運営者");
-    const newSubject = requireSubject(action.newSubject, "新しい運営者");
-    if (
-      sql.one(
-        "SELECT subject FROM stage1_operators WHERE subject=?",
-        newSubject,
-      )
-    ) {
-      throw new InitialRegistrationError(
-        409,
-        "その運営者は既に登録されています。",
-      );
-    }
-    const removed = sql.exec(
-      "DELETE FROM stage1_operators WHERE subject=?",
-      oldSubject,
-    );
-    if (!removed.changes) {
-      throw new InitialRegistrationError(
-        404,
-        "入れ替える運営者が見つかりません。",
-      );
-    }
-    sql.exec(
-      "INSERT INTO stage1_operators(subject, added_at, added_by) VALUES(?,?,?)",
-      newSubject,
-      input.now,
-      actor,
-    );
-    const next = generation + 1;
-    setMeta(sql, "generation", String(next));
-    audit(
-      sql,
-      input,
-      actor,
-      "operator.rotate",
-      `from:${oldSubject}:to:${newSubject}`,
-    );
-    return { ok: true, generation: next };
-  }
   if (action.type === "bind") {
     const subject = requireSubject(action.subject, "スーパー管理者");
     const operationId = requireOperationId(action.operationId);
@@ -491,6 +419,307 @@ export function performOperatorAction(
     `env:${input.envId}:from:${oldSubject}:to:${newSubject}`,
   );
   return { ok: true, generation };
+}
+
+export type OperatorInvitation = {
+  id: string;
+  email: string;
+  expiresAt: number;
+  status: string;
+};
+
+export type PublicOperator = { id: string; name: string; email: string };
+
+function requireActingOperator(
+  sql: OperatorSql,
+  input: {
+    actor: string;
+    nonce: string;
+    ctxHash: string | null;
+    now: number;
+    envId: string;
+  },
+) {
+  const actor = requireSubject(input.actor, "運営者");
+  if (!input.envId) {
+    throw new InitialRegistrationError(503, "対象環境が設定されていません。");
+  }
+  consumeNonce(sql, input.nonce, input.ctxHash, input.now);
+  if (
+    !sql.one("SELECT public_id FROM stage1_operators WHERE subject=?", actor)
+  ) {
+    throw new InitialRegistrationError(403, "運営者として登録されていません。");
+  }
+  return actor;
+}
+
+function invitationEmail(value: string) {
+  const email = normalizeEmail(value);
+  if (!validEmail(email)) {
+    throw new InitialRegistrationError(
+      400,
+      "メールアドレスを確認してください。",
+    );
+  }
+  return email;
+}
+
+function invitationStatus(status: string, expiresAt: number, now: number) {
+  return status === "招待中" && expiresAt <= now ? "期限切れ" : status;
+}
+
+export function createOperatorInvitation(
+  sql: OperatorSql,
+  input: {
+    id: string;
+    email: string;
+    actor: string;
+    nonce: string;
+    ctxHash: string | null;
+    now: number;
+    envId: string;
+    auditId: string;
+  },
+): OperatorInvitation {
+  const actor = requireActingOperator(sql, input);
+  const email = invitationEmail(input.email);
+  if (
+    sql.one(
+      `SELECT stage1_operators.public_id AS id
+       FROM users JOIN stage1_operators ON stage1_operators.subject=users.id
+       WHERE lower(users.email)=?`,
+      email,
+    )
+  ) {
+    throw new InitialRegistrationError(
+      409,
+      "そのメールアドレスは既に運営者です。",
+    );
+  }
+  if (
+    sql.one(
+      `SELECT id FROM stage1_operator_invitations
+       WHERE email=? AND status='招待中' AND expires_at>?`,
+      email,
+      input.now,
+    )
+  ) {
+    throw new InitialRegistrationError(
+      409,
+      "同じメールアドレスの招待が既にあります。",
+    );
+  }
+  const expiresAt = input.now + OPERATOR_INVITE_MS;
+  sql.exec(
+    `INSERT INTO stage1_operator_invitations(
+      id, email, invited_by, status, expires_at, created_at
+    ) VALUES(?,?,?,'招待中',?,?)`,
+    input.id,
+    email,
+    actor,
+    expiresAt,
+    input.now,
+  );
+  audit(sql, input, actor, "operator.invite", `invitation:${input.id}`);
+  return { id: input.id, email, expiresAt, status: "招待中" };
+}
+
+export function cancelOperatorInvitation(
+  sql: OperatorSql,
+  input: {
+    id: string;
+    actor: string;
+    nonce: string;
+    ctxHash: string | null;
+    now: number;
+    envId: string;
+    auditId: string;
+  },
+): { ok: true } {
+  const actor = requireActingOperator(sql, input);
+  const row = sql.one<{ status: string }>(
+    "SELECT status FROM stage1_operator_invitations WHERE id=?",
+    input.id,
+  );
+  if (!row) throw new InitialRegistrationError(404, "招待が見つかりません。");
+  if (row.status !== "招待中") {
+    throw new InitialRegistrationError(409, "この招待は取り消せません。");
+  }
+  const cancelled = sql.exec(
+    "UPDATE stage1_operator_invitations SET status='取消' WHERE id=? AND status='招待中'",
+    input.id,
+  );
+  if (!cancelled.changes) {
+    throw new InitialRegistrationError(409, "この招待は取り消せません。");
+  }
+  audit(sql, input, actor, "operator.invite.cancel", `invitation:${input.id}`);
+  return { ok: true };
+}
+
+export function acceptOperatorInvitation(
+  sql: OperatorSql,
+  input: {
+    id: string;
+    userId: string;
+    email: string;
+    publicId: string;
+    now: number;
+    auditId: string;
+  },
+): { ok: true; generation: number } {
+  const userId = requireSubject(input.userId, "利用者");
+  const email = invitationEmail(input.email);
+  const row = sql.one<{
+    status: string;
+    email: string;
+    expires_at: number;
+    invited_by: string;
+  }>(
+    "SELECT status, email, expires_at, invited_by FROM stage1_operator_invitations WHERE id=?",
+    input.id,
+  );
+  if (!row) throw new InitialRegistrationError(404, "招待が見つかりません。");
+  if (row.status !== "招待中") {
+    throw new InitialRegistrationError(409, "この招待は使えません。");
+  }
+  if (Number(row.expires_at) <= input.now) {
+    throw new InitialRegistrationError(403, "招待の期限が切れています。");
+  }
+  if (row.email !== email) {
+    throw new InitialRegistrationError(403, "この招待の宛先ではありません。");
+  }
+  if (
+    sql.one("SELECT public_id FROM stage1_operators WHERE subject=?", userId)
+  ) {
+    throw new InitialRegistrationError(409, "既に運営者です。");
+  }
+  const inserted = sql.exec(
+    "INSERT INTO stage1_operators(subject, public_id, added_at, added_by) VALUES(?,?,?,?)",
+    userId,
+    input.publicId,
+    input.now,
+    row.invited_by,
+  );
+  if (!inserted.changes) {
+    throw new InitialRegistrationError(409, "既に運営者です。");
+  }
+  const accepted = sql.exec(
+    "UPDATE stage1_operator_invitations SET status='承諾済み', accepted_at=? WHERE id=? AND status='招待中'",
+    input.now,
+    input.id,
+  );
+  if (!accepted.changes) {
+    throw new InitialRegistrationError(409, "この招待は使えません。");
+  }
+  const generation = Number(meta(sql, "generation") ?? "0") + 1;
+  setMeta(sql, "generation", String(generation));
+  audit(sql, input, userId, "operator.accept", `operator:${input.publicId}`);
+  return { ok: true, generation };
+}
+
+export function revokeOperatorByPublicId(
+  sql: OperatorSql,
+  input: {
+    publicId: string;
+    expectedGeneration: number;
+    actor: string;
+    nonce: string;
+    ctxHash: string | null;
+    now: number;
+    envId: string;
+    auditId: string;
+  },
+): { ok: true; generation: number } {
+  const actor = requireActingOperator(sql, input);
+  const generation = Number(meta(sql, "generation") ?? "0");
+  if (input.expectedGeneration !== generation) {
+    throw new InitialRegistrationError(409, "登録簿の世代が一致しません。");
+  }
+  const row = sql.one<{ public_id: string }>(
+    "SELECT public_id FROM stage1_operators WHERE public_id=?",
+    input.publicId,
+  );
+  if (!row) {
+    throw new InitialRegistrationError(404, "失効する運営者が見つかりません。");
+  }
+  const count = sql.one<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM stage1_operators",
+  );
+  if (!count || Number(count.n) <= 1) {
+    throw new InitialRegistrationError(409, "最後の運営者は失効できません。");
+  }
+  const removed = sql.exec(
+    "DELETE FROM stage1_operators WHERE public_id=?",
+    input.publicId,
+  );
+  if (!removed.changes) {
+    throw new InitialRegistrationError(404, "失効する運営者が見つかりません。");
+  }
+  const next = generation + 1;
+  setMeta(sql, "generation", String(next));
+  audit(sql, input, actor, "operator.revoke", `operator:${input.publicId}`);
+  return { ok: true, generation: next };
+}
+
+export function listOperatorInvitations(
+  sql: OperatorSql,
+  now: number,
+): OperatorInvitation[] {
+  const rows: OperatorInvitation[] = [];
+  let last = "";
+  for (;;) {
+    const row = sql.one<{
+      id: string;
+      email: string;
+      status: string;
+      expires_at: number;
+    }>(
+      `SELECT id, email, status, expires_at FROM stage1_operator_invitations
+       WHERE id>? ORDER BY id LIMIT 1`,
+      last,
+    );
+    if (!row) return rows;
+    last = row.id;
+    rows.push({
+      id: row.id,
+      email: row.email,
+      expiresAt: Number(row.expires_at),
+      status: invitationStatus(row.status, Number(row.expires_at), now),
+    });
+  }
+}
+
+export function listOperators(sql: OperatorSql): PublicOperator[] {
+  const rows: PublicOperator[] = [];
+  let last = "";
+  for (;;) {
+    const row = sql.one<{ id: string; name: string; email: string }>(
+      `SELECT stage1_operators.public_id AS id, users.name AS name, users.email AS email
+       FROM stage1_operators JOIN users ON users.id=stage1_operators.subject
+       WHERE stage1_operators.public_id IS NOT NULL AND stage1_operators.public_id>?
+       ORDER BY stage1_operators.public_id LIMIT 1`,
+      last,
+    );
+    if (!row) return rows;
+    last = row.id;
+    rows.push({ id: row.id, name: row.name, email: row.email });
+  }
+}
+
+export function myOperatorInvitation(
+  sql: OperatorSql,
+  email: string,
+  now: number,
+): { id: string; expiresAt: number } | null {
+  const normalized = normalizeEmail(email);
+  const row = sql.one<{ id: string; expires_at: number }>(
+    `SELECT id, expires_at FROM stage1_operator_invitations
+     WHERE email=? AND status='招待中' AND expires_at>?
+     ORDER BY expires_at LIMIT 1`,
+    normalized,
+    now,
+  );
+  return row ? { id: row.id, expiresAt: Number(row.expires_at) } : null;
 }
 
 function audit(

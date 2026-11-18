@@ -89,11 +89,19 @@ import {
 } from "../src/stage1OrgSchema.ts";
 import {
   InitialRegistrationError,
+  acceptOperatorInvitation,
+  applyStage1OperatorInviteMigration,
   applyStage1OperatorMigration,
+  assignOperatorPublicIds,
+  cancelOperatorInvitation,
+  createOperatorInvitation,
   issueAdminNonce,
+  listOperatorInvitations,
+  listOperators,
   nodeOperatorSql,
   operatorActionFromBody,
   performOperatorAction,
+  revokeOperatorByPublicId,
 } from "../src/stage1InitialRegistration.ts";
 import {
   backupSnapshot,
@@ -294,6 +302,8 @@ export function createApplication(options: Options) {
 
   applyStage1OrgMigration(nodeStage1OrgDb(db));
   applyStage1OperatorMigration(nodeStage1OrgDb(db));
+  applyStage1OperatorInviteMigration(nodeStage1OrgDb(db));
+  assignOperatorPublicIds(nodeOperatorSql(db), () => randomUUID());
 
   db.exec(revisionSchema("node") + restoreSchema);
   db.exec(
@@ -840,21 +850,21 @@ export function createApplication(options: Options) {
         );
         return json(res, 200, { nonce: nonceValue });
       }
-      const signedOperator =
-        /^\/api\/stage1\/operators\/(add|revoke|rotate)-by-sign-in$/.exec(path);
-      if (stage1On && signedOperator && method === "POST") {
-        const kind = signedOperator[1];
-        const input = JSON.parse(
-          (await body(req, 20_000)).toString(),
-        ) as Record<string, unknown>;
+      if (
+        stage1On &&
+        /^\/api\/stage1\/operators\/(add|revoke|rotate)(-by-sign-in)?$/.test(
+          path,
+        )
+      )
+        throw new HttpError(404, "見つかりません。");
+      const operatorCredential = async (value: unknown) => {
         insist(
-          typeof input.credential === "string",
+          typeof value === "string",
           400,
           "サインイン情報を確認できません。",
         );
-        let actor: { sub: string; nonce: string };
         try {
-          actor = await verifyOperatorCredential(input.credential);
+          return await verifyOperatorCredential(value);
         } catch (error) {
           if (error instanceof HttpError) throw error;
           throw new HttpError(
@@ -862,45 +872,26 @@ export function createApplication(options: Options) {
             "Googleのサインインを確認できませんでした。",
           );
         }
-        const targetSubject = async (value: unknown) => {
-          insist(
-            typeof value === "string",
-            400,
-            "相手のサインインを確認できません。",
-          );
-          let target: { sub: string; nonce: string };
-          try {
-            target = await verifyOperatorCredential(value);
-          } catch (error) {
-            if (error instanceof HttpError) throw error;
-            throw new HttpError(
-              401,
-              "相手のサインインを確認できませんでした。",
-            );
-          }
-          insist(
-            target.nonce === actor.nonce,
-            401,
-            "確認用の番号が一致しません。",
-          );
-          return target.sub;
-        };
-        const fields: Record<string, unknown> = {
-          expectedGeneration: input.expectedGeneration,
-        };
-        if (kind === "rotate") {
-          fields.oldSubject = await targetSubject(input.fromCredential);
-          fields.newSubject = await targetSubject(input.toCredential);
-        } else fields.subject = await targetSubject(input.targetCredential);
-        const ctx =
-          /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
-            req.headers.cookie ?? "",
-          )?.[1] ?? null;
-        const action = operatorActionFromBody(kind, fields);
+      };
+      const operatorCtx = () =>
+        /(?:^|;\s*)vhslide_admin_ctx=([A-Za-z0-9_-]{43})(?:;|$)/.exec(
+          req.headers.cookie ?? "",
+        )?.[1] ?? null;
+      if (
+        stage1On &&
+        path === "/api/stage1/operators/invitations" &&
+        method === "POST"
+      ) {
+        const input = JSON.parse(
+          (await body(req, 20_000)).toString(),
+        ) as Record<string, unknown>;
+        const actor = await operatorCredential(input.credential);
+        const ctx = operatorCtx();
         db.exec("BEGIN IMMEDIATE");
         try {
-          const result = performOperatorAction(nodeOperatorSql(db), {
-            action,
+          const invitation = createOperatorInvitation(nodeOperatorSql(db), {
+            id: randomUUID(),
+            email: String(input.email ?? ""),
             actor: actor.sub,
             nonce: actor.nonce,
             ctxHash: ctx ? sha(ctx) : null,
@@ -909,10 +900,65 @@ export function createApplication(options: Options) {
             auditId: randomBytes(16).toString("hex"),
           });
           db.exec("COMMIT");
-          return json(res, 200, {
-            ok: result.ok,
-            generation: result.generation,
+          return json(res, 201, { invitation });
+        } catch (error) {
+          db.exec("ROLLBACK");
+          if (error instanceof InitialRegistrationError)
+            throw new HttpError(error.status, error.message);
+          throw error;
+        }
+      }
+      const invitationId =
+        /^\/api\/stage1\/operators\/invitations\/([^/]+)$/.exec(path);
+      if (stage1On && invitationId && method === "DELETE") {
+        const input = JSON.parse(
+          (await body(req, 20_000)).toString(),
+        ) as Record<string, unknown>;
+        const actor = await operatorCredential(input.credential);
+        const ctx = operatorCtx();
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          cancelOperatorInvitation(nodeOperatorSql(db), {
+            id: invitationId[1],
+            actor: actor.sub,
+            nonce: actor.nonce,
+            ctxHash: ctx ? sha(ctx) : null,
+            now: Date.now(),
+            envId: stage1EnvId,
+            auditId: randomBytes(16).toString("hex"),
           });
+          db.exec("COMMIT");
+          return json(res, 200, { ok: true });
+        } catch (error) {
+          db.exec("ROLLBACK");
+          if (error instanceof InitialRegistrationError)
+            throw new HttpError(error.status, error.message);
+          throw error;
+        }
+      }
+      const revokeOperator = /^\/api\/stage1\/operators\/([^/]+)\/revoke$/.exec(
+        path,
+      );
+      if (stage1On && revokeOperator && method === "POST") {
+        const input = JSON.parse(
+          (await body(req, 20_000)).toString(),
+        ) as Record<string, unknown>;
+        const actor = await operatorCredential(input.credential);
+        const ctx = operatorCtx();
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          const result = revokeOperatorByPublicId(nodeOperatorSql(db), {
+            publicId: revokeOperator[1],
+            expectedGeneration: Number(input.expectedGeneration),
+            actor: actor.sub,
+            nonce: actor.nonce,
+            ctxHash: ctx ? sha(ctx) : null,
+            now: Date.now(),
+            envId: stage1EnvId,
+            auditId: randomBytes(16).toString("hex"),
+          });
+          db.exec("COMMIT");
+          return json(res, 200, result);
         } catch (error) {
           db.exec("ROLLBACK");
           if (error instanceof InitialRegistrationError)
@@ -921,11 +967,11 @@ export function createApplication(options: Options) {
         }
       }
       const operatorKind =
-        /^\/api\/stage1\/(?:operators\/(verify|add|revoke|rotate)|super-admin\/(bind|recover))$/.exec(
+        /^\/api\/stage1\/(?:operators\/verify|super-admin\/(bind|recover))$/.exec(
           path,
         );
       if (stage1On && operatorKind && method === "POST") {
-        const kind = operatorKind[1] || operatorKind[2];
+        const kind = path.endsWith("/verify") ? "verify" : operatorKind[1];
         const input = JSON.parse((await body(req, 20_000)).toString()) as {
           credential?: unknown;
         } & Record<string, unknown>;
@@ -975,6 +1021,66 @@ export function createApplication(options: Options) {
         if (method !== "GET") rateLimit(`api:${u.id}`, 120);
         if (stage1On && path === "/api/stage1/console" && method === "GET")
           return json(res, 200, consoleView(nodeOperateSql(db), u.id));
+        if (stage1On && path === "/api/stage1/operators" && method === "GET") {
+          if (
+            !db
+              .prepare("SELECT public_id FROM stage1_operators WHERE subject=?")
+              .get(u.id)
+          )
+            throw new HttpError(403, "運営者として登録されていません。");
+          return json(res, 200, {
+            operators: listOperators(nodeOperatorSql(db)),
+            generation: Number(
+              (
+                db
+                  .prepare(
+                    "SELECT value FROM stage1_operator_meta WHERE key='generation'",
+                  )
+                  .get() as { value: string } | undefined
+              )?.value ?? 0,
+            ),
+          });
+        }
+        if (
+          stage1On &&
+          path === "/api/stage1/operators/invitations" &&
+          method === "GET"
+        ) {
+          if (
+            !db
+              .prepare("SELECT public_id FROM stage1_operators WHERE subject=?")
+              .get(u.id)
+          )
+            throw new HttpError(403, "運営者として登録されていません。");
+          return json(res, 200, {
+            invitations: listOperatorInvitations(
+              nodeOperatorSql(db),
+              Date.now(),
+            ),
+          });
+        }
+        const acceptInvitation =
+          /^\/api\/stage1\/operators\/invitations\/([^/]+)\/accept$/.exec(path);
+        if (stage1On && acceptInvitation && method === "POST") {
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const result = acceptOperatorInvitation(nodeOperatorSql(db), {
+              id: acceptInvitation[1],
+              userId: u.id,
+              email: u.email,
+              publicId: randomUUID(),
+              now: Date.now(),
+              auditId: randomBytes(16).toString("hex"),
+            });
+            db.exec("COMMIT");
+            return json(res, 200, result);
+          } catch (error) {
+            db.exec("ROLLBACK");
+            if (error instanceof InitialRegistrationError)
+              throw new HttpError(error.status, error.message);
+            throw error;
+          }
+        }
         if (stage1On && path === "/api/organizations" && method === "POST") {
           const input = JSON.parse((await body(req, 20_000)).toString());
           insist(
