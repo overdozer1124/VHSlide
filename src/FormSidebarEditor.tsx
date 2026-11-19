@@ -106,6 +106,8 @@ export function WorksheetSidebarEditor({
       labelCompact: kind === "checkbox" ? undefined : f.labelCompact,
       aggregatePublic:
         kind === "single" || kind === "multiple" ? f.aggregatePublic : undefined,
+      optionsVertical:
+        kind === "single" || kind === "multiple" ? f.optionsVertical : undefined,
       reason:
         kind === "single" || kind === "multiple" ? f.reason : undefined,
       orderAsListed: kind === "order" ? f.orderAsListed : undefined,
@@ -368,6 +370,20 @@ export function WorksheetSidebarEditor({
                         }
                       />{" "}
                       選択した理由を書く欄を追加
+                    </label>
+                  )}
+                  {(f.kind === "single" || f.kind === "multiple") && (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={!!f.optionsVertical}
+                        onChange={(e) =>
+                          editField(f.id, {
+                            optionsVertical: e.target.checked || undefined,
+                          })
+                        }
+                      />{" "}
+                      選択肢を縦に並べる
                     </label>
                   )}
                 </>

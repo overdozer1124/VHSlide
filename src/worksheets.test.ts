@@ -150,6 +150,51 @@ describe("worksheets", () => {
       }),
     ).toThrow();
   });
+  it("round-trips optionsVertical for choice fields and rejects it elsewhere", () => {
+    const sheet = worksheetTemplate("blank");
+    const choice = {
+      ...sheet.fields[0],
+      kind: "single" as const,
+      options: ["はい", "いいえ"],
+      optionsVertical: true,
+    };
+    const parsed = parseWorksheet({ ...sheet, fields: [choice] });
+    expect(parsed.fields[0].optionsVertical).toBe(true);
+    expect(parseWorksheet(parsed)).toEqual(parsed);
+    const multi = parseWorksheet({
+      ...sheet,
+      fields: [{ ...choice, kind: "multiple" as const }],
+    });
+    expect(multi.fields[0].optionsVertical).toBe(true);
+    const off = parseWorksheet({
+      ...sheet,
+      fields: [{ ...choice, optionsVertical: false }],
+    });
+    expect(off.fields[0].optionsVertical).toBeUndefined();
+    const plain = parseWorksheet({
+      ...sheet,
+      fields: [{ ...choice, optionsVertical: undefined }],
+    });
+    expect(plain.fields[0].optionsVertical).toBeUndefined();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...choice, kind: "text" as const, options: [] }],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...choice, kind: "order" as const }],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseWorksheet({
+        ...sheet,
+        fields: [{ ...choice, optionsVertical: "yes" as never }],
+      }),
+    ).toThrow();
+  });
   it("round-trips ordering fields and validates ordering answers", () => {
     const sheet = worksheetTemplate("blank");
     sheet.fields[0].kind = "order";

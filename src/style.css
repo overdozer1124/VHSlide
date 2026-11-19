@@ -7077,6 +7077,9 @@ h1 span {
 .radar-config-range input { width:100px; }
 .worksheet-field fieldset { display:flex;flex-wrap:wrap;gap:10px;border:1px solid #e4a36e;border-radius:8px;margin:0;padding:8px; }
 .worksheet-field fieldset label,.worksheet-check { display:flex;gap:10px;align-items:center; }
+.worksheet-field.options-vertical fieldset { flex-direction:column;flex-wrap:nowrap; }
+.worksheet-field.options-vertical fieldset label { align-items:flex-start; }
+.worksheet-field.options-vertical fieldset label input { margin-top:.2em; }
 .worksheet-check { min-height:42px;padding:8px;border:1px solid #e4a36e;border-radius:9px;background:#fffaf4; }
 .worksheet-fields input[type=checkbox],.worksheet-fields input[type=radio] { width:22px;height:22px;flex-shrink:0;accent-color:#dc8945; }
 .worksheet-score { background:#fff0d9;padding:10px;border-radius:9px;font-weight:700; }
