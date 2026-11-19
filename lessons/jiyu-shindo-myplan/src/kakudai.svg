@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360">
+<rect width="600" height="360" fill="#ffffff"/>
+<g font-family="IPAPGothic, sans-serif">
+<path d="M40 300 L180 300 L70 200 Z" fill="#e4ecff" stroke="#2b5fd9" stroke-width="4" stroke-linejoin="round"/>
+<path d="M280 300 L560 300 L340 100 Z" fill="#ffe8d6" stroke="#e0782f" stroke-width="4" stroke-linejoin="round"/>
+<g fill="none" stroke-width="3">
+<path d="M62 300 A22 22 0 0 0 58 287" stroke="#1f8a5b"/><path d="M302 300 A22 22 0 0 0 298 287" stroke="#1f8a5b"/>
+<path d="M158 300 A22 22 0 0 1 164 285" stroke="#c2417c"/><path d="M538 300 A22 22 0 0 1 544 285" stroke="#c2417c"/>
+</g>
+<text x="110" y="335" font-size="22" text-anchor="middle" fill="#1f2430">もとの図</text>
+<text x="420" y="335" font-size="22" text-anchor="middle" fill="#1f2430">2倍の拡大図</text>
+<text x="300" y="40" font-size="20" text-anchor="middle" fill="#5b6170">同じ色の角は、大きさが同じ</text>
+</g>
+</svg>

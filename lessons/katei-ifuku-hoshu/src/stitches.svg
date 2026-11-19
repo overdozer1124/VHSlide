@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330" font-family="IPAPGothic, sans-serif">
+<rect width="960" height="330" fill="#ffffff"/>
+<g font-size="24" font-weight="700" fill="#173a4a" text-anchor="middle">
+<text x="120" y="40">並縫い</text><text x="360" y="40">本返し縫い</text><text x="600" y="40">半返し縫い</text><text x="840" y="40">かがり縫い</text></g>
+<g fill="#f6fcff" stroke="#a9c9d6" stroke-width="2"><rect x="20" y="60" width="200" height="150" rx="8"/><rect x="260" y="60" width="200" height="150" rx="8"/><rect x="500" y="60" width="200" height="150" rx="8"/><rect x="740" y="60" width="200" height="150" rx="8"/></g>
+<g stroke="#1f8fbf" stroke-width="6" stroke-linecap="round">
+<path d="M40 135 h22 M84 135 h22 M128 135 h22 M172 135 h22" />
+<path d="M280 135 h160" />
+<path d="M520 135 h30 M562 135 h30 M604 135 h30 M646 135 h30" />
+</g>
+<line x1="740" y1="180" x2="940" y2="180" stroke="#173a4a" stroke-width="3"/>
+<g stroke="#1f8fbf" stroke-width="5" stroke-linecap="round" fill="none">
+<path d="M770 120 L790 180 M805 120 L825 180 M840 120 L860 180 M875 120 L895 180"/>
+<path d="M790 180 Q800 195 805 180 M825 180 Q835 195 840 180 M860 180 Q870 195 875 180" stroke-width="3"/></g>
+<text x="840" y="203" font-size="15" fill="#56707c" text-anchor="middle">布の端</text>
+<g font-size="18" fill="#56707c" text-anchor="middle">
+<text x="120" y="245">表と裏に同じ長さの</text><text x="120" y="270">縫い目が並ぶ</text>
+<text x="360" y="245">1針ずつ戻って縫う。</text><text x="360" y="270">いちばん丈夫</text>
+<text x="600" y="245">半針ずつ戻って縫う。</text><text x="600" y="270">並縫いより丈夫</text>
+<text x="840" y="245">布の端を巻くように縫い、</text><text x="840" y="270">ほつれを防ぐ</text></g>
+<text x="480" y="315" font-size="16" fill="#56707c" text-anchor="middle">（図は表から見た縫い目）</text>
+</svg>
