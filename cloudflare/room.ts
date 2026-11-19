@@ -604,6 +604,26 @@ export class SlideRoom extends DurableObject<Env> {
       return json({ state: toBase64(Y.encodeStateAsUpdate(this.doc())) });
     if (path === "/deck-json" && request.method === "GET")
       return json(readSharedDeck(this.doc()));
+    // The chart the host is currently showing the class (stage 4c):
+    // the directory builds the sanitized student payload from this,
+    // so the share never leaves the server side anywhere else.
+    if (path === "/internal/follow-share")
+      return json(
+        (() => {
+          const state = this.followState();
+          return state.active &&
+            state.target.mode === "thinking" &&
+            state.share
+            ? {
+                active: true,
+                shareId: state.target.shareId,
+                toolId: state.share.toolId,
+                owner: state.share.owner,
+                showNames: state.share.showNames,
+              }
+            : { active: false };
+        })(),
+      );
     if (
       path === "/live" &&
       request.headers.get("Upgrade")?.toLowerCase() === "websocket"

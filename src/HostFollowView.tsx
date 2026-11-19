@@ -9,11 +9,15 @@ import { useGroups } from "./GroupsContext";
 import { WebbingMini } from "./WebbingMini";
 import type { FollowTarget } from "./hostFollow";
 import { useFitCanvas } from "./useFitCanvas";
+import { ExpandedChart } from "./ThinkingResults";
+import type { ThinkingShareView, ThinkingView } from "./thinkingTools";
 export function HostFollowView({
   book,
+  deckId,
   state,
 }: {
   book: Deck;
+  deckId: string;
   state: Extract<PublicFollowState, { active: true }>;
 }) {
   const activity = useActivityPanel();
@@ -64,6 +68,8 @@ export function HostFollowView({
         <FollowMap book={book} state={state} />
       ) : state.target.mode === "group" ? (
         <FollowGroupMap target={state.target} presenting={presenting} />
+      ) : state.target.mode === "thinking" ? (
+        <FollowThinkingChart deckId={deckId} shareId={state.target.shareId} />
       ) : (
         <FollowPage page={page} presenting={presenting} />
       )}
@@ -143,6 +149,92 @@ function FollowGroupMap({
       <div className="host-follow-group-stage">
         <WebbingMini nodes={nodes} large />
       </div>
+    </div>
+  );
+}
+/** The host is showing one student's (or group's) thinking chart
+ * to the whole class: fetched from the share endpoint, which serves
+ * a sanitized payload (no ids, no authors) only while the share is
+ * live. Viewing only — nothing here writes. */
+function FollowThinkingChart({
+  deckId,
+  shareId,
+}: {
+  deckId: string;
+  shareId?: string;
+}) {
+  const [view, setView] = useState<ThinkingShareView | null>(null);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/decks/${deckId}/thinking-share?share=${encodeURIComponent(shareId ?? "")}`,
+        );
+        if (!live) return;
+        if (res.ok) {
+          const data = (await res.json()) as { share: ThinkingShareView };
+          setView(data.share);
+          setGone(false);
+        } else setGone(true);
+      } catch {
+        // Keep the last chart on a transient failure.
+      }
+    };
+    void load();
+    const timer = setInterval(load, 10_000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [deckId, shareId]);
+  if (!view)
+    return (
+      <div className="host-follow-wait" role="status">
+        {gone
+          ? "見せているチャートはありません。"
+          : "チャートを読み込んでいます…"}
+      </div>
+    );
+  const tool: ThinkingView = {
+    id: "",
+    kind: "board",
+    unit: view.unit,
+    template: view.template,
+    definition: view.definition,
+    status: "open",
+    scene: "",
+    created: 0,
+    points: [],
+    locks: [],
+    cards: view.cards.map((c, i) => ({
+      id: `share-${i}`,
+      owner: "",
+      zone: c.zone,
+      text: c.text,
+      color: c.color,
+      x: 0.5,
+      y: 0.5,
+      sort: c.sort,
+      authorId: "",
+      authorName: "",
+      mine: false,
+      created: c.created,
+      updated: c.created,
+    })),
+  };
+  return (
+    <div className="host-follow-thinking">
+      <ExpandedChart
+        tool={tool}
+        cards={tool.cards}
+        label={view.label}
+        colorLabel={(color) =>
+          view.definition.cardColors.find((c) => c.color === color)?.label ??
+          ""
+        }
+      />
     </div>
   );
 }

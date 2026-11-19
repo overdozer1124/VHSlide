@@ -1,5 +1,9 @@
 import { idleFollow, isPublicFollowState } from "./hostFollow";
-import type { PublicFollowState, FollowTarget } from "./hostFollow";
+import type {
+  PublicFollowState,
+  FollowTarget,
+  FollowShare,
+} from "./hostFollow";
 import type { CloudSaveSnapshot } from "./saveState";
 import { COLLABORATION_PROTOCOL } from "./collaborationProtocol.ts";
 import type { JoinState } from "./joinRequests";
@@ -180,6 +184,7 @@ export class CloudWorkspace {
   private followCommand(
     action: "start" | "move" | "stop" | "heartbeat" | "pin" | "resume",
     target?: FollowTarget,
+    share?: FollowShare,
   ): Promise<void> {
     if (
       !this.isHost ||
@@ -206,6 +211,7 @@ export class CloudWorkspace {
           action,
           ...(this.follow.active ? { sessionId: this.follow.sessionId } : {}),
           ...(target ? { target } : {}),
+          ...(share ? { share } : {}),
           presenting: this.followPresenting,
         }),
       );
@@ -220,22 +226,22 @@ export class CloudWorkspace {
       ? this.followCommand("heartbeat")
       : Promise.resolve();
   }
-  startFollow(target: FollowTarget) {
-    return this.followCommand("start", target);
+  startFollow(target: FollowTarget, share?: FollowShare) {
+    return this.followCommand("start", target, share);
   }
   stopFollow() {
     return this.followCommand("stop");
   }
-  moveFollow(target: FollowTarget) {
+  moveFollow(target: FollowTarget, share?: FollowShare) {
     return this.drivesFollow
-      ? this.followCommand("move", target)
+      ? this.followCommand("move", target, share)
       : Promise.resolve();
   }
   pinFollow() {
     return this.followCommand("pin");
   }
-  resumeFollow(target: FollowTarget) {
-    return this.followCommand("resume", target);
+  resumeFollow(target: FollowTarget, share?: FollowShare) {
+    return this.followCommand("resume", target, share);
   }
   available = false;
   clientId = "";

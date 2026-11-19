@@ -6,6 +6,7 @@ import {
   thinkingSchema,
   thinkingList,
   thinkingCommand,
+  thinkingShareView,
   parseThinkingDefinition,
   templateKind,
   thinkingOwnerLabels,
@@ -757,3 +758,136 @@ function thinkingGroups(sql: HistorySQL): string[] {
     (r) => r.id as string,
   );
 }
+
+describe("thinking share view (stage 4c)", () => {
+  it("labels by roster number, names only on request, and strips every id", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql, { unit: "individual" });
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "あなの考え",
+      color: "yellow",
+    });
+    thinkingCommand(sql, "deck", "bob", false, "card", id, {
+      zone: "b",
+      text: "ぼぶの考え",
+      color: "yellow",
+    });
+    const anon = thinkingShareView(sql, "deck", id, "ana", false, "host");
+    expect(anon?.label).toBe("生徒1");
+    expect(anon?.cards).toHaveLength(1);
+    expect(anon?.cards[0].text).toBe("あなの考え");
+    // Nothing a student could identify anyone with: no ids, no
+    // owner, no author anywhere in the payload.
+    const raw = JSON.stringify(anon);
+    expect(raw).not.toContain("ana");
+    expect(raw).not.toContain("author");
+    expect(Object.keys(anon!.cards[0]).sort()).toEqual([
+      "color",
+      "created",
+      "sort",
+      "text",
+      "zone",
+    ]);
+    const named = thinkingShareView(sql, "deck", id, "ana", true, "host");
+    expect(named?.label).toBe("あな");
+    const second = thinkingShareView(sql, "deck", id, "bob", false, "host");
+    expect(second?.label).toBe("生徒2");
+  });
+  it("labels a class board 全員 and refuses point tools", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql);
+    open(sql, id);
+    expect(thinkingShareView(sql, "deck", id, "", false, "host")?.label).toBe(
+      "全員",
+    );
+    const points = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "axis2",
+      unit: "individual",
+      definition: axisDef,
+    });
+    expect(
+      thinkingShareView(sql, "deck", points!.createdId!, "ana", false, "host"),
+    ).toBeUndefined();
+    expect(
+      thinkingShareView(sql, "deck", "missing", "ana", false, "host"),
+    ).toBeUndefined();
+  });
+  it("names the owner even when the teacher wrote on the chart first (🔴1)", () => {
+    const { sql } = fixture();
+    const id = createBoard(sql, { unit: "individual" });
+    open(sql, id);
+    // The teacher writes on ana's chart BEFORE ana writes anything.
+    thinkingCommand(sql, "deck", "host", true, "card", id, {
+      zone: "a",
+      text: "先生の書き込み",
+      color: "yellow",
+      owner: "ana",
+    });
+    thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "あなの考え",
+      color: "yellow",
+    });
+    const named = thinkingShareView(sql, "deck", id, "ana", true, "host");
+    expect(named?.label).toBe("あな");
+    expect(named?.cards).toHaveLength(2);
+    const anon = thinkingShareView(sql, "deck", id, "ana", false, "host");
+    expect(anon?.label).toBe("生徒1");
+    // The host view resolves owner names from the owners themselves.
+    const hostView = thinkingList(sql, "deck", "host", true, {
+      board: true,
+    })[0];
+    expect(hostView.ownerNames?.ana).toBe("あな");
+    expect(hostView.ownerNames?.host).toBe("先生");
+    // Students never receive the name map.
+    const studentView = thinkingList(sql, "deck", "ana", false, {
+      board: true,
+    })[0];
+    expect(studentView.ownerNames).toBeUndefined();
+  });
+  it("numbers students from the deck owner's roster even for a co-teacher (🟡1)", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE decks(id TEXT PRIMARY KEY, owner TEXT); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT); CREATE TABLE members(deck TEXT, user_id TEXT)",
+    );
+    db.exec(groupSchema);
+    db.exec(thinkingSchema);
+    db.prepare("INSERT INTO decks VALUES(?,?)").run("deck", "host");
+    for (const [id, name] of [
+      ["host", "先生"],
+      ["co", "共同の先生"],
+      ["ana", "あな"],
+      ["bob", "ぼぶ"],
+    ])
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+    // The co-teacher is not a member row (they join through sharing),
+    // which is exactly the case that used to shift the numbers: the
+    // old gallery roster dropped the VIEWER (absent here, so the
+    // deck owner stayed in and pushed every student down by one).
+    for (const id of ["host", "ana", "bob"])
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...args);
+    const id = createBoard(sql, { unit: "individual" });
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "card", id, {
+      zone: "a",
+      text: "あなの考え",
+      color: "yellow",
+    });
+    // A co-teacher's host view: the roster drops the deck owner,
+    // not the viewer, so ana is 生徒1 — the same number the class
+    // share (keyed on the deck owner) produces.
+    const coView = thinkingList(sql, "deck", "co", true, {
+      board: true,
+    })[0];
+    expect(coView.roster).toEqual(["ana", "bob"]);
+    expect(
+      thinkingOwnerLabels(["ana"], () => undefined, false, coView.roster),
+    ).toEqual([{ owner: "ana", label: "生徒1" }]);
+    const shared = thinkingShareView(sql, "deck", id, "ana", false, "host");
+    expect(shared?.label).toBe("生徒1");
+  });
+});

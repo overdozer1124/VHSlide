@@ -20,6 +20,7 @@ import {
   thinkingSchema,
   thinkingList,
   thinkingCommand,
+  thinkingShareView,
   ThinkingError,
 } from "../src/thinkingTools.ts";
 import {
@@ -2352,6 +2353,30 @@ export function createApplication(options: Options) {
           return json(res, 200, {
             record: myLearningRecord(historySQL, deck, id, u.id),
           });
+        }
+        if (extra === "thinking-share") {
+          insist(method === "GET", 405, "この操作には対応していません。");
+          const current = member(id, u);
+          const follow = expireFollow(room(id).follow ?? idleFollow());
+          insist(
+            follow.active &&
+              follow.target.mode === "thinking" &&
+              follow.target.shareId ===
+                (url.searchParams.get("share") ?? "") &&
+              !!follow.share,
+            404,
+            "いま見せているチャートはありません。",
+          );
+          const view = thinkingShareView(
+            historySQL,
+            id,
+            follow.share!.toolId,
+            follow.share!.owner,
+            follow.share!.showNames,
+            current.owner,
+          );
+          insist(view, 404, "いま見せているチャートはありません。");
+          return json(res, 200, { share: view });
         }
         if (extra === "prev-answer") {
           insist(method === "GET", 405, "この操作には対応していません。");
