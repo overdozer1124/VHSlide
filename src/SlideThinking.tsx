@@ -7,6 +7,8 @@ import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
   XCHART_CENTER,
+  curveKey,
+  splitCurveKey,
   thinkingOwnerLabels,
   zoneAtPoint,
 } from "./thinkingTools";
@@ -90,7 +92,11 @@ export function SlideThinking(props: {
         tool.kind === "board" ? (
           <BoardSurface tool={tool} interactive={!!props.interactive} />
         ) : tool.kind === "point" ? (
-          <ThinkingSurface tool={tool} interactive={!!props.interactive} />
+          tool.template === "curve" ? (
+            <CurveSurface tool={tool} interactive={!!props.interactive} />
+          ) : (
+            <ThinkingSurface tool={tool} interactive={!!props.interactive} />
+          )
         ) : (
           <div className="webbing-unavailable">
             <p>このツールは、新しい版のVHSlideで開いてください。</p>
@@ -419,6 +425,506 @@ function ThinkingSurface({
           <button type="button" onClick={() => void clearPoint()}>
             この場面の点を消す
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const CURVE_LINE_COLORS = ["#e2703a", "#3a7bd5", "#3aa655"];
+export const curveLineColor = (index: number) =>
+  CURVE_LINE_COLORS[index % CURVE_LINE_COLORS.length];
+
+/** The emotion curve （心情曲線）: one point per story scene, joined
+ * into a line per character. Points live in the ordinary point rows
+ * under the composed key "sceneId:lineId". Students edit the line
+ * chosen in the tab row; the host's slide overlays everyone's lines
+ * (names and focus follow the point-tool host bar convention). */
+function CurveSurface({
+  tool,
+  interactive,
+}: {
+  tool: ThinkingView;
+  interactive: boolean;
+}) {
+  const ctx = useThinking();
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const myOwner =
+    tool.unit === "group"
+      ? (tool.myGroupId ?? "")
+      : tool.unit === "class"
+        ? ""
+        : (ctx.userId ?? "");
+  const [lineSel, setLineSel] = useState("");
+  const lineId = def.lines.some((l) => l.id === lineSel)
+    ? lineSel
+    : (def.lines[0]?.id ?? "");
+  const [selected, setSelected] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, number>>({});
+  const [reasonDraft, setReasonDraft] = useState<string | undefined>(
+    undefined,
+  );
+  const [notice, setNotice] = useState("");
+  const [focusOwner, setFocusOwner] = useState("");
+  const [showNames, setShowNames] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const dragKey = useRef("");
+  const canEdit =
+    interactive &&
+    tool.status === "open" &&
+    (tool.unit !== "group" || !!tool.myGroupId || !ctx.host) &&
+    !(ctx.host && tool.unit === "group");
+  // Points on scenes/lines the teacher later removed from the
+  // definition stay stored but are not shown (design review 🟡1).
+  const validKeys = new Set(
+    def.scenes.flatMap((s) => def.lines.map((l) => curveKey(s.id, l.id))),
+  );
+  const visiblePoints = tool.points.filter((p) => validKeys.has(p.scene));
+  const myPoints = visiblePoints.filter((p) => p.owner === myOwner);
+  const myByKey = new Map(myPoints.map((p) => [p.scene, p]));
+  const selectedPoint = selected ? myByKey.get(selected) : undefined;
+  const shownReason = reasonDraft ?? selectedPoint?.reason ?? "";
+  // Drop a draft once the server value matches it.
+  useEffect(() => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const [key, v] of Object.entries(prev)) {
+        const p = myByKey.get(key);
+        if (p && p.value.v === v) {
+          delete next[key];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool.points]);
+  useEffect(() => {
+    setReasonDraft(undefined);
+  }, [selected, tool.id]);
+
+  async function commitPoint(key: string, v: number, reason?: string) {
+    const existing = myByKey.get(key);
+    try {
+      await ctx.command(tool.id, "point", {
+        scene: key,
+        value: { v },
+        reason: reason ?? existing?.reason ?? "",
+        ...(tool.unit === "group" ? { owner: myOwner } : {}),
+      });
+      setNotice("");
+    } catch (e) {
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      if ((e as { status?: number }).status === 409)
+        setNotice((e as Error).message);
+    }
+  }
+  const commitRef = useRef(commitPoint);
+  commitRef.current = commitPoint;
+  const keyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  function commitKeys(key: string, v: number) {
+    setDrafts((prev) => ({ ...prev, [key]: v }));
+    if (keyTimer.current) clearTimeout(keyTimer.current);
+    keyTimer.current = setTimeout(
+      () => void commitRef.current(key, v),
+      500,
+    );
+  }
+  // The one-line note autosaves shortly after typing stops.
+  useEffect(() => {
+    if (reasonDraft === undefined || !selected) return;
+    if (reasonDraft === (selectedPoint?.reason ?? "")) return;
+    const v = drafts[selected] ?? selectedPoint?.value.v;
+    if (v === undefined) return;
+    const t = setTimeout(
+      () => void commitRef.current(selected, v, reasonDraft),
+      900,
+    );
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reasonDraft, selected]);
+  async function clearPoint(key: string) {
+    try {
+      await ctx.command(tool.id, "clear", {
+        scene: key,
+        ...(tool.unit === "group" ? { owner: myOwner } : {}),
+      });
+      setSelected("");
+    } catch {
+      /* the fresh list shows the outcome */
+    }
+  }
+  function fromEvent(e: ReactPointerEvent): { key: string; v: number } {
+    const rect = plotRef.current!.getBoundingClientRect();
+    const fx = clamp01((e.clientX - rect.left) / rect.width);
+    const fy = clamp01((e.clientY - rect.top) / rect.height);
+    const index = Math.min(
+      def.scenes.length - 1,
+      Math.floor(fx * def.scenes.length),
+    );
+    return {
+      key: curveKey(def.scenes[index].id, lineId),
+      v: Math.round((1 - fy) * 100) / 100,
+    };
+  }
+  const lockOf = (key: string) =>
+    tool.locks.find(
+      (l) => l.owner === myOwner && l.scene === key && l.expires > nowTick,
+    );
+  const selectedLock = selected ? lockOf(selected) : undefined;
+  const selectedLockedByOther =
+    !!selectedLock && selectedLock.userId !== ctx.userId;
+
+  if (tool.unit === "group" && !tool.myGroupId && !ctx.host) {
+    return (
+      <div className="thinking-join">
+        <p>この思考ツールは班ごとに書き込みます。班に入ってください。</p>
+        <div className="thinking-join-buttons">
+          {groupsCtx.groups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => void groupsCtx.command("join", { groupId: g.id })}
+            >
+              {g.name}に入る
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const xOf = (sceneId: string) =>
+    ((def.scenes.findIndex((s) => s.id === sceneId) + 0.5) /
+      def.scenes.length) *
+    100;
+  const linePoints = (
+    points: ThinkingPoint[],
+    owner: string,
+    line: string,
+  ): { x: number; y: number; key: string; point: ThinkingPoint }[] =>
+    points
+      .filter((p) => {
+        if (p.owner !== owner) return false;
+        const parts = splitCurveKey(p.scene);
+        return parts?.lineId === line;
+      })
+      .map((p) => ({
+        x: xOf(splitCurveKey(p.scene)!.sceneId),
+        y: (1 - (p.value.v ?? 0)) * 100,
+        key: p.scene,
+        point: p,
+      }))
+      .sort((a, b) => a.x - b.x);
+  const polyline = (pts: { x: number; y: number }[]) =>
+    pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const otherOwners = ctx.host
+    ? [...new Set(visiblePoints.map((p) => p.owner))].filter(
+        (o) => o !== myOwner,
+      )
+    : [];
+  const ownerLabels = thinkingOwnerLabels(
+    otherOwners,
+    (owner) => tool.ownerNames?.[owner] || undefined,
+    showNames,
+    tool.roster,
+  );
+
+  return (
+    <div className="thinking-body">
+      {def.lines.length > 1 && (
+        <div
+          className="thinking-scenes"
+          role="tablist"
+          aria-label="線（登場人物）"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {def.lines.map((l, i) => (
+            <button
+              key={l.id}
+              type="button"
+              role="tab"
+              aria-selected={l.id === lineId}
+              className={l.id === lineId ? "is-active" : ""}
+              onClick={() => setLineSel(l.id)}
+            >
+              <span
+                className="thinking-curve-dot"
+                style={{ background: curveLineColor(i) }}
+              />
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {ctx.host && interactive && (
+        <div
+          className="thinking-hostbar"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <span className="thinking-hostbar-label">表示</span>
+          <button
+            type="button"
+            className={!focusOwner ? "is-active" : ""}
+            onClick={() => setFocusOwner("")}
+          >
+            全員
+          </button>
+          {ownerLabels.map((o) => (
+            <button
+              key={o.owner}
+              type="button"
+              className={focusOwner === o.owner ? "is-active" : ""}
+              onClick={() => setFocusOwner(o.owner)}
+            >
+              {o.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowNames((v) => !v)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        </div>
+      )}
+      <div className="thinking-curve">
+        <div className="thinking-curve-ylabels" aria-hidden="true">
+          <span>{def.yMax}</span>
+          <span>{def.yMin}</span>
+        </div>
+        <div className="thinking-curve-main">
+          <div
+            ref={plotRef}
+            className={`thinking-curve-plot ${canEdit ? "is-editable" : ""}`}
+            role={canEdit ? "application" : undefined}
+            aria-label={def.title}
+            onPointerDown={(e) => {
+              if (!canEdit) return;
+              e.stopPropagation();
+              const { key, v } = fromEvent(e);
+              if (lockOf(key)?.userId && lockOf(key)?.userId !== ctx.userId)
+                return;
+              dragKey.current = key;
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+              if (tool.unit === "group")
+                void ctx
+                  .command(tool.id, "lock", { scene: key, owner: myOwner })
+                  .catch(() => {});
+              setSelected(key);
+              setDrafts((prev) => ({ ...prev, [key]: v }));
+            }}
+            onPointerMove={(e) => {
+              if (!dragKey.current || !canEdit) return;
+              const { key, v } = fromEvent(e);
+              if (key === dragKey.current)
+                setDrafts((prev) => ({ ...prev, [key]: v }));
+            }}
+            onPointerUp={(e) => {
+              if (!dragKey.current) return;
+              const key = dragKey.current;
+              dragKey.current = "";
+              const { v } = fromEvent(e);
+              if (canEdit) void commitPoint(key, v);
+            }}
+          >
+            {def.scenes.map((s) => (
+              <span
+                key={s.id}
+                className="thinking-curve-grid"
+                style={{ left: `${xOf(s.id)}%` }}
+              />
+            ))}
+            <span className="thinking-curve-grid is-mid" />
+            <svg
+              className="thinking-curve-lines"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              {ctx.host &&
+                otherOwners.map((owner) =>
+                  def.lines.map((l) => {
+                    const pts = linePoints(visiblePoints, owner, l.id);
+                    if (pts.length < 2) return null;
+                    const dim = focusOwner && focusOwner !== owner;
+                    return (
+                      <polyline
+                        key={`${owner}:${l.id}`}
+                        points={polyline(pts)}
+                        stroke={`hsl(${ownerHue(owner)} 60% 55%)`}
+                        strokeWidth={focusOwner === owner ? 1.6 : 0.7}
+                        opacity={dim ? 0.08 : focusOwner ? 0.9 : 0.35}
+                      />
+                    );
+                  }),
+                )}
+              {def.lines.map((l, li) => {
+                const pts = linePoints(myPoints, myOwner, l.id).map(
+                  (p) => ({
+                    ...p,
+                    y:
+                      drafts[p.key] !== undefined
+                        ? (1 - drafts[p.key]) * 100
+                        : p.y,
+                  }),
+                );
+                if (pts.length < 2) return null;
+                return (
+                  <polyline
+                    key={l.id}
+                    points={polyline(pts)}
+                    stroke={curveLineColor(li)}
+                    strokeWidth={l.id === lineId ? 1.4 : 0.8}
+                    opacity={l.id === lineId ? 1 : 0.55}
+                  />
+                );
+              })}
+            </svg>
+            {ctx.host &&
+              otherOwners.map((owner) =>
+                visiblePoints
+                  .filter((p) => p.owner === owner)
+                  .map((p) => {
+                    const parts = splitCurveKey(p.scene);
+                    if (!parts) return null;
+                    const dim = focusOwner && focusOwner !== owner;
+                    return (
+                      <span
+                        key={`${owner}:${p.scene}`}
+                        className="thinking-point is-other"
+                        style={{
+                          left: `${xOf(parts.sceneId)}%`,
+                          top: `${(1 - (p.value.v ?? 0)) * 100}%`,
+                          background: `hsl(${ownerHue(owner)} 60% 55%)`,
+                          opacity: dim ? 0.15 : 0.75,
+                        }}
+                      />
+                    );
+                  }),
+              )}
+            {myPoints.map((p) => {
+              const parts = splitCurveKey(p.scene);
+              if (!parts) return null;
+              const v = drafts[p.scene] ?? p.value.v ?? 0;
+              const isActive = parts.lineId === lineId;
+              const style = {
+                left: `${xOf(parts.sceneId)}%`,
+                top: `${(1 - v) * 100}%`,
+                background: curveLineColor(
+                  def.lines.findIndex((l) => l.id === parts.lineId),
+                ),
+              };
+              return canEdit && isActive ? (
+                <button
+                  key={p.scene}
+                  type="button"
+                  className={`thinking-point is-mine ${selected === p.scene ? "is-selected" : ""}`}
+                  style={style}
+                  aria-label={`${def.scenes.find((s) => s.id === parts.sceneId)?.label ?? ""}の点（矢印キーで動かせます）`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setSelected(p.scene)}
+                  onKeyDown={(e) => {
+                    const step = e.shiftKey ? 0.1 : 0.02;
+                    let next: number | undefined;
+                    if (e.key === "ArrowUp") next = clamp01(v + step);
+                    if (e.key === "ArrowDown") next = clamp01(v - step);
+                    if (next !== undefined) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelected(p.scene);
+                      commitKeys(p.scene, Math.round(next * 100) / 100);
+                    }
+                  }}
+                />
+              ) : (
+                <span
+                  key={p.scene}
+                  className="thinking-point is-mine"
+                  style={{ ...style, opacity: isActive ? 1 : 0.55 }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    setSelected(p.scene);
+                    if (isActive) return;
+                    setLineSel(parts.lineId);
+                  }}
+                />
+              );
+            })}
+            {!myPoints.length && canEdit && (
+              <span className="thinking-hint">
+                場面の列をタップして、気持ちの点を置こう
+              </span>
+            )}
+          </div>
+          <div className="thinking-curve-scenes" aria-hidden="true">
+            {def.scenes.map((s) => (
+              <span key={s.id}>{s.label}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+      {selectedLockedByOther && (
+        <p className="thinking-lock-note">
+          {selectedLock?.name}さんが編集中です
+        </p>
+      )}
+      {notice && <p className="thinking-lock-note">{notice}</p>}
+      {selected && (selectedPoint || drafts[selected] !== undefined) && (
+        <div
+          className="thinking-reason"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <label>
+            {(() => {
+              const parts = splitCurveKey(selected);
+              const sceneLabel = def.scenes.find(
+                (s) => s.id === parts?.sceneId,
+              )?.label;
+              const lineLabel = def.lines.find(
+                (l) => l.id === parts?.lineId,
+              )?.label;
+              return `${sceneLabel ?? ""}${lineLabel ? `・${lineLabel}` : ""}の一言`;
+            })()}
+            <textarea
+              aria-label="一言"
+              value={shownReason}
+              disabled={!canEdit}
+              maxLength={200}
+              rows={2}
+              placeholder="この場面の気持ちを一言で書こう"
+              onChange={(e) => setReasonDraft(e.target.value)}
+              onBlur={() => {
+                const v = drafts[selected] ?? selectedPoint?.value.v;
+                if (v !== undefined && reasonDraft !== undefined)
+                  void commitPoint(selected, v, reasonDraft);
+              }}
+            />
+          </label>
+          {canEdit && selectedPoint && (
+            <div className="thinking-actions">
+              <button
+                type="button"
+                onClick={() => void clearPoint(selected)}
+              >
+                この点を消す
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

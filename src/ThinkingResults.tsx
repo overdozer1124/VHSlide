@@ -9,8 +9,10 @@ import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
   XCHART_CENTER,
+  splitCurveKey,
   thinkingOwnerLabels,
 } from "./thinkingTools";
+import { curveLineColor } from "./SlideThinking";
 import { useGroups } from "./GroupsContext";
 import { csvCell } from "./surveyCsv";
 import { ThinkingThumbBoard } from "./ThinkingThumbBoard";
@@ -61,6 +63,7 @@ export function ThinkingResults({
         onShowChart={onShowChart}
       />
     );
+  if (tool.template === "curve") return <CurveResults tool={tool} />;
   return <PointResults tool={tool} />;
 }
 
@@ -509,6 +512,289 @@ export function ExpandedChart({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+
+/** Console results for the emotion curve: every student's line for
+ * the chosen character overlaid, the class average line, one
+ * student's per-scene values and notes, and a CSV export. */
+function CurveResults({ tool }: { tool: ThinkingView }) {
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const [lineSel, setLineSel] = useState("");
+  const lineId = def.lines.some((l) => l.id === lineSel)
+    ? lineSel
+    : (def.lines[0]?.id ?? "");
+  const lineIdx = Math.max(
+    0,
+    def.lines.findIndex((l) => l.id === lineId),
+  );
+  const [showAverage, setShowAverage] = useState(true);
+  const [owner, setOwner] = useState("");
+  const nameOfOwner = (ownerId: string): string => {
+    // Never show a raw user/group id (design review 🟡3).
+    if (tool.unit === "group")
+      return groupsCtx.groups.find((g) => g.id === ownerId)?.name ?? "班名なし";
+    return (
+      tool.ownerNames?.[ownerId] ||
+      tool.points.find((p) => p.owner === ownerId)?.authorName ||
+      "名前未登録"
+    );
+  };
+  // Points on scenes/lines removed from the definition are kept
+  // in storage but leave the results and the CSV (design review 🟡1).
+  const visiblePoints = tool.points.filter((p) => {
+    const parts = splitCurveKey(p.scene);
+    return (
+      !!parts &&
+      def.scenes.some((s) => s.id === parts.sceneId) &&
+      def.lines.some((l) => l.id === parts.lineId)
+    );
+  });
+  const owners = [...new Set(visiblePoints.map((p) => p.owner))];
+  const xOf = (sceneId: string) =>
+    ((def.scenes.findIndex((s) => s.id === sceneId) + 0.5) /
+      def.scenes.length) *
+    100;
+  const pointsOf = (ownerId: string) =>
+    visiblePoints
+      .filter((p) => {
+        if (p.owner !== ownerId) return false;
+        return splitCurveKey(p.scene)?.lineId === lineId;
+      })
+      .map((p) => ({
+        point: p,
+        x: xOf(splitCurveKey(p.scene)!.sceneId),
+        y: (1 - (p.value.v ?? 0)) * 100,
+      }))
+      .sort((a, b) => a.x - b.x);
+  const average = def.scenes
+    .map((s) => {
+      const vs = owners
+        .map(
+          (o) =>
+            visiblePoints.find(
+              (p) => p.owner === o && p.scene === `${s.id}:${lineId}`,
+            )?.value.v,
+        )
+        .filter((v): v is number => v !== undefined);
+      return vs.length
+        ? {
+            x: xOf(s.id),
+            y: (1 - vs.reduce((a, b) => a + b, 0) / vs.length) * 100,
+          }
+        : undefined;
+    })
+    .filter((p): p is { x: number; y: number } => !!p);
+  const polyline = (pts: { x: number; y: number }[]) =>
+    pts.map((p) => `${p.x},${p.y}`).join(" ");
+  function downloadCsv() {
+    const rows = [
+      ["名前・班", "場面", "線", "値", "一言"].map(csvCell).join(","),
+    ];
+    for (const p of visiblePoints) {
+      const parts = splitCurveKey(p.scene);
+      if (!parts) continue;
+      rows.push(
+        [
+          nameOfOwner(p.owner),
+          def.scenes.find((s) => s.id === parts.sceneId)?.label ??
+            parts.sceneId,
+          def.lines.find((l) => l.id === parts.lineId)?.label ??
+            parts.lineId,
+          pct(p.value.v ?? 0),
+          p.reason,
+        ]
+          .map(csvCell)
+          .join(","),
+      );
+    }
+    const blob = new Blob(["\ufeff" + rows.join("\r\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${def.title || "思考ツール"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  const detail = owner
+    ? def.scenes.map((s) => ({
+        scene: s,
+        point: visiblePoints.find(
+          (p) => p.owner === owner && p.scene === `${s.id}:${lineId}`,
+        ),
+      }))
+    : [];
+  const countFor = (sceneId: string) =>
+    owners.filter((o) =>
+      visiblePoints.some(
+        (p) => p.owner === o && p.scene === `${sceneId}:${lineId}`,
+      ),
+    ).length;
+  return (
+    <div className="thinking-results">
+      <div className="thinking-results-head">
+        <div
+          className="thinking-scenes"
+          role="tablist"
+          aria-label="線（登場人物）"
+        >
+          {def.lines.map((l, i) => (
+            <button
+              key={l.id}
+              type="button"
+              role="tab"
+              aria-selected={l.id === lineId}
+              className={l.id === lineId ? "is-active" : ""}
+              onClick={() => setLineSel(l.id)}
+            >
+              <span
+                className="thinking-curve-dot"
+                style={{ background: curveLineColor(i) }}
+              />
+              {l.label}
+            </button>
+          ))}
+        </div>
+        <label className="thinking-check">
+          <input
+            type="checkbox"
+            checked={showAverage}
+            onChange={(e) => setShowAverage(e.target.checked)}
+          />
+          クラスの平均の線
+        </label>
+        <button type="button" onClick={downloadCsv}>
+          CSVで保存
+        </button>
+        <span className="thinking-results-count">
+          {owners.length}人が書き込み
+        </span>
+      </div>
+      <div className="thinking-curve">
+        <div className="thinking-curve-ylabels" aria-hidden="true">
+          <span>{def.yMax}</span>
+          <span>{def.yMin}</span>
+        </div>
+        <div className="thinking-curve-main">
+          <div className="thinking-curve-plot is-results" aria-label="全員の線">
+            {def.scenes.map((s) => (
+              <span
+                key={s.id}
+                className="thinking-curve-grid"
+                style={{ left: `${xOf(s.id)}%` }}
+              />
+            ))}
+            <span className="thinking-curve-grid is-mid" />
+            <svg
+              className="thinking-curve-lines"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              {owners.map((o) => {
+                const pts = pointsOf(o);
+                if (pts.length < 2) return null;
+                const focused = owner === o;
+                return (
+                  <polyline
+                    key={o}
+                    points={polyline(pts)}
+                    stroke={`hsl(${ownerHue(o)} 60% 50%)`}
+                    strokeWidth={focused ? 1.8 : 0.7}
+                    opacity={owner && !focused ? 0.12 : focused ? 1 : 0.4}
+                  />
+                );
+              })}
+              {showAverage && average.length >= 2 && (
+                <polyline
+                  points={polyline(average)}
+                  stroke={curveLineColor(lineIdx)}
+                  strokeWidth={2}
+                  strokeDasharray="3 1.6"
+                  opacity={0.95}
+                />
+              )}
+            </svg>
+            {owners.map((o) =>
+              pointsOf(o).map(({ point, x, y }) => (
+                <span
+                  key={`${o}:${point.scene}`}
+                  className="thinking-point is-other"
+                  style={{
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    background: `hsl(${ownerHue(o)} 60% 50%)`,
+                    opacity: owner && owner !== o ? 0.15 : 0.8,
+                  }}
+                />
+              )),
+            )}
+          </div>
+          <div className="thinking-curve-scenes" aria-hidden="true">
+            {def.scenes.map((s) => (
+              <span key={s.id}>{s.label}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <p className="thinking-curve-counts">
+        場面ごとの回答人数（平均は点を置いた人だけで計算）：
+        {def.scenes.map((s) => (
+          <span key={s.id}>
+            {s.label} {countFor(s.id)}人
+          </span>
+        ))}
+      </p>
+      <div className="thinking-hostbar" role="group" aria-label="生徒を選ぶ">
+        <span className="thinking-hostbar-label">生徒</span>
+        <button
+          type="button"
+          className={!owner ? "is-active" : ""}
+          onClick={() => setOwner("")}
+        >
+          全員
+        </button>
+        {owners.map((o) => (
+          <button
+            key={o}
+            type="button"
+            className={owner === o ? "is-active" : ""}
+            onClick={() => setOwner(o)}
+          >
+            {nameOfOwner(o)}
+          </button>
+        ))}
+      </div>
+      {owner && (
+        <ul className="thinking-curve-detail">
+          {detail.map(({ scene, point }) => (
+            <li key={scene.id}>
+              <span className="thinking-curve-detail-scene">
+                {scene.label}
+              </span>
+              {point ? (
+                <>
+                  <span>{pct(point.value.v ?? 0)}</span>
+                  {point.reason && (
+                    <span className="thinking-curve-detail-reason">
+                      {point.reason}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="thinking-curve-detail-empty">
+                  まだ置いていません
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -60,7 +60,12 @@ export function PrevAnswerCreator({
   const toolList = useMemo(
     () =>
       thinking.tools.filter(
-        (t) => t.kind === "point" && t.status !== "draft",
+        (t) =>
+          t.kind === "point" &&
+          t.status !== "draft" &&
+          // The emotion curve cannot be a source (its points are
+          // per scene × line); the server refuses it too.
+          t.template !== "curve",
       ),
     [thinking.tools],
   );
