@@ -49,10 +49,9 @@ L1 = lesson(1, "蓬莱の玉の枝 ― 古文を音読しよう", "第1時 古�
                  "clues": ["①歴史的仮名遣い", "②文末の言葉", "③言葉の意味の違い"]},
                 rubric_view(1)]},
              {"name": "展開", "minutes": 30, "slides": [
-                 {"kind": "cards", "variant": "grid", "tag": "本文", "heading": "冒頭を読んでみよう",
-                  "cards": [{"title": "", "body": OPENING, "tone": "primary"}, {"title": "", "body": OPENING2, "tone": "primary"}],
-                  "columns": 1, "bodySize": 24,
-                  "notes": "まず教師が範読し、続いて全員で音読する。古文特有のリズム（七五調ではないが、文末の「けり」「ける」の繰り返しなど）に着目するよう働きかける。"},
+                 {"kind": "passage", "tag": "本文", "heading": "冒頭を読んでみよう", "text": OPENING + "\n" + OPENING2,
+                  "note": "歴史的仮名遣いに注意して、声に出して読もう。",
+                  "notes": "まず教師が範読し、続いて全員で音読する。古文特有のリズム（文末の「けり」「ける」の繰り返しなど）に着目するよう働きかける。"},
                  {"kind": "points", "tag": "きまり", "heading": "歴史的仮名遣いの読み方",
                   "items": [["語の途中・終わりの「は・ひ・ふ・へ・ほ」", "「わ・い・う・え・お」と読む（いふ→いう、使ひ→使い）"],
                             ["「ゐ・ゑ・を」", "「い・え・お」と読む（ゐたり→いたり）"],
@@ -353,6 +352,6 @@ L8 = {"title": "登場人物の魅力を伝え合おう", "short": "第8時 魅�
                "notes": "今日において古典を学習する意義を明らかにし、3年間の古典学習の見通しをもつ一助とする。"}]}]}
 
 spec = {"title": "登場人物の魅力を伝え合おう～蓬莱の玉の枝『竹取物語』から～", "course": "国語　第1学年",
-        "layout": "lesson-rows", "theme": "wa", "mascot": "book", "sectionSlides": False, "lessons": [L1, L2, L3, L4, L5, L6, L7, L8]}
+        "layout": "lesson-rows", "theme": "emaki", "mascot": "book", "sectionSlides": False, "lessons": [L1, L2, L3, L4, L5, L6, L7, L8]}
 json.dump(spec, open("taketori.spec.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("ok")

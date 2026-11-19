@@ -292,6 +292,12 @@ def render_mascot_png(svg, layer_png, out_px=312, ss=4):
 THEMES = None  # build-skill.mjs writes the theme data here, so the skill needs no separate data file
 
 
+def mix(a, b, t):
+    pa = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    pb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{math.floor(x + (y - x) * t + 0.5):02x}" for x, y in zip(pa, pb))
+
+
 def load_themes():
     if THEMES is not None:
         return THEMES
@@ -1230,10 +1236,24 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                           "reason": nn(s.get("reason"), True), "public": nn(s.get("public"), True)}, fx, y, X1 - fx, BOTTOM - y, 16))
         return els
 
+    def k_passage(s, L, top):
+        note_h = 72 if s.get("note") else 0
+        c_els, b = card(X0, top, X1 - X0, BOTTOM - top - note_h - (10 if note_h else 0), nn(s.get("tone"), "plain"))
+        paras = str(s["text"]).split("\n")
+        fs = nn(s.get("fontSize"), 32)
+        cols = lambda f: sum(max(1, math.ceil((len(p) * f) / (b["h"] - 16))) for p in paras)
+        while fs > 16 and cols(fs) * fs * 1.75 > b["w"] - 8:
+            fs -= 1
+        w = min(b["w"], cols(fs) * fs * 1.75 + 16)
+        els = list(c_els) + [text(s["text"], b["x"] + (b["w"] - w) / 2, b["y"], w, b["h"], fs, vertical=True, noFit=True, font=nn(s.get("font"), T.get("passageFont"), "shippori"))]
+        if s.get("note"):
+            els += card_text(X0, BOTTOM - note_h, X1 - X0, note_h, s["note"], tone="primary", fs=18)
+        return els
+
     def k_custom(s, L, top):
         return [{**e, "id": nn(e.get("id"), nid("x"))} for e in s["elements"]]
 
-    kinds = {"title": k_title, "task": k_task, "question": k_question, "figure": k_figure, "table": k_table, "chart": k_chart, "cards": k_cards,
+    kinds = {"passage": k_passage, "title": k_title, "task": k_task, "question": k_question, "figure": k_figure, "table": k_table, "chart": k_chart, "cards": k_cards,
              "flow": k_flow, "points": k_points, "board": k_board, "fields": k_fields, "rubric": k_rubric, "form": k_form, "section": k_section,
              "statement": k_statement, "compare": k_compare, "steps": k_steps, "quiz": k_quiz, "custom": k_custom}
 
@@ -1247,7 +1267,15 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         sheets.append({"id": "main", "name": nn(spec.get("sheetName"), spec["title"]), "rowLabels": {}})
     variety = {}
     backdrop("content")
+    lesson_marks = nn(spec.get("lessonMarks"), len(lessons) > 1)
+    lesson_colors = [T["accent"], "#2f8f6f", "#3b6fc0", "#c08a1e", "#8a55b0", "#d0607e", "#4f8f3c", "#d07a2c", "#1f8fa8", "#7a6a4a"]
+    base_look = {k: T.get(k) for k in ("accent", "accentSoft", "onAccent", "mascot")}
     for li, L in enumerate(lessons):
+        mark = {"color": nn(L.get("color"), lesson_colors[li % len(lesson_colors)]), "label": nn(L.get("mark"), f"第{li + 1}時")} if lesson_marks else None
+        if mark:
+            T.update({"accent": mark["color"], "accentSoft": mix(mark["color"], "#ffffff", 0.86), "onAccent": "#ffffff",
+                      "mascot": {**(base_look["mascot"] or {}), "wrap": mark["color"], "think": mark["color"]}})
+            images.clear()
         ws.clear()
         ws.update({"deckId": str(uuid.uuid4()), "worksheetId": str(uuid.uuid4()), "fields": [], "sectionIds": [], "section": ""})
         sheet_id = f"lesson-{li + 1}" if multi else "main"
@@ -1300,6 +1328,14 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                     bd = backdrop(bd_kind)
                 if bd:
                     els.insert(0, {"id": nid("bg"), "type": "image", "x": 0, "y": 0, "w": W, "h": H, "src": bd, "altText": ""})
+                if mark:
+                    els.insert(1 if bd else 0, rect(0, 0, 20, H, mark["color"]))
+                    if S["kind"] == "title":
+                        els += [rect(64, 10, 170, 44, mark["color"], shape="rounded"),
+                                text(mark["label"], 64, 10, 170, 44, 24, color="#ffffff", bold=True, align="center", valign="middle", noFit=True, heading=True)]
+                    elif S["kind"] != "section":
+                        els += [rect(W - 116, H - 22, 100, 20, mark["color"], shape="rounded"),
+                                text(mark["label"], W - 116, H - 22, 100, 20, 12, color="#ffffff", bold=True, align="center", valign="middle", noFit=True)]
                 slide = {"id": nn(S.get("id"), f"L{li + 1}-{row}-{col}"), "x": col, "y": row,
                          "title": nn(S.get("title"), S.get("heading"), f"{nn(S.get('name'), '')}（区切り）" if S["kind"] == "section" else S["kind"])[:200],
                          "background": T["bg"], "elements": [e for e in els if e]}
@@ -1323,9 +1359,14 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                 "id": nid("ws"), "type": "shape", "shape": "rounded", "x": X0, "y": top, "w": X1 - X0, "h": BOTTOM - top, "fill": "#ffffff", "stroke": T["accent"], "strokeWidth": 2, "formFontSize": 16,
                 "worksheet": {"deckId": ws["deckId"], "worksheetId": ws["worksheetId"], "title": nn(wsd.get("title"), f"{L.get('title')} ワークシート")[:200],
                               "description": nn(wsd.get("description"), "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。"), "sections": sections, "fields": ws["fields"]}}]
+            if mark:
+                slide["elements"] += [rect(0, 0, 20, H, mark["color"]), rect(W - 116, H - 22, 100, 20, mark["color"], shape="rounded"),
+                                      text(mark["label"], W - 116, H - 22, 100, 20, 12, color="#ffffff", bold=True, align="center", valign="middle", noFit=True)]
             slides.append(slide)
         if len(ws["fields"]) > 40:
             raise BuildError(f"1つのワークシートの入力欄は40個までです（{L.get('title')}: {len(ws['fields'])}）")
+        if mark:
+            T.update(base_look)
         routes.append({"id": f"route-{li + 1}", "name": nn(L.get("routeName"), f"{nn(L.get('short'), L.get('title'))}（授業の流れ）")[:80], "slides": [s["id"] for s in lesson_slides]})
 
     deck = {"version": 1, "title": spec["title"][:200], "sheets": sheets, "slides": slides}

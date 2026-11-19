@@ -34,6 +34,10 @@
 }
 ```
 
+## 時間ごとの見分け（自動）
+
+複数時間の作品では、時間ごとに強調色・キャラクターの色が変わり、全ページの左端に色の帯、右下に「第N時」、表紙の左上に大きな「第N時」が入る（全体マップのサムネイルでも、どの時間のページかが一目で分かる）。lesson の `color`（#rrggbb）で色、`mark` で文字（例："第3時"、"ミッション2"）を変えられる。`"lessonMarks": false` で無効。
+
 ## 配置
 
 | layout | 行（上下） | 列（左右） | シート |
@@ -83,6 +87,7 @@
 | （共通） | `buttons: [{text, to, w?}]`（見出しの右上に置く移動ボタン。`to` はページの `id`）、lesson の `mapButton: {text, to}`（その時間のすべてのページに同じボタンを付ける。`to` のページ自身・表紙・区切りには付かない。ページ側で `mapButton: false` にすると外せる） | 自由進度学習の「学習マップへ戻る」など |
 | （共通） | `id`（ページID。`link` の行き先にする）`backdrop`（このページだけ背景にする画像のパス。`false` で背景なし）`backdropKind`（`title`／`section`／`content`／`plain`）`header: false` | すべてのページ |
 | `section` | `number` `name` `minutes` `lead`（ふつうは自動。各場面の始まりに入る。`sectionSlides: false` で無効） | 場面の区切り |
+| `passage` | `text`（改行で段落）`note` `fontSize` `font`（既定は見出し明朝 shippori） | **縦書き**の本文。国語で、本文・古文・漢文の書き下し・詩・短歌など「読ませる文章」に使う |
 | `statement` | `big`（大きな数字・言葉）`caption` `note` `bigSize` | 1枚1メッセージ。印象に残す数値・結論 |
 | `compare` | `prompt` `left{title, items[] か body}` `right{…}` `field` `fieldHeight` | 2つを比べる（VS） |
 | `steps` | `lead` `items[{title, body}]`（2〜5）`field` | 番号つきの手順 |

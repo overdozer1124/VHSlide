@@ -12,7 +12,7 @@ const pack = path.join(here, "dist", "vhslide-lesson-gemini", "知識ファイ�
 const read = f => fs.readFileSync(path.join(pack, f), "utf8");
 const cut = (s, from) => (s.includes(from) ? s.slice(0, s.indexOf(from)) : s);
 
-const kinds = ["title", "task", "question", "fields", "figure", "table", "chart", "cards", "flow", "points", "board", "section", "statement", "compare", "steps", "quiz", "rubric", "form"];
+const kinds = ["title", "task", "question", "fields", "figure", "table", "chart", "cards", "flow", "points", "board", "section", "statement", "passage", "compare", "steps", "quiz", "rubric", "form"];
 const themeList = Object.entries(themes).map(([k, t]) => `${k}（${t.label.replace(/（.*$/, "")}）`).join("、");
 const mascotNames = { onigiri: "おにぎり", drop: "しずく", book: "本", sprout: "芽", kokeshi: "こけし", hiyoko: "ひよこ", ninjin: "にんじん", blob: "まる" };
 const mascotList = [...mascotKinds.map(k => `${k}（${mascotNames[k] ?? k}）`), "none（なし）"].join("、");

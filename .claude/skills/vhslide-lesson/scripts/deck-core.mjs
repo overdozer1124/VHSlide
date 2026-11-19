@@ -6,7 +6,7 @@
 // A spec image may also be inline SVG markup ("<svg …>…</svg>"): it is drawn through io.svgToDataUrl.
 import { resolveTheme } from "./themes.mjs";
 import { mascotSvg } from "./mascot.mjs";
-import { decorSvg } from "./decor.mjs";
+import { decorSvg, mix } from "./decor.mjs";
 import { iconSvg } from "./icons.mjs";
 
 const W = 960, H = 540, X0 = 36, X1 = 924, BOTTOM = 516;
@@ -352,6 +352,19 @@ const source = (t, x, y, w) => text(t, x, y, w, 22, 12, { color: T.sub, min: 12 
 
 // ---------- slide kinds ----------
 const kinds = {
+  // 本文・古文・詩など、読ませる文章を縦書きで（国語）。右の行から読む。
+  async passage(s, L, top) {
+    const noteH = s.note ? 72 : 0;
+    const c = card(X0, top, X1 - X0, BOTTOM - top - noteH - (noteH ? 10 : 0), s.tone ?? "plain"), b = c.inner;
+    const paras = String(s.text).split("\n");
+    let fs = s.fontSize ?? 32;
+    const cols = f => paras.reduce((n, p) => n + Math.max(1, Math.ceil((p.length * f) / (b.h - 16))), 0);
+    while (fs > 16 && cols(fs) * fs * 1.75 > b.w - 8) fs--;
+    const w = Math.min(b.w, cols(fs) * fs * 1.75 + 16);
+    const els = [...c.els, text(s.text, b.x + (b.w - w) / 2, b.y, w, b.h, fs, { vertical: true, noFit: true, font: s.font ?? T.passageFont ?? "shippori" })];
+    if (s.note) els.push(...cardText(X0, BOTTOM - noteH, X1 - X0, noteH, s.note, { tone: "primary", fs: 18 }));
+    return els;
+  },
   async title(s, L) {
     const deco = !!(await backdrop("title"));
     const dark = deco ? T.decor.titleDark : T.header === "band" || T.header === "chalk";
@@ -691,7 +704,17 @@ if (!multiSheet) sheets.push({ id: "main", name: spec.sheetName ?? spec.title, r
 
 const variety = {};
 await backdrop("content"); // find out early whether decorated backdrops can be drawn
+// Lesson identity: in a multi-lesson deck each lesson gets its own accent colour, a coloured edge and a "第N時" mark,
+// so pupils (and the map's thumbnails) show at a glance which lesson a page belongs to. spec.lessonMarks: false turns it off.
+const lessonMarks = spec.lessonMarks ?? lessons.length > 1;
+const LESSON_COLORS = [T.accent, "#2f8f6f", "#3b6fc0", "#c08a1e", "#8a55b0", "#d0607e", "#4f8f3c", "#d07a2c", "#1f8fa8", "#7a6a4a"];
+const baseLook = { accent: T.accent, accentSoft: T.accentSoft, onAccent: T.onAccent, mascot: T.mascot };
 for (const [li, L] of lessons.entries()) {
+  const mark = lessonMarks ? { color: L.color ?? LESSON_COLORS[li % LESSON_COLORS.length], label: L.mark ?? `第${li + 1}時` } : undefined;
+  if (mark) {
+    Object.assign(T, { accent: mark.color, accentSoft: mix(mark.color, "#ffffff", 0.86), onAccent: "#ffffff", mascot: { ...baseLook.mascot, wrap: mark.color, think: mark.color } });
+    for (const k of Object.keys(images)) delete images[k]; // characters in this lesson's colour
+  }
   ws = { deckId: globalThis.crypto.randomUUID(), worksheetId: globalThis.crypto.randomUUID(), fields: [], sectionIds: [], section: "" };
   const sheetId = multiSheet ? `lesson-${li + 1}` : "main";
   if (multiSheet) sheets.push({ id: sheetId, name: (L.short ?? L.title).slice(0, 80), rowLabels: {} });
@@ -732,6 +755,9 @@ for (const [li, L] of lessons.entries()) {
       const bdKind = S.backdropKind ?? (S.kind === "title" ? "title" : S.kind === "section" ? "section" : S.header === false ? "plain" : "content");
       const bd = S.backdrop ? (await loadImg(S.backdrop)).src : S.backdrop === false ? undefined : await backdrop(bdKind);
       if (bd) els.unshift({ id: nid("bg"), type: "image", x: 0, y: 0, w: W, h: H, src: bd, altText: "" });
+      if (mark) els.splice(bd ? 1 : 0, 0, rect(0, 0, 20, H, mark.color)); // coloured left edge
+      if (mark && S.kind === "title") els.push(rect(64, 10, 170, 44, mark.color, { shape: "rounded" }), text(mark.label, 64, 10, 170, 44, 24, { color: "#ffffff", bold: true, align: "center", valign: "middle", noFit: true, heading: true }));
+      else if (mark && S.kind !== "section") els.push(rect(W - 116, H - 22, 100, 20, mark.color, { shape: "rounded" }), text(mark.label, W - 116, H - 22, 100, 20, 12, { color: "#ffffff", bold: true, align: "center", valign: "middle", noFit: true }));
       const slide = {
         id: S.id ?? `L${li + 1}-${row}-${col}`, x: col, y: row, title: (S.title ?? S.heading ?? (S.kind === "section" ? `${S.name ?? ""}（区切り）` : S.kind)).slice(0, 200),
         background: T.bg, elements: els.filter(Boolean),
@@ -753,11 +779,12 @@ for (const [li, L] of lessons.entries()) {
       elements: [...(backdrops.content ? [{ id: nid("bg"), type: "image", x: 0, y: 0, w: W, h: H, src: backdrops.content, altText: "" }] : []), ...h.els, {
         id: nid("ws"), type: "shape", shape: "rounded", x: X0, y: h.top, w: X1 - X0, h: BOTTOM - h.top, fill: "#ffffff", stroke: T.accent, strokeWidth: 2, formFontSize: 16,
         worksheet: { deckId: ws.deckId, worksheetId: ws.worksheetId, title: (L.worksheet?.title ?? `${L.title} ワークシート`).slice(0, 200), description: L.worksheet?.description ?? "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。", sections, fields: ws.fields },
-      }],
+      }, ...(mark ? [rect(0, 0, 20, H, mark.color), rect(W - 116, H - 22, 100, 20, mark.color, { shape: "rounded" }), text(mark.label, W - 116, H - 22, 100, 20, 12, { color: "#ffffff", bold: true, align: "center", valign: "middle", noFit: true })] : [])],
     };
     slides.push(slide);
   }
   if (ws.fields.length > 40) throw Error(`1つのワークシートの入力欄は40個までです（${L.title}: ${ws.fields.length}）`);
+  if (mark) Object.assign(T, baseLook);
   routes.push({ id: `route-${li + 1}`, name: (L.routeName ?? `${L.short ?? L.title}（授業の流れ）`).slice(0, 80), slides: lessonSlides.map(s => s.id) });
 }
 

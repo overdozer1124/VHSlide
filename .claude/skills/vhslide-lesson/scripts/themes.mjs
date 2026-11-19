@@ -61,6 +61,17 @@ export const themes = {
     chart: ["#243b63", "#c4473a", "#c9a227", "#3a7d5c", "#7a5c99", "#5b8fb0"],
     muted: "#bdb5a6", mascot: { body: "#fff8ef", outline: "#2b2b2b", wrap: "#243b63", cheek: "#f2a7a0", think: "#c4473a", idea: "#3a7d5c" },
   },
+  emaki: {
+    label: "絵巻（和紙・金の霞・巻物の軸。古文・漢文・江戸期以前の歴史に）",
+    decor: { style: "emaki", headerBand: true, top: 96, headInk: "#fff6e0", titleInk: "#2e2318", sectionInk: "#fff6e0", sectionNum: "#e8c766", gold: "#c9a227" },
+    font: "ud", headingFont: "shippori", passageFont: "shippori",
+    bg: "#f4ead3", surface: "#fffaf0", ink: "#2e2318", sub: "#6b5a44",
+    primary: "#4a2f22", onPrimary: "#fff6e0", primarySoft: "#efe2c8",
+    accent: "#b8402c", onAccent: "#ffffff", accentSoft: "#f6e2d8",
+    line: "#d6c39c", header: "band", card: "strip",
+    chart: ["#b8402c", "#4a2f22", "#c9a227", "#3f6b4f", "#3b4f7a", "#8a5a8a"],
+    muted: "#cdb894", mascot: { body: "#fffaf0", outline: "#2e2318", wrap: "#4a2f22", cheek: "#eba99a", think: "#b8402c", idea: "#3f6b4f" },
+  },
   pastel: {
     label: "パステル（やわらかい桃色・若草色）",
     decor: { style: "waves", headerBand: true, top: 100, titleInk: "#ffffff", titleDark: true, sectionInk: "#ffffff", heroFrom: "#e58fa2", heroTo: "#f2b77a" },

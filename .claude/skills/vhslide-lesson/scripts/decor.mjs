@@ -120,6 +120,29 @@ const styles = {
       ${confetti(T, 14, 11, { x: 560, y: 24, w: 360, h: 110 })}
       ${grain}`);
   },
+  /** 絵巻物：和紙の地、金の霞（すやり霞）、左右に巻物の軸。古文・漢文・江戸期以前の歴史に。 */
+  emaki(T, kind) {
+    const gold = T.decor.gold ?? "#c9a227";
+    const kasumi = (x, y, w, h, color, op) =>
+      `<g opacity="${op}" fill="${color}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>` +
+      `<rect x="${x + w * 0.18}" y="${y - h * 0.55}" width="${w * 0.5}" height="${h * 0.7}" rx="${h * 0.35}"/>` +
+      `<rect x="${x + w * 0.4}" y="${y + h * 0.75}" width="${w * 0.55}" height="${h * 0.6}" rx="${h * 0.3}"/></g>`;
+    const paper = `<pattern id="washi" width="60" height="60" patternUnits="userSpaceOnUse"><rect width="60" height="60" fill="${T.bg}"/>
+      <path d="M4 10 q12 4 22 -2 M30 40 q10 6 24 0 M8 50 q6 -4 14 0 M40 14 q6 3 12 -1" stroke="${mix(T.bg, T.primary, 0.18)}" stroke-width="1" fill="none" opacity=".6"/></pattern>`;
+    const roller = x => `<rect x="${x}" y="0" width="16" height="${H}" fill="${mix(T.primary, "#000000", 0.15)}"/><rect x="${x + 3}" y="0" width="4" height="${H}" fill="#ffffff" opacity=".18"/>`;
+    const goldEdge = `<rect x="16" y="0" width="${W - 32}" height="${H}" fill="none" stroke="${gold}" stroke-width="3" opacity=".7"/>`;
+    if (kind === "section") return svg(defs(T, paper) + `
+      <rect width="${W}" height="${H}" fill="${T.primary}"/>
+      ${kasumi(-60, 70, 520, 56, gold, 0.55)}${kasumi(520, 400, 520, 60, gold, 0.5)}${kasumi(300, 250, 300, 30, "#ffffff", 0.12)}
+      ${roller(0)}${roller(W - 16)}${grain}`);
+    const head = kind === "content" ? `<rect x="16" y="0" width="${W - 32}" height="74" fill="${T.primary}"/>${kasumi(560, 12, 380, 30, gold, 0.55)}
+      <rect x="16" y="74" width="${W - 32}" height="4" fill="${gold}"/>` : "";
+    const clouds = kind === "title"
+      ? `${kasumi(-40, 40, 560, 70, gold, 0.55)}${kasumi(420, 430, 600, 80, gold, 0.5)}${kasumi(560, 150, 360, 40, T.accent, 0.18)}`
+      : `${kasumi(600, H - 60, 420, 44, gold, 0.28)}${kasumi(-80, H - 30, 360, 36, gold, 0.22)}`;
+    return svg(defs(T, paper) + `
+      <rect width="${W}" height="${H}" fill="url(#washi)"/>${clouds}${head}${goldEdge}${roller(0)}${roller(W - 16)}${grain}`);
+  },
   /** Light ground with blurred colour blobs (glassy, modern). */
   blobs(T, kind) {
     const t = T.tiles ?? [T.accentSoft, T.primarySoft];

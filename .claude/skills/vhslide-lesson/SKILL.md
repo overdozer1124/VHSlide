@@ -30,7 +30,7 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 | 項目 | 選択肢 | 既定 |
 | --- | --- | --- |
 | 配置（layout） | `lesson-rows`：1行＝1単位時間。左から右へ授業が進み、次の時間は下の行<br>`phase-grid`：導入・展開・まとめを縦に並べる2次元配置（複数時間ならシートを時間ごとに分ける） | `lesson-rows` |
-| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`pastel` パステル／`shokutaku` 食卓／`bento` ボックス／`kukkiri` くっきり／`notebook` ノート／`board` コルクボード／`magazine` マガジン／`minimal` ミニマル（見本：examples/themes-preview.png・patterns-preview-*.png）／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
+| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`emaki` 絵巻（古文・漢文・江戸期以前の歴史）／`pastel` パステル／`shokutaku` 食卓／`bento` ボックス／`kukkiri` くっきり／`notebook` ノート／`board` コルクボード／`magazine` マガジン／`minimal` ミニマル（見本：examples/themes-preview.png・patterns-preview-*.png）／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | `natural` |
 | キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`hiyoko`（成長・幼児）／`ninjin`（食品・栄養）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
 
 単元が複数時間にわたる場合は「何時間目まで作るか」も確認する。
@@ -73,6 +73,8 @@ VHSlide は頻繁に機能が増える。作る前に、その時点の最新版
   - 導入・展開・まとめの切り替わりには、場面の区切りページ（`section`）が自動で入る（`sectionSlides: false` で無効）。
   - `question` は「帯」と「キャラクターの吹き出し」、`cards` は「並べる」と「ボックス（大小のタイル）」を自動で交互に使う（`variant` で固定、`variety: false` で無効）。
 - **自由進度学習（単元内自由進度・マイプラン型）** の指導案なら、授業の流れを1本に並べず、教科ごとのシートに「学習マップ（各ミッションへのリンクと完了チェック）＋ミッションごとの行」を作り、全ページに「学習マップへ」ボタンを付ける（[spec-format.md](reference/spec-format.md) の「自由進度学習の組み方」）。
+- **国語で本文・古文・詩などを読ませるページは縦書き**（`passage`）にする。
+- **複数時間の単元は、時間ごとに見分けがつくようにする**（色・キャラクターの色・「第N時」の印。スキルが自動で付ける）。全体の統一感は保つ。
 - 1ページの情報量を絞る。文章は1ボックス3行以内を目安にし、長い説明はページを分ける。
 
 ## 3. 図とイラストを作る
