@@ -29,6 +29,7 @@ export type WorksheetField = {
   labelLayout?: "left";
   labelVertical?: boolean;
   labelCompact?: boolean;
+  optionsVertical?: boolean;
   orderAsListed?: boolean;
   widthPercent?: number;
   inputHeight?: number;
@@ -182,6 +183,12 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       "集計の公開設定を確認してください。",
     );
     check(
+      f.optionsVertical === undefined ||
+        (typeof f.optionsVertical === "boolean" &&
+          (f.kind === "single" || f.kind === "multiple")),
+      "選択肢の並びの設定を確認してください。",
+    );
+    check(
       f.hideLabel === undefined ||
         (typeof f.hideLabel === "boolean" && f.kind !== "checkbox"),
       "項目名の表示設定を確認してください。",
@@ -247,6 +254,7 @@ export function parseWorksheet(value: unknown): WorksheetDefinition {
       ...(f.labelLayout ? { labelLayout: f.labelLayout } : {}),
       ...(f.labelVertical ? { labelVertical: true } : {}),
       ...(f.labelCompact ? { labelCompact: true } : {}),
+      ...(f.optionsVertical ? { optionsVertical: true } : {}),
       ...(f.orderAsListed ? { orderAsListed: true } : {}),
       ...(f.widthPercent !== undefined ? { widthPercent: f.widthPercent } : {}),
       ...(f.inputHeight !== undefined ? { inputHeight: f.inputHeight } : {}),

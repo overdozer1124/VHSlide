@@ -240,7 +240,7 @@ export function WorksheetInputs({
               >
                 {group.fields.map((f) => (
                   <div
-                    className={`worksheet-field ${f.wide ? "wide" : ""} ${f.labelLayout === "left" ? "label-left" : ""} ${f.labelVertical ? "label-vertical" : ""} ${f.labelCompact ? "label-compact" : ""}`}
+                    className={`worksheet-field ${f.wide ? "wide" : ""} ${f.labelLayout === "left" ? "label-left" : ""} ${f.labelVertical ? "label-vertical" : ""} ${f.labelCompact ? "label-compact" : ""} ${f.optionsVertical ? "options-vertical" : ""}`}
                     style={
                       ignoreFieldLayout
                         ? undefined
