@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.148.0 (25f2212): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.149.0 (52fa078): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -101,6 +101,10 @@ function parseWorksheet(value) {
       "\u96C6\u8A08\u306E\u516C\u958B\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
     );
     check(
+      f.optionsVertical === void 0 || typeof f.optionsVertical === "boolean" && (f.kind === "single" || f.kind === "multiple"),
+      "\u9078\u629E\u80A2\u306E\u4E26\u3073\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    check(
       f.hideLabel === void 0 || typeof f.hideLabel === "boolean" && f.kind !== "checkbox",
       "\u9805\u76EE\u540D\u306E\u8868\u793A\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
     );
@@ -139,6 +143,7 @@ function parseWorksheet(value) {
       ...f.labelLayout ? { labelLayout: f.labelLayout } : {},
       ...f.labelVertical ? { labelVertical: true } : {},
       ...f.labelCompact ? { labelCompact: true } : {},
+      ...f.optionsVertical ? { optionsVertical: true } : {},
       ...f.orderAsListed ? { orderAsListed: true } : {},
       ...f.widthPercent !== void 0 ? { widthPercent: f.widthPercent } : {},
       ...f.inputHeight !== void 0 ? { inputHeight: f.inputHeight } : {},

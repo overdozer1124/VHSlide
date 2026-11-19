@@ -657,8 +657,8 @@
      "text": "知っていること",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "q1",
        "label": "知っていること",
@@ -2932,8 +2932,8 @@
      "text": "答え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "q2",
        "label": "答え",
@@ -2949,7 +2949,8 @@
        "sectionId": "s2",
        "wide": true,
        "reason": true,
-       "aggregatePublic": true
+       "aggregatePublic": true,
+       "optionsVertical": true
       },
       "showLabel": true,
       "showSection": false
@@ -3516,8 +3517,8 @@
      "text": "ほかに気づいた、意味の違う言葉",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "q3",
        "label": "ほかに気づいた、意味の違う言葉",
@@ -4271,8 +4272,8 @@
      "text": "現代語訳",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "q4",
        "label": "現代語訳",
@@ -4579,8 +4580,8 @@
      "text": "歴史的仮名遣いを正しく読めた",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "c1",
        "label": "歴史的仮名遣いを正しく読めた",
@@ -4611,8 +4612,8 @@
      "text": "言葉のまとまりで区切って読めた",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "c2",
        "label": "言葉のまとまりで区切って読めた",
@@ -4643,8 +4644,8 @@
      "text": "古文のリズムを感じて読めた",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "c3",
        "label": "古文のリズムを感じて読めた",
@@ -4993,8 +4994,8 @@
      "text": "自己評価：文語のきまり（知識・技能）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "self1",
        "label": "自己評価：文語のきまり（知識・技能）",
@@ -5030,8 +5031,8 @@
      "text": "自己評価：音読（主体的に学習に取り組む態度）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "self2",
        "label": "自己評価：音読（主体的に学習に取り組む態度）",
@@ -5240,8 +5241,8 @@
      "text": "古典の文章と現代の文章の違いで、面白いと思ったこと",
      "responseField": {
       "source": "worksheet",
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "field": {
        "id": "q5",
        "label": "古典の文章と現代の文章の違いで、面白いと思ったこと",
@@ -5431,8 +5432,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "97dba5d9-a50b-4728-9599-d64bfc93fcb4",
-      "worksheetId": "bc3ab41f-f639-4a9f-83da-b1b5c08efb5b",
+      "deckId": "bef04ebd-b005-4e63-81c6-d80461de8d2b",
+      "worksheetId": "e45bb82e-c408-4c3c-8240-78c9b04b422b",
       "title": "第1時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -5475,7 +5476,8 @@
         "sectionId": "s2",
         "wide": true,
         "reason": true,
-        "aggregatePublic": true
+        "aggregatePublic": true,
+        "optionsVertical": true
        },
        {
         "id": "q3",
@@ -7518,8 +7520,8 @@
      "text": "出来事の順番",
      "responseField": {
       "source": "worksheet",
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "field": {
        "id": "q1",
        "label": "出来事の順番",
@@ -7784,8 +7786,8 @@
      "text": "なぜ、かぐや姫は難題を出したのだろう？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "field": {
        "id": "q2",
        "label": "なぜ、かぐや姫は難題を出したのだろう？",
@@ -8174,8 +8176,8 @@
      "text": "帝の行動と、そこから分かる帝の気持ち",
      "responseField": {
       "source": "worksheet",
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "field": {
        "id": "q3",
        "label": "帝の行動と、そこから分かる帝の気持ち",
@@ -8524,8 +8526,8 @@
      "text": "自己評価：あらすじの理解",
      "responseField": {
       "source": "worksheet",
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "field": {
        "id": "self1",
        "label": "自己評価：あらすじの理解",
@@ -8561,8 +8563,8 @@
      "text": "自己評価：人物の関係",
      "responseField": {
       "source": "worksheet",
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "field": {
        "id": "self2",
        "label": "自己評価：人物の関係",
@@ -8771,8 +8773,8 @@
      "text": "『竹取物語』のあらすじ（3〜4文で）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "field": {
        "id": "q4",
        "label": "『竹取物語』のあらすじ（3〜4文で）",
@@ -8963,8 +8965,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "58c45d10-1db4-4058-a8e3-c7c0977b3229",
-      "worksheetId": "89fcc39f-b0c7-4c51-a043-580ca1615830",
+      "deckId": "026b29f9-9235-4cd1-8c43-8beccb0f2eb6",
+      "worksheetId": "79e35694-88d1-4f66-8004-dc41dd023c02",
       "title": "第2時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -11111,8 +11113,8 @@
      "text": "注目した描写",
      "responseField": {
       "source": "worksheet",
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "field": {
        "id": "q1",
        "label": "注目した描写",
@@ -11143,8 +11145,8 @@
      "text": "そこから考えた皇子の人物像",
      "responseField": {
       "source": "worksheet",
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "field": {
        "id": "q2",
        "label": "そこから考えた皇子の人物像",
@@ -11450,8 +11452,8 @@
      "text": "答え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "field": {
        "id": "q3",
        "label": "答え",
@@ -11467,7 +11469,8 @@
        "sectionId": "s1",
        "wide": true,
        "reason": true,
-       "aggregatePublic": true
+       "aggregatePublic": true,
+       "optionsVertical": true
       },
       "showLabel": true,
       "showSection": false
@@ -12358,8 +12361,8 @@
      "text": "紹介したい登場人物",
      "responseField": {
       "source": "worksheet",
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "field": {
        "id": "q4",
        "label": "紹介したい登場人物",
@@ -12717,8 +12720,8 @@
      "text": "自己評価：描写から読み取る",
      "responseField": {
       "source": "worksheet",
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "field": {
        "id": "self1",
        "label": "自己評価：描写から読み取る",
@@ -12754,8 +12757,8 @@
      "text": "自己評価：自分の考え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "field": {
        "id": "self2",
        "label": "自己評価：自分の考え",
@@ -12950,8 +12953,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "1bdb9307-495d-4bdb-a940-b6711ace9491",
-      "worksheetId": "2d41b2e5-441f-4a05-b4f3-c77ec7fc8eb9",
+      "deckId": "76f78745-8c53-4bd6-a3dc-9c6037f7a7d4",
+      "worksheetId": "9d629122-be9b-4cf0-a4f6-245c060c225e",
       "title": "第3時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -13000,7 +13003,8 @@
         "sectionId": "s1",
         "wide": true,
         "reason": true,
-        "aggregatePublic": true
+        "aggregatePublic": true,
+        "optionsVertical": true
        },
        {
         "id": "q4",
@@ -14823,8 +14827,8 @@
      "text": "資料1",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "src1",
        "label": "資料1",
@@ -14855,8 +14859,8 @@
      "text": "描写1",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "act1",
        "label": "描写1",
@@ -14887,8 +14891,8 @@
      "text": "分かること1",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "mean1",
        "label": "分かること1",
@@ -14919,8 +14923,8 @@
      "text": "資料2",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "src2",
        "label": "資料2",
@@ -14951,8 +14955,8 @@
      "text": "描写2",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "act2",
        "label": "描写2",
@@ -14983,8 +14987,8 @@
      "text": "分かること2",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "mean2",
        "label": "分かること2",
@@ -15015,8 +15019,8 @@
      "text": "資料3",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "src3",
        "label": "資料3",
@@ -15047,8 +15051,8 @@
      "text": "描写3",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "act3",
        "label": "描写3",
@@ -15079,8 +15083,8 @@
      "text": "分かること3",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "mean3",
        "label": "分かること3",
@@ -15429,8 +15433,8 @@
      "text": "自己評価：資料の活用（知識・技能）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "self1",
        "label": "自己評価：資料の活用（知識・技能）",
@@ -15466,8 +15470,8 @@
      "text": "自己評価：行動描写を集める",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "self2",
        "label": "自己評価：行動描写を集める",
@@ -15676,8 +15680,8 @@
      "text": "まだ調べたいこと・足りない情報",
      "responseField": {
       "source": "worksheet",
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "field": {
        "id": "q1",
        "label": "まだ調べたいこと・足りない情報",
@@ -15867,8 +15871,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "491072bc-1f25-4625-9b87-5023366e7267",
-      "worksheetId": "48e6769a-0784-404c-be02-9363bc81c300",
+      "deckId": "7ce1b79c-146b-4b11-9602-e9244ca6c95d",
+      "worksheetId": "29733d29-9438-4542-9ebd-960a026c42ce",
       "title": "第4時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -17982,8 +17986,8 @@
      "text": "根拠にする描写（2つ以上）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "40d10ef3-230f-4d28-af5b-2a174863ad8d",
-      "worksheetId": "3553785f-4b8e-45bd-bf35-b1d8743b039a",
+      "deckId": "518f3d83-86df-4020-960f-301f3a589be1",
+      "worksheetId": "8fbada42-ddc4-49b0-9244-c05bea3c269d",
       "field": {
        "id": "q1",
        "label": "根拠にする描写（2つ以上）",
@@ -18014,8 +18018,8 @@
      "text": "そこから考えた人物像",
      "responseField": {
       "source": "worksheet",
-      "deckId": "40d10ef3-230f-4d28-af5b-2a174863ad8d",
-      "worksheetId": "3553785f-4b8e-45bd-bf35-b1d8743b039a",
+      "deckId": "518f3d83-86df-4020-960f-301f3a589be1",
+      "worksheetId": "8fbada42-ddc4-49b0-9244-c05bea3c269d",
       "field": {
        "id": "q2",
        "label": "そこから考えた人物像",
@@ -18364,8 +18368,8 @@
      "text": "自己評価：描写を根拠に解釈する（思考・判断・表現）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "40d10ef3-230f-4d28-af5b-2a174863ad8d",
-      "worksheetId": "3553785f-4b8e-45bd-bf35-b1d8743b039a",
+      "deckId": "518f3d83-86df-4020-960f-301f3a589be1",
+      "worksheetId": "8fbada42-ddc4-49b0-9244-c05bea3c269d",
       "field": {
        "id": "self1",
        "label": "自己評価：描写を根拠に解釈する（思考・判断・表現）",
@@ -18401,8 +18405,8 @@
      "text": "自己評価：自分の考え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "40d10ef3-230f-4d28-af5b-2a174863ad8d",
-      "worksheetId": "3553785f-4b8e-45bd-bf35-b1d8743b039a",
+      "deckId": "518f3d83-86df-4020-960f-301f3a589be1",
+      "worksheetId": "8fbada42-ddc4-49b0-9244-c05bea3c269d",
       "field": {
        "id": "self2",
        "label": "自己評価：自分の考え",
@@ -18597,8 +18601,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "40d10ef3-230f-4d28-af5b-2a174863ad8d",
-      "worksheetId": "3553785f-4b8e-45bd-bf35-b1d8743b039a",
+      "deckId": "518f3d83-86df-4020-960f-301f3a589be1",
+      "worksheetId": "8fbada42-ddc4-49b0-9244-c05bea3c269d",
       "title": "第5時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -20483,8 +20487,8 @@
      "text": "発表原稿（1〜2分）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "05c43082-9cc3-43b0-bc3c-5ce35ae93e6d",
-      "worksheetId": "5ccca977-96df-4d68-a6d1-706ac8875369",
+      "deckId": "cb8d7b2e-0f06-46eb-86fc-2f70ebabf415",
+      "worksheetId": "d381d366-a045-4c98-87d1-bb3b84616e18",
       "field": {
        "id": "q1",
        "label": "発表原稿（1〜2分）",
@@ -20690,8 +20694,8 @@
      "text": "スライドの下書き（図・写真・言葉）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "05c43082-9cc3-43b0-bc3c-5ce35ae93e6d",
-      "worksheetId": "5ccca977-96df-4d68-a6d1-706ac8875369",
+      "deckId": "cb8d7b2e-0f06-46eb-86fc-2f70ebabf415",
+      "worksheetId": "d381d366-a045-4c98-87d1-bb3b84616e18",
       "field": {
        "id": "q2",
        "label": "スライドの下書き（図・写真・言葉）",
@@ -21040,8 +21044,8 @@
      "text": "自己評価：根拠を明らかにした原稿",
      "responseField": {
       "source": "worksheet",
-      "deckId": "05c43082-9cc3-43b0-bc3c-5ce35ae93e6d",
-      "worksheetId": "5ccca977-96df-4d68-a6d1-706ac8875369",
+      "deckId": "cb8d7b2e-0f06-46eb-86fc-2f70ebabf415",
+      "worksheetId": "d381d366-a045-4c98-87d1-bb3b84616e18",
       "field": {
        "id": "self1",
        "label": "自己評価：根拠を明らかにした原稿",
@@ -21077,8 +21081,8 @@
      "text": "自己評価：伝わる資料",
      "responseField": {
       "source": "worksheet",
-      "deckId": "05c43082-9cc3-43b0-bc3c-5ce35ae93e6d",
-      "worksheetId": "5ccca977-96df-4d68-a6d1-706ac8875369",
+      "deckId": "cb8d7b2e-0f06-46eb-86fc-2f70ebabf415",
+      "worksheetId": "d381d366-a045-4c98-87d1-bb3b84616e18",
       "field": {
        "id": "self2",
        "label": "自己評価：伝わる資料",
@@ -21273,8 +21277,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "05c43082-9cc3-43b0-bc3c-5ce35ae93e6d",
-      "worksheetId": "5ccca977-96df-4d68-a6d1-706ac8875369",
+      "deckId": "cb8d7b2e-0f06-46eb-86fc-2f70ebabf415",
+      "worksheetId": "d381d366-a045-4c98-87d1-bb3b84616e18",
       "title": "第6時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -22500,8 +22504,8 @@
      "text": "自分と同じところ",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "q1",
        "label": "自分と同じところ",
@@ -22532,8 +22536,8 @@
      "text": "自分と違うところ・新しい根拠",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "q2",
        "label": "自分と違うところ・新しい根拠",
@@ -22738,8 +22742,8 @@
      "text": "代表者と、その発表のよいところ",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "q3",
        "label": "代表者と、その発表のよいところ",
@@ -22770,8 +22774,8 @@
      "text": "代表者の発表に生かしたい、グループの考え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "q4",
        "label": "代表者の発表に生かしたい、グループの考え",
@@ -22976,8 +22980,8 @@
      "text": "仲間の発表をふまえた、自分の考え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "q5",
        "label": "仲間の発表をふまえた、自分の考え",
@@ -23327,8 +23331,8 @@
      "text": "自己評価：考えを確かなものにする（思考・判断・表現）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "self1",
        "label": "自己評価：考えを確かなものにする（思考・判断・表現）",
@@ -23364,8 +23368,8 @@
      "text": "自己評価：古典の世界の想像（主体的に学習に取り組む態度）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "field": {
        "id": "self2",
        "label": "自己評価：古典の世界の想像（主体的に学習に取り組む態度）",
@@ -23560,8 +23564,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "65819ba0-5082-4a42-b306-12933c3c55a6",
-      "worksheetId": "cdd6c9ec-bb2e-4187-b94f-0aee4d0807aa",
+      "deckId": "77027948-cee3-4651-bc37-36f6255efe6b",
+      "worksheetId": "952d22c3-020a-40a4-aa9e-709cff6b4211",
       "title": "第7時 ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -25679,8 +25683,8 @@
      "text": "かぐや姫：描写・人物像",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "m1",
        "label": "かぐや姫：描写・人物像",
@@ -25712,8 +25716,8 @@
      "text": "かぐや姫：評価・感想",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "e1",
        "label": "かぐや姫：評価・感想",
@@ -25788,8 +25792,8 @@
      "text": "竹取の翁：描写・人物像",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "m2",
        "label": "竹取の翁：描写・人物像",
@@ -25821,8 +25825,8 @@
      "text": "竹取の翁：評価・感想",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "e2",
        "label": "竹取の翁：評価・感想",
@@ -25897,8 +25901,8 @@
      "text": "くらもちの皇子：描写・人物像",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "m3",
        "label": "くらもちの皇子：描写・人物像",
@@ -25930,8 +25934,8 @@
      "text": "くらもちの皇子：評価・感想",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "e3",
        "label": "くらもちの皇子：評価・感想",
@@ -26006,8 +26010,8 @@
      "text": "帝：描写・人物像",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "m4",
        "label": "帝：描写・人物像",
@@ -26039,8 +26043,8 @@
      "text": "帝：評価・感想",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "e4",
        "label": "帝：評価・感想",
@@ -26481,8 +26485,8 @@
      "text": "新たに気づいたこと",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "q1",
        "label": "新たに気づいたこと",
@@ -27014,8 +27018,8 @@
      "text": "自分の経験と重ねて考えたこと",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "q2",
        "label": "自分の経験と重ねて考えたこと",
@@ -27322,8 +27326,8 @@
      "text": "わたしが考える『竹取物語』の面白さ",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "q3",
        "label": "わたしが考える『竹取物語』の面白さ",
@@ -27673,8 +27677,8 @@
      "text": "自己評価：作品の面白さについての考え（思考・判断・表現）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "self1",
        "label": "自己評価：作品の面白さについての考え（思考・判断・表現）",
@@ -27710,8 +27714,8 @@
      "text": "自己評価：発表の聞き方",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "self2",
        "label": "自己評価：発表の聞き方",
@@ -27921,8 +27925,8 @@
      "text": "古典を学ぶ意味について、今考えていること",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "q4",
        "label": "古典を学ぶ意味について、今考えていること",
@@ -27953,8 +27957,8 @@
      "text": "これから読んでみたい古典・調べたいこと",
      "responseField": {
       "source": "worksheet",
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "field": {
        "id": "q5",
        "label": "これから読んでみたい古典・調べたいこと",
@@ -28145,8 +28149,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "aff13a0e-f389-46b0-b41b-7cd627fc5170",
-      "worksheetId": "3aea27aa-3ad0-4ad5-a99c-614c60db18e6",
+      "deckId": "b85872fd-b7fa-4ce3-ad89-1e5b047c1998",
+      "worksheetId": "41a52f20-8324-4ee6-951e-8793fd4dd6c6",
       "title": "第8時 ふり返りシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [

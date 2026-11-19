@@ -603,6 +603,8 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
             wf["labelVertical"] = True
         if f.get("labelCompact") and label_ok:
             wf["labelCompact"] = True
+        if choice and f.get("optionsVertical"):
+            wf["optionsVertical"] = True
         if kind == "order" and f.get("asListed"):
             wf["orderAsListed"] = True
         if kind == "radar" and f.get("radar"):
@@ -1236,7 +1238,7 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
                 els.append(text(options[i], x + 18, yy, cw - 36, th - 6, 26, bold=True, valign="middle", min=16))
             fx = X0 + tw + 16
         els.append(field({"id": s.get("id"), "label": nn(s.get("label"), "答え"), "type": "single", "options": options,
-                          "reason": nn(s.get("reason"), True), "public": nn(s.get("public"), True), "hideLabel": s.get("hideLabel")},
+                          "reason": nn(s.get("reason"), True), "public": nn(s.get("public"), True), "hideLabel": s.get("hideLabel"), "optionsVertical": nn(s.get("optionsVertical"), True)},
                          fx, y, X1 - fx, BOTTOM - y, nn(s.get("fieldFont"), 24 if fx == X0 else 16)))
         return els
 

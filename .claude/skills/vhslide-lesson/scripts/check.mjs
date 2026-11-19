@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Validate a deck JSON against the newest VHSlide source and capture every page as the app renders it.
-// usage: node check.mjs <deck.json> [--out <dir>] [--app <vhslide checkout>] [--no-shots]
+// usage: node check.mjs <deck.json> [--out <dir>] [--app <vhslide checkout>] [--branch <name>] [--no-shots]
 //   1. finds the newest VHSlide version among the remote branches (by package.json version) unless --app is given;
 //      without any VHSlide source it falls back to validate.mjs (bundled parser, no screenshots)
 //   2. parses the JSON with that version's parseDeck and runs the worksheet adoption that cloud saving uses
@@ -50,6 +50,10 @@ function findApp() {
   let best;
   for (const ref of sh("git for-each-ref '--format=%(refname)' refs/remotes/origin refs/heads", repo).split("\n")) {
     if (!ref || ref.endsWith("/HEAD")) continue;
+    // --branch <name> (or $VHSLIDE_BRANCH): check against that branch instead of the newest version
+    // (useful when branches have diverged, e.g. a newer version that lacks a feature the deck uses).
+    const want = opt("branch") ?? process.env.VHSLIDE_BRANCH;
+    if (want && !ref.endsWith(`/${want}`)) continue;
     let pkg;
     try { pkg = JSON.parse(sh(`git show ${ref}:package.json`, repo)); } catch { continue; }
     try { sh(`git cat-file -e ${ref}:src/model.ts`, repo); } catch { continue; }

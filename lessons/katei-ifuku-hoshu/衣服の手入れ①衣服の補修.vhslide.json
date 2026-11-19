@@ -462,8 +462,8 @@
      "text": "自分ならどう手入れする？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q1",
        "label": "自分ならどう手入れする？",
@@ -1808,8 +1808,8 @@
      "text": "手入れをしないと起こること",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q2",
        "label": "手入れをしないと起こること",
@@ -2864,8 +2864,8 @@
      "text": "自分でできそうな手入れ・お店に頼みたい手入れ",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q3",
        "label": "自分でできそうな手入れ・お店に頼みたい手入れ",
@@ -3307,8 +3307,8 @@
      "text": "答え",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q4",
        "label": "答え",
@@ -3324,7 +3324,8 @@
        "sectionId": "s2",
        "wide": true,
        "reason": true,
-       "aggregatePublic": true
+       "aggregatePublic": true,
+       "optionsVertical": true
       },
       "showLabel": true,
       "showSection": false
@@ -4528,8 +4529,8 @@
      "text": "玉結びで、糸端を人差し指に巻くのは何回？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "k1",
        "label": "玉結びで、糸端を人差し指に巻くのは何回？",
@@ -5272,8 +5273,8 @@
      "text": "玉どめで、針に糸を巻くのは何回？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "k2",
        "label": "玉どめで、針に糸を巻くのは何回？",
@@ -5526,8 +5527,8 @@
      "text": "ボタンを丈夫に付けたいときは？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q5",
        "label": "ボタンを丈夫に付けたいときは？",
@@ -5784,8 +5785,8 @@
      "text": "ボタン付けの手順",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q6",
        "label": "ボタン付けの手順",
@@ -6528,8 +6529,8 @@
      "text": "ボタンと布の間に糸を巻いた部分を何という？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "k3",
        "label": "ボタンと布の間に糸を巻いた部分を何という？",
@@ -6695,8 +6696,8 @@
      "text": "いちばん丈夫に縫えるのは？",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q7",
        "label": "いちばん丈夫に縫えるのは？",
@@ -7649,8 +7650,8 @@
      "text": "点検した衣服と手入れの方法（写真＋文字）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "q8",
        "label": "点検した衣服と手入れの方法（写真＋文字）",
@@ -7955,8 +7956,8 @@
      "text": "自己評価：手入れ（補修）の理解（知識・技能）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "self1",
        "label": "自己評価：手入れ（補修）の理解（知識・技能）",
@@ -7992,8 +7993,8 @@
      "text": "自己評価：手縫いの基礎",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "self2",
        "label": "自己評価：手縫いの基礎",
@@ -8029,8 +8030,8 @@
      "text": "自己評価：生活に生かす（主体的に学習に取り組む態度）",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "self3",
        "label": "自己評価：生活に生かす（主体的に学習に取り組む態度）",
@@ -8287,8 +8288,8 @@
      "text": "玉結びができた",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "p1",
        "label": "玉結びができた",
@@ -8319,8 +8320,8 @@
      "text": "玉どめができた",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "p2",
        "label": "玉どめができた",
@@ -8351,8 +8352,8 @@
      "text": "ボタン付けができた",
      "responseField": {
       "source": "worksheet",
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "field": {
        "id": "p3",
        "label": "ボタン付けができた",
@@ -8845,8 +8846,8 @@
      "strokeWidth": 2,
      "formFontSize": 16,
      "worksheet": {
-      "deckId": "5b557fa0-5325-4862-9228-53a031610769",
-      "worksheetId": "5ecd08da-6c51-4e85-b64b-78f8bf956f96",
+      "deckId": "c92c2241-c610-48a6-a111-2355ac6dcc12",
+      "worksheetId": "f08aef06-7a65-4910-902a-97797a72b076",
       "title": "衣服の手入れ① ワークシート",
       "description": "各ページの入力欄と同じ回答です。ここからまとめて見直し・修正できます。",
       "sections": [
@@ -8909,7 +8910,8 @@
         "sectionId": "s2",
         "wide": true,
         "reason": true,
-        "aggregatePublic": true
+        "aggregatePublic": true,
+        "optionsVertical": true
        },
        {
         "id": "k1",

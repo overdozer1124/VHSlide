@@ -203,6 +203,8 @@ function field(f, x, y, w, h, fs = 18, opts = {}) {
     ...(f.labelCompact && labelOk ? { labelCompact: true } : {}),
     // 0.133–0.134: 並べ替え. options are the correct order; asListed shows them unshuffled.
     ...(kind === "order" && f.asListed ? { orderAsListed: true } : {}),
+    // 0.149: choices one per line (long choices do not run into each other).
+    ...(choice && f.optionsVertical ? { optionsVertical: true } : {}),
     ...(kind === "radar" && f.radar ? { radar: f.radar } : {}),
   };
   if (kind === "order" && (wf.options.length < 2 || wf.options.length > 10)) throw Error(`並べ替えの入力欄「${f.label}」の項目（options）は、正しい順番で2〜10個にしてください。`);
@@ -695,7 +697,7 @@ const kinds = {
       });
       fx = X0 + tw + 16;
     }
-    els.push(field({ id: s.id, label: s.label ?? "答え", type: "single", options, reason: s.reason ?? true, public: s.public ?? true, hideLabel: s.hideLabel },
+    els.push(field({ id: s.id, label: s.label ?? "答え", type: "single", options, reason: s.reason ?? true, public: s.public ?? true, hideLabel: s.hideLabel, optionsVertical: s.optionsVertical ?? true },
       fx, y, X1 - fx, BOTTOM - y, s.fieldFont ?? (fx === X0 ? 24 : 16)));
     return els;
   },
