@@ -1005,11 +1005,13 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         note_h = 150 if s.get("note") else 0
         n = len(s["items"])
         gap = 10
-        rh = min(64, (BOTTOM - top - note_h - (16 if note_h else 0) - gap * (n - 1)) / n)
+        rh = min(118, (BOTTOM - top - note_h - (16 if note_h else 0) - gap * (n - 1)) / n)
+        key_fs = 24 if rh >= 100 else 21 if rh >= 80 else 19
+        body_fs = 22 if rh >= 100 else 20 if rh >= 80 else 19
         for i, (k, v) in enumerate(s["items"]):
             y = top + i * (rh + gap)
-            els += card_text(X0, y, 300, rh, k, tone="accent", fs=19, bold=True, align="center")
-            els.append(text(v, X0 + 318, y, X1 - X0 - 318, rh, 19, valign="middle"))
+            els += card_text(X0, y, 300, rh, k, tone="accent", fs=key_fs, bold=True, align="center")
+            els.append(text(v, X0 + 318, y, X1 - X0 - 318, rh, body_fs, valign="middle"))
         if s.get("note"):
             els += card_text(X0, BOTTOM - note_h, X1 - X0, note_h, s["note"].get("body"), tone="primary", fs=17, title=s["note"].get("title"), valign="top")
         return els

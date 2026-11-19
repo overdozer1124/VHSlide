@@ -523,11 +523,12 @@ const kinds = {
   async points(s, _L, top) {
     const els = [];
     const noteH = s.note ? 150 : 0;
-    const n = s.items.length, gap = 10, rh = Math.min(64, (BOTTOM - top - noteH - (noteH ? 16 : 0) - gap * (n - 1)) / n);
+    const n = s.items.length, gap = 10, rh = Math.min(118, (BOTTOM - top - noteH - (noteH ? 16 : 0) - gap * (n - 1)) / n);
+    const keyFs = rh >= 100 ? 24 : rh >= 80 ? 21 : 19, bodyFs = rh >= 100 ? 22 : rh >= 80 ? 20 : 19;
     s.items.forEach(([k, v], i) => {
       const y = top + i * (rh + gap);
-      els.push(...cardText(X0, y, 300, rh, k, { tone: "accent", fs: 19, bold: true, align: "center" }));
-      els.push(text(v, X0 + 318, y, X1 - X0 - 318, rh, 19, { valign: "middle" }));
+      els.push(...cardText(X0, y, 300, rh, k, { tone: "accent", fs: keyFs, bold: true, align: "center" }));
+      els.push(text(v, X0 + 318, y, X1 - X0 - 318, rh, bodyFs, { valign: "middle" }));
     });
     if (s.note) els.push(...cardText(X0, BOTTOM - noteH, X1 - X0, noteH, s.note.body, { tone: "primary", fs: 17, title: s.note.title, valign: "top" }));
     return els;

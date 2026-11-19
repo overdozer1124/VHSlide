@@ -16,3 +16,9 @@ mkdir -p ~/.claude/skills && cp -r vhslide-lesson ~/.claude/skills/
 ## 必要なもの
 - Node.js 18 以上（必須）
 - 図の PNG 化：Chromium（Playwright）、`rsvg-convert`、Python の `cairosvg` のいずれか（なくてもキャラクターは同梱画像で入る）
+- 生成イラストの圧縮（`scripts/prep-image.mjs`）：Python の Pillow。挿絵を使わない場合は不要
+- 挿絵の生成：その環境の画像生成機能（Muse の画像生成など）。なくても、挿絵なしで作れる
+- SKILL.md の「利用者の保存済みの好み」（背景・挿絵の初期値）は配布元の設定。そのまま使うか、使う人の好みに書き換える
+
+## 環境の用意は Muse 側が行う（初回セットアップ）
+受け取った Muse は、初回に `scripts/setup.mjs` で環境をチェックし、足りないもの（cairosvg・Pillow、Node.js が無い場合はポータブル版 Node）があれば、利用者の承認を得てからスキル内のフォルダに閉じて用意する。利用者が自分でインストール作業をする必要はない。詳しい手順は SKILL.md の「初回セットアップ」。

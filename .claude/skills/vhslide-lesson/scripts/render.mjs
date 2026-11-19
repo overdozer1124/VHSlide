@@ -17,14 +17,39 @@ async function getBrowser() {
   return browser;
 }
 const has = cmd => { try { execSync(`command -v ${cmd}`, { stdio: "ignore" }); return true; } catch { return false; } };
+/* Local adaptation for the Muse VM (2026-11-16, re-applied to the 2026-11-19 base): system python3 has no
+   cairosvg, so prefer the skill-local venv at ../.venv-svg (VHSLIDE_SVG_PYTHON overrides). */
+function svgPython() {
+  const here = path.dirname(new URL(import.meta.url).pathname);
+  const candidates = [process.env.VHSLIDE_SVG_PYTHON, path.join(here, "..", ".venv-svg", "bin", "python"), "python3"];
+  for (const py of candidates) {
+    if (!py) continue;
+    try { execSync(`"${py}" -c "import cairosvg"`, { stdio: "ignore" }); return py; } catch {}
+  }
+  return "python3";
+}
+/* Local adaptation: convert a rendered PNG to WebP/JPEG with Pillow when Chromium is unavailable. */
+function pngConvert(pngBuf, type, quality, transparent) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "img-"));
+  const src = path.join(tmp, "in.png"), out = path.join(tmp, "out.bin");
+  fs.writeFileSync(src, pngBuf);
+  try {
+    execSync(`"${svgPython()}" -c "import sys; from PIL import Image; im=Image.open(sys.argv[1]); t=sys.argv[4]; q=int(sys.argv[3]); im = im.convert('RGBA') if (t=='webp' and sys.argv[5]=='1') else im.convert('RGB'); im.save(sys.argv[2], 'WEBP' if t=='webp' else 'JPEG', quality=q)" "${src}" "${out}" "${quality}" "${type}" "${transparent ? 1 : 0}"`, { stdio: "ignore" });
+    return fs.readFileSync(out);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 /** Fallbacks when Chromium is unavailable (e.g. claude.ai): rsvg-convert, then Python cairosvg. */
 function svgToPngWithoutBrowser(svg, scale) {
+  /* Local adaptation: cairosvg does not support feTurbulence — a full-page grain
+     rect using it renders opaque black. Drop elements filtered by the turbulence
+     filters (grain/parch/cracks); the subtle noise texture is lost, nothing else. */
+  svg = svg.replace(/<(rect|circle|path|g|image|text)[^>]*filter="url\(#(grain|parch|cracks)\)"[^>]*\/>/g, "");
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "svg-"));
   const src = path.join(tmp, "in.svg"), out = path.join(tmp, "out.png");
   fs.writeFileSync(src, svg);
   try {
     if (has("rsvg-convert")) execSync(`rsvg-convert -z ${scale} -o "${out}" "${src}"`, { stdio: "ignore" });
-    else execSync(`python3 -c "import cairosvg,sys; cairosvg.svg2png(url=sys.argv[1], write_to=sys.argv[2], scale=${scale})" "${src}" "${out}"`, { stdio: "ignore" });
+    else execSync(`"${svgPython()}" -c "import cairosvg,sys; cairosvg.svg2png(url=sys.argv[1], write_to=sys.argv[2], scale=${scale})" "${src}" "${out}"`, { stdio: "ignore" });
     return fs.readFileSync(out);
   } catch {
     throw Error("SVGをPNGにできません。Chromium（Playwright）、rsvg-convert、Python の cairosvg（pip install cairosvg）のいずれかが必要です。");
@@ -39,7 +64,7 @@ export async function svgToPng(svg, { scale = 2, transparent = false, type = "pn
   const h = Number(/\bheight=["'](\d+(?:\.\d+)?)/.exec(head)?.[1]);
   if (!w || !h) throw Error("SVGに width / height 属性が必要です。");
   const b = await getBrowser();
-  if (!b) { if (type !== "png") throw Error(`${type.toUpperCase()} needs Chromium`); return svgToPngWithoutBrowser(svg, scale); }
+  if (!b) { const png = svgToPngWithoutBrowser(svg, scale); return type === "png" ? png : pngConvert(png, type, quality, transparent); }
   const page = await b.newPage({ viewport: { width: Math.ceil(w), height: Math.ceil(h) }, deviceScaleFactor: scale });
   await page.setContent(`<html><body style="margin:0;background:transparent">${svg}</body></html>`);
   await page.evaluate(() => document.fonts.ready);
