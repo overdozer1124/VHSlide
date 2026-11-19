@@ -386,3 +386,107 @@ describe("learning record", () => {
     expect(cellOf("coco")).toEqual({ answered: 1, group: 0, slideId: "slide-g" });
   });
 });
+
+describe("learning record: emotion curve (stage 4)", () => {
+  function curveFixture() {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT); CREATE TABLE members(deck TEXT, user_id TEXT)",
+    );
+    db.exec(groupSchema);
+    db.exec(worksheetSchema);
+    db.exec(surveySchema);
+    db.exec(thinkingSchema);
+    db.prepare("INSERT INTO decks VALUES(?)").run("deck");
+    for (const [id, name] of [
+      ["host", "先生"],
+      ["ana", "あな"],
+      ["bob", "ぼぶ"],
+    ]) {
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+    }
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...(args as never[]));
+    const curve = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "curve",
+      unit: "individual",
+      definition: {
+        title: "主人公の気持ち",
+        yMin: "下がる",
+        yMax: "上がる",
+        scenes: [
+          { id: "s1", label: "場面1" },
+          { id: "s2", label: "場面2" },
+        ],
+        lines: [
+          { id: "l1", label: "主人公" },
+          { id: "l2", label: "友だち" },
+        ],
+      },
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "host", true, "status", curve, {
+      status: "open",
+    });
+    thinkingCommand(sql, "deck", "ana", false, "point", curve, {
+      scene: "s1:l1",
+      value: { v: 0.8 },
+      reason: "どきどき",
+    });
+    thinkingCommand(sql, "deck", "ana", false, "point", curve, {
+      scene: "s2:l1",
+      value: { v: 0.3 },
+    });
+    thinkingCommand(sql, "deck", "ana", false, "point", curve, {
+      scene: "s1:l2",
+      value: { v: 0.5 },
+    });
+    const deck = {
+      version: 1,
+      title: "テスト作品",
+      sheets: [
+        { id: "main", name: "シート1", rowLabels: { 0: "第1時" } },
+      ],
+      slides: [
+        {
+          id: "slide-1",
+          sheetId: "main",
+          x: 0,
+          y: 0,
+          title: "気持ちの変化",
+          background: "",
+          elements: [{ id: "e1", thinking: { deckId: "deck", toolId: curve } }],
+        },
+      ],
+    } as unknown as Deck;
+    return { sql, deck };
+  }
+
+  it("lists the timeline per scene and line", () => {
+    const { sql, deck } = curveFixture();
+    const record = myLearningRecord(sql, deck, "deck", "ana");
+    const entry = record.entries.find((e) => e.template === "curve");
+    expect(entry).toBeTruthy();
+    expect(entry!.scenes!.map((s) => s.label)).toEqual([
+      "場面1（主人公）",
+      "場面1（友だち）",
+      "場面2（主人公）",
+      "場面2（友だち）",
+    ]);
+    const first = entry!.scenes!.find((s) => s.id === "s1:l1");
+    expect(first?.value.v).toBe(0.8);
+    expect(first?.reason).toBe("どきどき");
+    const empty = entry!.scenes!.find((s) => s.id === "s2:l2");
+    expect(empty?.value).toEqual({});
+  });
+
+  it("counts the curve as answered in the matrix", () => {
+    const { sql, deck } = curveFixture();
+    const matrix = learningRecordMatrix(sql, deck, "deck", "host");
+    expect(matrix.columns.map((c) => c.rowLabel)).toEqual(["第1時"]);
+    const ana = matrix.rows.find((r) => r.userId === "ana");
+    const bob = matrix.rows.find((r) => r.userId === "bob");
+    expect(ana?.cells[0].answered).toBe(1);
+    expect(bob?.cells[0].answered).toBe(0);
+  });
+});

@@ -117,6 +117,7 @@ describe("collectForeignForms", () => {
       scenes: [{ id: "s1", label: "場面1" }],
       sceneMode: "teacher" as const,
       reason: true,
+      lines: [],
     };
     const deck = deckOf([
       el({
@@ -180,6 +181,7 @@ describe("collectForeignForms", () => {
       scenes: [],
       sceneMode: "teacher" as const,
       reason: false,
+      lines: [],
     };
     const deck = deckOf([
       el({

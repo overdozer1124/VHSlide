@@ -243,6 +243,10 @@ export function prevAnswerFor(
       ),
     ][0];
     if (!row || row.status === "draft" || row.kind !== "point") return null;
+    // The emotion curve is not a prev-answer source: its points are
+    // keyed per scene × line, which the one-scene part cannot name
+    // (design review 🔴1). The picker does not offer it either.
+    if (row.template === "curve") return null;
     let definition;
     try {
       definition = parseThinkingDefinition(
