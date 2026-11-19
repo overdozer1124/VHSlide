@@ -1215,25 +1215,29 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         y = top + ph + 14
         labels = "ABCD"
         choices = s["choices"]
-        n = len(choices)
-        cols = n if n <= 2 else 2
-        rows = math.ceil(n / cols)
-        gap = 14
-        tw = (X1 - X0) * 0.56
-        th = (BOTTOM - y - gap * (rows - 1)) / rows
-        cw = (tw - gap * (cols - 1)) / cols
-        fills = T.get("tiles") or [T["accentSoft"], T["primarySoft"], T["accentSoft"], T["primarySoft"]]
-        for i, c in enumerate(choices):
-            x = X0 + (i % cols) * (cw + gap)
-            yy = y + (i // cols) * (th + gap)
-            if T.get("card") == "brutal":
-                els += [rect(x + 6, yy + 6, cw - 6, th - 6, T["ink"]), rect(x, yy, cw - 6, th - 6, T["ink"]), rect(x + 3, yy + 3, cw - 12, th - 12, fills[i % len(fills)])]
-            else:
-                els.append(rect(x, yy, cw, th, fills[i % len(fills)], shape="rounded" if T.get("card") == "bento" else "rect"))
-            els.append(text(f"{labels[i]}　{c}", x + 18, yy, cw - 36, th - 6, 26, bold=True, valign="middle", min=16))
-        fx = X0 + tw + 16
-        els.append(field({"id": s.get("id"), "label": nn(s.get("label"), "答え"), "type": "single", "options": [f"{labels[i]}　{c}"[:100] for i, c in enumerate(choices)],
-                          "reason": nn(s.get("reason"), True), "public": nn(s.get("public"), True)}, fx, y, X1 - fx, BOTTOM - y, 16))
+        options = [f"{labels[i]}　{c}"[:100] for i, c in enumerate(choices)]
+        fx = X0
+        if nn(s.get("variant"), "field") == "tiles":
+            n = len(choices)
+            cols = n if n <= 2 else 2
+            rows = math.ceil(n / cols)
+            gap = 14
+            tw = (X1 - X0) * 0.56
+            th = (BOTTOM - y - gap * (rows - 1)) / rows
+            cw = (tw - gap * (cols - 1)) / cols
+            fills = T.get("tiles") or [T["accentSoft"], T["primarySoft"], T["accentSoft"], T["primarySoft"]]
+            for i, c in enumerate(choices):
+                x = X0 + (i % cols) * (cw + gap)
+                yy = y + (i // cols) * (th + gap)
+                if T.get("card") == "brutal":
+                    els += [rect(x + 6, yy + 6, cw - 6, th - 6, T["ink"]), rect(x, yy, cw - 6, th - 6, T["ink"]), rect(x + 3, yy + 3, cw - 12, th - 12, fills[i % len(fills)])]
+                else:
+                    els.append(rect(x, yy, cw, th, fills[i % len(fills)], shape="rounded" if T.get("card") == "bento" else "rect"))
+                els.append(text(options[i], x + 18, yy, cw - 36, th - 6, 26, bold=True, valign="middle", min=16))
+            fx = X0 + tw + 16
+        els.append(field({"id": s.get("id"), "label": nn(s.get("label"), "答え"), "type": "single", "options": options,
+                          "reason": nn(s.get("reason"), True), "public": nn(s.get("public"), True), "hideLabel": s.get("hideLabel")},
+                         fx, y, X1 - fx, BOTTOM - y, nn(s.get("fieldFont"), 24 if fx == X0 else 16)))
         return els
 
     def k_passage(s, L, top):

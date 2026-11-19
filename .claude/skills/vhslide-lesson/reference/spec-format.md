@@ -91,7 +91,7 @@
 | `statement` | `big`（大きな数字・言葉）`caption` `note` `bigSize` | 1枚1メッセージ。印象に残す数値・結論 |
 | `compare` | `prompt` `left{title, items[] か body}` `right{…}` `field` `fieldHeight` | 2つを比べる（VS） |
 | `steps` | `lead` `items[{title, body}]`（2〜5）`field` | 番号つきの手順 |
-| `quiz` | `prompt` `choices[]`（2〜4）`id` `label` `reason`（既定true）`public`（既定true） | 大きな選択肢タイルと回答欄 |
+| `quiz` | `prompt` `choices[]`（2〜4。回答欄そのものを大きな文字の選択肢として出す。同じ文章を二重に並べず、回答一覧・集計にも選択肢の文章が残る。`variant: "tiles"` で左に大きなタイルも置く）`id` `label` `reason`（既定true）`public`（既定true） | 全員参加の確認（大きな選択肢の回答欄＋理由） |
 | `rubric` | `lead` `selfCheck`（`true`＝観点ごとの A/B/C 自己評価欄、`"public"`＝集計も公開）`split` `fontSize`。内容は lesson.rubric（`rubric` キーで上書き可） | ルーブリック（見通し・自己評価） |
 | `form` | `items[]`（座標で自由配置。`{type:"field", field, x, y, w, h, fontSize, stroke}`／`{type:"band", text, x, y, w, h, fill, color}`／`{type:"text", ...}`／`{type:"card", title, text, tone}`／`{type:"chart", chart}`／`{type:"table", table}`／`{type:"image", image, alt}`／`{type:"shape", shape, fill, stroke, text, vertical, link}`（吹き出し・星・矢印など。`link` に別ページの `id` を書くとボタンになる。`vertical: true` で縦書き）／`{type:"mascot", pose, x, y, s}`／`{type:"app", url, x, y, w, h}`（Webアプリの埋め込み。生徒が自分の端末でスライドの中のまま操作できる。https のURL。埋め込みを禁止しているサイトは表示されない）`fieldFont` `stroke`。`header: false` で見出し帯を省き、ページ全体を使う（見出しありなら要素は y≧100 程度に置く）。グラフを2つ並べるなど、既定の型にない構図にも使う。色は #rrggbb かテーマの色名（例：`primarySoft`） | 紙のワークシートを1枚に再配置する、入力欄の多いページ |
 | `custom` | `elements[]`（VHSlide の要素をそのまま） | 上で表せないもの・新機能の利用 |

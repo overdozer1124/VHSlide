@@ -677,19 +677,26 @@ const kinds = {
   },
   /** Quiz: big choice tiles (A–D) and a single-choice answer field with a reason. */
   async quiz(s, _L, top) {
+    // The answer field itself is the set of choices, shown large: no duplicated wording on the slide,
+    // and the answer list / tallies / CSV keep the full text of each choice. variant "tiles" adds big tiles on the left.
     const els = await ask(s.prompt, top, s.promptHeight ?? 70);
     const y = top + (s.promptHeight ?? 70) + 14, labels = "ABCD";
-    const n = s.choices.length, cols = n <= 2 ? n : 2, rows = Math.ceil(n / cols), gap = 14;
-    const tw = (X1 - X0) * 0.56, th = (BOTTOM - y - gap * (rows - 1)) / rows, cw = (tw - gap * (cols - 1)) / cols;
-    const fills = T.tiles ?? [T.accentSoft, T.primarySoft, T.accentSoft, T.primarySoft];
-    s.choices.forEach((c, i) => {
-      const x = X0 + (i % cols) * (cw + gap), yy = y + Math.floor(i / cols) * (th + gap);
-      if (T.card === "brutal") els.push(rect(x + 6, yy + 6, cw - 6, th - 6, T.ink), rect(x, yy, cw - 6, th - 6, T.ink), rect(x + 3, yy + 3, cw - 12, th - 12, fills[i % fills.length]));
-      else els.push(rect(x, yy, cw, th, fills[i % fills.length], { shape: T.card === "bento" ? "rounded" : "rect" }));
-      els.push(text(`${labels[i]}　${c}`, x + 18, yy, cw - 36, th - 6, 26, { bold: true, valign: "middle", min: 16 }));
-    });
-    const fx = X0 + tw + 16;
-    els.push(field({ id: s.id, label: s.label ?? "答え", type: "single", options: s.choices.map((c, i) => `${labels[i]}　${c}`).map(v => v.slice(0, 100)), reason: s.reason ?? true, public: s.public ?? true }, fx, y, X1 - fx, BOTTOM - y, 16));
+    const options = s.choices.map((c, i) => `${labels[i]}　${c}`.slice(0, 100));
+    let fx = X0;
+    if ((s.variant ?? "field") === "tiles") {
+      const n = s.choices.length, cols = n <= 2 ? n : 2, rows = Math.ceil(n / cols), gap = 14;
+      const tw = (X1 - X0) * 0.56, th = (BOTTOM - y - gap * (rows - 1)) / rows, cw = (tw - gap * (cols - 1)) / cols;
+      const fills = T.tiles ?? [T.accentSoft, T.primarySoft, T.accentSoft, T.primarySoft];
+      s.choices.forEach((c, i) => {
+        const x = X0 + (i % cols) * (cw + gap), yy = y + Math.floor(i / cols) * (th + gap);
+        if (T.card === "brutal") els.push(rect(x + 6, yy + 6, cw - 6, th - 6, T.ink), rect(x, yy, cw - 6, th - 6, T.ink), rect(x + 3, yy + 3, cw - 12, th - 12, fills[i % fills.length]));
+        else els.push(rect(x, yy, cw, th, fills[i % fills.length], { shape: T.card === "bento" ? "rounded" : "rect" }));
+        els.push(text(options[i], x + 18, yy, cw - 36, th - 6, 26, { bold: true, valign: "middle", min: 16 }));
+      });
+      fx = X0 + tw + 16;
+    }
+    els.push(field({ id: s.id, label: s.label ?? "答え", type: "single", options, reason: s.reason ?? true, public: s.public ?? true, hideLabel: s.hideLabel },
+      fx, y, X1 - fx, BOTTOM - y, s.fieldFont ?? (fx === X0 ? 24 : 16)));
     return els;
   },
   async custom(s) { return s.elements.map(e => ({ ...e, id: e.id ?? nid("x") })); },
