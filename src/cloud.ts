@@ -59,6 +59,17 @@ export interface CloudDeck {
   owner: string;
   updated: number;
 }
+// The exact 401 text both servers return when the session cookie no longer
+// matches a live session (expired or removed). Other 401s (room access,
+// operator checks, sign-in verification) use different texts and must not
+// be mistaken for a lost session.
+const SESSION_REQUIRED_MESSAGE = "Googleアカウントでサインインしてください。";
+export const SESSION_EXPIRED_MESSAGE =
+  "サインインの有効期限が切れました。もう一度サインインしてください。";
+let sessionExpiredListener: (() => void) | undefined;
+export function setSessionExpiredListener(listener?: () => void) {
+  sessionExpiredListener = listener;
+}
 export async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -74,11 +85,16 @@ export async function api<T>(
     },
   });
   const value = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw Object.assign(
-      new Error(value.error || "サーバーに接続できませんでした。"),
-      { status: response.status },
-    );
+  if (!response.ok) {
+    const message = value.error || "サーバーに接続できませんでした。";
+    if (response.status === 401 && message === SESSION_REQUIRED_MESSAGE) {
+      sessionExpiredListener?.();
+      throw Object.assign(new Error(SESSION_EXPIRED_MESSAGE), {
+        status: response.status,
+      });
+    }
+    throw Object.assign(new Error(message), { status: response.status });
+  }
   return value as T;
 }
 export async function portableDeck(deck: Deck): Promise<Deck> {
@@ -702,7 +718,20 @@ export class CloudWorkspace {
     clearTimeout(this.retry);
     if (this.active && !this.stopped) this.reconnect();
   };
+  /** The server no longer accepts our session (it lasts 7 days): drop the
+   * signed-in state so the panel offers sign-in again instead of showing
+   * a stale user with a "please sign in" error. Local editing is untouched. */
+  private expireSession() {
+    if (!this.user) return;
+    this.user = null;
+    this.decks = [];
+    this.usage = undefined;
+    this.joinRequest = undefined;
+    this.error = SESSION_EXPIRED_MESSAGE;
+    this.emit();
+  }
   async initialize() {
+    setSessionExpiredListener(() => this.expireSession());
     window.addEventListener("offline", this.offline);
     window.addEventListener("online", this.online);
     document.addEventListener("visibilitychange", this.followLiveness);
