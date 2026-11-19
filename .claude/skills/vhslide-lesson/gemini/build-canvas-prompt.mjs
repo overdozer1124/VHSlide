@@ -14,7 +14,7 @@ const cut = (s, from) => (s.includes(from) ? s.slice(0, s.indexOf(from)) : s);
 
 const kinds = ["title", "task", "question", "fields", "figure", "table", "chart", "cards", "flow", "points", "board", "section", "statement", "passage", "compare", "steps", "quiz", "rubric", "form"];
 const themeList = Object.entries(themes).map(([k, t]) => `${k}（${t.label.replace(/（.*$/, "")}）`).join("、");
-const mascotNames = { onigiri: "おにぎり", drop: "しずく", book: "本", sprout: "芽", kokeshi: "こけし", hiyoko: "ひよこ", ninjin: "にんじん", blob: "まる" };
+const mascotNames = { onigiri: "おにぎり", drop: "しずく", book: "本", sprout: "芽", kokeshi: "こけし", hiyoko: "ひよこ", ninjin: "にんじん", heian: "平安の姫", blob: "まる" };
 const mascotList = [...mascotKinds.map(k => `${k}（${mascotNames[k] ?? k}）`), "none（なし）"].join("、");
 
 // the AI's instructions inside the app: design rules + the spec format + design notes + a compact example

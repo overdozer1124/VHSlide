@@ -58,7 +58,7 @@ write("知識ファイル/01_レッスン仕様の書き方.txt", spec);
 const design = read("reference/design.md");
 const principles = design.slice(design.indexOf("## 見た目の原則"), design.indexOf("## VHSlide の制約"));
 const fonts = "sans（読みやすい文字）／serif（明朝体）／rounded（丸ゴシック）／klee（教科書風）／yomogi（手書き風）／ud（UDゴシック）／brush（筆文字）／shippori（見出し明朝）";
-const mascotNames = { onigiri: "おにぎり（食・家庭）", drop: "しずく（理科・水）", book: "本（国語・汎用）", sprout: "芽（生活・生き物）", kokeshi: "こけし（和服・伝統文化）", hiyoko: "ひよこ（成長・幼児）", ninjin: "にんじん（食品・栄養）", blob: "まる（汎用）" };
+const mascotNames = { onigiri: "おにぎり（食・家庭）", drop: "しずく（理科・水）", book: "本（国語・汎用）", sprout: "芽（生活・生き物）", kokeshi: "こけし（和服・伝統文化）", hiyoko: "ひよこ（成長・幼児）", ninjin: "にんじん（食品・栄養）", heian: "平安の姫（古文・平安時代）", blob: "まる（汎用）" };
 write("知識ファイル/02_デザインとトーン.txt", `# トーン（"theme"）
 
 ${Object.entries(themes).map(([k, t]) => `- ${k}：${t.label}`).join("\n")}

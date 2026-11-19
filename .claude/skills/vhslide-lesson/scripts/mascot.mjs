@@ -35,6 +35,21 @@ const bodies = {
 <path d="M118 128 L142 128 L130 146 Z" fill="#f29b38" stroke="${c.outline}" stroke-width="3" stroke-linejoin="round"/>
 <path d="M44 176 L66 162 L88 180 L110 160 L130 180 L150 160 L172 180 L194 162 L216 176 Q220 246 130 248 Q40 246 44 176 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="5" stroke-linejoin="round"/>`,
   // にんじん: a carrot with leafy top (food and nutrients).
+  // 平安の姫：長い黒髪と重ね着（十二単風）の、本を読む女の子（古文・平安時代）。表着の色はテーマの think 色（時間ごとの色）。
+  heian: c => `<path d="M64 128 C52 40 208 40 196 128 L214 256 L46 256 Z" fill="#1d1d22" stroke="${c.outline}" stroke-width="4" stroke-linejoin="round"/>
+<path d="M34 260 C40 206 82 184 130 184 C178 184 220 206 226 260 Z" fill="${c.think}" stroke="${c.outline}" stroke-width="4" stroke-linejoin="round"/>
+<path d="M94 184 L130 236 L166 184 Z" fill="#f2a23a" stroke="${c.outline}" stroke-width="3" stroke-linejoin="round"/>
+<path d="M104 184 L130 222 L156 184 Z" fill="#4f9a5c" stroke="${c.outline}" stroke-width="3" stroke-linejoin="round"/>
+<path d="M113 184 L130 208 L147 184 Z" fill="#fff4dc" stroke="${c.outline}" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="130" cy="122" rx="52" ry="58" fill="#fde9d6" stroke="${c.outline}" stroke-width="4"/>
+<path d="M74 124 C68 48 192 48 186 124 L176 124 L174 104 L86 104 L84 124 Z" fill="#1d1d22" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
+<rect x="66" y="104" width="20" height="132" rx="10" fill="#1d1d22"/><rect x="174" y="104" width="20" height="132" rx="10" fill="#1d1d22"/>
+<circle cx="104" cy="70" r="6" fill="#6e6e78"/><circle cx="120" cy="64" r="4" fill="#6e6e78"/>
+${face(130, 128, c, 0.78)}
+<rect x="98" y="216" width="64" height="40" rx="4" fill="#3f8f5a" stroke="${c.outline}" stroke-width="3.5"/>
+<path d="M130 216 L130 256" stroke="${c.outline}" stroke-width="3"/>
+<path d="M106 228 L124 228 M106 238 L124 238 M136 228 L154 228 M136 238 L154 238" stroke="#ffffff" stroke-width="3" opacity=".55"/>
+<ellipse cx="100" cy="240" rx="10" ry="12" fill="#fde9d6" stroke="${c.outline}" stroke-width="3"/><ellipse cx="160" cy="240" rx="10" ry="12" fill="#fde9d6" stroke="${c.outline}" stroke-width="3"/>`,
   ninjin: c => `<path d="M118 62 C104 30 84 22 74 30 C92 40 104 54 112 66 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
 <path d="M126 60 C124 26 132 12 144 14 C144 32 138 48 134 62 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
 <path d="M140 64 C156 36 178 30 188 38 C172 46 160 58 150 70 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>

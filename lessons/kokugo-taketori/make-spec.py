@@ -352,6 +352,6 @@ L8 = {"title": "登場人物の魅力を伝え合おう", "short": "第8時 魅�
                "notes": "今日において古典を学習する意義を明らかにし、3年間の古典学習の見通しをもつ一助とする。"}]}]}
 
 spec = {"title": "登場人物の魅力を伝え合おう～蓬莱の玉の枝『竹取物語』から～", "course": "国語　第1学年",
-        "layout": "lesson-rows", "theme": "emaki", "mascot": "book", "sectionSlides": False, "lessons": [L1, L2, L3, L4, L5, L6, L7, L8]}
+        "layout": "lesson-rows", "theme": "emaki", "mascot": "heian", "sectionSlides": False, "lessons": [L1, L2, L3, L4, L5, L6, L7, L8]}
 json.dump(spec, open("taketori.spec.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("ok")
