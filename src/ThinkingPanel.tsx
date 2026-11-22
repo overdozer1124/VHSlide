@@ -5,11 +5,13 @@ import { useThinking } from "./ThinkingContext";
 import {
   BOARD_ZONE_SPECS,
   CARD_COLORS,
+  splitCurveKey,
   templateKind,
   VENN_CIRCLES,
 } from "./thinkingTools";
 import type {
   ThinkingDefinition,
+  ThinkingPoint,
   ThinkingTemplate,
   ThinkingUnit,
   ThinkingView,
@@ -23,6 +25,7 @@ export const THINKING_TEMPLATE_LABELS: Record<ThinkingTemplate, string> = {
   axis1: "数直線（1つの軸）",
   emotion: "感情メーター",
   ratio: "心情円（2つの気持ちの割合）",
+  curve: "心情曲線（場面ごとの気持ち）",
   venn2: "ベン図（2つの円）",
   venn3: "ベン図（3つの円）",
   ychart: "Yチャート",
@@ -64,6 +67,12 @@ export const THINKING_TEMPLATE_GUIDES: Record<
     about: "2つの気持ちの割合を、円の分け方で表すツールです。",
     usage:
       "「言いたい⇔黙っていたい」のように、心の中でゆれる2つの気持ちの割合を表すのに向いています。円をタップするか、スライダーで割合を決めます。",
+  },
+  curve: {
+    about:
+      "物語の場面ごとに気持ちの上がり下がりを点で置き、線で結んで表すツールです。",
+    usage:
+      "場面の並びと、登場人物ごとの線（最大3本）を決めます。国語や道徳で、登場人物の気持ちの変化を追うのに向いています。点には一言を添えられます。",
   },
   venn2: {
     about: "2つの円の重なりで、共通点と違いを整理する図です。",
@@ -292,6 +301,59 @@ function ThinkingTemplatePreview({
         </text>
       </>
     );
+  } else if (template === "curve") {
+    const scenes = Math.max(def.scenes.length, 1);
+    const sample = [0.35, 0.62, 0.28, 0.78, 0.55, 0.9, 0.45, 0.7, 0.6, 0.82];
+    const px = (i: number) => 64 + (306 * (i + 0.5)) / scenes;
+    const py = (v: number) => 242 - v * 212;
+    const points = Array.from({ length: scenes }, (_, i) => ({
+      x: px(i),
+      y: py(sample[i % sample.length]),
+    }));
+    body = (
+      <>
+        <line x1="64" y1="30" x2="64" y2="242" className="tp-axis" />
+        <line x1="64" y1="242" x2="370" y2="242" className="tp-axis" />
+        {points.map((p, i) => (
+          <line
+            key={i}
+            x1={p.x}
+            y1="30"
+            x2={p.x}
+            y2="242"
+            className="tp-grid"
+          />
+        ))}
+        <polyline
+          points={points.map((p) => `${p.x},${p.y}`).join(" ")}
+          className="tp-curve"
+        />
+        {points.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="7" className="tp-dot" />
+        ))}
+        <text
+          x="64"
+          y="20"
+          className="tp-label"
+          textAnchor="middle"
+          {...fit(def.yMax, 120)}
+        >
+          {def.yMax}
+        </text>
+        <text
+          x="56"
+          y="267"
+          className="tp-label"
+          textAnchor="end"
+          {...fit(def.yMin, 52)}
+        >
+          {def.yMin}
+        </text>
+        <text x="72" y="267" className="tp-label">
+          場面の進み →
+        </text>
+      </>
+    );
   } else if (template === "axis2") {
     body = (
       <>
@@ -428,6 +490,7 @@ function defaultDefinition(template: ThinkingTemplate): ThinkingDefinition {
     scenes: [],
     sceneMode: "teacher",
     reason: true,
+    lines: [],
   };
   const spec = BOARD_ZONE_SPECS[template];
   if (spec)
@@ -451,6 +514,18 @@ function defaultDefinition(template: ThinkingTemplate): ThinkingDefinition {
   if (template === "axis1") return { ...base, xMin: "少ない", xMax: "多い" };
   if (template === "emotion")
     return { ...base, xMin: "いやな気持ち", xMax: "よい気持ち" };
+  if (template === "curve")
+    return {
+      ...base,
+      yMin: "気持ちが下がる",
+      yMax: "気持ちが上がる",
+      sceneMode: "free",
+      scenes: [1, 2, 3, 4].map((n) => ({
+        id: crypto.randomUUID(),
+        label: `場面${n}`,
+      })),
+      lines: [{ id: crypto.randomUUID(), label: "主人公" }],
+    };
   return { ...base, nameA: "言いたい", nameB: "黙っていたい" };
 }
 
@@ -688,6 +763,7 @@ export function ThinkingPanel({
                   definition: tool.definition,
                 }}
                 hasPoints={tool.points.length > 0 || tool.cards.length > 0}
+                points={tool.points}
                 onSubmit={async (_template, unit, definition) => {
                   await run(async () => {
                     await ctx.command(tool.id, "edit", { unit, definition });
@@ -708,6 +784,7 @@ function ThinkingToolForm({
   busy,
   initial,
   hasPoints,
+  points,
   onSubmit,
 }: {
   busy: boolean;
@@ -717,6 +794,10 @@ function ThinkingToolForm({
     definition: ThinkingDefinition;
   };
   hasPoints?: boolean;
+  /** The tool's current points (edit form only): removing a scene
+   * or a curve line that still has points asks first (the points
+   * stop showing but are not deleted). */
+  points?: ThinkingPoint[];
   onSubmit: (
     template: ThinkingTemplate,
     unit: ThinkingUnit,
@@ -927,7 +1008,7 @@ function ThinkingToolForm({
           </label>
         </div>
       )}
-      {template === "axis2" && (
+      {(template === "axis2" || template === "curve") && (
         <div className="thinking-form-grid">
           <label>
             縦軸の下端
@@ -967,7 +1048,9 @@ function ThinkingToolForm({
           </label>
         </div>
       )}
-      {template !== "ratio" && templateKind(template) === "point" && (
+      {template !== "ratio" &&
+        template !== "curve" &&
+        templateKind(template) === "point" && (
         <div className="thinking-form-grid">
           <label>
             目盛り
@@ -996,7 +1079,11 @@ function ThinkingToolForm({
       )}
       {templateKind(template) === "point" && (
       <fieldset className="thinking-form-scenes">
-        <legend>場面（考えの変化を残す場合）</legend>
+        <legend>
+          {template === "curve"
+            ? "場面（物語の進み方）"
+            : "場面（考えの変化を残す場合）"}
+        </legend>
         {def.scenes.map((s, i) => (
           <div key={s.id} className="thinking-form-scene">
             <input
@@ -1013,9 +1100,19 @@ function ThinkingToolForm({
             />
             <button
               type="button"
-              onClick={() =>
-                patch({ scenes: def.scenes.filter((x) => x.id !== s.id) })
-              }
+              onClick={() => {
+                const used = (points ?? []).some(
+                  (p) => p.scene === s.id || p.scene.startsWith(`${s.id}:`),
+                );
+                if (
+                  used &&
+                  !window.confirm(
+                    "この場面には生徒の点があります。場面を消すと、その点は表示されなくなります（データは残り、場面を戻すとまた出ます）。消しますか？",
+                  )
+                )
+                  return;
+                patch({ scenes: def.scenes.filter((x) => x.id !== s.id) });
+              }}
             >
               削除
             </button>
@@ -1039,7 +1136,7 @@ function ThinkingToolForm({
             場面を追加
           </button>
         )}
-        {def.scenes.length > 0 && (
+        {def.scenes.length > 0 && template !== "curve" && (
           <label>
             場面の進め方
             <select
@@ -1058,7 +1155,65 @@ function ThinkingToolForm({
         )}
       </fieldset>
       )}
-      {templateKind(template) === "point" && (
+      {template === "curve" && (
+        <fieldset className="thinking-form-scenes">
+          <legend>線（登場人物）</legend>
+          {def.lines.map((l, i) => (
+            <div key={l.id} className="thinking-form-scene">
+              <input
+                value={l.label}
+                maxLength={40}
+                aria-label={`線${i + 1}の名前`}
+                onChange={(e) =>
+                  patch({
+                    lines: def.lines.map((x) =>
+                      x.id === l.id ? { ...x, label: e.target.value } : x,
+                    ),
+                  })
+                }
+              />
+              <button
+                type="button"
+                disabled={def.lines.length <= 1}
+                onClick={() => {
+                  const used = (points ?? []).some(
+                    (p) => splitCurveKey(p.scene)?.lineId === l.id,
+                  );
+                  if (
+                    used &&
+                    !window.confirm(
+                      "この線には生徒の点があります。線を消すと、その点は表示されなくなります（データは残り、線を戻すとまた出ます）。消しますか？",
+                    )
+                  )
+                    return;
+                  patch({ lines: def.lines.filter((x) => x.id !== l.id) });
+                }}
+              >
+                削除
+              </button>
+            </div>
+          ))}
+          {def.lines.length < 3 && (
+            <button
+              type="button"
+              onClick={() =>
+                patch({
+                  lines: [
+                    ...def.lines,
+                    {
+                      id: crypto.randomUUID(),
+                      label: `登場人物${def.lines.length + 1}`,
+                    },
+                  ],
+                })
+              }
+            >
+              線を追加
+            </button>
+          )}
+        </fieldset>
+      )}
+      {templateKind(template) === "point" && template !== "curve" && (
       <label className="thinking-check">
         <input
           type="checkbox"

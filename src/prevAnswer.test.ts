@@ -249,6 +249,35 @@ describe("prevAnswerFor", () => {
     ).toBeNull();
   });
 
+  it("refuses the emotion curve as a source", () => {
+    const { sql } = fixture();
+    const curve = thinkingCommand(sql, DECK, "host", true, "create", undefined, {
+      template: "curve",
+      unit: "individual",
+      definition: {
+        title: "主人公の気持ち",
+        yMin: "下がる",
+        yMax: "上がる",
+        scenes: [{ id: "s1", label: "場面1" }],
+        lines: [{ id: "l1", label: "主人公" }],
+      },
+    })!.createdId!;
+    thinkingCommand(sql, DECK, "host", true, "status", curve, {
+      status: "open",
+    });
+    thinkingCommand(sql, DECK, "ana", false, "point", curve, {
+      scene: "s1:l1",
+      value: { v: 0.7 },
+    });
+    expect(
+      prevAnswerFor(sql, DECK, "ana", {
+        source: "thinking",
+        refId: curve,
+        sceneId: "s1",
+      }),
+    ).toBeNull();
+  });
+
   it("still serves a student's point after the host moves it", () => {
     const { sql, axis } = fixture();
     // The host adjusts ana's point: owner stays ana, author becomes

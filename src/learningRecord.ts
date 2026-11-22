@@ -379,17 +379,39 @@ function buildRecords(
       } else {
         const own = points.filter((p) => keep(String(p.owner), String(p.author)));
         if (!own.length) return;
-        entry.scenes = (definition.scenes ?? []).map((s) => {
-          const point = own.find((p) => String(p.scene) === s.id);
-          return point
-            ? {
-                id: s.id,
-                label: s.label,
-                value: parseJson<ThinkingPointValue>(point.value, {}),
-                reason: String(point.reason ?? ""),
-              }
-            : { id: s.id, label: s.label, value: {}, reason: "" };
-        });
+        if (template === "curve") {
+          // Curve points are keyed "sceneId:lineId": the timeline
+          // lists one row per scene × line (design review 🔴1).
+          const lines = definition.lines ?? [];
+          entry.scenes = (definition.scenes ?? []).flatMap((s) =>
+            lines.map((l) => {
+              const key = `${s.id}:${l.id}`;
+              const point = own.find((p) => String(p.scene) === key);
+              const label =
+                lines.length > 1 ? `${s.label}（${l.label}）` : s.label;
+              return point
+                ? {
+                    id: key,
+                    label,
+                    value: parseJson<ThinkingPointValue>(point.value, {}),
+                    reason: String(point.reason ?? ""),
+                  }
+                : { id: key, label, value: {}, reason: "" };
+            }),
+          );
+        } else {
+          entry.scenes = (definition.scenes ?? []).map((s) => {
+            const point = own.find((p) => String(p.scene) === s.id);
+            return point
+              ? {
+                  id: s.id,
+                  label: s.label,
+                  value: parseJson<ThinkingPointValue>(point.value, {}),
+                  reason: String(point.reason ?? ""),
+                }
+              : { id: s.id, label: s.label, value: {}, reason: "" };
+          });
+        }
       }
       push(uid, entry, Number(row.created) || 0);
     };

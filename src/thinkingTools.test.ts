@@ -891,3 +891,255 @@ describe("thinking share view (stage 4c)", () => {
     expect(shared?.label).toBe("生徒1");
   });
 });
+
+describe("thinking curve (stage 4)", () => {
+  const curveDef = {
+    title: "主人公の気持ち",
+    yMin: "気持ちが下がる",
+    yMax: "気持ちが上がる",
+    scenes: [
+      { id: "s1", label: "場面1" },
+      { id: "s2", label: "場面2" },
+      { id: "s3", label: "場面3" },
+    ],
+    lines: [
+      { id: "l1", label: "主人公" },
+      { id: "l2", label: "友だち" },
+    ],
+  };
+  function createCurve(
+    sql: HistorySQL,
+    overrides: Record<string, unknown> = {},
+  ): string {
+    const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "curve",
+      unit: "individual",
+      definition: { ...curveDef, ...overrides },
+    });
+    return created!.createdId!;
+  }
+  it("parses the definition: scenes and lines, free scenes, notes always on", () => {
+    const { sql } = fixture();
+    const id = createCurve(sql);
+    const view = thinkingList(sql, "deck", "host", true)[0];
+    expect(view.template).toBe("curve");
+    expect(view.kind).toBe("point");
+    expect(view.definition.lines.map((l) => l.label)).toEqual([
+      "主人公",
+      "友だち",
+    ]);
+    expect(view.definition.sceneMode).toBe("free");
+    expect(view.definition.reason).toBe(true);
+    expect(view.definition.yMax).toBe("気持ちが上がる");
+    expect(id).toBeTruthy();
+  });
+  it("rejects missing scenes, no lines and more than three lines", () => {
+    const { sql } = fixture();
+    fails(() => createCurve(sql, { scenes: [] }), 400);
+    fails(() => createCurve(sql, { lines: [] }), 400);
+    fails(
+      () =>
+        createCurve(sql, {
+          lines: [
+            { id: "a", label: "a" },
+            { id: "b", label: "b" },
+            { id: "c", label: "c" },
+            { id: "d", label: "d" },
+          ],
+        }),
+      400,
+    );
+  });
+  it("stores one point per scene and line under the composed key", () => {
+    const { sql } = fixture();
+    const id = createCurve(sql);
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s1:l1",
+      value: { v: 0.8 },
+      reason: "うれしい",
+    });
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s2:l1",
+      value: { v: 0.3 },
+    });
+    thinkingCommand(sql, "deck", "ana", false, "point", id, {
+      scene: "s1:l2",
+      value: { v: 0.5 },
+    });
+    const mine = thinkingList(sql, "deck", "ana", false)[0];
+    expect(mine.points).toHaveLength(3);
+    const first = mine.points.find((p) => p.scene === "s1:l1");
+    expect(first?.value.v).toBe(0.8);
+    expect(first?.reason).toBe("うれしい");
+    // Keys outside the definition's scenes × lines are refused.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "point", id, {
+          scene: "s9:l1",
+          value: { v: 0.5 },
+        }),
+      400,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "point", id, {
+          scene: "s1",
+          value: { v: 0.5 },
+        }),
+      400,
+    );
+    // Clearing works per composed key.
+    thinkingCommand(sql, "deck", "ana", false, "clear", id, {
+      scene: "s1:l2",
+    });
+    expect(thinkingList(sql, "deck", "ana", false)[0].points).toHaveLength(2);
+  });
+});
+
+describe("thinking curve review fixes", () => {
+  it("rejects scene and line ids containing the key separator", () => {
+    const { sql } = fixture();
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+          template: "curve",
+          unit: "individual",
+          definition: {
+            title: "曲線",
+            yMin: "下",
+            yMax: "上",
+            scenes: [{ id: "s:1", label: "場面1" }],
+            lines: [{ id: "l1", label: "主人公" }],
+          },
+        }),
+      400,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+          template: "curve",
+          unit: "individual",
+          definition: {
+            title: "曲線",
+            yMin: "下",
+            yMax: "上",
+            scenes: [{ id: "s1", label: "場面1" }],
+            lines: [{ id: "l:1", label: "主人公" }],
+          },
+        }),
+      400,
+    );
+  });
+  it("lets two group members lock different curve keys at once", () => {
+    const { sql } = fixture();
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班"],
+    });
+    const gid = thinkingGroups(sql)[0];
+    groupCommand(sql, "deck", "ana", false, "join", undefined, {
+      groupId: gid,
+    });
+    groupCommand(sql, "deck", "bob", false, "join", undefined, {
+      groupId: gid,
+    });
+    const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "curve",
+      unit: "group",
+      definition: {
+        title: "班の曲線",
+        yMin: "下",
+        yMax: "上",
+        scenes: [
+          { id: "s1", label: "場面1" },
+          { id: "s2", label: "場面2" },
+        ],
+        lines: [
+          { id: "l1", label: "主人公" },
+          { id: "l2", label: "友だち" },
+        ],
+      },
+    });
+    const id = created!.createdId!;
+    open(sql, id);
+    // Different scene, different line: both locks stand.
+    thinkingCommand(sql, "deck", "ana", false, "lock", id, {
+      scene: "s1:l1",
+      owner: gid,
+    });
+    thinkingCommand(sql, "deck", "bob", false, "lock", id, {
+      scene: "s2:l1",
+      owner: gid,
+    });
+    thinkingCommand(sql, "deck", "bob", false, "lock", id, {
+      scene: "s1:l2",
+      owner: gid,
+    });
+    const view = thinkingList(sql, "deck", "ana", false).find(
+      (t) => t.id === id,
+    )!;
+    expect(view.locks.map((l) => l.scene).sort()).toEqual([
+      "s1:l1",
+      "s1:l2",
+      "s2:l1",
+    ]);
+    // The same key is held: bob's point there is refused while ana
+    // holds the lock.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "point", id, {
+          scene: "s1:l1",
+          value: { v: 0.5 },
+          owner: gid,
+        }),
+      409,
+    );
+  });
+});
+
+describe("thinking curve id length cap", () => {
+  it("rejects scene and line ids longer than 64 characters", () => {
+    const { sql } = fixture();
+    const long = "a".repeat(65);
+    const base = {
+      title: "曲線",
+      yMin: "下",
+      yMax: "上",
+      scenes: [{ id: "s1", label: "場面1" }],
+      lines: [{ id: "l1", label: "主人公" }],
+    };
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+          template: "curve",
+          unit: "individual",
+          definition: {
+            ...base,
+            scenes: [{ id: long, label: "場面1" }],
+          },
+        }),
+      400,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+          template: "curve",
+          unit: "individual",
+          definition: { ...base, lines: [{ id: long, label: "主人公" }] },
+        }),
+      400,
+    );
+    // Exactly 64 is fine.
+    const ok64 = "a".repeat(64);
+    expect(
+      thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+        template: "curve",
+        unit: "individual",
+        definition: {
+          ...base,
+          scenes: [{ id: ok64, label: "場面1" }],
+        },
+      })!.createdId,
+    ).toBeTruthy();
+  });
+});

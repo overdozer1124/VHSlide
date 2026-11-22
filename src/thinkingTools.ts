@@ -21,6 +21,7 @@ export type ThinkingTemplate =
   | "axis1"
   | "emotion"
   | "ratio"
+  | "curve"
   | "venn2"
   | "venn3"
   | "ychart"
@@ -61,6 +62,9 @@ export type ThinkingDefinition = {
   scenes: ThinkingScene[];
   sceneMode: "teacher" | "free";
   reason: boolean;
+  /** curve: the lines (characters) drawn across the scenes, 1–3.
+   * A point's scene key is "sceneId:lineId" (plan §4.1.8). */
+  lines: ThinkingScene[];
 };
 export type ThinkingPointValue = { x?: number; y?: number; v?: number };
 export type ThinkingPoint = {
@@ -388,6 +392,7 @@ const TEMPLATES: ThinkingTemplate[] = [
   "axis1",
   "emotion",
   "ratio",
+  "curve",
   "venn2",
   "venn3",
   "ychart",
@@ -495,6 +500,7 @@ export function parseThinkingDefinition(
         scenes: [],
         sceneMode: "teacher",
         reason: false,
+        lines: [],
       },
     };
   }
@@ -561,6 +567,7 @@ export function parseThinkingDefinition(
         : "teacher"
       : "teacher",
     reason: value.reason === true,
+    lines: [],
   };
   if (t === "axis2" || t === "axis1" || t === "emotion") {
     definition.xMin = cleanLabel(value.xMin, "軸の左端（下端）の言葉");
@@ -573,6 +580,62 @@ export function parseThinkingDefinition(
   if (t === "ratio") {
     definition.nameA = cleanLabel(value.nameA, "1つめの気持ちの名前");
     definition.nameB = cleanLabel(value.nameB, "2つめの気持ちの名前");
+  }
+  if (t === "curve") {
+    // Scene and line ids are joined into one point key with ":",
+    // so the ids themselves must never contain it (design review).
+    const ID_OK = /^[A-Za-z0-9-]+$/;
+    for (const s of scenes)
+      insist(
+        ID_OK.test(s.id) && s.id.length <= 64,
+        400,
+        "場面のIDを確認してください。",
+      );
+    definition.yMin = cleanLabel(value.yMin, "縦軸の下端の言葉");
+    definition.yMax = cleanLabel(value.yMax, "縦軸の上端の言葉");
+    // The whole chart is always on screen: students write in any
+    // scene, and every point may carry a one-line note (plan §4.1.5).
+    definition.sceneMode = "free";
+    definition.reason = true;
+    insist(
+      scenes.length >= 1,
+      400,
+      "心情曲線には場面が1つ以上必要です。",
+    );
+    insist(
+      value.lines === undefined || Array.isArray(value.lines),
+      400,
+      "線の設定を確認してください。",
+    );
+    const linesRaw: unknown[] = Array.isArray(value.lines)
+      ? value.lines
+      : [];
+    insist(
+      linesRaw.length >= 1 && linesRaw.length <= 3,
+      400,
+      "線は1〜3本です。",
+    );
+    const lines: ThinkingScene[] = [];
+    const seenLines = new Set<string>();
+    for (const entry of linesRaw) {
+      const s = entry as Record<string, unknown>;
+      insist(
+        s &&
+          typeof s === "object" &&
+          typeof s.id === "string" &&
+          /^[A-Za-z0-9-]+$/.test(s.id) &&
+          (s.id as string).length <= 64,
+        400,
+        "線の設定を確認してください。",
+      );
+      insist(!seenLines.has(s.id as string), 400, "線が重なっています。");
+      seenLines.add(s.id as string);
+      lines.push({
+        id: s.id as string,
+        label: cleanLabel(s.label, "線の名前"),
+      });
+    }
+    definition.lines = lines;
   }
   return { template: t, definition };
 }
@@ -601,6 +664,7 @@ const EMPTY_DEFINITION: ThinkingDefinition = {
   scenes: [],
   sceneMode: "teacher",
   reason: false,
+  lines: [],
 };
 
 /** X charts created before 0.140.2 stored the quadrant defaults
@@ -639,6 +703,7 @@ function readTool(row: Record<string, unknown>): ThinkingTool {
       ),
       cardColors: parsed.cardColors ?? [],
       scenes: parsed.scenes ?? [],
+      lines: parsed.lines ?? [],
     };
   } catch {
     definition = EMPTY_DEFINITION;
@@ -1022,7 +1087,38 @@ function takeLock(
   lockRow(sql, tool, owner, scene, actor, now);
 }
 
+/** The points-table scene key for one curve point: a story scene
+ * crossed with a character line (plan §4.1.8). */
+export function curveKey(sceneId: string, lineId: string): string {
+  return `${sceneId}:${lineId}`;
+}
+export function splitCurveKey(
+  key: string,
+): { sceneId: string; lineId: string } | undefined {
+  const at = key.indexOf(":");
+  if (at <= 0) return undefined;
+  return { sceneId: key.slice(0, at), lineId: key.slice(at + 1) };
+}
+
 function cleanScene(tool: ThinkingTool, raw: unknown): string {
+  if (tool.template === "curve") {
+    // Curve points are keyed "sceneId:lineId"; only combinations
+    // the definition actually offers are writable.
+    insist(
+      typeof raw === "string" &&
+        (() => {
+          const parts = splitCurveKey(raw);
+          return (
+            !!parts &&
+            tool.definition.scenes.some((s) => s.id === parts.sceneId) &&
+            tool.definition.lines.some((l) => l.id === parts.lineId)
+          );
+        })(),
+      400,
+      "場面と線を確認してください。",
+    );
+    return raw as string;
+  }
   if (tool.definition.scenes.length === 0) {
     insist(
       raw === undefined || raw === "",

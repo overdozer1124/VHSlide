@@ -94,6 +94,7 @@ export function parseThinkingBindingLenient(value: unknown): ThinkingBinding {
         scenes: [],
         sceneMode: "teacher",
         reason: false,
+        lines: [],
       },
     };
   }

@@ -6952,6 +6952,25 @@ h1 span {
 .thinking-ghost-line polyline { fill:none;stroke:#8d7bb8;stroke-width:1.5;stroke-dasharray:4 3;vector-effect:non-scaling-stroke; }
 .thinking-point { position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 5px #2e244055;padding:0; }
 .thinking-point.is-mine { background:#e2703a;cursor:grab;z-index:3; }
+.thinking-curve { display:flex;gap:8px;flex:1;min-height:0; }
+.thinking-curve-ylabels { display:flex;flex-direction:column;justify-content:space-between;padding:4px 0;font-size:12px;font-weight:700;color:#5b4a8a;writing-mode:vertical-rl; }
+.thinking-curve-main { flex:1;display:flex;flex-direction:column;min-width:0; }
+.thinking-curve-plot { position:relative;flex:1;min-height:120px;border:2px solid #c9bde4;border-radius:12px;background:linear-gradient(180deg,#fbfaff,#f1edfa);overflow:hidden;touch-action:none; }
+.thinking-curve-plot.is-editable { cursor:crosshair; }
+.thinking-curve-plot.is-results { height:260px;flex:none; }
+.thinking-curve-grid { position:absolute;top:0;bottom:0;width:0;border-left:1px dashed #c9bde488;pointer-events:none; }
+.thinking-curve-grid.is-mid { left:0;right:0;top:50%;bottom:auto;width:auto;border-left:none;border-top:1px dashed #c9bde488; }
+.thinking-curve-lines { position:absolute;inset:0;width:100%;height:100%;pointer-events:none; }
+.thinking-curve-lines polyline { fill:none;vector-effect:non-scaling-stroke; }
+.thinking-curve-scenes { display:flex; }
+.thinking-curve-scenes span { flex:1;text-align:center;font-size:12px;font-weight:700;color:#5b4a8a;padding-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.thinking-curve-dot { display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline; }
+.thinking-point.is-selected { outline:3px solid #2563eb;outline-offset:1px; }
+.thinking-curve-detail { list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px; }
+.thinking-curve-detail li { display:flex;gap:10px;align-items:baseline;background:#fbfaff;border:1px solid #e3dcf5;border-radius:8px;padding:6px 10px;font-size:13px; }
+.thinking-curve-detail-scene { font-weight:700;color:#5b4a8a;min-width:64px; }
+.thinking-curve-detail-reason { color:#4a3a6b; }
+.thinking-curve-detail-empty { color:#8d7bb8; }
 .thinking-point.is-mine:focus-visible { outline:3px solid #2563eb;outline-offset:2px; }
 .thinking-point.is-ghost { background:#b7a8d9;opacity:.55;width:14px;height:14px;margin:-7px 0 0 -7px;z-index:1; }
 .thinking-point.is-other { width:14px;height:14px;margin:-7px 0 0 -7px;opacity:.8;z-index:2; }
@@ -7926,6 +7945,8 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-preview .tp-label { font-size:15px;fill:#4a3a6b;font-weight:700; }
 .thinking-preview .tp-face { font-size:24px; }
 .thinking-preview .tp-dot { fill:#e2703a;stroke:#fff;stroke-width:2; }
+.thinking-preview .tp-grid { stroke:#c9bde4;stroke-width:1;stroke-dasharray:4 3; }
+.thinking-preview .tp-curve { fill:none;stroke:#e2703a;stroke-width:3; }
 .thinking-preview .tp-zone { fill:rgba(91,74,138,0.04);stroke:rgba(122,106,154,0.55);stroke-width:1.5;stroke-dasharray:5 4; }
 .thinking-preview .tp-zone-label { font-size:14px;fill:#5b4a8a;font-weight:700; }
 .thinking-preview .tp-venn { fill:rgba(91,74,138,0.07);stroke:#7a6a9a;stroke-width:2; }
@@ -8131,3 +8152,4 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .host-follow-thinking .thinking-gallery-expanded { margin-top:0;width:100%;max-width:900px;margin-inline:auto; }
 .host-follow-thinking .thinking-gallery-board { max-width:900px; }
 .host-follow-overlay.is-presenting .host-follow-thinking { padding:0; }
+.thinking-curve-counts { display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#5b4a8a;margin:2px 0 0; }
