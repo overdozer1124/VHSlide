@@ -9,6 +9,7 @@ import {
   exerciseThinkingBoards,
 } from "../support/thinking.ts";
 import { exerciseDeckPoll } from "../support/poll.ts";
+import { exerciseEditSlides } from "../support/editSlides.ts";
 import { exerciseGalleryCounts } from "../support/gallery.ts";
 import {
   exerciseHostFollow,
@@ -1790,5 +1791,61 @@ test("worksheet copy and merge move fields and answers between sheets", async ()
       await mf.dispose();
       mf = fixture.start();
     },
+  );
+});
+
+test("free-edit slides keep saves off the shared counter and the deck, and share blobs with deck assets", async () => {
+  // A fresh owner keeps this test clear of the shared owner's
+  // per-minute API rate window.
+  const esOwner = await login("es-owner");
+  const esGuest = await login("es-guest");
+  const esGuest2 = await login("es-guest2");
+  const id = await create(sample(), esOwner);
+  const joinAs = async (cookie: string) => {
+    const r = await request(`/api/decks/${id}/invite`, "POST", undefined, esOwner);
+    assert.equal(r.status, 200, await r.clone().text());
+    const token = new URL(((await r.json()) as { url: string }).url)
+      .searchParams.get("join");
+    await acceptAndApprove(request, id, token, cookie, esOwner);
+    const { user } = (await (
+      await request("/api/session", "GET", undefined, cookie)
+    ).json()) as { user: { id: string } };
+    assert.equal(
+      (
+        await request(
+          `/api/decks/${id}/members/${encodeURIComponent(user.id)}`,
+          "PATCH",
+          { mode: "all", comment: true, rows: [], columns: [], slides: [] },
+          esOwner,
+        )
+      ).status,
+      200,
+    );
+  };
+  await joinAs(esGuest);
+  await joinAs(esGuest2);
+  const other = await create(sample(), esOwner);
+  const usage = async () =>
+    ((await (await request("/api/usage", "GET", undefined, esOwner)).json())
+      .used as number) ?? 0;
+  const watch = async (deck: string, cookie: string) => {
+    const peer = await connect(deck, cookie);
+    return {
+      messages: peer.messages,
+      close: () => {
+        peer.ws.close();
+        peer.doc.destroy();
+      },
+    };
+  };
+  await exerciseEditSlides(
+    request,
+    id,
+    other,
+    esOwner,
+    esGuest,
+    esGuest2,
+    usage,
+    watch,
   );
 });

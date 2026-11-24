@@ -1,4 +1,5 @@
 import { SurveyError } from "../src/surveys.ts";
+import { EditSlideError } from "../src/editSlides.ts";
 import { WebbingError } from "../src/webbing.ts";
 import { ThinkingError } from "../src/thinkingTools.ts";
 import { GroupError } from "../src/groups.ts";
@@ -66,6 +67,7 @@ export function failure(error: unknown) {
     error instanceof HttpError ||
     error instanceof JoinRequestError ||
     error instanceof SurveyError ||
+    error instanceof EditSlideError ||
     error instanceof WebbingError ||
     error instanceof ThinkingError ||
     error instanceof GroupError ||
