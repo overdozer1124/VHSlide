@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.150.0 (9e0cc2f): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.152.0 (550e343): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -375,7 +375,11 @@ var BOARD_ZONE_SPECS = {
     "\u77E5\u3063\u3066\u3044\u308B\u3053\u3068\uFF08K\uFF09",
     "\u77E5\u308A\u305F\u3044\u3053\u3068\uFF08W\uFF09",
     "\u5206\u304B\u3063\u305F\u3053\u3068\uFF08L\uFF09"
-  ])
+  ]),
+  // Step chart (stage 4): one sequence of cards. The single zone is
+  // a formality so every board path (record, results, text mining,
+  // sharing) keeps working; the order lives in the cards' sort.
+  steps: [{ id: "all", label: "\u624B\u9806", rect: [0, 0, 1, 1], anchor: [0.5, 0.5] }]
 };
 function cleanLabel(value, label, max = MAX_LABEL) {
   insist(
@@ -399,7 +403,8 @@ var TEMPLATES = [
   "tchart",
   "pmi",
   "matrix",
-  "kwl"
+  "kwl",
+  "steps"
 ];
 function parseThinkingDefinition(template, raw) {
   insist(
