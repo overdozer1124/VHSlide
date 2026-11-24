@@ -11,6 +11,7 @@ import { W, type Deck, type Slide } from "./model";
 import { api, type CloudWorkspace } from "./cloud";
 import type { FollowTarget, ChartShowRequest } from "./hostFollow";
 import { useWorksheets } from "./WorksheetContext";
+import { useEditSlides } from "./EditSlideContext";
 import { useWebbing } from "./WebbingContext";
 import { useThinking } from "./ThinkingContext";
 import { ThinkingResults } from "./ThinkingResults";
@@ -567,7 +568,10 @@ function ConsoleMain({
         )}
       </div>
       {mode === "slides" ? (
-        <ConsoleStudentSlides focus={focus} onOpenGallery={onOpenGallery} />
+        <>
+          <ConsoleStudentSlides focus={focus} onOpenGallery={onOpenGallery} />
+          <ConsoleEditSlides workbook={workbook} focus={focus} />
+        </>
       ) : mode === "groups" ? (
         <ConsoleGroups
           focus={focus}
@@ -680,6 +684,87 @@ function TextMineAnalysis({
  * API. This is also where the host shares answer slides with the class:
  * the sharing workflow that used to live in the form dialog's
  * 回答スライド tab was consolidated here (0.114.0). */
+/** Free-edit slides for the focused slide: each student's own
+ * slide as a thumbnail, click to enlarge, plus who has not made
+ * theirs yet. Host-only data (the context only carries answers
+ * for the host). */
+function ConsoleEditSlides({
+  workbook,
+  focus,
+}: {
+  workbook: Deck;
+  focus?: Slide;
+}) {
+  const ctx = useEditSlides();
+  const [large, setLarge] = useState<{ name: string; slide: Slide } | null>(
+    null,
+  );
+  if (!ctx.enabled || !ctx.host || !focus) return null;
+  const defs = ctx.defs.filter((d) => d.source === focus.id);
+  if (!defs.length) return null;
+  return (
+    <section className="console-edit-slides" aria-label="生徒が作ったスライド">
+      {defs.map((def) => (
+        <div key={def.id} className="console-edit-def">
+          <h3>
+            生徒が作ったスライド（{def.answers?.length ?? 0}人）
+            {!workbook.slides.some((s) => s.id === def.source) && (
+              <span className="console-badge">
+                元のスライドは削除されています
+              </span>
+            )}
+          </h3>
+          <div className="console-edit-grid">
+            {(def.answers ?? []).map((a) => (
+              <button
+                key={a.author}
+                type="button"
+                className="console-edit-card"
+                onClick={() => setLarge({ name: a.name, slide: a.slide })}
+              >
+                <span className="console-thumb-canvas">
+                  <Canvas slide={a.slide} zoom={148 / W} />
+                </span>
+                <span>{a.name}</span>
+              </button>
+            ))}
+          </div>
+          {!!def.uncreated?.length && (
+            <div className="console-unanswered">
+              <span className="console-unanswered-label">
+                未作成（{def.uncreated.length}人）
+              </span>
+              <span className="console-unanswered-names">
+                {def.uncreated.map((u) => u.name).join("、")}
+              </span>
+            </div>
+          )}
+        </div>
+      ))}
+      {large && (
+        <div
+          className="console-edit-large"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${large.name}のスライド`}
+        >
+          <header>
+            <h3>{large.name}のスライド</h3>
+            <button
+              className="button outline"
+              aria-label="閉じる"
+              onClick={() => setLarge(null)}
+            >
+              <X size={18} />
+            </button>
+          </header>
+          <Canvas slide={large.slide} zoom={0.85} />
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ConsoleStudentSlides({
   focus,
   onOpenGallery,

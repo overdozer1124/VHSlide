@@ -11,6 +11,14 @@ import {
   SurveyError,
 } from "../src/surveys.ts";
 import {
+  editSlideSchema,
+  editSlideList,
+  editSlideCommand,
+  recordEditAnswerAsset,
+  editAnswerAsset,
+  EditSlideError,
+} from "../src/editSlides.ts";
+import {
   webbingSchema,
   webbingList,
   webbingCommand,
@@ -439,6 +447,7 @@ export function createApplication(options: Options) {
   db.exec(joinSchema);
   db.exec(historySchema);
   db.exec(surveySchema);
+  db.exec(editSlideSchema);
   db.exec(worksheetSchema);
   db.exec(webbingSchema);
   db.exec(groupSchema);
@@ -649,13 +658,15 @@ export function createApplication(options: Options) {
     ) as { n: number };
     return blob.n + legacy.n;
   }
-  /** Drop a shared copy whose last referencing asset row is gone. */
+  /** Drop a shared copy whose last referencing row is gone. Both
+   * referencing tables count: deck assets and edit-slide answer
+   * photos (whose blobs are owned by the deck's owner). */
   async function releaseBlob(owner: string, hash: string) {
     const refs = db
       .prepare(
-        "SELECT COUNT(*) AS n FROM assets WHERE owner=? AND hash=?",
+        "SELECT (SELECT COUNT(*) FROM assets WHERE owner=? AND hash=?) + (SELECT COUNT(*) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def JOIN decks dk ON dk.id=d.deck WHERE dk.owner=? AND aa.hash=?) AS n",
       )
-      .get(owner, hash) as { n: number };
+      .get(owner, hash, owner, hash) as { n: number };
     if (refs.n) return;
     db.prepare("DELETE FROM blobs WHERE owner=? AND hash=?").run(owner, hash);
     if (!db.prepare("SELECT hash FROM blobs WHERE hash=?").get(hash))
@@ -798,6 +809,90 @@ export function createApplication(options: Options) {
       throw error;
     }
     return `/api/decks/${id}/assets/${asset}`;
+  }
+  /** Store one answer photo's bytes in the shared blob pool (the
+   * same deduplication as deck photos, but the binding lives only
+   * in the edit-slide tables — the deck's asset table and the room
+   * never learn about it). Returns the dedicated read path. */
+  async function saveAnswerAsset(
+    id: string,
+    u: User,
+    defId: string,
+    bytes: Buffer,
+  ) {
+    const { owner } = member(id, u);
+    const type = imageMime(bytes);
+    insist(
+      type && bytes.length <= 6_000_000,
+      400,
+      "6MB以下のPNG・JPEG・WebP・GIF画像を選んでください。",
+    );
+    const hash = await digestBytes(bytes);
+    const known = db
+      .prepare("SELECT hash FROM blobs WHERE owner=? AND hash=?")
+      .get(owner, hash);
+    if (!known) {
+      insist(
+        assetUsage() + bytes.length <= maximumAssets,
+        413,
+        "アプリ全体の写真の保存容量の上限です（5GB）。不要な作品を整理してください。",
+      );
+      insist(
+        assetUsage(owner) + bytes.length <= userAssets,
+        413,
+        "先生の写真の保存容量の上限です（500MB）。不要な作品を整理してください。",
+      );
+      db.prepare("INSERT INTO blobs VALUES(?,?,?,?)").run(
+        owner,
+        hash,
+        bytes.length,
+        type,
+      );
+      await storage.put(blobKey(hash), bytes, type!);
+    }
+    const asset = randomUUID();
+    try {
+      recordEditAnswerAsset(
+        historySQL,
+        id,
+        u.id,
+        defId,
+        asset,
+        hash,
+        bytes.length,
+        type!,
+      );
+    } catch (error) {
+      if (!known) await releaseBlob(owner, hash);
+      throw error;
+    }
+    return `/api/decks/${id}/edit-slides/${defId}/answer-assets/${asset}`;
+  }
+  /** Answer photos of a deck about to be deleted: their hashes and
+   * the blob owner, collected before the rows go. */
+  function answerAssetHashes(id: string) {
+    const deck = db
+      .prepare("SELECT owner FROM decks WHERE id=?")
+      .get(id) as { owner: string } | undefined;
+    const hashes = (
+      db
+        .prepare(
+          "SELECT DISTINCT aa.hash AS hash FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def WHERE d.deck=?",
+        )
+        .all(id) as { hash: string }[]
+    ).map((r) => r.hash);
+    return { owner: deck?.owner, hashes };
+  }
+  /** Remove a deck's edit-slide rows explicitly (used by the deck
+   * deletion paths, inside their transaction). */
+  function deleteEditSlideRows(id: string) {
+    db.prepare(
+      "DELETE FROM edit_slide_answer_assets WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
+    ).run(id);
+    db.prepare(
+      "DELETE FROM edit_slide_answers WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
+    ).run(id);
+    db.prepare("DELETE FROM edit_slide_defs WHERE deck=?").run(id);
   }
   const cookie = (value: string, age: number) =>
     `vhslide_session=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${origin.startsWith("https:") ? "; Secure" : ""}`;
@@ -1875,9 +1970,14 @@ export function createApplication(options: Options) {
                 "SELECT DISTINCT owner,hash FROM assets WHERE deck=? AND hash IS NOT NULL",
               )
               .all(id) as { owner: string; hash: string }[];
+            const answerShared = answerAssetHashes(id);
+            deleteEditSlideRows(id);
             db.prepare("DELETE FROM decks WHERE id=?").run(id);
             for (const blob of shared)
               await releaseBlob(blob.owner, blob.hash);
+            if (answerShared.owner)
+              for (const hash of answerShared.hashes)
+                await releaseBlob(answerShared.owner, hash);
             db.prepare(
               "UPDATE restore_tasks SET status='cancelled' WHERE id=?",
             ).run(id);
@@ -2001,6 +2101,15 @@ export function createApplication(options: Options) {
                 out.groups = {
                   version,
                   ...groupList(historySQL, id, u.id, host),
+                };
+            }
+            const ev = url.searchParams.get("ev");
+            if (ev !== null) {
+              const version = featureVersion(historySQL, id, "editslides");
+              if (ev === "" || Number(ev) !== version)
+                out.editslides = {
+                  version,
+                  editSlides: editSlideList(historySQL, id, u.id, host),
                 };
             }
             const tv = url.searchParams.get("tv");
@@ -2137,6 +2246,90 @@ export function createApplication(options: Options) {
             const surveys = surveyList(historySQL, id, u.id, host);
             db.exec("COMMIT");
             return json(res, 200, { surveys });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        if (extra === "edit-slides" || extra?.startsWith("edit-slides/")) {
+          insist(
+            ["GET", "POST", "DELETE"].includes(method),
+            405,
+            "この操作には対応していません。",
+          );
+          const route =
+            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets)(?:\/([a-f0-9-]{36}))?)?)?$/.exec(
+              extra,
+            );
+          insist(
+            route &&
+              (method === "GET"
+                ? extra === "edit-slides" ||
+                  (route[2] === "answer-assets" && !!route[3])
+                : method === "DELETE"
+                  ? !!route[1] && !route[2]
+                  : extra === "edit-slides" ||
+                    (!!route[2] && !route[3])),
+            404,
+            "生徒の編集用の操作が見つかりません。",
+          );
+          if (route![2] === "answer-assets" && method === "GET") {
+            // Reading an answer photo: only its author and the
+            // host. The bytes come from the shared blob pool.
+            const current = member(id, u);
+            const stored = editAnswerAsset(
+              historySQL,
+              id,
+              u.id,
+              current.owner === u.id,
+              route![1]!,
+              route![3]!,
+            );
+            const bytes = await storage.read(blobKey(stored.hash));
+            res.writeHead(200, {
+              "Content-Type": stored.mime,
+              "Content-Length": bytes.length,
+              "Cache-Control": "private, no-store",
+            });
+            return res.end(bytes);
+          }
+          if (route![2] === "answer-assets") {
+            // A photo for the student's own answer (open
+            // definitions only, at most 10 per answer).
+            const src = await saveAnswerAsset(
+              id,
+              u,
+              route![1]!,
+              await body(req, 6_000_000),
+            );
+            return json(res, 201, { src });
+          }
+          const value =
+            method === "POST"
+              ? JSON.parse((await body(req, 8_000_000)).toString())
+              : {};
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            let orphans: { asset: string; hash: string }[] = [];
+            if (method !== "GET") {
+              const result = editSlideCommand(
+                historySQL,
+                id,
+                u.id,
+                host,
+                method === "DELETE" ? "delete" : (route![2] ?? "create"),
+                route![1],
+                value,
+              );
+              orphans = result.orphanAssets ?? [];
+            }
+            const editSlides = editSlideList(historySQL, id, u.id, host);
+            db.exec("COMMIT");
+            for (const orphan of orphans)
+              await releaseBlob(current.owner, orphan.hash);
+            return json(res, 200, { editSlides });
           } catch (error) {
             db.exec("ROLLBACK");
             throw error;
@@ -2703,6 +2896,7 @@ export function createApplication(options: Options) {
                 "SELECT DISTINCT owner,hash FROM assets WHERE deck=? AND hash IS NOT NULL",
               )
               .all(id) as { owner: string; hash: string }[];
+            const answerShared = answerAssetHashes(id);
             rooms.get(id)?.doc.destroy();
             rooms.delete(id);
             db.exec("BEGIN IMMEDIATE");
@@ -2713,6 +2907,7 @@ export function createApplication(options: Options) {
                 );
               }
               db.prepare("DELETE FROM work_history WHERE deck=?").run(id);
+              deleteEditSlideRows(id);
               db.prepare("DELETE FROM decks WHERE id=?").run(id);
               db.prepare(
                 "UPDATE restore_tasks SET status='cancelled' WHERE id=?",
@@ -2724,6 +2919,9 @@ export function createApplication(options: Options) {
             }
             for (const blob of shared)
               await releaseBlob(blob.owner, blob.hash);
+            if (answerShared.owner)
+              for (const hash of answerShared.hashes)
+                await releaseBlob(answerShared.owner, hash);
           } finally {
             deleting.delete(id);
           }
@@ -3200,6 +3398,7 @@ export function createApplication(options: Options) {
         error instanceof HttpError ||
         error instanceof JoinRequestError ||
         error instanceof SurveyError ||
+        error instanceof EditSlideError ||
         error instanceof WebbingError ||
         error instanceof GroupError ||
         error instanceof ThinkingError ||

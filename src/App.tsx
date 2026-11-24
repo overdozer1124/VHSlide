@@ -17,6 +17,9 @@ import {
 import { PrevAnswerCreator } from "./PrevAnswerTools";
 import { WorksheetPanel } from "./WorksheetPanel";
 import { WorksheetProvider } from "./WorksheetContext";
+import { EditSlideProvider } from "./EditSlideContext";
+import { EditSlidePanel } from "./EditSlidePanel";
+import { SlideEditSlide } from "./SlideEditSlide";
 import { WebbingProvider } from "./WebbingContext";
 import { ThinkingProvider } from "./ThinkingContext";
 import { GroupsProvider } from "./GroupsContext";
@@ -3625,6 +3628,9 @@ export default function App() {
           </main>
         )}
         {view === "editor" && navigationDeck.slides.length > 0 && (
+          <SlideEditSlide slideId={slide?.id} />
+        )}
+        {view === "editor" && navigationDeck.slides.length > 0 && (
           <Editor
             scope={actionResolvedScope}
             editable={cloud.canEdit(slide!)}
@@ -4016,6 +4022,18 @@ export default function App() {
               insertStructure(elements);
               setView("editor");
             }}
+          />
+        }
+        editslide={
+          <EditSlidePanel
+            currentSlide={() =>
+              latestWorkbook.current.slides.find(
+                (s) => s.id === latestSlideId.current,
+              )
+            }
+            slideExists={(id) =>
+              latestWorkbook.current.slides.some((s) => s.id === id)
+            }
           />
         }
         prevanswer={
@@ -4439,7 +4457,17 @@ export default function App() {
                   (e) => e.thinking,
                 ),
               },
-              createElement(ActivityPanelProvider, { children: content }),
+              createElement(
+                EditSlideProvider,
+                {
+                  deckId: cloud.active?.id,
+                  userId: cloud.user?.id,
+                  host: cloud.isHost,
+                  blocked: cloud.viewingRevoked || cloud.recoveryOnly,
+                  pollActive: view === "editor",
+                },
+                createElement(ActivityPanelProvider, { children: content }),
+              ),
             ),
           ),
         ),

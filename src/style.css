@@ -8216,3 +8216,126 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .record-node { font-size:13px;color:#333; }
 .thinking-preview .tb-art line, .thinking-preview .tb-art ellipse, .thinking-preview .tb-art rect, .thinking-preview .tb-art path { stroke:#7a6a9a;stroke-width:1.6;fill:rgba(91,74,138,0.05); }
 .thinking-preview .tb-art path { fill:none; }
+
+/* Free-edit slides (stage 1) */
+.edit-slide-launch {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(23, 61, 56, 0.28);
+}
+.edit-studio-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(23, 61, 56, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.edit-studio {
+  background: var(--panel, #ffffff);
+  border-radius: 14px;
+  max-width: min(1060px, 96vw);
+  width: 100%;
+  max-height: 94vh;
+  overflow: auto;
+  padding: 14px 18px;
+}
+.edit-studio header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.edit-studio header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.edit-studio-state {
+  color: var(--muted, #5b7268);
+  font-size: 13px;
+}
+.edit-studio header .button {
+  margin-left: auto;
+}
+.edit-studio-message {
+  margin: 8px 0 0;
+  color: #9a3412;
+}
+.edit-studio-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 10px 0;
+}
+.edit-studio-bg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.edit-studio-canvas {
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+.edit-studio-note {
+  color: var(--muted, #5b7268);
+  font-size: 13px;
+  margin: 10px 0 0;
+}
+.edit-slide-def {
+  border: 1px solid var(--line, #d7e0d9);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+.edit-slide-actions {
+  display: flex;
+  gap: 8px;
+}
+.console-edit-slides {
+  margin-top: 18px;
+}
+.console-edit-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.console-edit-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--line, #d7e0d9);
+  border-radius: 10px;
+  padding: 6px;
+  cursor: pointer;
+}
+.console-edit-large {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(23, 61, 56, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.console-edit-large header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ffffff;
+}
+.console-edit-large header h3 {
+  margin: 0;
+}

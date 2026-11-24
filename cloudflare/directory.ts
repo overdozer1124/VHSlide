@@ -10,6 +10,13 @@ import {
   surveyCommand,
   SurveyError,
 } from "../src/surveys.ts";
+import {
+  editSlideSchema,
+  editSlideList,
+  editSlideCommand,
+  recordEditAnswerAsset,
+  editAnswerAsset,
+} from "../src/editSlides.ts";
 import { webbingSchema, webbingList, webbingCommand } from "../src/webbing.ts";
 import {
   thinkingSchema,
@@ -197,6 +204,7 @@ export class Directory extends DurableObject<Env> {
       this.sql.exec("ALTER TABLE assets ADD COLUMN hash TEXT");
     this.sql.exec(joinSchema);
     this.sql.exec(surveySchema);
+    this.sql.exec(editSlideSchema);
     this.sql.exec(worksheetSchema);
     this.sql.exec(webbingSchema);
     this.sql.exec(groupSchema);
@@ -402,9 +410,13 @@ export class Directory extends DurableObject<Env> {
   /** Drop a blob whose last referencing asset row is gone. Caller must have
    * already removed the asset rows inside the same transaction. */
   private releaseBlob(owner: string, hash: string) {
+    // Both referencing tables count: deck assets and edit-slide
+    // answer photos (whose blobs are owned by the deck's owner).
     const refs = one<{ n: number }>(
       this.sql,
-      "SELECT COUNT(*) AS n FROM assets WHERE owner=? AND hash=?",
+      "SELECT (SELECT COUNT(*) FROM assets WHERE owner=? AND hash=?) + (SELECT COUNT(*) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def JOIN decks dk ON dk.id=d.deck WHERE dk.owner=? AND aa.hash=?) AS n",
+      owner,
+      hash,
       owner,
       hash,
     )!;
@@ -438,6 +450,61 @@ export class Directory extends DurableObject<Env> {
         bytes.slice(i, i + BLOB_CHUNK).buffer,
       );
   }
+  /** Store one answer photo's bytes in the shared blob pool (the
+   * same deduplication as deck photos, but the binding lives only
+   * in the edit-slide tables — the deck's asset table and the room
+   * never learn about it). Returns the dedicated read path. The
+   * quota check, blob store and binding all happen in one
+   * transaction, so a refused binding stores nothing. */
+  private async saveAnswerAsset(
+    work: Work,
+    user: User,
+    defId: string,
+    bytes: Uint8Array,
+  ) {
+    const type = mime(bytes);
+    insist(
+      type && bytes.length <= 6_000_000,
+      400,
+      "6MB以下のPNG・JPEG・WebP・GIF画像を選んでください。",
+    );
+    const hash = await digestBytes(bytes);
+    const asset = crypto.randomUUID();
+    this.ctx.storage.transactionSync(() => {
+      const known = one(
+        this.sql,
+        "SELECT hash FROM blobs WHERE owner=? AND hash=?",
+        work.owner,
+        hash,
+      );
+      if (!known) {
+        insist(
+          this.assetUsage() + bytes.length <= MAX_ASSETS,
+          413,
+          "アプリ全体の写真の保存容量の上限です（5GB）。不要な作品を整理してください。",
+        );
+        insist(
+          this.assetUsage(work.owner) + bytes.length <= MAX_USER_ASSETS,
+          413,
+          "先生の写真の保存容量の上限です（500MB）。不要な作品を整理してください。",
+        );
+        this.storeBlob(work.owner, hash, type!, bytes);
+      }
+      const sql = (query: string, ...args: (string | number)[]) =>
+        this.sql.exec(query, ...args);
+      recordEditAnswerAsset(
+        sql,
+        work.id,
+        user.id,
+        defId,
+        asset,
+        hash,
+        bytes.length,
+        type!,
+      );
+    });
+    return `/api/decks/${work.id}/edit-slides/${defId}/answer-assets/${asset}`;
+  }
   private removeWork(id: string) {
     this.ctx.storage.transactionSync(() => {
       const shared = rows<{ owner: string; hash: string }>(
@@ -447,6 +514,30 @@ export class Directory extends DurableObject<Env> {
       );
       this.sql.exec("DELETE FROM assets WHERE deck=?", id);
       for (const blob of shared) this.releaseBlob(blob.owner, blob.hash);
+      // Edit-slide answer photos: rows out, then their blobs
+      // released under the deck owner's account.
+      const deckRow = one<{ owner: string }>(
+        this.sql,
+        "SELECT owner FROM decks WHERE id=?",
+        id,
+      );
+      const answerHashes = rows<{ hash: string }>(
+        this.sql,
+        "SELECT DISTINCT aa.hash AS hash FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def WHERE d.deck=?",
+        id,
+      );
+      this.sql.exec(
+        "DELETE FROM edit_slide_answer_assets WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
+        id,
+      );
+      this.sql.exec(
+        "DELETE FROM edit_slide_answers WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
+        id,
+      );
+      this.sql.exec("DELETE FROM edit_slide_defs WHERE deck=?", id);
+      if (deckRow)
+        for (const row of answerHashes)
+          this.releaseBlob(deckRow.owner, row.hash);
       this.sql.exec("DELETE FROM invites WHERE deck=?", id);
       this.sql.exec("DELETE FROM recipients WHERE deck=?", id);
       this.sql.exec("DELETE FROM grants WHERE deck=?", id);
@@ -1940,6 +2031,15 @@ export class Directory extends DurableObject<Env> {
         const sql = (query: string, ...args: (string | number)[]) =>
           this.sql.exec(query, ...args);
         const out: Record<string, unknown> = {};
+        const ev = params.get("ev");
+        if (ev !== null) {
+          const version = featureVersion(sql, id, "editslides");
+          if (ev === "" || Number(ev) !== version)
+            out.editslides = {
+              version,
+              editSlides: editSlideList(sql, id, user.id, host),
+            };
+        }
         const wv = params.get("wv");
         if (wv !== null) {
           const version = featureVersion(sql, id, "worksheets");
@@ -2071,6 +2171,100 @@ export class Directory extends DurableObject<Env> {
         }
         return json({ surveys: surveyList(sql, id, user.id, host) });
       });
+    }
+    if (extra === "edit-slides" || extra?.startsWith("edit-slides/")) {
+      insist(
+        ["GET", "POST", "DELETE"].includes(method),
+        405,
+        "この操作には対応していません。",
+      );
+      const route =
+        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets)(?:\/([a-f0-9-]{36}))?)?)?$/.exec(
+          extra,
+        );
+      insist(
+        route &&
+          (method === "GET"
+            ? extra === "edit-slides" ||
+              (route[2] === "answer-assets" && !!route[3])
+            : method === "DELETE"
+              ? !!route[1] && !route[2]
+              : extra === "edit-slides" || (!!route[2] && !route[3])),
+        404,
+        "生徒の編集用の操作が見つかりません。",
+      );
+      const sql = (query: string, ...args: (string | number)[]) =>
+        this.sql.exec(query, ...args);
+      if (route![2] === "answer-assets" && method === "GET") {
+        // Reading an answer photo: only its author and the host.
+        // The bytes come from the shared blob pool.
+        const stored = editAnswerAsset(
+          sql,
+          id,
+          user.id,
+          work.owner === user.id,
+          route![1]!,
+          route![3]!,
+        );
+        const blob = one<{ mime: string; bytes: number }>(
+          this.sql,
+          "SELECT mime,bytes FROM blobs WHERE owner=? AND hash=?",
+          work.owner,
+          stored.hash,
+        );
+        insist(blob, 404, "写真が見つかりません。");
+        const chunks = rows<{ data: ArrayBuffer }>(
+          this.sql,
+          "SELECT data FROM blob_chunks WHERE owner=? AND hash=? ORDER BY part",
+          work.owner,
+          stored.hash,
+        );
+        return new Response(new Blob(chunks.map((chunk) => chunk.data)), {
+          headers: {
+            "Content-Type": blob!.mime,
+            "Content-Length": String(blob!.bytes),
+            "Cache-Control": "private, no-store",
+          },
+        });
+      }
+      if (route![2] === "answer-assets") {
+        // A photo for the student's own answer (open definitions
+        // only, at most 10 per answer).
+        this.rate(`editslide-asset:${user.id}`, 60);
+        const src = await this.saveAnswerAsset(
+          work,
+          user,
+          route![1]!,
+          await body(request, 6_000_000),
+        );
+        return json({ src }, 201);
+      }
+      const value = method === "POST" ? await input(request, 8_000_000) : {};
+      let orphans: { asset: string; hash: string }[] = [];
+      const response = this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        if (method !== "GET") {
+          this.rate(`editslide:${user.id}`, 120);
+          const result = editSlideCommand(
+            sql,
+            id,
+            user.id,
+            host,
+            method === "DELETE" ? "delete" : (route![2] ?? "create"),
+            route![1],
+            value,
+          );
+          orphans = result.orphanAssets ?? [];
+        }
+        return json({ editSlides: editSlideList(sql, id, user.id, host) });
+      });
+      if (orphans.length)
+        this.ctx.storage.transactionSync(() => {
+          for (const orphan of orphans)
+            this.releaseBlob(work.owner, orphan.hash);
+        });
+      return response;
     }
     if (extra === "groups" || extra?.startsWith("groups/")) {
       insist(
