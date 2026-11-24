@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Deck, Slide } from "./model";
 import { idleFollow, type FollowState } from "./hostFollow";
 import {
+  consoleAdjacentRelevant,
   consoleDefaultSheet,
   consoleInitialSlide,
   consoleRows,
@@ -69,6 +70,26 @@ describe("teacher console helpers", () => {
 
   it("falls back to the first slide when nothing is projected", () => {
     expect(consoleInitialSlide(deck, idleFollow())).toBe("a");
+  });
+
+  it("opens on the slide the editor had open, and its sheet", () => {
+    expect(consoleInitialSlide(deck, idleFollow(), "c")).toBe("c");
+    expect(consoleDefaultSheet(deck, idleFollow(), "z")).toBe("sub");
+    expect(consoleInitialSlide(deck, idleFollow(), "z")).toBe("z");
+    // A live follow still wins over the editor's slide.
+    expect(consoleInitialSlide(deck, followTo("b"), "c")).toBe("b");
+    // An unknown editor slide falls back as before.
+    expect(consoleInitialSlide(deck, idleFollow(), "gone")).toBe("a");
+  });
+
+  it("steps between slides with answers for the arrow keys", () => {
+    const slides = consoleSlides(deck, "main");
+    const answered = (s: Slide) => s.id !== "a";
+    expect(consoleAdjacentRelevant(slides, answered, "a", 1)?.id).toBe("b");
+    expect(consoleAdjacentRelevant(slides, answered, "b", 1)?.id).toBe("c");
+    expect(consoleAdjacentRelevant(slides, answered, "c", 1)).toBeUndefined();
+    expect(consoleAdjacentRelevant(slides, answered, "c", -1)?.id).toBe("b");
+    expect(consoleAdjacentRelevant(slides, answered, "b", -1)).toBeUndefined();
   });
 
   it("counts real answers per field kind", () => {

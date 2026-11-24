@@ -19,6 +19,10 @@ export type ResponseGallery = {
   names: boolean;
   live: boolean;
   created: number;
+  /** Private preview only: the deck's members who have not answered
+   * this slide yet (names, in class account order), so the console
+   * can list them as 未回答. Never set on a published gallery. */
+  unanswered?: { name: string }[];
 };
 type Config = {
   participants: string[] | null;
@@ -123,6 +127,31 @@ export function galleryBuild(
       return memberA - memberB;
     return a.localeCompare(b);
   };
+  // The members who have not answered yet (private preview only):
+  // everyone in the deck except the requester and the respondents,
+  // in the same class account order as the cards.
+  let unanswered: { name: string }[] | undefined;
+  if (privatePreview) {
+    const missing: string[] = [];
+    for (const row of sql("SELECT user_id FROM members WHERE deck=?", deck)) {
+      const id = row.user_id;
+      if (typeof id !== "string" || id === actor || people.has(id)) continue;
+      if (config.participants && !config.participants.includes(id)) continue;
+      if (!missing.includes(id)) missing.push(id);
+    }
+    const names = new Map<string, string>();
+    if (missing.length)
+      for (const row of sql(
+        "SELECT u.id AS id,u.name AS name FROM users u JOIN members m ON m.user_id=u.id WHERE m.deck=?",
+        deck,
+      ))
+        if (typeof row.id === "string")
+          names.set(row.id, typeof row.name === "string" ? row.name : "");
+    unanswered = missing
+      .sort(accountOrder)
+      .slice(0, 500)
+      .map((id) => ({ name: names.get(id) || "名前未登録" }));
+  }
   const cards = [...people]
     .sort(([a], [b]) => accountOrder(a, b))
     .slice(0, 500)
@@ -207,6 +236,7 @@ export function galleryBuild(
     names: config.names,
     live: config.live,
     created: Date.now(),
+    ...(unanswered ? { unanswered } : {}),
   };
 }
 export function galleryCommand(

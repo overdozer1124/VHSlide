@@ -27,6 +27,7 @@ import { ResponseGalleryCard } from "./ResponseGalleryPanel";
 import type { ResponseGallery } from "./responseGallery";
 import {
   consoleDefaultSheet,
+  consoleAdjacentRelevant,
   consoleInitialSlide,
   consoleRows,
   consoleSheets,
@@ -51,10 +52,14 @@ export function TeacherConsole({
   onGroupShow,
   chartShow,
   onChartShow,
+  initialSlideId,
 }: {
   workbook: Deck;
   cloud: CloudWorkspace;
   onClose: () => void;
+  /** The slide the editor had open when the console was opened: the
+   * console starts there (unless a follow is live). */
+  initialSlideId?: string;
   onOpenGallery?: () => void;
   groupShow?: FollowTarget;
   onGroupShow?: (target?: FollowTarget) => void;
@@ -64,13 +69,21 @@ export function TeacherConsole({
   const follow = cloud.follow;
   const sheets = consoleSheets(workbook);
   const [sheetId, setSheetId] = useState(() =>
-    consoleDefaultSheet(workbook, follow),
+    consoleDefaultSheet(workbook, follow, initialSlideId),
   );
   const slides = consoleSlides(workbook, sheetId);
   const [focusId, setFocusId] = useState(() =>
-    consoleInitialSlide(workbook, follow),
+    consoleInitialSlide(workbook, follow, initialSlideId),
   );
-  const [expandedRow, setExpandedRow] = useState<number>();
+  const [expandedRow, setExpandedRow] = useState<number | undefined>(() => {
+    const initial = consoleSlides(
+      workbook,
+      consoleDefaultSheet(workbook, follow, initialSlideId),
+    ).find(
+      (s) => s.id === consoleInitialSlide(workbook, follow, initialSlideId),
+    );
+    return initial?.y;
+  });
   const focus = slides.find((s) => s.id === focusId) ?? slides[0];
   const projected =
     follow.active && follow.target.mode === "page"
@@ -171,6 +184,48 @@ export function TeacherConsole({
         setFocusId(first.id);
         setExpandedRow(first.y);
       }
+    }
+  };
+
+  // Arrow keys step between the slides that have answers while the
+  // student-slides view is on screen (spec: console improvement 4).
+  useEffect(() => {
+    if (mode !== "slides") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      )
+        return;
+      const next = consoleAdjacentRelevant(
+        slides,
+        (s) => relevance(s) > 0,
+        focus?.id,
+        e.key === "ArrowRight" ? 1 : -1,
+      );
+      if (next) {
+        e.preventDefault();
+        setFocusId(next.id);
+        setExpandedRow(next.y);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  /** Switching into the student-slides view: the answered-only
+   * filter starts on (its default there) and the focused slide's
+   * row starts expanded. */
+  const enterMode = (key: ConsoleMode) => {
+    setMode(key);
+    if (key === "slides") {
+      setOnlyRelevant(true);
+      if (focus) setExpandedRow(focus.y);
     }
   };
 
@@ -348,7 +403,7 @@ export function TeacherConsole({
           workbook={workbook}
           focus={focus}
           mode={mode}
-          setMode={setMode}
+          setMode={enterMode}
           onOpenGallery={onOpenGallery}
           groupShow={groupShow}
           onGroupShow={onGroupShow}
@@ -952,7 +1007,7 @@ function ConsoleStudentSlides({
             )}
           </div>
           {error && <p className="console-waiting">{error}</p>}
-          {!error && !cards.length && (
+          {!error && !cards.length && !(gallery?.unanswered?.length ?? 0) && (
             <p className="console-note">まだ回答がありません。</p>
           )}
           <div
@@ -1013,6 +1068,21 @@ function ConsoleStudentSlides({
           </article>
         ))}
       </div>
+      {gallery?.unanswered && gallery.unanswered.length > 0 && (
+        <div className="console-unanswered">
+          <p className="console-answer-status">
+            未回答（{gallery.unanswered.length}人）
+          </p>
+          <div className="console-unanswered-list">
+            {gallery.unanswered.map((u, i) => (
+              <span key={i} className="console-unanswered-chip">
+                {u.name}
+                <em>未回答</em>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {enlarged && (
         <div
           className="console-enlarged"
