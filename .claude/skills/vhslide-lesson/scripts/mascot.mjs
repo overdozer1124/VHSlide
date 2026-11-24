@@ -50,6 +50,19 @@ ${face(130, 128, c, 0.78)}
 <path d="M130 216 L130 256" stroke="${c.outline}" stroke-width="3"/>
 <path d="M106 228 L124 228 M106 238 L124 238 M136 228 L154 228 M136 238 L154 238" stroke="#ffffff" stroke-width="3" opacity=".55"/>
 <ellipse cx="100" cy="240" rx="10" ry="12" fill="#fde9d6" stroke="${c.outline}" stroke-width="3"/><ellipse cx="160" cy="240" rx="10" ry="12" fill="#fde9d6" stroke="${c.outline}" stroke-width="3"/>`,
+  // 文人：冠（黒い小さな冠と簪）をかぶり、交領（えりを打ち合わせた）の袍を着て、竹簡を広げて読む子ども（漢文・中国の古典）。袍の色はテーマの think 色（時間ごとの色）。
+  bunjin: c => `<path d="M30 260 C36 204 80 180 130 180 C180 180 224 204 230 260 Z" fill="${c.think}" stroke="${c.outline}" stroke-width="4" stroke-linejoin="round"/>
+<path d="M104 182 L150 238 M156 182 L120 220" stroke="#fff4dc" stroke-width="10" stroke-linecap="round"/>
+<path d="M104 182 L150 238 M156 182 L120 220" stroke="${c.outline}" stroke-width="2.5" stroke-linecap="round" opacity=".5"/>
+<ellipse cx="130" cy="118" rx="54" ry="58" fill="#fde9d6" stroke="${c.outline}" stroke-width="4"/>
+<path d="M76 120 C70 52 190 52 184 120 L178 104 C160 92 100 92 82 104 Z" fill="#1d1d22" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
+<rect x="110" y="34" width="40" height="30" rx="6" fill="#1d1d22" stroke="${c.outline}" stroke-width="3.5"/>
+<path d="M92 50 H168" stroke="#c8a04a" stroke-width="5" stroke-linecap="round"/><circle cx="168" cy="50" r="5" fill="#c8a04a"/>
+${face(130, 128, c, 0.78)}
+<rect x="64" y="206" width="132" height="50" rx="3" fill="#e3c27e" stroke="${c.outline}" stroke-width="3"/>
+<path d="M80 206 V256 M96 206 V256 M112 206 V256 M130 206 V256 M148 206 V256 M164 206 V256 M180 206 V256" stroke="#8a6a3a" stroke-width="2"/>
+<path d="M64 218 H196 M64 244 H196" stroke="${c.wrap}" stroke-width="3"/>
+<ellipse cx="62" cy="232" rx="11" ry="13" fill="#fde9d6" stroke="${c.outline}" stroke-width="3"/><ellipse cx="198" cy="232" rx="11" ry="13" fill="#fde9d6" stroke="${c.outline}" stroke-width="3"/>`,
   ninjin: c => `<path d="M118 62 C104 30 84 22 74 30 C92 40 104 54 112 66 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
 <path d="M126 60 C124 26 132 12 144 14 C144 32 138 48 134 62 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>
 <path d="M140 64 C156 36 178 30 188 38 C172 46 160 58 150 70 Z" fill="${c.wrap}" stroke="${c.outline}" stroke-width="3.5" stroke-linejoin="round"/>

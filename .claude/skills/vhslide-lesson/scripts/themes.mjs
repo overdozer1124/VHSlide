@@ -72,6 +72,17 @@ export const themes = {
     chart: ["#b8402c", "#4a2f22", "#c9a227", "#3f6b4f", "#3b4f7a", "#8a5a8a"],
     muted: "#cdb894", mascot: { body: "#fffaf0", outline: "#2e2318", wrap: "#4a2f22", cheek: "#eba99a", think: "#b8402c", idea: "#3f6b4f" },
   },
+  kanseki: {
+    label: "漢籍（朱漆・金の雷文・竹簡・落款。漢文・中国の古典・中国の歴史に）",
+    decor: { style: "kanseki", headerBand: true, top: 96, headInk: "#fbf1dc", titleInk: "#2a1a14", sectionInk: "#fbf1dc", sectionNum: "#e2c071", gold: "#c8a04a", seal: "#b3261e" },
+    font: "ud", headingFont: "shippori", passageFont: "shippori",
+    bg: "#f4ecd9", surface: "#fffaf0", ink: "#2a1a14", sub: "#6a5644",
+    primary: "#7e1f17", onPrimary: "#fbf1dc", primarySoft: "#f3dfd2",
+    accent: "#2f6b5a", onAccent: "#ffffff", accentSoft: "#dcebe3",
+    line: "#d8c49a", header: "band", card: "strip",
+    chart: ["#7e1f17", "#2f6b5a", "#c8a04a", "#3b4f7a", "#a04a2a", "#6b5a8a"],
+    muted: "#cdb894", mascot: { body: "#fffaf0", outline: "#2a1a14", wrap: "#7e1f17", cheek: "#eba99a", think: "#2f6b5a", idea: "#c8a04a" },
+  },
   pastel: {
     label: "パステル（やわらかい桃色・若草色）",
     decor: { style: "waves", headerBand: true, top: 100, titleInk: "#ffffff", titleDark: true, sectionInk: "#ffffff", heroFrom: "#e58fa2", heroTo: "#f2b77a" },

@@ -19,7 +19,7 @@ const write = (f, s) => fs.writeFileSync(path.join(out, f), s);
 
 const ai = shared("ai.txt");
 const themeList = Object.entries(themes).map(([k, t]) => `${k}（${t.label.replace(/（.*$/, "")}）`).join("、");
-const mascotNames = { onigiri: "おにぎり", drop: "しずく", book: "本", sprout: "芽", kokeshi: "こけし", hiyoko: "ひよこ", ninjin: "にんじん", heian: "平安の姫", blob: "まる" };
+const mascotNames = { onigiri: "おにぎり", drop: "しずく", book: "本", sprout: "芽", kokeshi: "こけし", hiyoko: "ひよこ", ninjin: "にんじん", heian: "平安の姫", bunjin: "文人", blob: "まる" };
 const mascotList = [...mascotKinds.map(k => `${k}（${mascotNames[k] ?? k}）`), "none（なし）"].join("、");
 
 // The same light flow as the Claude skill: confirm once → read and design → JSON → short report.

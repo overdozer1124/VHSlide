@@ -143,6 +143,49 @@ const styles = {
     return svg(defs(T, paper) + `
       <rect width="${W}" height="${H}" fill="url(#washi)"/>${clouds}${head}${goldEdge}${roller(0)}${roller(W - 16)}${grain}`);
   },
+  /** 漢籍：中国の古典。生成り色の紙、朱漆の帯、金の雷文（四角い渦）、竹簡、落款。漢文・中国の古典・中国の歴史に。 */
+  kanseki(T, kind) {
+    const gold = T.decor.gold ?? "#c8a04a", seal = T.decor.seal ?? "#b3261e";
+    // 雷文: a band of square spirals (the "thunder" key pattern seen on bronze vessels and lacquer).
+    const raimonDef = (id, c, z = 28) => `<pattern id="${id}" width="${z}" height="${z}" patternUnits="userSpaceOnUse">
+      <path d="M${z * 0.07} ${z * 0.93} H${z * 0.93} V${z * 0.07} H${z * 0.21} V${z * 0.71} H${z * 0.71} V${z * 0.29} H${z * 0.43} V${z * 0.5}" fill="none" stroke="${c}" stroke-width="${z * 0.093}" stroke-linecap="square"/></pattern>`;
+    const band = (x, y, w, id, z = 28) => `<rect x="${x}" y="${y}" width="${w}" height="${z}" fill="url(#${id})"/>`;
+    const paper = `<pattern id="kpaper" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="${T.bg}"/>
+      <path d="M6 14 q14 3 24 -1 M34 44 q12 5 24 0 M10 54 q8 -3 14 0" stroke="${mix(T.bg, T.primary, 0.14)}" stroke-width="1" fill="none" opacity=".6"/></pattern>`;
+    // 竹簡: bamboo slips tied with two cords.
+    const slips = (x, y, n, h, op) => `<g opacity="${op}">${Array.from({ length: n }, (_, i) =>
+      `<rect x="${x + i * 26}" y="${y}" width="22" height="${h}" rx="3" fill="${mix("#d9b877", T.bg, 0.15)}" stroke="${mix("#8a6a3a", T.bg, 0.2)}" stroke-width="1.5"/>` +
+      `<line x1="${x + i * 26 + 11}" y1="${y + 18}" x2="${x + i * 26 + 11}" y2="${y + h - 18}" stroke="${mix("#8a6a3a", T.bg, 0.45)}" stroke-width="1" stroke-dasharray="8 10"/>`).join("")}
+      <rect x="${x - 4}" y="${y + h * 0.18}" width="${n * 26 + 4}" height="5" fill="${mix(T.primary, "#000000", 0.1)}"/>
+      <rect x="${x - 4}" y="${y + h * 0.78}" width="${n * 26 + 4}" height="5" fill="${mix(T.primary, "#000000", 0.1)}"/></g>`;
+    // 落款: a red square seal carved with a square spiral (no real character, so it reads as decoration).
+    const stamp = (x, y, s, op) => `<g opacity="${op}"><rect x="${x}" y="${y}" width="${s}" height="${s}" rx="${s * 0.08}" fill="${seal}"/>
+      <rect x="${x + s * 0.12}" y="${y + s * 0.12}" width="${s * 0.76}" height="${s * 0.76}" fill="none" stroke="${T.bg}" stroke-width="${s * 0.05}"/>
+      <path d="M${x + s * 0.26} ${y + s * 0.74} H${x + s * 0.74} V${y + s * 0.26} H${x + s * 0.34} V${y + s * 0.62} H${x + s * 0.62} V${y + s * 0.4} H${x + s * 0.48} V${y + s * 0.5}" fill="none" stroke="${T.bg}" stroke-width="${s * 0.06}" stroke-linecap="square"/></g>`;
+    // 祥雲: simple auspicious cloud scrolls.
+    const cloud = (x, y, r, c, op) => `<g fill="none" stroke="${c}" stroke-width="${r * 0.16}" stroke-linecap="round" opacity="${op}">
+      <path d="M${x} ${y} a${r} ${r} 0 1 1 ${r * 1.2} ${-r * 0.2} a${r * 0.5} ${r * 0.5} 0 1 0 ${-r * 0.5} ${r * 0.3}"/>
+      <path d="M${x + r * 1.2} ${y - r * 0.2} q${r * 1.4} ${-r * 0.6} ${r * 2.4} ${r * 0.2} a${r * 0.6} ${r * 0.6} 0 1 1 ${-r * 0.7} ${r * 0.6}"/>
+      <path d="M${x - r * 0.4} ${y + r * 0.6} H${x + r * 3.4}"/></g>`;
+    const defsK = defs(T, paper + raimonDef("raiG", gold) + raimonDef("raiR", mix(T.primary, T.bg, 0.25)) + raimonDef("raiS", gold, 14));
+    if (kind === "section") return svg(defsK + `
+      <rect width="${W}" height="${H}" fill="${T.primary}"/>
+      ${band(0, 22, W, "raiG")}${band(0, H - 50, W, "raiG")}
+      ${cloud(620, 170, 36, gold, 0.5)}${cloud(90, 420, 26, gold, 0.4)}
+      ${slips(W - 250, 110, 7, 300, 0.22)}${stamp(W - 120, H - 150, 64, 0.9)}${grain}`);
+    if (kind === "content") return svg(defsK + `
+      <rect width="${W}" height="${H}" fill="url(#kpaper)"/>
+      ${slips(W - 170, H - 150, 6, 170, 0.18)}
+      <rect width="${W}" height="74" fill="${T.primary}"/>${cloud(700, 44, 14, gold, 0.55)}
+      <rect y="74" width="${W}" height="18" fill="${mix(T.primary, "#000000", 0.2)}"/><rect y="76" width="${W}" height="14" fill="url(#raiS)"/><rect y="92" width="${W}" height="2" fill="${gold}"/>
+      ${stamp(W - 58, H - 58, 34, 0.35)}${grain}`);
+    return svg(defsK + `
+      <rect width="${W}" height="${H}" fill="url(#kpaper)"/>
+      ${band(0, 0, W, "raiR")}${band(0, H - 28, W, "raiR")}
+      <rect x="0" y="28" width="16" height="${H - 56}" fill="${T.primary}"/><rect x="${W - 16}" y="28" width="16" height="${H - 56}" fill="${T.primary}"/>
+      ${slips(W - 330, 70, 11, 380, 0.5)}${cloud(560, 470, 24, gold, 0.6)}${cloud(80, 90, 20, gold, 0.45)}
+      ${stamp(W - 150, H - 150, 80, 0.85)}${grain}`);
+  },
   /** Light ground with blurred colour blobs (glassy, modern). */
   blobs(T, kind) {
     const t = T.tiles ?? [T.accentSoft, T.primarySoft];

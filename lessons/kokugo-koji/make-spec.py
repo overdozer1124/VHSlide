@@ -219,7 +219,7 @@ L3 = lesson(3, "今に生きる言葉\n― 故事成語を使って体験文を�
                   "notes": "漢文独特の言い回しについて振り返る。故事成語が日常生活でどのように使われているか考えさせる。故事成語の中で、興味をもったものや日常生活で使ってみたいものを挙げさせる。教科書に載っていないものも紹介すると、日常生活の中で使われている故事成語に気づく生徒が増える。"},
                  rubric_self()]}])
 
-spec = {"title": "今に生きる言葉", "course": "国語　第1学年", "layout": "lesson-rows", "theme": "emaki", "mascot": "heian",
+spec = {"title": "今に生きる言葉", "course": "国語　第1学年", "layout": "lesson-rows", "theme": "kanseki", "mascot": "bunjin",
         "sectionSlides": False, "lessons": [L1, L2, L3]}
 json.dump(spec, open("koji.spec.json", "w"), ensure_ascii=False, indent=1)
 print("ok")

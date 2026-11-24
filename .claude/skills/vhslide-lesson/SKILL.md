@@ -56,8 +56,8 @@ description: Turn a teacher's guide (指導書) or textbook pages (images or PDF
 | 項目 | 選択肢 | 既定 |
 | --- | --- | --- |
 | 配置（layout） | `lesson-rows`：1行＝1単位時間。左から右へ授業が進み、次の時間は下の行<br>`phase-grid`：導入・展開・まとめを縦に並べる2次元配置（複数時間ならシートを時間ごとに分ける） | `lesson-rows` |
-| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`emaki` 絵巻（国語の古文・漢文、社会の江戸期以前の歴史に向き、これらの教材では第一にすすめる）／`pastel` パステル／`shokutaku` 食卓／`bento` ボックス／`kukkiri` くっきり／`notebook` ノート／`board` コルクボード／`magazine` マガジン／`minimal` ミニマル（見本：examples/themes-preview.png・patterns-preview-*.png）／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | 教材に合わせておすすめを初期値にする |
-| キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`hiyoko`（成長・幼児）／`ninjin`（食品・栄養）／`heian`（平安の姫：古文・平安時代の教材に向く。古文の単元では `emaki`＋`heian` を第一にすすめる）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
+| トーン（theme） | `natural` ナチュラル／`pop` ポップ／`chic` シック／`chalk` 黒板／`wa` 和／`emaki` 絵巻（国語の古文、社会の日本の江戸期以前の歴史に向き、これらの教材では第一にすすめる）／`kanseki` 漢籍（朱漆・金の雷文・竹簡・落款。国語の漢文、中国の古典・歴史に向き、これらの教材では第一にすすめる。漢文に絵巻は日本風で違和感があるので使わない：利用者の指摘 2026-11-24）／`pastel` パステル／`shokutaku` 食卓／`bento` ボックス／`kukkiri` くっきり／`notebook` ノート／`board` コルクボード／`magazine` マガジン／`minimal` ミニマル（見本：examples/themes-preview.png・patterns-preview-*.png）／Claude Design のデザインシステムから作る（[design.md](reference/design.md)） | 教材に合わせておすすめを初期値にする |
+| キャラクター | `onigiri`（食・家庭）／`drop`（理科・水）／`book`（国語・汎用）／`sprout`（生活・生き物）／`kokeshi`（和服・伝統文化）／`hiyoko`（成長・幼児）／`ninjin`（食品・栄養）／`heian`（平安の姫：古文・平安時代の教材に向く。古文の単元では `emaki`＋`heian` を第一にすすめる）／`bunjin`（文人：冠をかぶり竹簡を読む子ども。漢文・中国の古典に向く。漢文の単元では `kanseki`＋`bunjin` を第一にすすめる）／`blob`（汎用）／`none` | 教科に合わせて選ぶ |
 | 背景 | 入れる（テーマの装飾背景を自動生成）／入れない | 入れる |
 | 挿絵 | 入れる（3〜6枚）／少しだけ（1〜2枚）／入れない | 入れる（3〜6枚） |
 | 範囲 | 単元が複数時間にわたる場合に「何時間目まで作るか」 | 資料の時間だけ |
