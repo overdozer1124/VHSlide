@@ -98,7 +98,7 @@ export class DeckPoller {
         .join("&") +
       // Thinking board tools are only sent to clients that declare
       // they can render them (older clients keep the point-only list).
-      (features.includes("thinking") ? "&tcaps=board,steps,flow" : "");
+      (features.includes("thinking") ? "&tcaps=board,steps,flow,board5" : "");
     const guards = new Map(
       features.map((f) => [f, this.sinks.get(f)?.guard?.current]),
     );

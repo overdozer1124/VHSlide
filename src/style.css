@@ -8067,6 +8067,12 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-x line { stroke:#7a6a9a;stroke-width:1.5; }
 .thinking-x circle { fill:#fbf9ff;stroke:#7a6a9a;stroke-width:1.5; }
 .thinking-x-topic { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:700;color:#5b4a8a;pointer-events:none; }
+.thinking-board-art { position:absolute;inset:0;width:100%;height:100%;pointer-events:none; }
+.thinking-board-art .tb-art line, .thinking-board-art .tb-art ellipse, .thinking-board-art .tb-art rect, .thinking-board-art .tb-art path { stroke:#7a6a9a;stroke-width:1.5;fill:rgba(91,74,138,0.05); }
+.thinking-board-art .tb-art path { fill:none; }
+.thinking-figure-title { position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:700;color:#5b4a8a;pointer-events:none;overflow:hidden; }
+.thinking-figure-title span { display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all; }
+.thinking-figure-title.is-vertical span { writing-mode:vertical-rl;-webkit-line-clamp:2;max-height:100%; }
 .thinking-x-topic > span { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden; }
 .thinking-zone.is-wedge { border:none;background:transparent; }
 .thinking-zone { position:absolute;box-sizing:border-box;border:1px dashed rgba(122,106,154,0.45);display:flex;flex-direction:column;padding:4px;overflow:hidden; }
@@ -8204,3 +8210,5 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-webbing-mini.is-large .thinking-webbing-dot { font-size:13px;padding:2px 10px; }
 .record-nodes { margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px; }
 .record-node { font-size:13px;color:#333; }
+.thinking-preview .tb-art line, .thinking-preview .tb-art ellipse, .thinking-preview .tb-art rect, .thinking-preview .tb-art path { stroke:#7a6a9a;stroke-width:1.6;fill:rgba(91,74,138,0.05); }
+.thinking-preview .tb-art path { fill:none; }

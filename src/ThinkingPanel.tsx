@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useActivityPanel } from "./ActivitiesPanel";
 import { useThinking } from "./ThinkingContext";
+import { ThinkingBoardArtShapes } from "./ThinkingBoardArt";
 import {
   BOARD_ZONE_SPECS,
   CARD_COLORS,
@@ -37,6 +38,13 @@ export const THINKING_TEMPLATE_LABELS: Record<ThinkingTemplate, string> = {
   kwl: "KWL",
   steps: "ステップチャート（手順を並べる）",
   webbing: "ウェビング（個人・班）",
+  fishbone: "フィッシュボーン",
+  butterfly2: "バタフライ（羽2枚）",
+  butterfly4: "バタフライ（羽4枚）",
+  jellyfish: "クラゲチャート",
+  pyramid3: "ピラミッド（3段）",
+  pyramid4: "ピラミッド（4段）",
+  kumade: "くまでチャート",
 };
 export const CARD_COLOR_LABELS: Record<string, string> = {
   yellow: "黄色",
@@ -135,6 +143,45 @@ export const THINKING_TEMPLATE_GUIDES: Record<
     about: "知っていること（K）・知りたいこと（W）・分かったこと（L）を書く図です。",
     usage:
       "学習のはじめにKとWを書き、終わりにLを書き足すと、学びの変化が見えます。",
+  },
+  fishbone: {
+    about:
+      "魚の骨の形で、結果（頭）に対する原因を骨ごとに書き分ける図です。",
+    usage:
+      "「なぜそうなったか」を考えるときに使います。右の頭に結果（ツールの名前）を置き、骨の名前を原因の観点（人・もの・やり方・環境など）に変えると整理しやすくなります。",
+  },
+  butterfly2: {
+    about: "蝶の左右の羽に、2つのものを書き比べて表す図です。真ん中の体にテーマ（ツールの名前）が入ります。",
+    usage:
+      "「むかし／いま」「自分／友だち」のように、2つのものを比べるときに使います。区切りの名前は羽に合わせて変えられます。",
+  },
+  butterfly4: {
+    about:
+      "蝶の4枚の羽に、意見の強さを分けて書く図です。真ん中の体にテーマ（ツールの名前）が入ります。",
+    usage:
+      "「強い賛成・賛成・反対・強い反対」のように、賛否とその強さまで表すときに使います。区切りの名前は変更できます。",
+  },
+  jellyfish: {
+    about:
+      "クラゲの傘にテーマ（ツールの名前）を置き、足に考えを書き足していく図です。",
+    usage:
+      "テーマから思いつくことをたくさん出すときに使います。足の名前を観点の名前に変えると、観点ごとに整理できます。",
+  },
+  pyramid3: {
+    about: "3段のピラミッドに、順位や大切さの順に書く図です。",
+    usage:
+      "「いちばん大切なものは一番上」のように、優先順位や段階を表すときに使います。段の名前は変更できます。",
+  },
+  pyramid4: {
+    about: "4段のピラミッドに、順位や大切さの順に書く図です。",
+    usage:
+      "3段では足りないときに使います。上の段ほど狭いので、短い言葉で書くのが向いています。段の名前は変更できます。",
+  },
+  kumade: {
+    about:
+      "熊手の歯に、考えをたくさん集める図です。持ち手にテーマ（ツールの名前）が入ります。",
+    usage:
+      "いろいろな観点からアイデアを集めるときに使います。歯の名前を観点の名前に変えると、観点ごとに集められます。",
   },
 };
 
@@ -265,6 +312,9 @@ function ThinkingTemplatePreview({
         </>
       ) : (
       <>
+        <g transform="scale(4 3)" className="tp-art">
+          <ThinkingBoardArtShapes template={template} />
+        </g>
         {circles?.map((c, i) => (
           <ellipse
             key={i}

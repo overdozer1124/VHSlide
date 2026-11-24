@@ -4,6 +4,10 @@ import type { Element } from "./model";
 import { useThinking } from "./ThinkingContext";
 import { useGroups } from "./GroupsContext";
 import {
+  ThinkingBoardArt,
+  ThinkingFigureTitle,
+} from "./ThinkingBoardArt";
+import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
   XCHART_CENTER,
@@ -2049,6 +2053,8 @@ function BoardSurface({
       ) : (
       <div ref={boardRef} className="thinking-board">
         {xUnderlay}
+        <ThinkingBoardArt template={tool.template} />
+        <ThinkingFigureTitle template={tool.template} title={def.title} />
         {isXChart && (
           <div className="thinking-x-topic" aria-hidden="true">
             <span>{def.title}</span>

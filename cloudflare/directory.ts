@@ -1971,6 +1971,7 @@ export class Directory extends DurableObject<Env> {
                 board: (params.get("tcaps") ?? "").includes("board"),
                 steps: (params.get("tcaps") ?? "").includes("steps"),
                 flow: (params.get("tcaps") ?? "").includes("flow"),
+                board5: (params.get("tcaps") ?? "").includes("board5"),
               }),
             };
         }
@@ -2219,6 +2220,7 @@ export class Directory extends DurableObject<Env> {
           flow: (new URL(request.url).searchParams.get("caps") ?? "").includes(
             "flow",
           ),
+          board5: (new URL(request.url).searchParams.get("caps") ?? "").includes("board5"),
         };
         if (method === "GET") {
           const v = new URL(request.url).searchParams.get("v");
@@ -2300,6 +2302,9 @@ export class Directory extends DurableObject<Env> {
             ),
             flow: (new URL(request.url).searchParams.get("caps") ?? "").includes(
               "flow",
+            ),
+            board5: (new URL(request.url).searchParams.get("caps") ?? "").includes(
+              "board5",
             ),
           },
         );

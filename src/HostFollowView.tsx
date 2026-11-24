@@ -170,7 +170,7 @@ function FollowThinkingChart({
     const load = async () => {
       try {
         const res = await fetch(
-          `/api/decks/${deckId}/thinking-share?share=${encodeURIComponent(shareId ?? "")}&caps=steps,flow`,
+          `/api/decks/${deckId}/thinking-share?share=${encodeURIComponent(shareId ?? "")}&caps=steps,flow,board5`,
         );
         if (!live) return;
         if (res.ok) {

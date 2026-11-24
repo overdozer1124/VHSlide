@@ -2019,6 +2019,9 @@ export function createApplication(options: Options) {
                     flow: (url.searchParams.get("tcaps") ?? "").includes(
                       "flow",
                     ),
+                    board5: (url.searchParams.get("tcaps") ?? "").includes(
+                      "board5",
+                    ),
                   }),
                 };
             }
@@ -2300,6 +2303,7 @@ export function createApplication(options: Options) {
               board: (url.searchParams.get("caps") ?? "").includes("board"),
               steps: (url.searchParams.get("caps") ?? "").includes("steps"),
               flow: (url.searchParams.get("caps") ?? "").includes("flow"),
+              board5: (url.searchParams.get("caps") ?? "").includes("board5"),
             };
             if (method === "GET") {
               const v = url.searchParams.get("v");
@@ -2385,6 +2389,7 @@ export function createApplication(options: Options) {
             {
               steps: (url.searchParams.get("caps") ?? "").includes("steps"),
               flow: (url.searchParams.get("caps") ?? "").includes("flow"),
+              board5: (url.searchParams.get("caps") ?? "").includes("board5"),
             },
           );
           insist(view, 404, "いま見せているチャートはありません。");
