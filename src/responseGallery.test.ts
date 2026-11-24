@@ -107,3 +107,85 @@ describe("gallery card order", () => {
     ]);
   });
 });
+
+describe("gallery unanswered members (console improvement)", () => {
+  function fixture() {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE worksheets(id TEXT,deck TEXT,definition TEXT,status TEXT,created INTEGER); CREATE TABLE worksheet_answers(worksheet TEXT,author TEXT,value TEXT,updated INTEGER); CREATE TABLE surveys(id TEXT,deck TEXT,definition TEXT,status TEXT,created INTEGER); CREATE TABLE survey_answers(survey TEXT,author TEXT,value TEXT,updated INTEGER); CREATE TABLE survey_chart_publications(survey TEXT); CREATE TABLE users(id TEXT,name TEXT,email TEXT); CREATE TABLE members(deck TEXT,user_id TEXT); CREATE TABLE recipients(deck TEXT,user_id TEXT,rank INTEGER)",
+    );
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...args) as Record<string, unknown>[];
+    const field = { ...worksheetTemplate("blank").fields[0], id: "memo" };
+    db.prepare("INSERT INTO worksheets VALUES(?,?,?,?,?)").run(
+      "sheet",
+      "deck",
+      JSON.stringify({ title: "質問", description: "", fields: [field] }),
+      "open",
+      1,
+    );
+    const people: [string, string, number][] = [
+      ["host", "先生", 9],
+      ["a-user", "生徒A", 2],
+      ["b-user", "生徒B", 0],
+      ["c-user", "生徒C", 1],
+    ];
+    for (const [id, name, rank] of people) {
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, `${id}@test`);
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+      db.prepare("INSERT INTO recipients VALUES(?,?,?)").run("deck", id, rank);
+    }
+    db.prepare("INSERT INTO worksheet_answers VALUES(?,?,?,?)").run(
+      "sheet",
+      "a-user",
+      JSON.stringify({ memo: "Aの回答" }),
+      100,
+    );
+    const slide = {
+      ...blank(0, 0),
+      id: "s1",
+      elements: [
+        {
+          id: "el",
+          type: "shape" as const,
+          x: 0,
+          y: 0,
+          w: 100,
+          h: 100,
+          fill: "#ffffff",
+          stroke: "#000000",
+          worksheet: {
+            deckId: "deck",
+            worksheetId: "sheet",
+            title: "質問",
+            description: "",
+            fields: [field],
+          },
+        },
+      ],
+    };
+    return { sql, slide };
+  }
+  it("lists members without answers in account order, without the host", () => {
+    const { sql, slide } = fixture();
+    const gallery = galleryBuild(
+      sql,
+      "deck",
+      "host",
+      slide,
+      { participants: null, names: true, live: false },
+      true,
+    );
+    expect(gallery.cards.map((c) => c.name)).toEqual(["生徒A"]);
+    expect(gallery.unanswered).toEqual([{ name: "生徒B" }, { name: "生徒C" }]);
+  });
+  it("never includes the unanswered list in a published gallery", () => {
+    const { sql, slide } = fixture();
+    const gallery = galleryBuild(sql, "deck", "host", slide, {
+      participants: null,
+      names: true,
+      live: false,
+    });
+    expect(gallery.unanswered).toBeUndefined();
+  });
+});

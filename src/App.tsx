@@ -3462,6 +3462,7 @@ export default function App() {
           <TeacherConsole
             workbook={workbook}
             cloud={cloud}
+            initialSlideId={slide.id}
             onClose={() => setView("map")}
             onOpenGallery={() => setResponseGalleryOpen(true)}
             groupShow={groupShow}
