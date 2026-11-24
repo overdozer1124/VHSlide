@@ -1503,3 +1503,34 @@ describe("thinking remaining board templates (stage 4, board5)", () => {
     expect(thinkingList(sql, "deck", "ana", false, { board: true }).some((t) => t.id === kwl)).toBe(true);
   });
 });
+
+describe("thinking board5 counts are fixed at creation (design review point 2)", () => {
+  it("an edit can never change a tool's template, zone count or zone ids", () => {
+    const { sql } = fixture();
+    const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "pyramid4",
+      unit: "individual",
+      definition: { title: "大切なもの", zones: [], cardColors: [] },
+    });
+    const id = created!.createdId!;
+    open(sql, id);
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "a", text: "いのち", color: "" });
+    // Even with a card in place and a body that names another
+    // template with fewer zones, the stored tool keeps its own
+    // template and all four zones: edit re-parses against the
+    // stored template only.
+    thinkingCommand(sql, "deck", "host", true, "edit", id, {
+      template: "pyramid3",
+      unit: "individual",
+      definition: {
+        title: "大切なもの",
+        zones: [{ id: "a", label: "1段目" }],
+        cardColors: [],
+      },
+    });
+    const view = thinkingList(sql, "deck", "host", true, { board: true, board5: true }).find((t) => t.id === id)!;
+    expect(view.template).toBe("pyramid4");
+    expect(view.definition.zones.map((z) => z.id)).toEqual(["a", "b", "c", "d"]);
+    expect(view.cards).toHaveLength(1);
+  });
+});
