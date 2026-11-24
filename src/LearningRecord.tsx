@@ -119,6 +119,19 @@ function EntryView({ entry }: { entry: RecordEntry }) {
           })}
         </dl>
       )}
+      {entry.nodes && (
+        <ul className="record-nodes">
+          {entry.nodes.map((n, i) => (
+            <li
+              key={i}
+              className="record-node"
+              style={{ marginLeft: `${n.depth * 1.4}em` }}
+            >
+              {n.text}
+            </li>
+          ))}
+        </ul>
+      )}
       {entry.zones && (
         <div className="record-zones">
           {entry.zones.map((z) => (

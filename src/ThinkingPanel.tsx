@@ -36,6 +36,7 @@ export const THINKING_TEMPLATE_LABELS: Record<ThinkingTemplate, string> = {
   matrix: "マトリックス（2×2）",
   kwl: "KWL",
   steps: "ステップチャート（手順を並べる）",
+  webbing: "ウェビング（個人・班）",
 };
 export const CARD_COLOR_LABELS: Record<string, string> = {
   yellow: "黄色",
@@ -124,6 +125,12 @@ export const THINKING_TEMPLATE_GUIDES: Record<
     usage:
       "実験や調理の手順、物語のあらすじ、作業の流れなどを順番に整理するのに使います。カードは上へ・下へボタンやドラッグで並べ替えられます。",
   },
+  webbing: {
+    about:
+      "中心のテーマから、思いついた言葉を線でつないで広げていく図です。1人（1班）ごとに自分の図を持ちます。",
+    usage:
+      "考えを広げたり、関連を整理したりするのに使います。学びの記録や回答状況に残り、よい図は「全員に見せる」で共有できます。スライドの「ウェビングマップ」（全員や班で1枚に書く図）とは別の道具です。",
+  },
   kwl: {
     about: "知っていること（K）・知りたいこと（W）・分かったこと（L）を書く図です。",
     usage:
@@ -168,7 +175,28 @@ function ThinkingTemplatePreview({
     def.zones.find((x) => x.id === z.id)?.label ?? z.label;
   let kind: "board" | "ratio" | "point" = "point";
   let body: ReactNode;
-  if (templateKind(template) === "board") {
+  if (template === "webbing") {
+    body = (
+      <>
+        <line x1={200} y1={150} x2={90} y2={70} className="tp-axis" />
+        <line x1={200} y1={150} x2={310} y2={80} className="tp-axis" />
+        <line x1={200} y1={150} x2={120} y2={235} className="tp-axis" />
+        <line x1={200} y1={150} x2={295} y2={225} className="tp-axis" />
+        {[
+          [90, 70],
+          [310, 80],
+          [120, 235],
+          [295, 225],
+        ].map(([x, y], i) => (
+          <ellipse key={i} cx={x} cy={y} rx={42} ry={20} className="tp-anchor" />
+        ))}
+        <ellipse cx={200} cy={150} rx={58} ry={28} className="tp-anchor" />
+        <text x={200} y={156} className="tp-zone-label" textAnchor="middle">
+          {def.title || "テーマ"}
+        </text>
+      </>
+    );
+  } else if (templateKind(template) === "board") {
     kind = "board";
     const spec = BOARD_ZONE_SPECS[template] ?? [];
     const circles = VENN_CIRCLES[template];
@@ -673,7 +701,9 @@ export function ThinkingPanel({
                     : "下書き"}
                 {tool.kind === "board"
                   ? ` · カード${tool.cards.length}枚`
-                  : ` · ${new Set(tool.points.map((p) => p.owner)).size}件`}
+                  : tool.kind === "flow"
+                    ? ` · ノード${tool.nodes.length}個`
+                    : ` · ${new Set(tool.points.map((p) => p.owner)).size}件`}
               </span>
             </header>
             {host && (
@@ -802,7 +832,11 @@ export function ThinkingPanel({
                   unit: tool.unit,
                   definition: tool.definition,
                 }}
-                hasPoints={tool.points.length > 0 || tool.cards.length > 0}
+                hasPoints={
+                  tool.points.length > 0 ||
+                  tool.cards.length > 0 ||
+                  tool.nodes.length > 0
+                }
                 points={tool.points}
                 onSubmit={async (_template, unit, definition) => {
                   await run(async () => {
@@ -858,6 +892,9 @@ function ThinkingToolForm({
   function pickTemplate(t: ThinkingTemplate) {
     setTemplate(t);
     if (!editing) setDef(defaultDefinition(t));
+    // Webbing has no class unit (the whole-class webbing is the
+    // slide's webbing map); never leave the form on it.
+    if (t === "webbing" && unit === "class") setUnit("individual");
   }
   return (
     <form
@@ -916,7 +953,12 @@ function ThinkingToolForm({
           disabled={hasPoints}
           onChange={(e) => setUnit(e.target.value as ThinkingUnit)}
         >
-          {templateKind(template) === "board" ? (
+          {templateKind(template) === "flow" ? (
+            <>
+              <option value="individual">個人（1人1つの図）</option>
+              <option value="group">班（班で1つの図）</option>
+            </>
+          ) : templateKind(template) === "board" ? (
             <>
               <option value="individual">個人（1人1枚のチャート）</option>
               <option value="group">班（班で1枚のチャート）</option>

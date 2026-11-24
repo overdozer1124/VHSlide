@@ -2016,6 +2016,9 @@ export function createApplication(options: Options) {
                     steps: (url.searchParams.get("tcaps") ?? "").includes(
                       "steps",
                     ),
+                    flow: (url.searchParams.get("tcaps") ?? "").includes(
+                      "flow",
+                    ),
                   }),
                 };
             }
@@ -2270,7 +2273,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete|reorder))?)?$/.exec(
+            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete|reorder|node|nodeedit|nodedelete))?)?$/.exec(
               extra,
             );
           insist(
@@ -2296,6 +2299,7 @@ export function createApplication(options: Options) {
             const caps = {
               board: (url.searchParams.get("caps") ?? "").includes("board"),
               steps: (url.searchParams.get("caps") ?? "").includes("steps"),
+              flow: (url.searchParams.get("caps") ?? "").includes("flow"),
             };
             if (method === "GET") {
               const v = url.searchParams.get("v");
@@ -2380,6 +2384,7 @@ export function createApplication(options: Options) {
             current.owner,
             {
               steps: (url.searchParams.get("caps") ?? "").includes("steps"),
+              flow: (url.searchParams.get("caps") ?? "").includes("flow"),
             },
           );
           insist(view, 404, "いま見せているチャートはありません。");

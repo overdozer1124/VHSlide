@@ -563,3 +563,88 @@ describe("learning record: step chart (stage 4)", () => {
     expect(bob?.cells[0].answered).toBe(0);
   });
 });
+
+describe("learning record: personal webbing (stage 4)", () => {
+  it("lists the nodes in tree order and counts the webbing as answered", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT); CREATE TABLE members(deck TEXT, user_id TEXT)",
+    );
+    db.exec(groupSchema);
+    db.exec(worksheetSchema);
+    db.exec(surveySchema);
+    db.exec(thinkingSchema);
+    db.prepare("INSERT INTO decks VALUES(?)").run("deck");
+    for (const [id, name] of [
+      ["host", "先生"],
+      ["ana", "あな"],
+      ["bob", "ぼぶ"],
+    ]) {
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+    }
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...(args as never[]));
+    const web = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "webbing",
+      unit: "individual",
+      definition: { title: "海の生き物" },
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "host", true, "status", web, {
+      status: "open",
+    });
+    const root = thinkingCommand(sql, "deck", "ana", false, "node", web, {
+      text: "魚",
+      x: 0.3,
+      y: 0.3,
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "ana", false, "node", web, {
+      parent: root,
+      text: "さけ",
+      x: 0.2,
+      y: 0.2,
+    });
+    thinkingCommand(sql, "deck", "ana", false, "node", web, {
+      text: "貝",
+      x: 0.7,
+      y: 0.3,
+    });
+    const deck = {
+      version: 1,
+      title: "テスト作品",
+      sheets: [{ id: "main", name: "シート1", rowLabels: { 0: "第1時" } }],
+      slides: [
+        {
+          id: "slide-1",
+          sheetId: "main",
+          x: 0,
+          y: 0,
+          title: "ウェビング",
+          background: "",
+          elements: [{ id: "e1", thinking: { deckId: "deck", toolId: web } }],
+        },
+      ],
+    } as unknown as Deck;
+    const record = myLearningRecord(sql, deck, "deck", "ana");
+    const entry = record.entries.find((e) => e.template === "webbing");
+    expect(entry).toBeTruthy();
+    expect(entry!.nodes).toEqual([
+      { text: "魚", depth: 0 },
+      { text: "さけ", depth: 1 },
+      { text: "貝", depth: 0 },
+    ]);
+    const matrix = learningRecordMatrix(sql, deck, "deck", "host");
+    const ana = matrix.rows.find((r) => r.userId === "ana");
+    const bob = matrix.rows.find((r) => r.userId === "bob");
+    expect(ana?.cells[0].answered).toBe(1);
+    expect(bob?.cells[0].answered).toBe(0);
+    // The host record lists ana as a writer (roster comes from the
+    // node authors too).
+    const all = learningRecord(sql, deck, "deck", "host");
+    expect(
+      all
+        .find((r) => r.userId === "ana")
+        ?.entries.some((e) => e.template === "webbing"),
+    ).toBe(true);
+  });
+});

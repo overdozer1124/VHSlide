@@ -15,7 +15,7 @@ import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
  * class, mirroring the worksheet/webbing permission shape: the shared
  * command enforces everything server-side for both servers.
  */
-export type ThinkingKind = "point" | "board";
+export type ThinkingKind = "point" | "board" | "flow";
 export type ThinkingTemplate =
   | "axis2"
   | "axis1"
@@ -31,7 +31,8 @@ export type ThinkingTemplate =
   | "pmi"
   | "matrix"
   | "kwl"
-  | "steps";
+  | "steps"
+  | "webbing";
 export type ThinkingUnit = "individual" | "group" | "class";
 export type ThinkingStatus = "draft" | "open" | "closed";
 export type ThinkingScale = "none" | "s5" | "s10";
@@ -119,9 +120,25 @@ export type ThinkingTool = {
   scene: string;
   created: number;
 };
+export type ThinkingNode = {
+  id: string;
+  owner: string;
+  /** Parent node id; null hangs directly off the centre (the tool's
+   * title, which is drawn but never stored as a node). */
+  parent: string | null;
+  text: string;
+  x: number;
+  y: number;
+  authorId: string;
+  authorName: string;
+  mine: boolean;
+  created: number;
+  updated: number;
+};
 export type ThinkingView = ThinkingTool & {
   points: ThinkingPoint[];
   cards: ThinkingCard[];
+  nodes: ThinkingNode[];
   locks: ThinkingLock[];
   /** The group the viewer belongs to (group-unit tools). */
   myGroupId?: string;
@@ -154,6 +171,9 @@ const MAX_SCENES = 10;
 const MAX_LABEL = 40;
 const MAX_REASON = 200;
 export const MAX_CARDS_PER_BOARD = 100;
+export const MAX_NODES_PER_CHART = 100;
+export const MAX_NODE_TEXT = 100;
+const MAX_DECK_NODES = 5000;
 export const MAX_CARD_TEXT = 80;
 const MAX_DECK_CARDS = 5000;
 /** The fixed card colour palette. "" means no colour (white). */
@@ -168,7 +188,10 @@ CREATE INDEX IF NOT EXISTS thinking_points_tool ON thinking_points(tool);
 CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
 CREATE TABLE IF NOT EXISTS thinking_cards(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, zone TEXT NOT NULL, parent TEXT, sort INTEGER NOT NULL DEFAULT 0, text TEXT NOT NULL, color TEXT NOT NULL DEFAULT '', x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS thinking_cards_tool ON thinking_cards(tool, owner);
-CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);` +
+CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);
+CREATE TABLE IF NOT EXISTS thinking_nodes(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, parent TEXT, text TEXT NOT NULL, x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS thinking_nodes_tool ON thinking_nodes(tool, owner);
+CREATE INDEX IF NOT EXISTS thinking_nodes_deck ON thinking_nodes(deck);` +
   featureVersionSchema +
   versionTriggers("thinking_tools", "thinking", (a) => `${a}.deck`) +
   versionTriggers(
@@ -178,6 +201,11 @@ CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);` +
   ) +
   versionTriggers(
     "thinking_cards",
+    "thinking",
+    (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`,
+  ) +
+  versionTriggers(
+    "thinking_nodes",
     "thinking",
     (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`,
   ) +
@@ -290,6 +318,7 @@ export const VENN_CIRCLES: Partial<
   ],
 };
 export function templateKind(template: ThinkingTemplate): ThinkingKind {
+  if (template === "webbing") return "flow";
   return BOARD_ZONE_SPECS[template] ? "board" : "point";
 }
 /** Display labels for the students (owners) shown on the host's slide
@@ -408,6 +437,7 @@ const TEMPLATES: ThinkingTemplate[] = [
   "matrix",
   "kwl",
   "steps",
+  "webbing",
 ];
 const UNITS: ThinkingUnit[] = ["individual", "group", "class"];
 
@@ -431,6 +461,31 @@ export function parseThinkingDefinition(
     "思考ツールの設定を確認してください。",
   );
   const title = cleanLabel(value.title, "ツールの名前", 60);
+  if (t === "webbing") {
+    // Personal webbing (stage 4): the centre is the title itself,
+    // drawn by the surface and never stored; nodes hang off it.
+    // No zones, scenes or colours to configure.
+    return {
+      template: t,
+      definition: {
+        title,
+        xMin: "",
+        xMax: "",
+        yMin: "",
+        yMax: "",
+        scale: "none",
+        vertical: false,
+        nameA: "",
+        nameB: "",
+        zones: [],
+        cardColors: [],
+        scenes: [],
+        sceneMode: "teacher",
+        reason: false,
+        lines: [],
+      },
+    };
+  }
   if (BOARD_ZONE_SPECS[t]) {
     // Board templates: the zones are fixed by the template; only their
     // labels (and the card colour meanings) are the teacher's to edit.
@@ -811,7 +866,7 @@ export function thinkingList(
   deck: string,
   actor: string,
   host: boolean,
-  caps?: { board?: boolean; steps?: boolean },
+  caps?: { board?: boolean; steps?: boolean; flow?: boolean },
 ): ThinkingView[] {
   const now = Date.now();
   // The host's fixed member order for stable pseudonym numbers:
@@ -857,6 +912,7 @@ export function thinkingList(
     .filter((row) => host || row.status !== "draft")
     .filter((row) => caps?.board || row.kind !== "board")
     .filter((row) => caps?.steps || row.template !== "steps")
+    .filter((row) => caps?.flow || row.kind !== "flow")
     .map((row) => {
       const tool = readTool(row);
       if (tool.kind === "board") {
@@ -941,6 +997,90 @@ export function thinkingList(
           ...tool,
           points: [],
           cards,
+          nodes: [],
+          locks,
+          ...(myGroupId ? { myGroupId } : {}),
+          ...(roster ? { roster } : {}),
+          ...(ownerNames ? { ownerNames } : {}),
+        };
+      }
+      if (tool.kind === "flow") {
+        const { owners, myGroupId } = boardVisibleOwners(
+          sql,
+          deck,
+          tool,
+          actor,
+          host,
+        );
+        const showAuthor = host || tool.unit === "group";
+        const ownerClause =
+          owners === null
+            ? ""
+            : owners.length === 0
+              ? " AND 1=0"
+              : ` AND n.owner IN (${owners.map(() => "?").join(",")})`;
+        const nodes = (
+          owners !== null && owners.length === 0
+            ? []
+            : [
+                ...sql(
+                  showAuthor
+                    ? `SELECT n.*,u.name AS author_name FROM thinking_nodes n LEFT JOIN users u ON u.id=n.author WHERE n.tool=?${ownerClause} ORDER BY n.created`
+                    : `SELECT n.* FROM thinking_nodes n WHERE n.tool=?${ownerClause} ORDER BY n.created`,
+                  tool.id,
+                  ...(owners ?? []),
+                ),
+              ]
+        ).map(
+          (n): ThinkingNode => ({
+            id: n.id as string,
+            owner: n.owner as string,
+            parent: (n.parent as string | null) ?? null,
+            text: n.text as string,
+            x: n.x as number,
+            y: n.y as number,
+            authorId: showAuthor ? (n.author as string) : "",
+            authorName: showAuthor
+              ? (n.author_name as string) || "名前未登録"
+              : "",
+            mine: n.author === actor,
+            created: n.created as number,
+            updated: n.updated as number,
+          }),
+        );
+        const lockOwnerClause =
+          owners === null
+            ? ""
+            : owners.length === 0
+              ? " AND 1=0"
+              : ` AND owner IN (${owners.map(() => "?").join(",")})`;
+        const locks = (
+          owners !== null && owners.length === 0
+            ? []
+            : [
+                ...sql(
+                  `SELECT owner,scene,user,name,expires FROM thinking_locks WHERE tool=? AND expires>?${lockOwnerClause}`,
+                  tool.id,
+                  now,
+                  ...(owners ?? []),
+                ),
+              ]
+        ).map((l): ThinkingLock => {
+          const showIdentity = host || tool.unit === "group";
+          return {
+            owner: l.owner as string,
+            scene: l.scene as string,
+            userId: showIdentity ? (l.user as string) : "",
+            name: showIdentity ? (l.name as string) : "",
+            mine: (l.user as string) === actor,
+            expires: l.expires as number,
+          };
+        });
+        return {
+          ...tool,
+          points: [],
+          cards: [],
+          nodes,
           locks,
           ...(myGroupId ? { myGroupId } : {}),
           ...(roster ? { roster } : {}),
@@ -1024,6 +1164,7 @@ export function thinkingList(
         ...tool,
         points,
         cards: [],
+        nodes: [],
         locks,
         ...(myGroupId ? { myGroupId } : {}),
         ...(roster ? { roster } : {}),
@@ -1231,6 +1372,42 @@ function loadCard(
   return row;
 }
 
+function loadNode(
+  sql: HistorySQL,
+  tool: ThinkingTool,
+  raw: unknown,
+): CardRow {
+  insist(
+    typeof raw === "string" && raw !== "",
+    400,
+    "ノードを確認してください。",
+  );
+  const row = [
+    ...sql(
+      "SELECT * FROM thinking_nodes WHERE tool=? AND id=?",
+      tool.id,
+      raw as string,
+    ),
+  ][0];
+  insist(row, 404, "そのノードは既に消えています。");
+  return row;
+}
+
+function cleanNodeText(raw: unknown): string {
+  insist(
+    typeof raw === "string" && raw.trim().length > 0,
+    400,
+    "ノードの内容を入力してください。",
+  );
+  const text = (raw as string).trim().replace(/\s+/g, " ");
+  insist(
+    text.length <= MAX_NODE_TEXT,
+    400,
+    `ノードは${MAX_NODE_TEXT}文字までです。`,
+  );
+  return text;
+}
+
 /** A card is in the actor's writing scope when it sits on a board the
  * actor writes to: their own (individual), their group's (group) or the
  * shared board (class). The host may act on any card. */
@@ -1308,12 +1485,22 @@ export type ThinkingShareCard = {
   sort: number;
   created: number;
 };
+export type ThinkingShareNode = {
+  /** Per-response sequence number (never the stored id), so the
+   * payload carries no identifier a student could reuse. */
+  n: number;
+  parent: number | null;
+  text: string;
+  x: number;
+  y: number;
+};
 export type ThinkingShareView = {
   label: string;
   unit: ThinkingUnit;
   template: ThinkingTemplate;
   definition: ThinkingDefinition;
   cards: ThinkingShareCard[];
+  nodes?: ThinkingShareNode[];
 };
 /** The one chart the host is showing to the whole class (stage 4c),
  * built for students: the owner's display label is resolved here,
@@ -1328,27 +1515,33 @@ export function thinkingShareView(
   owner: string,
   showNames: boolean,
   hostId: string,
-  caps?: { steps?: boolean },
+  caps?: { steps?: boolean; flow?: boolean },
 ): ThinkingShareView | undefined {
   const row = [
     ...sql("SELECT * FROM thinking_tools WHERE id=? AND deck=?", toolId, deck),
   ][0];
   if (!row) return undefined;
   const tool = readTool(row);
-  if (tool.kind !== "board") return undefined;
+  if (tool.kind !== "board" && tool.kind !== "flow") return undefined;
   // A client that cannot render step charts (a tab still running
   // the previous release) must not receive one: it would draw an
   // empty board. It gets the same "nothing is being shown" answer
   // as a stopped share (review 🟡).
   if (tool.template === "steps" && !caps?.steps) return undefined;
+  if (tool.kind === "flow" && !caps?.flow) return undefined;
   let label = "";
   if (tool.unit === "class") label = "全員";
   else {
     const owners = [
       ...new Set(
-        [...sql("SELECT owner FROM thinking_cards WHERE tool=?", toolId)].map(
-          (r) => String(r.owner),
-        ),
+        [
+          ...sql(
+            tool.kind === "flow"
+              ? "SELECT owner FROM thinking_nodes WHERE tool=?"
+              : "SELECT owner FROM thinking_cards WHERE tool=?",
+            toolId,
+          ),
+        ].map((r) => String(r.owner)),
       ),
     ];
     const roster = [
@@ -1397,6 +1590,35 @@ export function thinkingShareView(
       created: Number(c.created),
     }),
   );
+  if (tool.kind === "flow") {
+    const rows = [
+      ...sql(
+        "SELECT id,parent,text,x,y FROM thinking_nodes WHERE tool=? AND owner=? ORDER BY created",
+        toolId,
+        owner,
+      ),
+    ];
+    const numbers = new Map<string, number>();
+    rows.forEach((r, i) => numbers.set(String(r.id), i + 1));
+    const nodes: ThinkingShareNode[] = rows.map((r, i) => ({
+      n: i + 1,
+      parent:
+        r.parent == null
+          ? null
+          : (numbers.get(String(r.parent)) ?? null),
+      text: String(r.text),
+      x: Number(r.x),
+      y: Number(r.y),
+    }));
+    return {
+      label,
+      unit: tool.unit,
+      template: tool.template,
+      definition: tool.definition,
+      cards: [],
+      nodes,
+    };
+  }
   return {
     label,
     unit: tool.unit,
@@ -1434,6 +1656,11 @@ export function thinkingCommand(
       value.template,
       value.definition,
     );
+    insist(
+      template !== "webbing" || unit !== "class",
+      400,
+      "ウェビングは個人と班だけです。",
+    );
     const tool: ThinkingTool = {
       id: crypto.randomUUID(),
       kind: templateKind(template),
@@ -1463,6 +1690,11 @@ export function thinkingCommand(
   if (action === "edit") {
     insist(host, 403, "思考ツールを編集できるのはホストだけです。");
     const unit = parseUnit(value.unit === undefined ? tool.unit : value.unit);
+    insist(
+      tool.template !== "webbing" || unit !== "class",
+      400,
+      "ウェビングは個人と班だけです。",
+    );
     const { definition } = parseThinkingDefinition(
       tool.template,
       value.definition === undefined ? tool.definition : value.definition,
@@ -1473,7 +1705,10 @@ export function thinkingCommand(
     const cardCount = [
       ...sql("SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=?", tool.id),
     ][0].n as number;
-    const writingCount = pointCount + cardCount;
+    const nodeCount = [
+      ...sql("SELECT COUNT(*) AS n FROM thinking_nodes WHERE tool=?", tool.id),
+    ][0].n as number;
+    const writingCount = pointCount + cardCount + nodeCount;
     insist(
       unit === tool.unit || writingCount === 0,
       409,
@@ -1522,6 +1757,11 @@ export function thinkingCommand(
     return undefined;
   }
   if (action === "scene") {
+    insist(
+      tool.kind === "point",
+      400,
+      "このツールに場面はありません。",
+    );
     insist(host, 403, "場面を切り替えられるのはホストだけです。");
     const scene = cleanScene(tool, value.scene);
     sql("UPDATE thinking_tools SET scene=? WHERE id=?", scene, tool.id);
@@ -1531,6 +1771,7 @@ export function thinkingCommand(
     insist(host, 403, "思考ツールを削除できるのはホストだけです。");
     sql("DELETE FROM thinking_points WHERE tool=?", tool.id);
     sql("DELETE FROM thinking_cards WHERE tool=?", tool.id);
+    sql("DELETE FROM thinking_nodes WHERE tool=?", tool.id);
     sql("DELETE FROM thinking_locks WHERE tool=?", tool.id);
     sql("DELETE FROM thinking_tools WHERE id=?", tool.id);
     return undefined;
@@ -1556,12 +1797,27 @@ export function thinkingCommand(
       lockRow(sql, tool, card.owner as string, card.id as string, actor, now);
       return undefined;
     }
+    if (tool.kind === "flow") {
+      // Node locks guard one node's text editing (key = node id) and
+      // follow the board rule: only the author or the host may take
+      // it (design review 🔴1).
+      const node = loadNode(sql, tool, value.nodeId);
+      insistCardScope(sql, deck, tool, node, actor, host);
+      insist(
+        host || node.author === actor,
+        403,
+        "ノードのロックを取れるのは、書いた人と先生だけです。",
+      );
+      lockRow(sql, tool, node.owner as string, node.id as string, actor, now);
+      return undefined;
+    }
     const owner = resolveOwner(sql, deck, tool, actor, host, value.owner);
     const scene = cleanScene(tool, value.scene);
     takeLock(sql, tool, owner, scene, actor, now);
     return undefined;
   }
   if (action === "point") {
+    insist(tool.kind === "point", 400, "このツールに点は置けません。");
     insist(
       host || tool.status === "open",
       409,
@@ -1608,6 +1864,7 @@ export function thinkingCommand(
     return undefined;
   }
   if (action === "clear") {
+    insist(tool.kind === "point", 400, "このツールに点はありません。");
     insist(
       host || tool.status === "open",
       409,
@@ -1857,6 +2114,144 @@ export function thinkingCommand(
       tool.id,
       card.owner as string,
       card.id as string,
+    );
+    return undefined;
+  }
+  if (action === "node") {
+    insist(tool.kind === "flow", 400, "このツールにノードは書けません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const owner = boardOwner(sql, deck, tool, actor, host, value.owner);
+    // The parent must be a node of the same chart and the same
+    // owner — otherwise a student could graft a node onto someone
+    // else's webbing (design review 🔴2).
+    let parent: string | null = null;
+    if (typeof value.parent === "string" && value.parent !== "") {
+      const parentRow = loadNode(sql, tool, value.parent);
+      insist(
+        parentRow.owner === owner,
+        403,
+        "ほかの人のノードにはつなげられません。",
+      );
+      parent = parentRow.id as string;
+    }
+    const text = cleanNodeText(value.text);
+    const chartCount = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM thinking_nodes WHERE tool=? AND owner=?",
+        tool.id,
+        owner,
+      ),
+    ][0].n as number;
+    insist(
+      chartCount < MAX_NODES_PER_CHART,
+      413,
+      `ノードは1つのウェビングに${MAX_NODES_PER_CHART}個までです。`,
+    );
+    const deckCount = [
+      ...sql("SELECT COUNT(*) AS n FROM thinking_nodes WHERE deck=?", deck),
+    ][0].n as number;
+    insist(
+      deckCount < MAX_DECK_NODES,
+      413,
+      "作品全体のノードの上限に達しています。",
+    );
+    const nodeId = crypto.randomUUID();
+    sql(
+      parent === null
+        ? "INSERT INTO thinking_nodes(id,tool,deck,owner,parent,text,x,y,author,created,updated) VALUES(?,?,?,?,NULL,?,?,?,?,?,?)"
+        : "INSERT INTO thinking_nodes(id,tool,deck,owner,parent,text,x,y,author,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+      nodeId,
+      tool.id,
+      deck,
+      owner,
+      ...(parent === null ? [] : [parent]),
+      text,
+      cleanCardPos(value.x, 0.5),
+      cleanCardPos(value.y, 0.5),
+      actor,
+      now,
+      now,
+    );
+    return { createdId: nodeId };
+  }
+  if (action === "nodeedit") {
+    insist(tool.kind === "flow", 400, "このツールにノードはありません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const node = loadNode(sql, tool, value.nodeId);
+    insistCardScope(sql, deck, tool, node, actor, host);
+    // Text is the author's (author or host, under the edit lock);
+    // position is open to everyone in scope, like card moves and
+    // step reordering (design review answer 3). The parent never
+    // changes here, so no cycle can form.
+    if (value.text !== undefined) {
+      insist(
+        host || node.author === actor,
+        403,
+        "ノードの内容を変えられるのは、書いた人と先生だけです。",
+      );
+      lockRow(sql, tool, node.owner as string, node.id as string, actor, now);
+    }
+    const text =
+      value.text === undefined
+        ? (node.text as string)
+        : cleanNodeText(value.text);
+    sql(
+      "UPDATE thinking_nodes SET text=?,x=?,y=?,updated=? WHERE id=?",
+      text,
+      cleanCardPos(value.x, node.x as number),
+      cleanCardPos(value.y, node.y as number),
+      now,
+      node.id as string,
+    );
+    return undefined;
+  }
+  if (action === "nodedelete") {
+    insist(tool.kind === "flow", 400, "このツールにノードはありません。");
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const node = loadNode(sql, tool, value.nodeId);
+    insistCardScope(sql, deck, tool, node, actor, host);
+    insist(
+      host || node.author === actor,
+      403,
+      "ノードを消せるのは、書いた人と先生だけです。",
+    );
+    // Children move up to the deleted node's parent (or the centre)
+    // instead of vanishing with it: in a group, the children may
+    // belong to other students who cannot delete this node
+    // themselves (design review 🟡1).
+    if (node.parent)
+      sql(
+        "UPDATE thinking_nodes SET parent=?,updated=? WHERE tool=? AND parent=?",
+        node.parent as string,
+        now,
+        tool.id,
+        node.id as string,
+      );
+    else
+      sql(
+        "UPDATE thinking_nodes SET parent=NULL,updated=? WHERE tool=? AND parent=?",
+        now,
+        tool.id,
+        node.id as string,
+      );
+    sql("DELETE FROM thinking_nodes WHERE id=?", node.id as string);
+    sql(
+      "DELETE FROM thinking_locks WHERE tool=? AND owner=? AND scene=?",
+      tool.id,
+      node.owner as string,
+      node.id as string,
     );
     return undefined;
   }
