@@ -8181,3 +8181,26 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .thinking-thumb-step { background:#efe9fb;border:1px solid #c9bde4;border-radius:4px;font-size:11px;color:#5b4a8a;text-align:center;padding:1px 0; }
 .thinking-thumb-step.is-more { background:#e2d8f7; }
 .thinking-thumb-step.is-empty { opacity:.5; }
+
+/* Personal webbing (thinking flow tools, stage 4) */
+.thinking-webbing { display:flex;flex-direction:column;gap:10px;padding:10px;overflow:auto; }
+.thinking-webbing-stage { position:relative;aspect-ratio:16/9;background:#f7faf6;border:1px solid #dfe9e0;border-radius:10px;overflow:hidden; }
+.thinking-webbing-stage svg { position:absolute;inset:0;width:100%;height:100%; }
+.thinking-webbing-centre-chip { position:absolute;transform:translate(-50%,-50%);max-width:36%;padding:8px 16px;border-radius:999px;background:#2f5aa8;color:#fff;font-weight:700;font-size:15px;text-align:center;line-height:1.35;box-shadow:0 1px 4px #173d3826; }
+.thinking-webbing-node { position:absolute;transform:translate(-50%,-50%);min-width:64px;max-width:190px;padding:7px 13px;border:2px solid #587d59;border-radius:999px;background:#fff;color:#173d38;font-size:14px;line-height:1.35;text-align:center;cursor:pointer;touch-action:none;box-shadow:0 1px 4px #173d3826;overflow-wrap:anywhere; }
+.thinking-webbing-node.is-selected { border-color:#7a5fd0;box-shadow:0 0 0 3px #7a5fd04d; }
+.thinking-webbing-node.is-locked { opacity:.65; }
+.thinking-webbing-lock { display:block;font-size:11px;color:#8a6d1f; }
+.thinking-webbing-empty { position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#61756b;font-size:13px;margin:0; }
+.thinking-webbing-add { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+.thinking-webbing-add input { flex:1;min-width:180px;padding:8px 10px;font:inherit;border:1.5px solid #cfc3e8;border-radius:8px; }
+.thinking-webbing-editor { display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fbf9ff;border:1px solid #e3dcf2;border-radius:10px;padding:8px; }
+.thinking-webbing-editor textarea { flex:1;min-width:180px;font:inherit;padding:6px 8px;border:1.5px solid #cfc3e8;border-radius:8px; }
+.thinking-webbing-mini { position:relative;aspect-ratio:16/9;background:#f7faf6;border:1px solid #e0e9e1;border-radius:8px;overflow:hidden;display:block;width:100%; }
+.thinking-webbing-mini svg { position:absolute;inset:0;width:100%;height:100%; }
+.thinking-webbing-centre { position:absolute;transform:translate(-50%,-50%);max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:999px;background:#2f5aa8;border:1px solid #2f5aa8;color:#fff; }
+.thinking-webbing-dot { position:absolute;transform:translate(-50%,-50%);max-width:34%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;line-height:1.5;padding:0 6px;border-radius:999px;background:#fff;border:1px solid #9db8a6;color:#31543c; }
+.thinking-webbing-mini.is-large .thinking-webbing-centre { font-size:14px;padding:2px 10px; }
+.thinking-webbing-mini.is-large .thinking-webbing-dot { font-size:13px;padding:2px 10px; }
+.record-nodes { margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px; }
+.record-node { font-size:13px;color:#333; }

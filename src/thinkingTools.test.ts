@@ -1232,3 +1232,210 @@ describe("thinking step chart (stage 4)", () => {
     );
   });
 });
+
+describe("thinking personal webbing (stage 4, flow)", () => {
+  const webDef = { title: "海の生き物" };
+  function webTool(sql: HistorySQL, unit: string = "individual") {
+    const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "webbing",
+      unit,
+      definition: webDef,
+    });
+    const id = created!.createdId!;
+    open(sql, id);
+    return id;
+  }
+  const listAs = (sql: HistorySQL, user: string, host = false) =>
+    thinkingList(sql, "deck", user, host, { board: true, steps: true, flow: true });
+
+  it("is a flow tool, never a class unit, and hides without the flow cap", () => {
+    const { sql } = fixture();
+    expect(templateKind("webbing")).toBe("flow");
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+          template: "webbing",
+          unit: "class",
+          definition: webDef,
+        }),
+      400,
+    );
+    const id = webTool(sql);
+    const view = listAs(sql, "host", true).find((t) => t.id === id)!;
+    expect(view.kind).toBe("flow");
+    expect(view.nodes).toEqual([]);
+    // No centre row is ever stored: the title is the centre.
+    expect(
+      thinkingList(sql, "deck", "ana", false, { board: true, steps: true }).some(
+        (t) => t.id === id,
+      ),
+    ).toBe(false);
+    expect(listAs(sql, "ana").some((t) => t.id === id)).toBe(true);
+  });
+
+  it("grows a tree and refuses grafts onto another owner's nodes", () => {
+    const { sql } = fixture();
+    const id = webTool(sql);
+    const root = thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      text: "魚",
+      x: 0.3,
+      y: 0.3,
+    })!.createdId!;
+    const child = thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      parent: root,
+      text: "さけ",
+      x: 0.2,
+      y: 0.2,
+    })!.createdId!;
+    const nodes = listAs(sql, "ana").find((t) => t.id === id)!.nodes;
+    expect(nodes.map((n) => n.text)).toEqual(["魚", "さけ"]);
+    expect(nodes.find((n) => n.id === child)!.parent).toBe(root);
+    expect(nodes.find((n) => n.id === root)!.parent).toBeNull();
+    // Bob cannot hang a node on ana's tree, nor see it.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "node", id, {
+          parent: root,
+          text: "横取り",
+        }),
+      403,
+    );
+    expect(listAs(sql, "bob").find((t) => t.id === id)!.nodes).toEqual([]);
+    // Out-of-stage positions are refused (they clamp at draw time).
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "node", id, {
+          text: "外",
+          x: 1.5,
+          y: 0.5,
+        }),
+      400,
+    );
+  });
+
+  it("edits text as the author only, moves as anyone in scope, and reparents on delete", () => {
+    const { sql } = fixture();
+    const id = webTool(sql, "group");
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    const g1 = [...sql("SELECT id FROM deck_groups ORDER BY rowid")][0].id as string;
+    const g2 = [...sql("SELECT id FROM deck_groups ORDER BY rowid")][1].id as string;
+    groupCommand(sql, "deck", "ana", false, "join", undefined, { groupId: g1 });
+    groupCommand(sql, "deck", "bob", false, "join", undefined, { groupId: g1 });
+    groupCommand(sql, "deck", "eve", false, "join", undefined, { groupId: g2 });
+    const root = thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      text: "親",
+      owner: g1,
+    })!.createdId!;
+    const child = thinkingCommand(sql, "deck", "bob", false, "node", id, {
+      parent: root,
+      text: "子",
+      owner: g1,
+    })!.createdId!;
+    const grand = thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      parent: child,
+      text: "孫",
+      owner: g1,
+    })!.createdId!;
+    // Bob (same group) may move ana's node but not rewrite it.
+    thinkingCommand(sql, "deck", "bob", false, "nodeedit", id, {
+      nodeId: root,
+      x: 0.4,
+      y: 0.4,
+    });
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "nodeedit", id, {
+          nodeId: root,
+          text: "書き換え",
+        }),
+      403,
+    );
+    // Eve (other group) sees nothing and can do nothing.
+    expect(listAs(sql, "eve").find((t) => t.id === id)!.nodes).toEqual([]);
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "eve", false, "nodeedit", id, {
+          nodeId: root,
+          x: 0.1,
+          y: 0.1,
+        }),
+      403,
+    );
+    // Deleting the child lifts the grandchild up to the root.
+    thinkingCommand(sql, "deck", "bob", false, "nodedelete", id, {
+      nodeId: child,
+    });
+    const nodes = listAs(sql, "ana").find((t) => t.id === id)!.nodes;
+    expect(nodes.map((n) => n.text)).toEqual(["親", "孫"]);
+    expect(nodes.find((n) => n.id === grand)!.parent).toBe(root);
+    // Locks: only the author (or host) may take a node's lock.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "bob", false, "lock", id, {
+          nodeId: root,
+        }),
+      403,
+    );
+    thinkingCommand(sql, "deck", "ana", false, "lock", id, { nodeId: root });
+  });
+
+  it("refuses point/card actions, locks the unit once nodes exist, and cleans up on delete", () => {
+    const { sql } = fixture();
+    const id = webTool(sql);
+    thinkingCommand(sql, "deck", "ana", false, "node", id, { text: "言葉" });
+    fails(
+      () => thinkingCommand(sql, "deck", "ana", false, "point", id, { scene: "s", value: {} }),
+      400,
+    );
+    fails(
+      () => thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "x" }),
+      400,
+    );
+    fails(
+      () => thinkingCommand(sql, "deck", "host", true, "scene", id, { scene: "s" }),
+      400,
+    );
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "host", true, "edit", id, {
+          unit: "group",
+          definition: webDef,
+        }),
+      409,
+    );
+    thinkingCommand(sql, "deck", "host", true, "delete", id, {});
+    expect(
+      [...sql("SELECT COUNT(*) AS n FROM thinking_nodes WHERE tool=?", id)][0].n,
+    ).toBe(0);
+  });
+
+  it("shares nodes by sequence number only, gated by the flow cap", () => {
+    const { sql } = fixture();
+    const id = webTool(sql);
+    const root = thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      text: "魚",
+      x: 0.3,
+      y: 0.3,
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      parent: root,
+      text: "さけ",
+      x: 0.2,
+      y: 0.25,
+    });
+    expect(thinkingShareView(sql, "deck", id, "ana", false, "host")).toBeUndefined();
+    expect(
+      thinkingShareView(sql, "deck", id, "ana", false, "host", { steps: true }),
+    ).toBeUndefined();
+    const share = thinkingShareView(sql, "deck", id, "ana", false, "host", {
+      flow: true,
+    })!;
+    expect(share.nodes!.map((n) => [n.n, n.parent, n.text])).toEqual([
+      [1, null, "魚"],
+      [2, 1, "さけ"],
+    ]);
+    expect(JSON.stringify(share)).not.toContain(root);
+  });
+});

@@ -1,9 +1,14 @@
+import { ThinkingWebbingMini } from "./ThinkingWebbing";
 import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
   XCHART_CENTER,
 } from "./thinkingTools";
-import type { ThinkingCard, ThinkingTemplate } from "./thinkingTools";
+import type {
+  ThinkingCard,
+  ThinkingNode,
+  ThinkingTemplate,
+} from "./thinkingTools";
 
 /** The miniature of one chart (one student's or group's board): the
  * template's shape with a dot for each of the given cards in its
@@ -12,10 +17,29 @@ import type { ThinkingCard, ThinkingTemplate } from "./thinkingTools";
 export function ThinkingThumbBoard({
   template,
   cards,
+  nodes,
+  title,
 }: {
   template: ThinkingTemplate;
   cards: ThinkingCard[];
+  /** Personal webbing (flow): the chart's nodes and centre title. */
+  nodes?: ThinkingNode[];
+  title?: string;
 }) {
+  if (template === "webbing") {
+    return (
+      <ThinkingWebbingMini
+        title={title ?? ""}
+        nodes={(nodes ?? []).map((n) => ({
+          key: n.id,
+          parent: n.parent,
+          text: n.text,
+          x: n.x,
+          y: n.y,
+        }))}
+      />
+    );
+  }
   const spec = BOARD_ZONE_SPECS[template] ?? [];
   const circles = VENN_CIRCLES[template];
   if (template === "steps") {

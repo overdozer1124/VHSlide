@@ -170,7 +170,7 @@ function FollowThinkingChart({
     const load = async () => {
       try {
         const res = await fetch(
-          `/api/decks/${deckId}/thinking-share?share=${encodeURIComponent(shareId ?? "")}&caps=steps`,
+          `/api/decks/${deckId}/thinking-share?share=${encodeURIComponent(shareId ?? "")}&caps=steps,flow`,
         );
         if (!live) return;
         if (res.ok) {
@@ -199,7 +199,7 @@ function FollowThinkingChart({
     );
   const tool: ThinkingView = {
     id: "",
-    kind: "board",
+    kind: view.nodes ? "flow" : "board",
     unit: view.unit,
     template: view.template,
     definition: view.definition,
@@ -223,12 +223,26 @@ function FollowThinkingChart({
       created: c.created,
       updated: c.created,
     })),
+    nodes: (view.nodes ?? []).map((n) => ({
+      id: `share-${n.n}`,
+      owner: "",
+      parent: n.parent === null ? null : `share-${n.parent}`,
+      text: n.text,
+      x: n.x,
+      y: n.y,
+      authorId: "",
+      authorName: "",
+      mine: false,
+      created: 0,
+      updated: 0,
+    })),
   };
   return (
     <div className="host-follow-thinking">
       <ExpandedChart
         tool={tool}
         cards={tool.cards}
+        nodes={tool.nodes}
         label={view.label}
         colorLabel={(color) =>
           view.definition.cardColors.find((c) => c.color === color)?.label ??

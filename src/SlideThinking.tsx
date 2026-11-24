@@ -14,6 +14,7 @@ import {
 } from "./thinkingTools";
 import type {
   ThinkingCard,
+  ThinkingNode,
   ThinkingPoint,
   ThinkingPointValue,
   ThinkingView,
@@ -101,6 +102,8 @@ export function SlideThinking(props: {
           ) : (
             <ThinkingSurface tool={tool} interactive={!!props.interactive} />
           )
+        ) : tool.kind === "flow" ? (
+          <WebbingToolSurface tool={tool} interactive={!!props.interactive} />
         ) : (
           <div className="webbing-unavailable">
             <p>このツールは、新しい版のVHSlideで開いてください。</p>
@@ -2259,6 +2262,400 @@ function BoardSurface({
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Personal webbing (stage 4, flow): each student (or group) grows
+ * their own webbing from the centre — the tool's title, drawn but
+ * never stored. Nodes are chips over an edges layer, in the slide
+ * webbing map's visual language. Text edits are the author's (under
+ * the edit lock); moving a node is open to everyone in scope, like
+ * card moves. Deleting a node lifts its children up to its parent
+ * (the server reparents them). */
+function WebbingToolSurface({
+  tool,
+  interactive,
+}: {
+  tool: ThinkingView;
+  interactive: boolean;
+}) {
+  const ctx = useThinking();
+  const groupsCtx = useGroups();
+  const myOwner =
+    tool.unit === "group" ? (tool.myGroupId ?? "") : (ctx.userId ?? "");
+  const [focusOwner, setFocusOwner] = useState("");
+  const [showNames, setShowNames] = useState(false);
+  const [draftText, setDraftText] = useState("");
+  const [selectedId, setSelectedId] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ id: string; moved: boolean } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (tool.unit === "group" && !tool.myGroupId && !ctx.host) {
+    return (
+      <div className="thinking-join">
+        <p>この思考ツールは班ごとに書き込みます。班に入ってください。</p>
+        <div className="thinking-join-buttons">
+          {groupsCtx.groups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => void groupsCtx.command("join", { groupId: g.id })}
+            >
+              {g.name}に入る
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const hostChartList = !!ctx.host && !focusOwner;
+  const viewOwner = ctx.host && focusOwner ? focusOwner : myOwner;
+  const canWrite =
+    interactive &&
+    tool.status === "open" &&
+    !hostChartList &&
+    !focusOwner &&
+    (tool.unit !== "group" || !!tool.myGroupId || !!ctx.host) &&
+    !(ctx.host && tool.unit === "group");
+  const nodes = tool.nodes.filter((n) => n.owner === viewOwner);
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const chartOwners: { owner: string; label: string }[] =
+    tool.unit === "group"
+      ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
+      : thinkingOwnerLabels(
+          [...new Set(tool.nodes.map((n) => n.owner))],
+          (owner) =>
+            tool.ownerNames?.[owner] ||
+            tool.nodes.find((n) => n.owner === owner)?.authorName ||
+            undefined,
+          showNames,
+          tool.roster,
+        );
+  const focusLabel =
+    chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
+  const selected = nodes.find((n) => n.id === selectedId);
+  const lockOf = (node: ThinkingNode) =>
+    tool.locks.find((l) => l.scene === node.id && l.expires > nowTick);
+  const selectedLock = selected ? lockOf(selected) : undefined;
+  const selectedLockedByOther = !!selectedLock && !selectedLock.mine;
+  const canEditSelected =
+    !!selected && (selected.mine || !!ctx.host) && !selectedLockedByOther;
+
+  async function run(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+      setNotice("");
+    } catch (e) {
+      setNotice((e as Error).message);
+    }
+  }
+  const clampPos = (v: number) => Math.min(0.94, Math.max(0.06, v));
+  async function addNode() {
+    const text = draftText.trim();
+    if (!text) return;
+    const parent = selected ?? null;
+    let x = 0.5;
+    let y = 0.5;
+    if (parent) {
+      const siblings = nodes.filter((n) => n.parent === parent.id).length;
+      const angle = siblings * 2.1 + 0.6;
+      x = clampPos(parent.x + Math.cos(angle) * 0.16);
+      y = clampPos(parent.y + Math.sin(angle) * 0.22);
+    } else {
+      const roots = nodes.filter((n) => n.parent === null).length;
+      const angle = roots * 2.4 + 0.5;
+      x = clampPos(0.5 + Math.cos(angle) * 0.26);
+      y = clampPos(0.5 + Math.sin(angle) * 0.3);
+    }
+    await run(async () => {
+      const result = await ctx.command(tool.id, "node", {
+        ...(parent ? { parent: parent.id } : {}),
+        text,
+        x,
+        y,
+        ...(tool.unit === "group" ? { owner: tool.myGroupId } : {}),
+      });
+      setDraftText("");
+      if (result.createdId) setSelectedId(result.createdId);
+    });
+  }
+  function beginEdit(node: ThinkingNode) {
+    setSelectedId(node.id);
+    setEditing(true);
+    setEditText(node.text);
+    setConfirmDelete(false);
+    void ctx.command(tool.id, "lock", { nodeId: node.id }).catch(() => {});
+  }
+  async function saveEdit() {
+    if (!selected) return;
+    await run(async () => {
+      await ctx.command(tool.id, "nodeedit", {
+        nodeId: selected.id,
+        text: editText,
+      });
+      setEditing(false);
+    });
+  }
+  async function deleteSelected() {
+    if (!selected) return;
+    await run(async () => {
+      await ctx.command(tool.id, "nodedelete", { nodeId: selected.id });
+      setSelectedId("");
+      setEditing(false);
+      setConfirmDelete(false);
+    });
+  }
+  function stageFraction(e: ReactPointerEvent) {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+    };
+  }
+  function nodePointerDown(e: ReactPointerEvent, node: ThinkingNode) {
+    if (!canWrite || editing) return;
+    const lock = lockOf(node);
+    if (lock && !lock.mine) return;
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { id: node.id, moved: false };
+  }
+  function nodePointerMove(e: ReactPointerEvent, node: ThinkingNode) {
+    const drag = dragRef.current;
+    if (!drag || drag.id !== node.id) return;
+    const p = stageFraction(e);
+    if (!p) return;
+    drag.moved = true;
+    setDragPos({ id: node.id, x: p.x, y: p.y });
+  }
+  function nodePointerUp(node: ThinkingNode) {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (drag?.moved && dragPos && dragPos.id === node.id) {
+      const { x, y } = dragPos;
+      setDragPos(null);
+      void run(() =>
+        ctx.command(tool.id, "nodeedit", { nodeId: node.id, x, y }),
+      );
+    } else setDragPos(null);
+  }
+  const posOf = (n: ThinkingNode) =>
+    dragPos && dragPos.id === n.id ? dragPos : n;
+  const parentPos = (n: ThinkingNode) => {
+    if (n.parent === null) return { x: 0.5, y: 0.5 };
+    const parent = byId.get(n.parent);
+    return parent ? posOf(parent) : { x: 0.5, y: 0.5 };
+  };
+
+  if (hostChartList) {
+    return (
+      <div className="thinking-webbing">
+        <div className="thinking-hostbar" role="group" aria-label="生徒を選ぶ">
+          <button
+            type="button"
+            aria-pressed={showNames}
+            onClick={() => setShowNames((v) => !v)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        </div>
+        <div className="thinking-thumbs">
+          {chartOwners.map(({ owner, label }) => {
+            const own = tool.nodes.filter((n) => n.owner === owner);
+            return (
+              <button
+                type="button"
+                key={owner || "all"}
+                className="thinking-thumb"
+                onClick={() => setFocusOwner(owner)}
+              >
+                <ThinkingThumbBoard
+                  template={tool.template}
+                  cards={[]}
+                  nodes={own}
+                  title={tool.definition.title}
+                />
+                <span className="thinking-thumb-label">
+                  {label}（{own.length}個）
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {chartOwners.length === 0 && (
+          <p className="thinking-zone-empty">まだノードがありません。</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="thinking-webbing">
+      {ctx.host && (
+        <div className="thinking-hostbar" role="group" aria-label="表示の切り替え">
+          {focusOwner ? (
+            <>
+              <button type="button" onClick={() => setFocusOwner("")}>
+                一覧に戻る
+              </button>
+              <span className="thinking-focus-label">{focusLabel}のウェビング</span>
+            </>
+          ) : (
+            <span className="thinking-focus-label">自分のウェビング</span>
+          )}
+        </div>
+      )}
+      <div className="thinking-webbing-stage" ref={stageRef}>
+        <svg viewBox="0 0 960 540" aria-hidden="true">
+          {nodes.map((n) => {
+            const a = parentPos(n);
+            const b = posOf(n);
+            return (
+              <line
+                key={n.id}
+                x1={a.x * 960}
+                y1={a.y * 540}
+                x2={b.x * 960}
+                y2={b.y * 540}
+                stroke="#9db8a4"
+                strokeWidth={2}
+              />
+            );
+          })}
+        </svg>
+        <span className="thinking-webbing-centre-chip" style={{ left: "50%", top: "50%" }}>
+          {tool.definition.title}
+        </span>
+        {nodes.map((n) => {
+          const p = posOf(n);
+          const lock = lockOf(n);
+          const isSelected = n.id === selectedId;
+          return (
+            <div
+              key={n.id}
+              className={`thinking-webbing-node${isSelected ? " is-selected" : ""}${lock && !lock.mine ? " is-locked" : ""}`}
+              style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+              onPointerDown={(e) => nodePointerDown(e, n)}
+              onPointerMove={(e) => nodePointerMove(e, n)}
+              onPointerUp={() => nodePointerUp(n)}
+              onClick={() => {
+                setSelectedId(isSelected ? "" : n.id);
+                setEditing(false);
+                setConfirmDelete(false);
+              }}
+            >
+              {n.text}
+              {lock && !lock.mine && (
+                <span className="thinking-webbing-lock">{lock.name}さんが編集中</span>
+              )}
+            </div>
+          );
+        })}
+        {nodes.length === 0 && (
+          <p className="thinking-webbing-empty">
+            {focusOwner
+              ? "まだ言葉がありません。"
+              : "まだ言葉がありません。下の欄から中心に言葉を足してください。"}
+          </p>
+        )}
+      </div>
+      {canWrite && (
+        <div className="thinking-webbing-add">
+          <input
+            value={draftText}
+            maxLength={100}
+            placeholder={
+              selected
+                ? `「${selected.text}」から広げる言葉`
+                : "中心から広げる言葉"
+            }
+            aria-label="新しい言葉"
+            onChange={(e) => setDraftText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void addNode();
+              }
+            }}
+          />
+          <button
+            type="button"
+            disabled={!draftText.trim()}
+            onClick={() => void addNode()}
+          >
+            {selected ? "子を足す" : "中心に足す"}
+          </button>
+          {selected && (
+            <button type="button" onClick={() => setSelectedId("")}>
+              選択をやめる
+            </button>
+          )}
+        </div>
+      )}
+      {selected && canEditSelected && !focusOwner && (
+        <div className="thinking-webbing-editor">
+          {editing ? (
+            <>
+              <textarea
+                value={editText}
+                maxLength={100}
+                rows={2}
+                aria-label="言葉の内容"
+                onChange={(e) => setEditText(e.target.value)}
+              />
+              <button type="button" onClick={() => void saveEdit()}>
+                保存
+              </button>
+              <button type="button" onClick={() => setEditing(false)}>
+                やめる
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => beginEdit(selected)}>
+                言葉を直す
+              </button>
+              {confirmDelete ? (
+                <>
+                  <span>この言葉を消しますか（子は親につなぎ直されます）。</span>
+                  <button type="button" onClick={() => void deleteSelected()}>
+                    消す
+                  </button>
+                  <button type="button" onClick={() => setConfirmDelete(false)}>
+                    やめる
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setConfirmDelete(true)}>
+                  消す
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {selected && selectedLockedByOther && (
+        <p className="thinking-notice">
+          {selectedLock?.name ?? "他の参加者"}さんが編集中です。
+        </p>
+      )}
+      {notice && (
+        <p className="thinking-notice" role="status">
+          {notice}
+        </p>
       )}
     </div>
   );

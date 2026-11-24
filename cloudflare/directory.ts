@@ -1970,6 +1970,7 @@ export class Directory extends DurableObject<Env> {
               thinking: thinkingList(sql, id, user.id, host, {
                 board: (params.get("tcaps") ?? "").includes("board"),
                 steps: (params.get("tcaps") ?? "").includes("steps"),
+                flow: (params.get("tcaps") ?? "").includes("flow"),
               }),
             };
         }
@@ -2176,7 +2177,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete|reorder))?)?$/.exec(
+        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete|reorder|node|nodeedit|nodedelete))?)?$/.exec(
           extra,
         );
       insist(
@@ -2214,6 +2215,9 @@ export class Directory extends DurableObject<Env> {
           ),
           steps: (new URL(request.url).searchParams.get("caps") ?? "").includes(
             "steps",
+          ),
+          flow: (new URL(request.url).searchParams.get("caps") ?? "").includes(
+            "flow",
           ),
         };
         if (method === "GET") {
@@ -2293,6 +2297,9 @@ export class Directory extends DurableObject<Env> {
           {
             steps: (new URL(request.url).searchParams.get("caps") ?? "").includes(
               "steps",
+            ),
+            flow: (new URL(request.url).searchParams.get("caps") ?? "").includes(
+              "flow",
             ),
           },
         );

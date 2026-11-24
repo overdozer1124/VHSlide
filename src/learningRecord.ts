@@ -59,6 +59,9 @@ export type RecordEntry = {
   nameB?: string;
   scenes?: { id: string; label: string; value: ThinkingPointValue; reason: string }[];
   zones?: { id: string; label: string; cards: { text: string; color: string }[] }[];
+  /** Personal webbing (flow): the nodes in tree order, depth from
+   * the centre (the tool's title, which is not itself a node). */
+  nodes?: { text: string; depth: number }[];
 };
 
 export type StudentRecord = {
@@ -349,7 +352,9 @@ function buildRecords(
     const unit = String(row.unit);
     const points = [...sql("SELECT owner, scene, value, reason, author FROM thinking_points WHERE tool=?", row.id)];
     const cards = [...sql("SELECT owner, zone, text, color, author FROM thinking_cards WHERE tool=? ORDER BY sort, created", row.id)];
+    const nodes = [...sql("SELECT id, owner, parent, text, author FROM thinking_nodes WHERE tool=? ORDER BY created", row.id)];
     const isBoard = (definition.zones ?? []).length > 0;
+    const isFlow = template === "webbing";
     const buildEntry = (
       uid: string,
       keep: (owner: string, author: string) => boolean,
@@ -366,7 +371,29 @@ function buildRecords(
         updated: 0,
         ...extra,
       };
-      if (isBoard) {
+      if (isFlow) {
+        const own = nodes.filter((n) => keep(String(n.owner), String(n.author)));
+        if (!own.length) return;
+        const kept = new Map(own.map((n) => [String(n.id), n]));
+        const children = new Map<string, typeof own>();
+        const roots: typeof own = [];
+        for (const n of own) {
+          const parent = n.parent == null ? "" : String(n.parent);
+          if (parent && kept.has(parent)) {
+            const list = children.get(parent) ?? [];
+            list.push(n);
+            children.set(parent, list);
+          } else roots.push(n);
+        }
+        const flat: { text: string; depth: number }[] = [];
+        const walk = (n: (typeof own)[number], depth: number): void => {
+          flat.push({ text: String(n.text), depth });
+          for (const child of children.get(String(n.id)) ?? [])
+            walk(child, depth + 1);
+        };
+        for (const root of roots) walk(root, 0);
+        entry.nodes = flat;
+      } else if (isBoard) {
         const own = cards.filter((c) => keep(String(c.owner), String(c.author)));
         if (!own.length) return;
         entry.zones = (definition.zones ?? []).map((z) => ({
@@ -421,7 +448,7 @@ function buildRecords(
         // actually wrote on (a point or card with their name on it).
         // Membership changes over time; authorship does not.
         const authored: string[] = [];
-        for (const r of [...points, ...cards]) {
+        for (const r of [...points, ...cards, ...nodes]) {
           const owner = String(r.owner);
           if (String(r.author) === uid && !authored.includes(owner))
             authored.push(owner);
@@ -434,7 +461,8 @@ function buildRecords(
           const hasBoard =
             !!group &&
             (points.some((p) => String(p.owner) === group.id) ||
-              cards.some((c) => String(c.owner) === group.id));
+              cards.some((c) => String(c.owner) === group.id) ||
+              nodes.some((n) => String(n.owner) === group.id));
           if (group && hasBoard) boards.push({ owner: group.id, current: true });
         }
         for (const b of boards) {
@@ -502,7 +530,8 @@ function recordUserIds(
   for (const row of sql("SELECT user_id FROM members WHERE deck=?", deckId))
     ids.add(String(row.user_id));
   for (const row of sql(
-    "SELECT a.author AS author FROM worksheet_answers a JOIN worksheets w ON w.id=a.worksheet WHERE w.deck=? UNION SELECT a.author FROM survey_answers a JOIN surveys s ON s.id=a.survey WHERE s.deck=? UNION SELECT p.author FROM thinking_points p JOIN thinking_tools t ON t.id=p.tool WHERE t.deck=? UNION SELECT c.author FROM thinking_cards c JOIN thinking_tools t ON t.id=c.tool WHERE t.deck=?",
+    "SELECT a.author AS author FROM worksheet_answers a JOIN worksheets w ON w.id=a.worksheet WHERE w.deck=? UNION SELECT a.author FROM survey_answers a JOIN surveys s ON s.id=a.survey WHERE s.deck=? UNION SELECT p.author FROM thinking_points p JOIN thinking_tools t ON t.id=p.tool WHERE t.deck=? UNION SELECT c.author FROM thinking_cards c JOIN thinking_tools t ON t.id=c.tool WHERE t.deck=? UNION SELECT n.author FROM thinking_nodes n JOIN thinking_tools t ON t.id=n.tool WHERE t.deck=?",
+    deckId,
     deckId,
     deckId,
     deckId,

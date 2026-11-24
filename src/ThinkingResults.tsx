@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
   ThinkingCard,
+  ThinkingNode,
   ThinkingPoint,
   ThinkingPointValue,
   ThinkingView,
@@ -16,6 +17,7 @@ import { curveLineColor } from "./SlideThinking";
 import { useGroups } from "./GroupsContext";
 import { csvCell } from "./surveyCsv";
 import { ThinkingThumbBoard } from "./ThinkingThumbBoard";
+import { ThinkingWebbingMini } from "./ThinkingWebbing";
 import { TextMinePanel } from "./TextMinePanel";
 import { textMineCardTexts } from "./textMine";
 
@@ -54,6 +56,15 @@ export function ThinkingResults({
    * wired in the teacher console; the form panel passes nothing. */
   onShowChart?: (req?: ChartShowPick) => void;
 }) {
+  if (tool.kind === "flow")
+    return (
+      <FlowResults
+        tool={tool}
+        showingOwner={showingOwner}
+        showingNames={showingNames}
+        onShowChart={onShowChart}
+      />
+    );
   if (tool.template === "steps")
     return (
       <StepsResults
@@ -74,6 +85,221 @@ export function ThinkingResults({
     );
   if (tool.template === "curve") return <CurveResults tool={tool} />;
   return <PointResults tool={tool} />;
+}
+
+
+/** Host results for a personal-webbing tool (stage 4, flow): one
+ * webbing per student (group), enlarged on selection, with the
+ * word analysis and a CSV of 生徒（班）・言葉・親の言葉. The centre
+ * is the tool's title and is never counted as a node. */
+function FlowResults({
+  tool,
+  showingOwner,
+  showingNames,
+  onShowChart,
+}: {
+  tool: ThinkingView;
+  showingOwner?: string;
+  showingNames?: boolean;
+  onShowChart?: (req?: ChartShowPick) => void;
+}) {
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const [showNames, setShowNames] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const owners = [...new Set(tool.nodes.map((n) => n.owner))];
+  const nameOfOwner = (owner: string): string | undefined =>
+    tool.unit === "group"
+      ? groupsCtx.groups.find((g) => g.id === owner)?.name
+      : tool.ownerNames?.[owner] || undefined;
+  const chartOwners: { owner: string; label: string }[] = thinkingOwnerLabels(
+    owners,
+    nameOfOwner,
+    tool.unit === "group" || showNames,
+    tool.roster,
+  );
+  const expandedOwner = chartOwners.find((o) => o.owner === expanded);
+  const own = (owner: string) => tool.nodes.filter((n) => n.owner === owner);
+  function downloadCsv() {
+    const lines = [["名前・班", "言葉", "親の言葉"].map(csvCell).join(",")];
+    for (const { owner, label } of chartOwners) {
+      const nodes = own(owner);
+      const byId = new Map(nodes.map((n) => [n.id, n]));
+      for (const n of nodes)
+        lines.push(
+          [
+            label,
+            n.text,
+            n.parent === null
+              ? def.title
+              : (byId.get(n.parent)?.text ?? def.title),
+          ]
+            .map(csvCell)
+            .join(","),
+        );
+    }
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${def.title || "思考ツール"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  return (
+    <div className="thinking-results">
+      <div className="thinking-results-head">
+        <span className="thinking-results-count">
+          {tool.unit === "group" ? "班ごと" : "生徒ごと"}のウェビング
+        </span>
+        {tool.unit === "individual" && (
+          <button
+            type="button"
+            aria-pressed={showNames}
+            onClick={() => setShowNames(!showNames)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        )}
+        <button type="button" onClick={downloadCsv}>
+          CSVで保存
+        </button>
+        <span className="thinking-results-count">
+          ノード{tool.nodes.length}個
+        </span>
+      </div>
+      <div className="thinking-gallery">
+        <div className="thinking-thumbs">
+          {chartOwners.map(({ owner, label }) => {
+            const nodes = own(owner);
+            return (
+              <button
+                type="button"
+                key={owner || "all"}
+                className={`thinking-thumb${expanded === owner ? " is-active" : ""}`}
+                aria-expanded={expanded === owner}
+                onClick={() => setExpanded(expanded === owner ? null : owner)}
+              >
+                <ThinkingThumbBoard
+                  template={tool.template}
+                  cards={[]}
+                  nodes={nodes}
+                  title={def.title}
+                />
+                <span className="thinking-thumb-label">
+                  {label}（{nodes.length}個）
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {chartOwners.length === 0 && (
+          <p className="thinking-zone-empty">まだ言葉がありません。</p>
+        )}
+        {expandedOwner && (
+          <>
+            <ExpandedChart
+              tool={tool}
+              cards={[]}
+              nodes={own(expandedOwner.owner)}
+              label={expandedOwner.label}
+              colorLabel={() => ""}
+            />
+            {onShowChart &&
+              (showingOwner === expandedOwner.owner ? (
+                <div className="thinking-gallery-show">
+                  <span>
+                    いま全員にこのウェビングを見せています
+                    {tool.unit === "individual" &&
+                      (showingNames ? "（名前つき）" : "（名前なし）")}
+                    。
+                  </span>
+                  <button
+                    type="button"
+                    className="button outline"
+                    onClick={() => onShowChart(undefined)}
+                  >
+                    見せるのをやめる
+                  </button>
+                </div>
+              ) : (
+                <div className="thinking-gallery-show">
+                  {showingOwner !== undefined && (
+                    <span>ほかのチャートを全員に見せています。</span>
+                  )}
+                  {tool.unit === "individual" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() =>
+                          onShowChart({
+                            toolId: tool.id,
+                            owner: expandedOwner.owner,
+                            showNames: false,
+                          })
+                        }
+                      >
+                        名前を出さずに全員に見せる
+                      </button>
+                      <button
+                        type="button"
+                        className="button outline"
+                        onClick={() =>
+                          onShowChart({
+                            toolId: tool.id,
+                            owner: expandedOwner.owner,
+                            showNames: true,
+                          })
+                        }
+                      >
+                        名前つきで全員に見せる
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() =>
+                        onShowChart({
+                          toolId: tool.id,
+                          owner: expandedOwner.owner,
+                          showNames,
+                        })
+                      }
+                    >
+                      全員に見せる
+                    </button>
+                  )}
+                </div>
+              ))}
+          </>
+        )}
+      </div>
+      <div className="thinking-textmine">
+        <h4>言葉の分析</h4>
+        <TextMinePanel
+          texts={textMineCardTexts(
+            tool.nodes
+              .filter((n) => !n.mine)
+              .map((n) => ({
+                zone: "",
+                text: n.text,
+                authorId: n.authorId,
+                owner: n.owner,
+              })),
+            null,
+          )}
+          idleNote="言葉を分解して、よく出る言葉を人数順に並べます。同じ人が同じ言葉を何個書いても1人と数え、先生の言葉は人数に入りません。中心のテーマは数えません。解析はこの端末の中で行われ、内容が外部へ送られることはありません。"
+        />
+        <p className="thinking-textmine-note">
+          中心のテーマは数えていません。班では、書いた人ごとに数えています。
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /** Host results for a board tool: every card gathered per zone
@@ -613,14 +839,39 @@ function StepsResults({
 export function ExpandedChart({
   tool,
   cards,
+  nodes,
   label,
   colorLabel,
 }: {
   tool: ThinkingView;
   cards: ThinkingCard[];
+  /** Personal webbing (flow): the expanded chart's nodes. */
+  nodes?: ThinkingNode[];
   label: string;
   colorLabel: (color: string) => string;
 }) {
+  if (tool.template === "webbing") {
+    return (
+      <div className="thinking-gallery-expanded">
+        <h4>{label}のウェビング</h4>
+        {(nodes ?? []).length === 0 ? (
+          <p className="thinking-zone-empty">まだ言葉がありません。</p>
+        ) : (
+          <ThinkingWebbingMini
+            large
+            title={tool.definition.title}
+            nodes={(nodes ?? []).map((n) => ({
+              key: n.id,
+              parent: n.parent,
+              text: n.text,
+              x: n.x,
+              y: n.y,
+            }))}
+          />
+        )}
+      </div>
+    );
+  }
   const def = tool.definition;
   const spec = BOARD_ZONE_SPECS[tool.template] ?? [];
   const circles = VENN_CIRCLES[tool.template];
