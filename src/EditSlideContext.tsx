@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { EditSlideDefView } from "./editSlides";
+import type { EditSlideAnswersMeta, EditSlideDefView } from "./editSlides";
+import type { Slide } from "./model";
 import { api } from "./cloud";
 import { useDeckPoller } from "./deckPoll";
 
@@ -11,6 +12,13 @@ export type EditSlideContextValue = {
   host?: boolean;
   error: string;
   defs: EditSlideDefView[];
+  /** Host only: who answered each definition (no content). */
+  answersMeta: EditSlideAnswersMeta[];
+  /** Fetch one answer's slide on demand (console thumbnails). */
+  answerContent: (
+    defId: string,
+    author: string,
+  ) => Promise<{ slide: Slide; updated: number }>;
   refresh: () => Promise<EditSlideDefView[]>;
   update: (defs: EditSlideDefView[]) => void;
 };
@@ -18,6 +26,10 @@ export const EditSlideContext = createContext<EditSlideContextValue>({
   enabled: false,
   error: "",
   defs: [],
+  answersMeta: [],
+  answerContent: async () => {
+    throw new Error("not ready");
+  },
   refresh: async () => [],
   update: () => {},
 });
@@ -65,13 +77,20 @@ function EditSlideSession({
   children?: ReactNode;
 }) {
   const [defs, setDefs] = useState<EditSlideDefView[]>([]);
+  const [answersMeta, setAnswersMeta] = useState<EditSlideAnswersMeta[]>([]);
   const [error, setError] = useState("");
   const alive = useRef(true);
   const generation = useRef(0);
+  const metaGeneration = useRef(0);
   const defsRef = useRef<EditSlideDefView[]>([]);
   defsRef.current = defs;
   const enabled = !!deckId && !!userId && !blocked;
   const poller = useDeckPoller();
+  async function answerContent(defId: string, author: string) {
+    return api<{ slide: Slide; updated: number }>(
+      `/api/decks/${deckId}/edit-slides/${defId}/answers/${encodeURIComponent(author)}`,
+    );
+  }
   function update(data: EditSlideDefView[]) {
     if (alive.current) {
       generation.current++;
@@ -120,12 +139,42 @@ function EditSlideSession({
       off();
     };
   }, [poller, enabled, deckId, userId]);
+  // The answers overview rides its own poll counter and is only
+  // registered for the host: student saves bump that counter alone,
+  // and students never receive (or trigger) the class-wide list.
+  useEffect(() => {
+    if (!enabled || !poller || !host) return;
+    const off = poller.register("editanswers", {
+      guard: metaGeneration,
+      onData: (p) => {
+        if (!alive.current) return;
+        setAnswersMeta((p.editAnswers ?? []) as EditSlideAnswersMeta[]);
+      },
+      onError: () => {},
+    });
+    return () => {
+      metaGeneration.current++;
+      off();
+    };
+  }, [poller, enabled, host, deckId, userId]);
   useEffect(() => {
     poller?.setWant("editslides", pollActive ? 5000 : 30000);
-  }, [poller, pollActive]);
+    if (host) poller?.setWant("editanswers", pollActive ? 5000 : 30000);
+  }, [poller, pollActive, host]);
   return (
     <EditSlideContext.Provider
-      value={{ deckId, userId, host, enabled, error, defs, refresh, update }}
+      value={{
+        deckId,
+        userId,
+        host,
+        enabled,
+        error,
+        defs,
+        answersMeta,
+        answerContent,
+        refresh,
+        update,
+      }}
     >
       {children}
     </EditSlideContext.Provider>

@@ -9,6 +9,7 @@ import {
   exerciseThinkingBoards,
 } from "../support/thinking.ts";
 import { exerciseDeckPoll } from "../support/poll.ts";
+import { exerciseEditSlides } from "../support/editSlides.ts";
 import { exerciseGalleryCounts } from "../support/gallery.ts";
 import {
   exerciseHostFollow,
@@ -1732,4 +1733,26 @@ test("worksheet copy and merge move fields and answers between sheets", async ()
     await app.close();
     await start();
   });
+});
+
+test("free-edit slides keep saves off the shared counter and the deck, and share blobs with deck assets", async () => {
+  const id = await create();
+  await invite(id, bob);
+  const carol = await signIn("student-977");
+  await invite(id, carol);
+  const other = await create();
+  const usage = async () =>
+    ((await (await request("/api/usage", "GET", undefined, alice)).json())
+      .used as number) ?? 0;
+  const watch = async (deck: string, cookie: string) => {
+    const peer = await connect(deck, cookie);
+    return {
+      messages: peer.messages,
+      close: () => {
+        peer.ws.terminate();
+        peer.doc.destroy();
+      },
+    };
+  };
+  await exerciseEditSlides(request, id, other, alice, bob, carol, usage, watch);
 });

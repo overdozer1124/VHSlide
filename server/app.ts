@@ -13,6 +13,8 @@ import {
 import {
   editSlideSchema,
   editSlideList,
+  editSlideAnswersMeta,
+  editSlideAnswerContent,
   editSlideCommand,
   recordEditAnswerAsset,
   editAnswerAsset,
@@ -2112,6 +2114,20 @@ export function createApplication(options: Options) {
                   editSlides: editSlideList(historySQL, id, u.id, host),
                 };
             }
+            const ea = url.searchParams.get("ea");
+            if (ea !== null) {
+              const version = featureVersion(historySQL, id, "editanswers");
+              if (ea === "" || Number(ea) !== version)
+                out.editanswers = {
+                  version,
+                  editAnswers: editSlideAnswersMeta(
+                    historySQL,
+                    id,
+                    u.id,
+                    host,
+                  ),
+                };
+            }
             const tv = url.searchParams.get("tv");
             if (tv !== null) {
               const version = featureVersion(historySQL, id, "thinking");
@@ -2258,14 +2274,15 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets)(?:\/([a-f0-9-]{36}))?)?)?$/.exec(
+            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers)(?:\/([^/]+))?)?)?$/.exec(
               extra,
             );
           insist(
             route &&
               (method === "GET"
                 ? extra === "edit-slides" ||
-                  (route[2] === "answer-assets" && !!route[3])
+                  (route[2] === "answer-assets" && !!route[3]) ||
+                  (route[2] === "answers" && !!route[3])
                 : method === "DELETE"
                   ? !!route[1] && !route[2]
                   : extra === "edit-slides" ||
@@ -2273,6 +2290,21 @@ export function createApplication(options: Options) {
             404,
             "生徒の編集用の操作が見つかりません。",
           );
+          if (route![2] === "answers" && method === "GET") {
+            // One answer's content, on demand: the console fetches
+            // a slide only when its updated stamp moved.
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            const content = editSlideAnswerContent(
+              historySQL,
+              id,
+              u.id,
+              host,
+              route![1]!,
+              route![3]!,
+            );
+            return json(res, 200, content);
+          }
           if (route![2] === "answer-assets" && method === "GET") {
             // Reading an answer photo: only its author and the
             // host. The bytes come from the shared blob pool.
@@ -2304,9 +2336,19 @@ export function createApplication(options: Options) {
             );
             return json(res, 201, { src });
           }
+          // An answer's JSON is capped at 256KB, so its request
+          // body gets a cap near that size; definition creation
+          // (a whole base slide) keeps the larger one.
           const value =
             method === "POST"
-              ? JSON.parse((await body(req, 8_000_000)).toString())
+              ? JSON.parse(
+                  (
+                    await body(
+                      req,
+                      route![2] === "answer" ? 1_000_000 : 8_000_000,
+                    )
+                  ).toString(),
+                )
               : {};
           db.exec("BEGIN IMMEDIATE");
           try {

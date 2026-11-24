@@ -13,6 +13,8 @@ import {
 import {
   editSlideSchema,
   editSlideList,
+  editSlideAnswersMeta,
+  editSlideAnswerContent,
   editSlideCommand,
   recordEditAnswerAsset,
   editAnswerAsset,
@@ -2040,6 +2042,15 @@ export class Directory extends DurableObject<Env> {
               editSlides: editSlideList(sql, id, user.id, host),
             };
         }
+        const ea = params.get("ea");
+        if (ea !== null) {
+          const version = featureVersion(sql, id, "editanswers");
+          if (ea === "" || Number(ea) !== version)
+            out.editanswers = {
+              version,
+              editAnswers: editSlideAnswersMeta(sql, id, user.id, host),
+            };
+        }
         const wv = params.get("wv");
         if (wv !== null) {
           const version = featureVersion(sql, id, "worksheets");
@@ -2179,14 +2190,15 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets)(?:\/([a-f0-9-]{36}))?)?)?$/.exec(
+        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers)(?:\/([^/]+))?)?)?$/.exec(
           extra,
         );
       insist(
         route &&
           (method === "GET"
             ? extra === "edit-slides" ||
-              (route[2] === "answer-assets" && !!route[3])
+              (route[2] === "answer-assets" && !!route[3]) ||
+              (route[2] === "answers" && !!route[3])
             : method === "DELETE"
               ? !!route[1] && !route[2]
               : extra === "edit-slides" || (!!route[2] && !route[3])),
@@ -2195,6 +2207,24 @@ export class Directory extends DurableObject<Env> {
       );
       const sql = (query: string, ...args: (string | number)[]) =>
         this.sql.exec(query, ...args);
+      if (route![2] === "answers" && method === "GET") {
+        // One answer's content, on demand: the console fetches a
+        // slide only when its updated stamp moved.
+        return this.ctx.storage.transactionSync(() => {
+          const current = this.access(id, user);
+          const host = current.owner === user.id;
+          return json(
+            editSlideAnswerContent(
+              sql,
+              id,
+              user.id,
+              host,
+              route![1]!,
+              route![3]!,
+            ),
+          );
+        });
+      }
       if (route![2] === "answer-assets" && method === "GET") {
         // Reading an answer photo: only its author and the host.
         // The bytes come from the shared blob pool.
@@ -2239,7 +2269,16 @@ export class Directory extends DurableObject<Env> {
         );
         return json({ src }, 201);
       }
-      const value = method === "POST" ? await input(request, 8_000_000) : {};
+      // An answer's JSON is capped at 256KB, so its request body
+      // gets a cap near that size; definition creation (a whole
+      // base slide) keeps the larger one.
+      const value =
+        method === "POST"
+          ? await input(
+              request,
+              route![2] === "answer" ? 1_000_000 : 8_000_000,
+            )
+          : {};
       let orphans: { asset: string; hash: string }[] = [];
       const response = this.ctx.storage.transactionSync(() => {
         const current = this.access(id, user);

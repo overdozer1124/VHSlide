@@ -43,14 +43,17 @@ export const editSlideSchema =
   featureVersionSchema +
   `
 CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY(def,author));
+CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL, PRIMARY KEY(def,author));
 CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, created INTEGER NOT NULL);` +
-  // The feature counter feeds the shared deck poll; the deck's own
-  // document version is never touched by these tables.
+  // The counters feed the shared deck poll; the deck's own document
+  // version is never touched by these tables. Definitions bump the
+  // counter everyone watches ("editslides"); answer saves bump only
+  // the host-console counter ("editanswers"), so a class saving at
+  // once never makes every client re-read the list.
   versionTriggers("edit_slide_defs", "editslides", (a) => `${a}.deck`) +
   versionTriggers(
     "edit_slide_answers",
-    "editslides",
+    "editanswers",
     (a) => `COALESCE((SELECT deck FROM edit_slide_defs WHERE id=${a}.def),'')`,
   );
 
@@ -61,11 +64,23 @@ export const MAX_EDIT_DECK_BYTES = 50_000_000;
 export const MAX_EDIT_ANSWER_ASSETS = 10;
 
 export type EditSlideStatus = "draft" | "open" | "closed";
-export type EditSlideAnswerView = {
+/** One answer's identity for the teacher console — never its
+ * content. The console fetches the slide itself, per answer, only
+ * when the answer's updated stamp has moved. */
+export type EditSlideAnswerMeta = {
   author: string;
   name: string;
-  slide: Slide;
   updated: number;
+};
+/** Host-only answer overview for one definition, delivered on the
+ * separate "editanswers" poll counter so student saves stay cheap
+ * for everyone else. */
+export type EditSlideAnswersMeta = {
+  id: string;
+  answerCount: number;
+  answers: EditSlideAnswerMeta[];
+  /** Names of members who have not made theirs yet. */
+  uncreated: { name: string }[];
 };
 export type EditSlideDefView = {
   id: string;
@@ -77,10 +92,6 @@ export type EditSlideDefView = {
   answerCount: number;
   /** The requesting user's own answer, when they have one. */
   mine?: { slide: Slide; updated: number };
-  /** Host only: every answer, in class account order. */
-  answers?: EditSlideAnswerView[];
-  /** Host only: names of members who have not made theirs yet. */
-  uncreated?: { name: string }[];
 };
 
 const FORBIDDEN_ELEMENT_KEYS = [
@@ -203,7 +214,7 @@ function checkSlideParts(
         insist(
           m![1] === deck,
           400,
-          "写真の参照が正しくありません。",
+          "ほかの作品の写真が含まれています。",
         );
       deckAssets.add(m![2]);
     }
@@ -213,8 +224,11 @@ function checkSlideParts(
 
 /** The base snapshot: the teacher's slide with everything students
  * must not receive stripped (speaker notes, learning parts, links),
- * re-parsed so the stored copy is always a valid clean slide. */
-export function sanitizeEditBase(raw: unknown): Slide {
+ * re-parsed so the stored copy is always a valid clean slide. When
+ * the deck id is known, photos belonging to another deck are refused
+ * here, at creation time — otherwise students could never save the
+ * base they were handed. */
+export function sanitizeEditBase(raw: unknown, deck?: string): Slide {
   const input = raw as Slide;
   insist(
     input && Array.isArray(input.elements),
@@ -234,7 +248,7 @@ export function sanitizeEditBase(raw: unknown): Slide {
     }),
   };
   const slide = parseOneSlide(cleaned);
-  const parts = checkSlideParts(slide);
+  const parts = checkSlideParts(slide, deck);
   insist(
     parts.answerAssets.size === 0,
     400,
@@ -265,29 +279,28 @@ function defRow(sql: HistorySQL, deck: string, defId: string): DefRow {
 }
 
 /** Total stored bytes of a deck's answers plus their photos, for
- * the per-deck cap. Photo sizes are the answer-asset rows' own
- * recorded sizes (before deduplication), which keeps the count
- * simple and certain. */
+ * the per-deck cap. Counted from the recorded size columns with SQL
+ * sums, so a save never reads everyone's answer content. Photo
+ * sizes are the answer-asset rows' own recorded sizes (before
+ * deduplication), which keeps the count simple and certain. */
 function deckEditBytes(
   sql: HistorySQL,
   deck: string,
   exceptDef?: string,
   exceptAuthor?: string,
 ): number {
-  let total = 0;
-  for (const row of sql(
-    "SELECT a.slide AS slide,a.def AS def,a.author AS author FROM edit_slide_answers a JOIN edit_slide_defs d ON d.id=a.def WHERE d.deck=?",
-    deck,
-  )) {
-    if (row.def === exceptDef && row.author === exceptAuthor) continue;
-    total += String(row.slide).length;
-  }
-  for (const row of sql(
-    "SELECT aa.bytes AS bytes FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def WHERE d.deck=?",
-    deck,
-  ))
-    total += Number(row.bytes) || 0;
-  return total;
+  const row = [
+    ...sql(
+      `SELECT
+        (SELECT COALESCE(SUM(a.bytes),0) FROM edit_slide_answers a JOIN edit_slide_defs d ON d.id=a.def WHERE d.deck=? AND NOT (a.def=? AND a.author=?))
+        + (SELECT COALESCE(SUM(aa.bytes),0) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d2 ON d2.id=aa.def WHERE d2.deck=?) AS total`,
+      deck,
+      exceptDef ?? "",
+      exceptAuthor ?? "",
+      deck,
+    ),
+  ][0];
+  return Number(row?.total) || 0;
 }
 
 /** An answer photo reference: the dedicated read path, never the
@@ -295,6 +308,12 @@ function deckEditBytes(
 const ANSWER_ASSET_PATTERN =
   /^\/api\/decks\/([a-f0-9-]{36})\/edit-slides\/([a-f0-9-]{36})\/answer-assets\/([a-f0-9-]{36})$/;
 
+/** The definition list everyone polls. Deliberately light: counts
+ * come from COUNT(*), a student triggers a read of their own answer
+ * row only, and nobody's answer content rides along. Definitions
+ * still in draft are the teacher's alone — students receive only
+ * open and closed ones, so a base taken from a slide the teacher
+ * has not shown yet never leaks early. */
 export function editSlideList(
   sql: HistorySQL,
   deck: string,
@@ -307,32 +326,75 @@ export function editSlideList(
       deck,
     ),
   ] as unknown as DefRow[];
+  return defs.flatMap((def) => {
+    if (!host && def.status === "draft") return [];
+    const count = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM edit_slide_answers WHERE def=?",
+        def.id,
+      ),
+    ][0].n as number;
+    const mine = [
+      ...sql(
+        "SELECT slide,updated FROM edit_slide_answers WHERE def=? AND author=?",
+        def.id,
+        actor,
+      ),
+    ][0];
+    const view: EditSlideDefView = {
+      id: def.id,
+      source: def.source,
+      status: def.status as EditSlideStatus,
+      created: def.created,
+      updated: def.updated,
+      base: JSON.parse(def.base) as Slide,
+      answerCount: count,
+      ...(mine
+        ? {
+            mine: {
+              slide: JSON.parse(String(mine.slide)) as Slide,
+              updated: Number(mine.updated),
+            },
+          }
+        : {}),
+    };
+    return [view];
+  });
+}
+
+/** Host-only: who answered each definition (names and stamps, no
+ * content) and who has not, in class account order — recipient rank
+ * first, then member registration order, as in the response
+ * gallery. Served on the "editanswers" poll counter. */
+export function editSlideAnswersMeta(
+  sql: HistorySQL,
+  deck: string,
+  actor: string,
+  host: boolean,
+): EditSlideAnswersMeta[] {
+  if (!host) return [];
+  const defs = [
+    ...sql("SELECT id FROM edit_slide_defs WHERE deck=? ORDER BY created", deck),
+  ];
+  if (!defs.length) return [];
   const names = new Map<string, string>();
-  if (host && defs.length)
-    for (const row of sql(
-      "SELECT u.id AS id,u.name AS name FROM users u JOIN members m ON m.user_id=u.id WHERE m.deck=?",
-      deck,
-    ))
-      if (typeof row.id === "string")
-        names.set(row.id, typeof row.name === "string" ? row.name : "");
-  // Class account order, same as the response gallery: recipient
-  // rank first, then member registration order.
+  for (const row of sql(
+    "SELECT u.id AS id,u.name AS name FROM users u JOIN members m ON m.user_id=u.id WHERE m.deck=?",
+    deck,
+  ))
+    if (typeof row.id === "string")
+      names.set(row.id, typeof row.name === "string" ? row.name : "");
   const ranks = new Map<string, number>();
+  for (const row of sql(
+    "SELECT user_id,MIN(rank) AS rank FROM recipients WHERE deck=? AND user_id IS NOT NULL GROUP BY user_id",
+    deck,
+  ))
+    if (typeof row.user_id === "string" && typeof row.rank === "number")
+      ranks.set(row.user_id, row.rank);
   const memberOrder = new Map<string, number>();
-  if (host && defs.length) {
-    for (const row of sql(
-      "SELECT user_id,MIN(rank) AS rank FROM recipients WHERE deck=? AND user_id IS NOT NULL GROUP BY user_id",
-      deck,
-    ))
-      if (typeof row.user_id === "string" && typeof row.rank === "number")
-        ranks.set(row.user_id, row.rank);
-    for (const row of sql(
-      "SELECT rowid,user_id FROM members WHERE deck=?",
-      deck,
-    ))
-      if (typeof row.user_id === "string" && typeof row.rowid === "number")
-        memberOrder.set(row.user_id, row.rowid);
-  }
+  for (const row of sql("SELECT rowid,user_id FROM members WHERE deck=?", deck))
+    if (typeof row.user_id === "string" && typeof row.rowid === "number")
+      memberOrder.set(row.user_id, row.rowid);
   const accountOrder = (a: string, b: string) => {
     const rankA = ranks.get(a),
       rankB = ranks.get(b);
@@ -349,60 +411,67 @@ export function editSlideList(
     return a.localeCompare(b);
   };
   return defs.map((def) => {
-    const answerRows = [
+    const rows = [
       ...sql(
-        "SELECT author,slide,updated FROM edit_slide_answers WHERE def=?",
-        def.id,
+        "SELECT author,updated FROM edit_slide_answers WHERE def=?",
+        String(def.id),
       ),
     ];
-    const mine = answerRows.find((r) => r.author === actor);
-    const view: EditSlideDefView = {
-      id: def.id,
-      source: def.source,
-      status: def.status as EditSlideStatus,
-      created: def.created,
-      updated: def.updated,
-      base: JSON.parse(def.base) as Slide,
-      answerCount: answerRows.length,
-      ...(mine
-        ? {
-            mine: {
-              slide: JSON.parse(String(mine.slide)) as Slide,
-              updated: Number(mine.updated),
-            },
-          }
-        : {}),
-    };
-    if (host) {
-      view.answers = answerRows
-        .map((r) => ({
-          author: String(r.author),
-          name: names.get(String(r.author)) || "名前未登録",
-          slide: JSON.parse(String(r.slide)) as Slide,
-          updated: Number(r.updated),
-        }))
-        .sort((a, b) => accountOrder(a.author, b.author));
-      const answered = new Set(answerRows.map((r) => String(r.author)));
-      const missing: string[] = [];
-      for (const row of sql(
-        "SELECT user_id FROM members WHERE deck=?",
-        deck,
-      )) {
-        const id = row.user_id;
-        if (
-          typeof id === "string" &&
-          id !== actor &&
-          !answered.has(id) &&
-          !missing.includes(id)
-        )
-          missing.push(id);
-      }
-      view.uncreated = missing
-        .sort(accountOrder)
-        .map((id) => ({ name: names.get(id) || "名前未登録" }));
+    const answers = rows
+      .map((r) => ({
+        author: String(r.author),
+        name: names.get(String(r.author)) || "名前未登録",
+        updated: Number(r.updated),
+      }))
+      .sort((a, b) => accountOrder(a.author, b.author));
+    const answered = new Set(answers.map((a) => a.author));
+    const missing: string[] = [];
+    for (const row of sql("SELECT user_id FROM members WHERE deck=?", deck)) {
+      const id = row.user_id;
+      if (
+        typeof id === "string" &&
+        id !== actor &&
+        !answered.has(id) &&
+        !missing.includes(id)
+      )
+        missing.push(id);
     }
-    return view;
+    return {
+      id: String(def.id),
+      answerCount: answers.length,
+      answers,
+      uncreated: missing
+        .sort(accountOrder)
+        .map((id) => ({ name: names.get(id) || "名前未登録" })),
+    };
   });
+}
+
+/** One answer's content, fetched on demand: the console asks for a
+ * slide only when its updated stamp moved, and a student can only
+ * ever fetch their own. */
+export function editSlideAnswerContent(
+  sql: HistorySQL,
+  deck: string,
+  actor: string,
+  host: boolean,
+  defId: string,
+  author: string,
+): { slide: Slide; updated: number } {
+  const def = defRow(sql, deck, defId);
+  insist(host || author === actor, 404, "回答が見つかりません。");
+  const row = [
+    ...sql(
+      "SELECT slide,updated FROM edit_slide_answers WHERE def=? AND author=?",
+      def.id,
+      author,
+    ),
+  ][0];
+  insist(row, 404, "回答が見つかりません。");
+  return {
+    slide: JSON.parse(String(row!.slide)) as Slide,
+    updated: Number(row!.updated),
+  };
 }
 
 export type OrphanAnswerAsset = { asset: string; hash: string };
@@ -431,7 +500,7 @@ export function editSlideCommand(
       400,
       "元のスライドを確認してください。",
     );
-    const base = sanitizeEditBase(value.slide);
+    const base = sanitizeEditBase(value.slide, deck);
     const id = crypto.randomUUID();
     const now = Date.now();
     sql(
@@ -549,8 +618,11 @@ export function editSlideCommand(
       );
     }
     const encoded = JSON.stringify(slide);
+    // The cap is on stored bytes, not characters: Japanese text is
+    // three bytes per character once encoded.
+    const byteLength = new TextEncoder().encode(encoded).length;
     insist(
-      encoded.length <= MAX_EDIT_ANSWER_BYTES,
+      byteLength <= MAX_EDIT_ANSWER_BYTES,
       413,
       "スライドが大きすぎます（写真を除いて256KBまで）。",
     );
@@ -568,17 +640,18 @@ export function editSlideCommand(
       );
     }
     insist(
-      deckEditBytes(sql, deck, def.id, actor) + encoded.length <=
+      deckEditBytes(sql, deck, def.id, actor) + byteLength <=
         MAX_EDIT_DECK_BYTES,
       413,
       "作品全体の保存量の上限（50MB）に達しました。",
     );
     const now = Date.now();
     sql(
-      "INSERT INTO edit_slide_answers VALUES(?,?,?,?) ON CONFLICT(def,author) DO UPDATE SET slide=excluded.slide,updated=excluded.updated",
+      "INSERT INTO edit_slide_answers VALUES(?,?,?,?,?) ON CONFLICT(def,author) DO UPDATE SET slide=excluded.slide,bytes=excluded.bytes,updated=excluded.updated",
       def.id,
       actor,
       encoded,
+      byteLength,
       now,
     );
     // Photos the new slide no longer references are deleted —

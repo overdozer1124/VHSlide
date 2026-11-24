@@ -699,15 +699,51 @@ function ConsoleEditSlides({
   const [large, setLarge] = useState<{ name: string; slide: Slide } | null>(
     null,
   );
-  if (!ctx.enabled || !ctx.host || !focus) return null;
-  const defs = ctx.defs.filter((d) => d.source === focus.id);
+  // Answer slides arrive as metadata on the poll; the content of
+  // each answer is fetched on demand and cached by its updated
+  // stamp, so a class saving at once never pushes every slide's
+  // content to the console.
+  const [contents, setContents] = useState(
+    new Map<string, { updated: number; slide: Slide }>(),
+  );
+  const defs =
+    ctx.enabled && ctx.host && focus
+      ? ctx.defs.filter((d) => d.source === focus.id)
+      : [];
+  const metas = defs.map((def) => ({
+    def,
+    meta: ctx.answersMeta.find((m) => m.id === def.id),
+  }));
+  useEffect(() => {
+    let stale = false;
+    for (const { def, meta } of metas)
+      for (const a of meta?.answers ?? []) {
+        const key = `${def.id}:${a.author}`;
+        if (contents.get(key)?.updated === a.updated) continue;
+        void ctx
+          .answerContent(def.id, a.author)
+          .then((content) => {
+            if (stale) return;
+            setContents((prev) => {
+              const next = new Map(prev);
+              next.set(key, content);
+              return next;
+            });
+          })
+          .catch(() => {});
+      }
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx.answersMeta, ctx.defs, focus?.id]);
   if (!defs.length) return null;
   return (
     <section className="console-edit-slides" aria-label="生徒が作ったスライド">
-      {defs.map((def) => (
+      {metas.map(({ def, meta }) => (
         <div key={def.id} className="console-edit-def">
           <h3>
-            生徒が作ったスライド（{def.answers?.length ?? 0}人）
+            生徒が作ったスライド（{meta?.answers.length ?? 0}人）
             {!workbook.slides.some((s) => s.id === def.source) && (
               <span className="console-badge">
                 元のスライドは削除されています
@@ -715,27 +751,39 @@ function ConsoleEditSlides({
             )}
           </h3>
           <div className="console-edit-grid">
-            {(def.answers ?? []).map((a) => (
-              <button
-                key={a.author}
-                type="button"
-                className="console-edit-card"
-                onClick={() => setLarge({ name: a.name, slide: a.slide })}
-              >
-                <span className="console-thumb-canvas">
-                  <Canvas slide={a.slide} zoom={148 / W} />
-                </span>
-                <span>{a.name}</span>
-              </button>
-            ))}
+            {(meta?.answers ?? []).map((a) => {
+              const content = contents.get(`${def.id}:${a.author}`);
+              const slide =
+                content?.updated === a.updated ? content.slide : undefined;
+              return (
+                <button
+                  key={a.author}
+                  type="button"
+                  className="console-edit-card"
+                  disabled={!slide}
+                  onClick={() =>
+                    slide && setLarge({ name: a.name, slide })
+                  }
+                >
+                  <span className="console-thumb-canvas">
+                    {slide ? (
+                      <Canvas slide={slide} zoom={148 / W} />
+                    ) : (
+                      <span className="console-thumb-loading">読込中…</span>
+                    )}
+                  </span>
+                  <span>{a.name}</span>
+                </button>
+              );
+            })}
           </div>
-          {!!def.uncreated?.length && (
+          {!!meta?.uncreated.length && (
             <div className="console-unanswered">
               <span className="console-unanswered-label">
-                未作成（{def.uncreated.length}人）
+                未作成（{meta.uncreated.length}人）
               </span>
               <span className="console-unanswered-names">
-                {def.uncreated.map((u) => u.name).join("、")}
+                {meta.uncreated.map((u) => u.name).join("、")}
               </span>
             </div>
           )}

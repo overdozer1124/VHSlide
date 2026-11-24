@@ -6,12 +6,15 @@ import type { Slide } from "./model";
 import {
   EditSlideError,
   editAnswerAsset,
+  editSlideAnswerContent,
+  editSlideAnswersMeta,
   editSlideSchema,
   editSlideCommand,
   editSlideList,
   recordEditAnswerAsset,
   sanitizeEditBase,
 } from "./editSlides";
+import { featureVersion } from "./featureVersions";
 
 const DECK = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const ASSET_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -196,21 +199,39 @@ describe("edit slides: answers", () => {
     const id = makeDef(sql);
     const before = editSlideList(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "ana", false)[0];
     expect(before.mine).toBeUndefined();
-    expect(before.uncreated).toBeUndefined();
     editSlideCommand(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "ana", false, "answer", id, {
       slide: answerSlide(),
       baseUpdated: 0,
     });
     const after = editSlideList(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "ana", false)[0];
     expect(after.mine?.slide.elements[0].text).toBe("ぼくの答え");
-    // The host sees the answer and who has not created theirs yet.
+    // The list itself never carries anyone's answer content: the
+    // host's overview is metadata only, on the separate function.
     const hostView = editSlideList(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "host", true)[0];
-    expect(hostView.answers?.map((a) => a.name)).toEqual(["生徒A"]);
-    expect(hostView.uncreated).toEqual([{ name: "生徒B" }]);
-    // Another student never sees Ana's answer.
+    expect(JSON.stringify(hostView)).not.toContain("ぼくの答え");
+    const meta = editSlideAnswersMeta(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "host", true)[0];
+    expect(meta.answers.map((a) => a.name)).toEqual(["生徒A"]);
+    expect(meta.uncreated).toEqual([{ name: "生徒B" }]);
+    expect(JSON.stringify(meta)).not.toContain("ぼくの答え");
+    // Students get no overview at all.
+    expect(editSlideAnswersMeta(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "ana", false)).toEqual([]);
+    // Content is fetched per answer: host and author may, others not.
+    expect(
+      editSlideAnswerContent(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "host", true, id, "ana").slide
+        .elements[0].text,
+    ).toBe("ぼくの答え");
+    expect(
+      editSlideAnswerContent(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "ana", false, id, "ana").updated,
+    ).toBe(after.mine!.updated);
+    expect(
+      status(() =>
+        editSlideAnswerContent(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "bob", false, id, "ana"),
+      ),
+    ).toBe(404);
+    // Another student never sees Ana's answer in the list either.
     const bobView = editSlideList(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "bob", false)[0];
     expect(bobView.mine).toBeUndefined();
-    expect(bobView.answers).toBeUndefined();
+    expect(JSON.stringify(bobView)).not.toContain("ぼくの答え");
     // Closed definitions refuse saves.
     editSlideCommand(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "host", true, "status", id, { status: "closed" });
     expect(
@@ -385,7 +406,7 @@ describe("edit slides: answers", () => {
   });
 
   it("limits recorded answer photos to 10 and requires an open def", () => {
-    const { sql, db } = fixture();
+    const { sql } = fixture();
     const id = makeDef(sql);
     for (let i = 0; i < 10; i++) {
       const asset = `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
@@ -395,5 +416,84 @@ describe("edit slides: answers", () => {
     expect(status(() => recordEditAnswerAsset(sql, DECK, "ana", id, extra, "hx", 10, "image/png"))).toBe(400);
     editSlideCommand(sql, "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "host", true, "status", id, { status: "closed" });
     expect(status(() => recordEditAnswerAsset(sql, DECK, "bob", id, extra, "hx", 10, "image/png"))).toBe(403);
+  });
+});
+
+describe("edit slides: poll counters and visibility", () => {
+  it("answer saves bump only the host-console counter, never the shared one", () => {
+    const { sql } = fixture();
+    const id = makeDef(sql);
+    const sharedBefore = featureVersion(sql, DECK, "editslides");
+    const consoleBefore = featureVersion(sql, DECK, "editanswers");
+    editSlideCommand(sql, DECK, "ana", false, "answer", id, {
+      slide: answerSlide(),
+      baseUpdated: 0,
+    });
+    expect(featureVersion(sql, DECK, "editslides")).toBe(sharedBefore);
+    expect(featureVersion(sql, DECK, "editanswers")).toBe(consoleBefore + 1);
+    // Definition changes are what the shared counter is for.
+    editSlideCommand(sql, DECK, "host", true, "status", id, { status: "closed" });
+    expect(featureVersion(sql, DECK, "editslides")).toBe(sharedBefore + 1);
+  });
+
+  it("hides draft definitions from students until the host opens them", () => {
+    const { sql } = fixture();
+    const created = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+      source: "11111111-1111-4111-8111-111111111111",
+      slide: baseSlide(),
+    });
+    expect(editSlideList(sql, DECK, "ana", false)).toEqual([]);
+    expect(editSlideList(sql, DECK, "host", true)).toHaveLength(1);
+    editSlideCommand(sql, DECK, "host", true, "status", created.createdId!, { status: "open" });
+    expect(editSlideList(sql, DECK, "ana", false)).toHaveLength(1);
+    editSlideCommand(sql, DECK, "host", true, "status", created.createdId!, { status: "closed" });
+    expect(editSlideList(sql, DECK, "ana", false)).toHaveLength(1);
+  });
+
+  it("counts the 256KB cap in stored bytes, not characters", () => {
+    const { sql } = fixture();
+    const id = makeDef(sql);
+    // ~120k characters of Japanese: under the cap as a character
+    // count, well over it as stored bytes (3 bytes per character).
+    const wide = answerSlide({
+      elements: Array.from({ length: 30 }, (_, i) => ({
+        id: `t${i}`,
+        type: "text",
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 40,
+        text: "あ".repeat(4000), fontSize: 20, color: "#173d38",
+      })),
+    });
+    expect(
+      status(() =>
+        editSlideCommand(sql, DECK, "ana", false, "answer", id, {
+          slide: wide,
+          baseUpdated: 0,
+        }),
+      ),
+    ).toBe(413);
+  });
+
+  it("refuses a base carrying another deck's photo, at creation time", () => {
+    const { sql } = fixture();
+    const foreign = baseSlide();
+    (foreign.elements[2] as { src: string }).src =
+      `/api/decks/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/assets/${ASSET_A}`;
+    expect(
+      status(() =>
+        editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+          source: "11111111-1111-4111-8111-111111111111",
+          slide: foreign,
+        }),
+      ),
+    ).toBe(400);
+    expect(() =>
+      editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+        source: "11111111-1111-4111-8111-111111111111",
+        slide: foreign,
+      }),
+    ).toThrow("ほかの作品の写真が含まれています。");
   });
 });
