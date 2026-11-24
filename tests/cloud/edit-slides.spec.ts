@@ -195,3 +195,107 @@ test("free-edit slide: student builds a copy, host sees it in the console", asyn
   await context.close();
   await context2.close();
 });
+
+test("free-edit feedback: host sends back, student resubmits", async ({
+  page,
+  browser,
+}, info) => {
+  test.skip(
+    info.project.name.includes("touch"),
+    "touch viewport taps differ on the fixture deck",
+  );
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-editfb-host`);
+  const guestName = `${info.project.name}-editfb-one`;
+  await addGuest(page, id, guestName);
+  const book = await readBook(page, id);
+  const source = book.slides[0];
+
+  // Setup over the API: definition open, the student answers, the
+  // host closes the intake.
+  const created = await (
+    await page.request.post(`/api/decks/${id}/edit-slides`, {
+      headers,
+      data: { source: source.id, slide: source },
+    })
+  ).json();
+  const defId = created.editSlides[0].id as string;
+  await page.request.post(`/api/decks/${id}/edit-slides/${defId}/status`, {
+    headers,
+    data: { status: "open" },
+  });
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  const mine = await (
+    await student.request.get(`/api/decks/${id}/edit-slides`, { headers })
+  ).json();
+  expect(
+    (
+      await student.request.post(
+        `/api/decks/${id}/edit-slides/${defId}/answer`,
+        {
+          headers,
+          data: { slide: mine.editSlides[0].base, baseUpdated: 0 },
+        },
+      )
+    ).status(),
+  ).toBe(200);
+  await page.request.post(`/api/decks/${id}/edit-slides/${defId}/status`, {
+    headers,
+    data: { status: "closed" },
+  });
+
+  // Host console: open the student's slide and send it back with a
+  // comment and a stamp.
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "授業コンソール" }).click();
+  const consoleView = page.getByRole("region", { name: "授業コンソール" });
+  await consoleView.getByRole("tab", { name: "生徒のスライド" }).click();
+  await expect(
+    consoleView.getByText(/生徒が作ったスライド（1人）/),
+  ).toBeVisible({ timeout: 15_000 });
+  await consoleView.locator(".console-edit-card").first().click();
+  const dialog = page.locator(".console-edit-large");
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await dialog
+    .getByLabel("フィードバックのコメント")
+    .fill("ここを直してください");
+  await dialog.getByLabel("スタンプ").selectOption("もう一歩");
+  await dialog.getByLabel(/書き直してほしい/).check();
+  await dialog.getByRole("button", { name: "送る" }).click();
+  await expect(dialog.getByText("差し戻し中")).toBeVisible({
+    timeout: 15_000,
+  });
+  await dialog.getByRole("button", { name: "閉じる" }).click();
+
+  // Student: the feedback shows on the base slide, the studio
+  // re-opens despite the closed intake, and 出し直す closes the
+  // send-back.
+  await student.goto(`/?room=${id}`);
+  await openFirstSlide(student, shown(student.locator(".edit-slide-feedback")));
+  await expect(student.locator(".edit-slide-feedback")).toContainText(
+    "ここを直してください",
+    { timeout: 15_000 },
+  );
+  await student.locator(".edit-slide-launch").click();
+  const studio = student.locator(".edit-studio");
+  await expect(studio).toBeVisible({ timeout: 15_000 });
+  // Rewrite something and let it save (the resubmission flag needs
+  // a save after the send-back), then resubmit.
+  await studio.getByRole("button", { name: "文字" }).click();
+  await expect(studio.getByText("保存しました")).toBeVisible({
+    timeout: 20_000,
+  });
+  await studio.getByRole("button", { name: "出し直す" }).click();
+  await expect(studio).toBeHidden({ timeout: 15_000 });
+
+  // Host console: the card now flags the resubmission.
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "授業コンソール" }).click();
+  await consoleView.getByRole("tab", { name: "生徒のスライド" }).click();
+  await expect(consoleView.getByText("再提出")).toBeVisible({
+    timeout: 20_000,
+  });
+  await context.close();
+});

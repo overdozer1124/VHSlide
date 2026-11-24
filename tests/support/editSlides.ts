@@ -237,6 +237,136 @@ export async function exerciseEditSlides(
   );
   assert.equal((await call(src, "GET", undefined, owner)).status, 200);
   assert.equal(await usage(), usage0 + EDIT_SLIDE_GIF.length);
+
+  // Feedback and send-backs (§4.3, stage 2a): closing the intake
+  // stops saves; a send-back from the host re-opens saving for that
+  // student alone, more than once, until they resubmit; feedback
+  // rows reach only their owner (and the host) on the ef poll.
+  const feedbackBase = `/api/decks/${id}/feedback`;
+  const sendFeedback = async (
+    value: unknown,
+    who: string,
+    status = 200,
+  ) => {
+    const r = await call(feedbackBase, "POST", value, who);
+    assert.equal(r.status, status, await r.clone().text());
+    return r;
+  };
+  const pollFeedback = async (who: string) => {
+    const r = await call(
+      `/api/decks/${id}/poll?ef=`,
+      "GET",
+      undefined,
+      who,
+    );
+    assert.equal(r.status, 200, await r.clone().text());
+    return ((await r.json()) as any).editfeedback.feedback as any[];
+  };
+  await write(`/${defId}/status`, { status: "closed" }, owner);
+  const closedMine = (await list(guest)).find((d: any) => d.id === defId).mine;
+  await write(
+    `/${defId}/answer`,
+    { slide: closedMine.slide, baseUpdated: closedMine.updated },
+    guest,
+    403,
+  );
+  // Students cannot send feedback; the host's send-back can.
+  await sendFeedback(
+    {
+      targetKind: "editslide",
+      targetId: defId,
+      owner: guestId,
+      text: "ここを直して",
+      stamp: "",
+      reopen: true,
+    },
+    guest,
+    403,
+  );
+  const sentBack = await sendFeedback(
+    {
+      targetKind: "editslide",
+      targetId: defId,
+      owner: guestId,
+      text: "ここを直して",
+      stamp: "もう一歩",
+      reopen: true,
+    },
+    owner,
+  );
+  assert.equal(((await sentBack.json()).feedback as any[]).length, 1);
+  const guestFeedback = await pollFeedback(guest);
+  assert.equal(guestFeedback.length, 1);
+  assert.equal(guestFeedback[0].reopen, 1);
+  assert.equal((await pollFeedback(guest2)).length, 0);
+  // The sent-back student saves twice (rate limit spaced), the
+  // other student still cannot save at all.
+  const saveNow = async () => {
+    const mine = (await list(guest)).find((d: any) => d.id === defId).mine;
+    await write(
+      `/${defId}/answer`,
+      { slide: mine.slide, baseUpdated: mine.updated },
+      guest,
+    );
+  };
+  await sleep(1600);
+  await saveNow();
+  await sleep(1600);
+  await saveNow();
+  await write(
+    `/${defId}/answer`,
+    { slide: closedMine.slide, baseUpdated: 0 },
+    guest2,
+    403,
+  );
+  // Resubmitting closes the send-back: saves stop, and the host's
+  // answer overview flags the resubmission.
+  const resub = await call(
+    `${feedbackBase}/resubmit`,
+    "POST",
+    { targetId: defId },
+    guest,
+  );
+  assert.equal(resub.status, 200, await resub.clone().text());
+  const afterResubmit = (await list(guest)).find((d: any) => d.id === defId)
+    .mine;
+  await write(
+    `/${defId}/answer`,
+    { slide: afterResubmit.slide, baseUpdated: afterResubmit.updated },
+    guest,
+    403,
+  );
+  const fbMeta = (await poll(owner)).editanswers.editAnswers.find(
+    (m: any) => m.id === defId,
+  );
+  assert.equal(
+    fbMeta.answers.find((a: any) => a.author === guestId).resubmitted,
+    true,
+  );
+  // A plain comment arrives on the same counter and can be read.
+  await sendFeedback(
+    {
+      targetKind: "editslide",
+      targetId: defId,
+      owner: guestId,
+      text: "ありがとう",
+      stamp: "よくできました",
+    },
+    owner,
+  );
+  const two = await pollFeedback(guest);
+  assert.equal(two.length, 2);
+  const read = await call(
+    `${feedbackBase}/read`,
+    "POST",
+    { ids: two.map((f: any) => f.id) },
+    guest,
+  );
+  assert.equal(read.status, 200, await read.clone().text());
+  assert.ok(
+    ((await read.json()).feedback as any[]).every((f) => f.readAt !== null),
+  );
+
   // Removing the answer side frees the blob at last.
   await write(`/${defId}`, undefined, owner, 200, "DELETE");
   assert.equal((await call(src, "GET", undefined, owner)).status, 404);

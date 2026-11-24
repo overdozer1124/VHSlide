@@ -696,9 +696,12 @@ function ConsoleEditSlides({
   focus?: Slide;
 }) {
   const ctx = useEditSlides();
-  const [large, setLarge] = useState<{ name: string; slide: Slide } | null>(
-    null,
-  );
+  const [large, setLarge] = useState<{
+    name: string;
+    author: string;
+    defId: string;
+    slide: Slide;
+  } | null>(null);
   // Answer slides arrive as metadata on the poll; the content of
   // each answer is fetched on demand and cached by its updated
   // stamp, so a class saving at once never pushes every slide's
@@ -762,7 +765,13 @@ function ConsoleEditSlides({
                   className="console-edit-card"
                   disabled={!slide}
                   onClick={() =>
-                    slide && setLarge({ name: a.name, slide })
+                    slide &&
+                    setLarge({
+                      name: a.name,
+                      author: a.author,
+                      defId: def.id,
+                      slide,
+                    })
                   }
                 >
                   <span className="console-thumb-canvas">
@@ -773,6 +782,12 @@ function ConsoleEditSlides({
                     )}
                   </span>
                   <span>{a.name}</span>
+                  {a.reopen && (
+                    <span className="console-badge">差し戻し中</span>
+                  )}
+                  {a.resubmitted && (
+                    <span className="console-badge">再提出</span>
+                  )}
                 </button>
               );
             })}
@@ -807,9 +822,129 @@ function ConsoleEditSlides({
             </button>
           </header>
           <Canvas slide={large.slide} zoom={0.85} />
+          <ConsoleEditFeedback
+            defId={large.defId}
+            author={large.author}
+            name={large.name}
+          />
         </div>
       )}
     </section>
+  );
+}
+
+/** Feedback (§4.3) for one student's free-edit answer: the host
+ * sends a short comment and/or a stamp, optionally as a send-back
+ * that re-opens saving for that student after the intake closed,
+ * and can cancel a send-back that is still in force. */
+function ConsoleEditFeedback({
+  defId,
+  author,
+  name,
+}: {
+  defId: string;
+  author: string;
+  name: string;
+}) {
+  const ctx = useEditSlides();
+  const [text, setText] = useState("");
+  const [stamp, setStamp] = useState("");
+  const [reopen, setReopen] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const rows = ctx.feedback.filter(
+    (f) =>
+      f.targetKind === "editslide" && f.targetId === defId && f.owner === author,
+  );
+  const reopenActive = rows.some((f) => f.reopen === 1);
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="console-edit-feedback">
+      <h4>{name}さんへのフィードバック</h4>
+      {rows.slice(0, 5).map((f) => (
+        <p key={f.id} className="console-edit-feedback-row">
+          {f.stamp && <span className="stamp">{f.stamp}</span>}
+          {f.text}
+          {f.reopen === 1 && <span className="console-badge">差し戻し中</span>}
+          {f.readAt !== null && <span className="small">（既読）</span>}
+        </p>
+      ))}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="console-edit-feedback-form">
+        <input
+          type="text"
+          value={text}
+          maxLength={200}
+          placeholder="短いコメント（200文字まで）"
+          aria-label="フィードバックのコメント"
+          onChange={(e) => setText(e.target.value)}
+        />
+        <select
+          value={stamp}
+          aria-label="スタンプ"
+          onChange={(e) => setStamp(e.target.value)}
+        >
+          <option value="">スタンプなし</option>
+          <option value="よくできました">よくできました</option>
+          <option value="なるほど">なるほど</option>
+          <option value="もう一歩">もう一歩</option>
+          <option value="すてきな考え">すてきな考え</option>
+        </select>
+        <label>
+          <input
+            type="checkbox"
+            checked={reopen}
+            onChange={(e) => setReopen(e.target.checked)}
+          />
+          書き直してほしい（差し戻し）
+        </label>
+        <button
+          className="button primary"
+          disabled={busy || (text === "" && stamp === "" && !reopen)}
+          onClick={() =>
+            void run(async () => {
+              await ctx.sendFeedback({
+                targetId: defId,
+                owner: author,
+                text,
+                stamp,
+                reopen,
+              });
+              setText("");
+              setStamp("");
+              setReopen(false);
+            })
+          }
+        >
+          送る
+        </button>
+        {reopenActive && (
+          <button
+            className="button outline"
+            disabled={busy}
+            onClick={() =>
+              void run(() => ctx.cancelFeedbackReopen(defId, author))
+            }
+          >
+            差し戻しを取り消す
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

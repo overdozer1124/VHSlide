@@ -21,6 +21,11 @@ import {
   EditSlideError,
 } from "../src/editSlides.ts";
 import {
+  feedbackCommand,
+  feedbackList,
+  FeedbackError,
+} from "../src/feedback.ts";
+import {
   webbingSchema,
   webbingList,
   webbingCommand,
@@ -895,6 +900,7 @@ export function createApplication(options: Options) {
       "DELETE FROM edit_slide_answers WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
     ).run(id);
     db.prepare("DELETE FROM edit_slide_defs WHERE deck=?").run(id);
+    db.prepare("DELETE FROM form_feedback WHERE deck=?").run(id);
   }
   const cookie = (value: string, age: number) =>
     `vhslide_session=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${origin.startsWith("https:") ? "; Secure" : ""}`;
@@ -2128,6 +2134,15 @@ export function createApplication(options: Options) {
                   ),
                 };
             }
+            const ef = url.searchParams.get("ef");
+            if (ef !== null) {
+              const version = featureVersion(historySQL, id, "editfeedback");
+              if (ef === "" || Number(ef) !== version)
+                out.editfeedback = {
+                  version,
+                  feedback: feedbackList(historySQL, id, u.id, host),
+                };
+            }
             const tv = url.searchParams.get("tv");
             if (tv !== null) {
               const version = featureVersion(historySQL, id, "thinking");
@@ -2372,6 +2387,35 @@ export function createApplication(options: Options) {
             for (const orphan of orphans)
               await releaseBlob(current.owner, orphan.hash);
             return json(res, 200, { editSlides });
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+        }
+        if (extra === "feedback" || extra?.startsWith("feedback/")) {
+          // Teacher feedback and send-backs (§4.3): small JSON
+          // commands only; the rows themselves ride the poll.
+          insist(method === "POST", 405, "この操作には対応していません。");
+          const action =
+            extra === "feedback"
+              ? "send"
+              : extra.slice("feedback/".length);
+          insist(
+            ["send", "read", "resubmit", "cancel-reopen"].includes(action),
+            404,
+            "フィードバックの操作が見つかりません。",
+          );
+          const value = JSON.parse(
+            (await body(req, 64_000)).toString(),
+          ) as Record<string, unknown>;
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            feedbackCommand(historySQL, id, u.id, host, action, value);
+            const feedback = feedbackList(historySQL, id, u.id, host);
+            db.exec("COMMIT");
+            return json(res, 200, { feedback });
           } catch (error) {
             db.exec("ROLLBACK");
             throw error;
@@ -3441,6 +3485,7 @@ export function createApplication(options: Options) {
         error instanceof JoinRequestError ||
         error instanceof SurveyError ||
         error instanceof EditSlideError ||
+        error instanceof FeedbackError ||
         error instanceof WebbingError ||
         error instanceof GroupError ||
         error instanceof ThinkingError ||

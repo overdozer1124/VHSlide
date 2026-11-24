@@ -32,6 +32,10 @@ export function EditSlideStudio({
   onClose: () => void;
 }) {
   const ctx = useEditSlides();
+  const feedback = ctx.feedback.filter(
+    (f) => f.targetKind === "editslide" && f.targetId === def.id,
+  );
+  const reopenActive = feedback.some((f) => f.reopen === 1);
   const [slide, setSlide] = useState<Slide>(
     () => def.mine?.slide ?? structuredClone(def.base),
   );
@@ -173,6 +177,35 @@ export function EditSlideStudio({
           <p className="edit-studio-message" role="status">
             {message}
           </p>
+        )}
+        {feedback.length > 0 && (
+          <div className="edit-studio-feedback">
+            {feedback.slice(0, 3).map((f) => (
+              <p key={f.id}>
+                {f.stamp && <span className="stamp">{f.stamp}</span>}
+                {f.text}
+              </p>
+            ))}
+            {reopenActive && (
+              <button
+                className="button primary"
+                onClick={() => {
+                  void (async () => {
+                    await saveRef.current();
+                    try {
+                      await ctx.resubmitFeedback(def.id);
+                      onClose();
+                    } catch (e) {
+                      setState("error");
+                      setMessage((e as Error).message);
+                    }
+                  })();
+                }}
+              >
+                出し直す
+              </button>
+            )}
+          </div>
         )}
         <div className="edit-studio-tools">
           <button
