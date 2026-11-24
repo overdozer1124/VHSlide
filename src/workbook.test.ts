@@ -7,6 +7,7 @@ import {
   sheetDeck,
   mergeSheet,
   appendSlidesAsRow,
+  placeSlidesInRow,
   appendJsonRows,
 } from "./workbook";
 import {
@@ -234,6 +235,48 @@ it("copies headings into a duplicated sheet, keeps empty sheets clean and reject
       ),
     ).toThrow();
   }
+});
+
+describe("placeSlidesInRow", () => {
+  const importedPages = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ...blank(i, 0),
+      title: `取り込み ${i + 1}`,
+    }));
+
+  it("replaces only the target row's pages", () => {
+    const book = sample();
+    const target = book.slides[0];
+    const next = placeSlidesInRow(book, importedPages(2), "main", target.y, "replace");
+    const inRow = next.slides.filter((s) => s.y === target.y);
+    expect(inRow.map((s) => s.title)).toEqual(["取り込み 1", "取り込み 2"]);
+    expect(inRow.map((s) => s.x)).toEqual([0, 1]);
+    expect(next.slides.filter((s) => s.y !== target.y)).toEqual(
+      book.slides.filter((s) => s.y !== target.y),
+    );
+  });
+
+  it("appends after the row's last page", () => {
+    const book = sample();
+    const target = book.slides[0];
+    const rowCount = book.slides.filter((s) => s.y === target.y).length;
+    const next = placeSlidesInRow(book, importedPages(2), "main", target.y, "append");
+    const inRow = next.slides
+      .filter((s) => s.y === target.y)
+      .sort((a, b) => a.x - b.x);
+    expect(inRow).toHaveLength(rowCount + 2);
+    expect(inRow.slice(rowCount).map((s) => s.title)).toEqual([
+      "取り込み 1",
+      "取り込み 2",
+    ]);
+  });
+
+  it("fills an empty row from x=0", () => {
+    const book = sample();
+    const next = placeSlidesInRow(book, importedPages(1), "main", 42, "append");
+    const placed = next.slides[next.slides.length - 1];
+    expect([placed.x, placed.y]).toEqual([0, 42]);
+  });
 });
 
 describe("appendSlidesAsRow", () => {
