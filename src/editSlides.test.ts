@@ -476,6 +476,32 @@ describe("edit slides: poll counters and visibility", () => {
     ).toBe(413);
   });
 
+  it("blank base (stage 3a): entry slide stays, base is an empty page", () => {
+    const { sql } = fixture();
+    const created = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+      source: "11111111-1111-4111-8111-111111111111",
+      slide: baseSlide(),
+      baseKind: "blank",
+    });
+    const def = editSlideList(sql, DECK, "host", true).find(
+      (d) => d.id === created.createdId,
+    );
+    expect(def?.baseKind).toBe("blank");
+    expect(def?.source).toBe("11111111-1111-4111-8111-111111111111");
+    expect(def?.base.id).toBe("11111111-1111-4111-8111-111111111111");
+    expect(def?.base.elements).toEqual([]);
+    // A copy definition on the same slide keeps the default kind.
+    const copy = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+      source: "11111111-1111-4111-8111-111111111111",
+      slide: baseSlide(),
+    });
+    expect(
+      editSlideList(sql, DECK, "host", true).find(
+        (d) => d.id === copy.createdId,
+      )?.baseKind,
+    ).toBe("copy");
+  });
+
   it("refuses a base carrying another deck's photo, at creation time", () => {
     const { sql } = fixture();
     const foreign = baseSlide();

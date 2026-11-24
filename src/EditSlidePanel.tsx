@@ -43,7 +43,7 @@ export function EditSlidePanel({
           {error}
         </p>
       )}
-      {mine.length === 0 ? (
+      {!mine.some((d) => d.baseKind !== "blank") && (
         <button
           className="button primary"
           disabled={busy || !slide}
@@ -56,13 +56,30 @@ export function EditSlidePanel({
             )
           }
         >
-          このスライドを生徒の編集用にする
+          このスライドの写しを土台にする
         </button>
-      ) : (
-        mine.map((def) => (
+      )}
+      {!mine.some((d) => d.baseKind === "blank") && (
+        <button
+          className="button outline"
+          disabled={busy || !slide}
+          onClick={() =>
+            slide &&
+            void run(() =>
+              editSlideApi(ctx, "", {
+                body: { source: slide.id, slide, baseKind: "blank" },
+              }),
+            )
+          }
+        >
+          白紙を土台にする
+        </button>
+      )}
+      {mine.map((def) => (
           <div key={def.id} className="edit-slide-def">
             <p>
-              状態：
+              土台：{def.baseKind === "blank" ? "白紙" : "スライドの写し"}
+              　状態：
               {def.status === "draft"
                 ? "下書き"
                 : def.status === "open"
@@ -123,8 +140,7 @@ export function EditSlidePanel({
               </button>
             </div>
           </div>
-        ))
-      )}
+        ))}
       {ctx.defs.length > mine.length && (
         <p className="small">
           ほかのスライドにも生徒の編集用があります（このタブではいまのスライドの分だけを扱います）。

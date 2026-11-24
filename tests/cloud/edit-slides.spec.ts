@@ -93,7 +93,7 @@ test("free-edit slide: student builds a copy, host sees it in the console", asyn
   const panel = page.locator(".activity-panel");
   await panel.getByRole("tab", { name: "生徒の編集用" }).click();
   await panel
-    .getByRole("button", { name: "このスライドを生徒の編集用にする" })
+    .getByRole("button", { name: "このスライドの写しを土台にする" })
     .click();
   await panel.getByRole("button", { name: "受付を開始" }).click();
   await expect(panel.getByText("受付中")).toBeVisible({ timeout: 15_000 });
@@ -471,4 +471,58 @@ test("free-edit shares: gallery publishing and follow showing", async ({
   });
   await context.close();
   await context2.close();
+});
+
+test("free-edit slide: blank base starts from an empty page", async ({
+  page,
+  browser,
+}, info) => {
+  test.skip(
+    info.project.name.includes("touch"),
+    "touch viewport taps differ on the fixture deck",
+  );
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-editblank-host`);
+  const guestName = `${info.project.name}-editblank-one`;
+  await addGuest(page, id, guestName);
+
+  // Host: designate the first slide with a BLANK base and open
+  // the intake, from the form panel's 生徒の編集用 tab.
+  await page.goto(`/?room=${id}`);
+  await openFirstSlide(
+    page,
+    shown(page.getByRole("button", { name: "フォーム", exact: true })),
+  );
+  await page.getByRole("button", { name: "フォーム", exact: true }).click();
+  const panel = page.locator(".activity-panel");
+  await panel.getByRole("tab", { name: "生徒の編集用" }).click();
+  await panel.getByRole("button", { name: "白紙を土台にする" }).click();
+  await expect(panel.getByText("土台：白紙")).toBeVisible({
+    timeout: 15_000,
+  });
+  await panel.getByRole("button", { name: "受付を開始" }).click();
+  await expect(panel.getByText("受付中")).toBeVisible({ timeout: 15_000 });
+
+  // The stored base is an empty page on the same entry slide.
+  const hostList = await (
+    await page.request.get(`/api/decks/${id}/edit-slides`, { headers })
+  ).json();
+  expect(hostList.editSlides[0].baseKind).toBe("blank");
+  expect(hostList.editSlides[0].base.elements).toEqual([]);
+
+  // Student: the launch button is on the entry slide as usual;
+  // the studio opens on the empty page and saves.
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  await student.goto(`/?room=${id}`);
+  await openFirstSlide(student, shown(student.locator(".edit-slide-launch")));
+  await student.locator(".edit-slide-launch").click();
+  const studio = student.locator(".edit-studio");
+  await expect(studio).toBeVisible({ timeout: 15_000 });
+  await studio.getByRole("button", { name: "文字" }).click();
+  await expect(studio.getByText("保存しました")).toBeVisible({
+    timeout: 20_000,
+  });
+  await context.close();
 });
