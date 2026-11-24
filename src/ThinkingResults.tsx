@@ -17,6 +17,10 @@ import { curveLineColor } from "./SlideThinking";
 import { useGroups } from "./GroupsContext";
 import { csvCell } from "./surveyCsv";
 import { ThinkingThumbBoard } from "./ThinkingThumbBoard";
+import {
+  ThinkingBoardArt,
+  ThinkingFigureTitle,
+} from "./ThinkingBoardArt";
 import { ThinkingWebbingMini } from "./ThinkingWebbing";
 import { TextMinePanel } from "./TextMinePanel";
 import { textMineCardTexts } from "./textMine";
@@ -915,6 +919,8 @@ export function ExpandedChart({
     <div className="thinking-gallery-expanded">
       <h4>{label}のチャート</h4>
       <div className="thinking-board thinking-gallery-board">
+        <ThinkingBoardArt template={tool.template} />
+        <ThinkingFigureTitle template={tool.template} title={def.title} />
         {tool.template === "xchart" && (
           <>
             <svg

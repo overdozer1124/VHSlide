@@ -32,7 +32,14 @@ export type ThinkingTemplate =
   | "matrix"
   | "kwl"
   | "steps"
-  | "webbing";
+  | "webbing"
+  | "fishbone"
+  | "butterfly2"
+  | "butterfly4"
+  | "jellyfish"
+  | "pyramid3"
+  | "pyramid4"
+  | "kumade";
 export type ThinkingUnit = "individual" | "group" | "class";
 export type ThinkingStatus = "draft" | "open" | "closed";
 export type ThinkingScale = "none" | "s5" | "s10";
@@ -298,7 +305,68 @@ export const BOARD_ZONE_SPECS: Partial<
   // a formality so every board path (record, results, text mining,
   // sharing) keeps working; the order lives in the cards' sort.
   steps: [{ id: "all", label: "手順", rect: [0, 0, 1, 1], anchor: [0.5, 0.5] }],
+  // Stage 4, remaining templates. The card boxes stay upright and
+  // axis-aligned even on the fishbone (design review 🟡); the
+  // figure's lines live in ThinkingBoardArt. The title is drawn
+  // inside the figure (head / body / dome / handle) except on the
+  // pyramid, which has no room for it.
+  fishbone: [
+    { id: "a", label: "左上", rect: [0.02, 0.03, 0.36, 0.42], anchor: [0.2, 0.24] },
+    { id: "b", label: "右上", rect: [0.44, 0.03, 0.34, 0.42], anchor: [0.61, 0.24] },
+    { id: "c", label: "左下", rect: [0.02, 0.55, 0.36, 0.42], anchor: [0.2, 0.76] },
+    { id: "d", label: "右下", rect: [0.44, 0.55, 0.34, 0.42], anchor: [0.61, 0.76] },
+  ],
+  butterfly2: [
+    { id: "a", label: "左", rect: [0.03, 0.1, 0.4, 0.8], anchor: [0.23, 0.5] },
+    { id: "b", label: "右", rect: [0.57, 0.1, 0.4, 0.8], anchor: [0.77, 0.5] },
+  ],
+  butterfly4: [
+    { id: "a", label: "強い賛成", rect: [0.03, 0.04, 0.4, 0.44], anchor: [0.23, 0.26] },
+    { id: "b", label: "賛成", rect: [0.03, 0.52, 0.4, 0.44], anchor: [0.23, 0.74] },
+    { id: "c", label: "反対", rect: [0.57, 0.52, 0.4, 0.44], anchor: [0.77, 0.74] },
+    { id: "d", label: "強い反対", rect: [0.57, 0.04, 0.4, 0.44], anchor: [0.77, 0.26] },
+  ],
+  jellyfish: [0, 1, 2, 3].map((i) => ({
+    id: String.fromCharCode(97 + i),
+    label: `足${i + 1}`,
+    rect: [0.02 + i * 0.245, 0.4, 0.225, 0.57] as [number, number, number, number],
+    anchor: [(0.02 + i * 0.245 + 0.1125), 0.68] as [number, number],
+  })),
+  pyramid3: [
+    { id: "a", label: "1段目", rect: [0.32, 0.05, 0.36, 0.29], anchor: [0.5, 0.19] },
+    { id: "b", label: "2段目", rect: [0.18, 0.36, 0.64, 0.29], anchor: [0.5, 0.5] },
+    { id: "c", label: "3段目", rect: [0.04, 0.67, 0.92, 0.29], anchor: [0.5, 0.81] },
+  ],
+  pyramid4: [
+    { id: "a", label: "1段目", rect: [0.35, 0.04, 0.3, 0.22], anchor: [0.5, 0.15] },
+    { id: "b", label: "2段目", rect: [0.24, 0.28, 0.52, 0.22], anchor: [0.5, 0.39] },
+    { id: "c", label: "3段目", rect: [0.13, 0.52, 0.74, 0.22], anchor: [0.5, 0.63] },
+    { id: "d", label: "4段目", rect: [0.02, 0.76, 0.96, 0.22], anchor: [0.5, 0.87] },
+  ],
+  kumade: [0, 1, 2, 3, 4].map((i) => ({
+    id: String.fromCharCode(97 + i),
+    label: `歯${i + 1}`,
+    rect: [i * 0.2, 0.24, 0.2, 0.73] as [number, number, number, number],
+    anchor: [(i + 0.5) * 0.2, 0.6] as [number, number],
+  })),
 };
+/** The stage-4 remaining templates. Screens older than 0.155.0
+ * cannot draw them (their zone geometry is unknown there), so they
+ * travel only to clients that send the board5 capability: older
+ * tabs never list them and never receive them as a share (design
+ * review 🔴). */
+export const BOARD5_TEMPLATES: ThinkingTemplate[] = [
+  "fishbone",
+  "butterfly2",
+  "butterfly4",
+  "jellyfish",
+  "pyramid3",
+  "pyramid4",
+  "kumade",
+];
+export function isBoard5Template(template: ThinkingTemplate): boolean {
+  return BOARD5_TEMPLATES.includes(template);
+}
 /** The X chart's centre circle, which holds the topic (the tool's
  * title), in the same 0..1 space (x, y, r). Cards cannot be placed
  * inside it. */
@@ -438,6 +506,13 @@ const TEMPLATES: ThinkingTemplate[] = [
   "kwl",
   "steps",
   "webbing",
+  "fishbone",
+  "butterfly2",
+  "butterfly4",
+  "jellyfish",
+  "pyramid3",
+  "pyramid4",
+  "kumade",
 ];
 const UNITS: ThinkingUnit[] = ["individual", "group", "class"];
 
@@ -866,7 +941,7 @@ export function thinkingList(
   deck: string,
   actor: string,
   host: boolean,
-  caps?: { board?: boolean; steps?: boolean; flow?: boolean },
+  caps?: { board?: boolean; steps?: boolean; flow?: boolean; board5?: boolean },
 ): ThinkingView[] {
   const now = Date.now();
   // The host's fixed member order for stable pseudonym numbers:
@@ -913,6 +988,7 @@ export function thinkingList(
     .filter((row) => caps?.board || row.kind !== "board")
     .filter((row) => caps?.steps || row.template !== "steps")
     .filter((row) => caps?.flow || row.kind !== "flow")
+    .filter((row) => caps?.board5 || !isBoard5Template(row.template))
     .map((row) => {
       const tool = readTool(row);
       if (tool.kind === "board") {
@@ -1515,7 +1591,7 @@ export function thinkingShareView(
   owner: string,
   showNames: boolean,
   hostId: string,
-  caps?: { steps?: boolean; flow?: boolean },
+  caps?: { steps?: boolean; flow?: boolean; board5?: boolean },
 ): ThinkingShareView | undefined {
   const row = [
     ...sql("SELECT * FROM thinking_tools WHERE id=? AND deck=?", toolId, deck),
@@ -1528,6 +1604,7 @@ export function thinkingShareView(
   // empty board. It gets the same "nothing is being shown" answer
   // as a stopped share (review 🟡).
   if (tool.template === "steps" && !caps?.steps) return undefined;
+  if (isBoard5Template(tool.template) && !caps?.board5) return undefined;
   if (tool.kind === "flow" && !caps?.flow) return undefined;
   let label = "";
   if (tool.unit === "class") label = "全員";

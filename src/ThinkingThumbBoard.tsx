@@ -1,4 +1,5 @@
 import { ThinkingWebbingMini } from "./ThinkingWebbing";
+import { ThinkingBoardArt } from "./ThinkingBoardArt";
 import {
   BOARD_ZONE_SPECS,
   VENN_CIRCLES,
@@ -66,6 +67,7 @@ export function ThinkingThumbBoard({
   }
   return (
     <span className="thinking-thumb-board">
+      <ThinkingBoardArt template={template} />
       {template === "xchart" && (
         <svg
           className="thinking-x"

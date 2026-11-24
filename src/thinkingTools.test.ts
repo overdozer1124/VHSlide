@@ -1439,3 +1439,67 @@ describe("thinking personal webbing (stage 4, flow)", () => {
     expect(JSON.stringify(share)).not.toContain(root);
   });
 });
+
+describe("thinking remaining board templates (stage 4, board5)", () => {
+  const caps = { board: true, board5: true };
+  function boardTool(sql: HistorySQL, template: string, title = "テーマ") {
+    const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template,
+      unit: "individual",
+      definition: { title, zones: [], cardColors: [] },
+    });
+    const id = created!.createdId!;
+    open(sql, id);
+    return id;
+  }
+  it("parses all seven templates as boards with the agreed zone counts", () => {
+    const counts: Record<string, number> = {
+      fishbone: 4,
+      butterfly2: 2,
+      butterfly4: 4,
+      jellyfish: 4,
+      pyramid3: 3,
+      pyramid4: 4,
+      kumade: 5,
+    };
+    for (const [template, n] of Object.entries(counts)) {
+      expect(templateKind(template as never)).toBe("board");
+      const { definition } = parseThinkingDefinition(template, { title: "題" });
+      expect(definition.zones).toHaveLength(n);
+    }
+    const b4 = parseThinkingDefinition("butterfly4", { title: "賛否" });
+    expect(b4.definition.zones.map((z) => z.label)).toEqual([
+      "強い賛成",
+      "賛成",
+      "反対",
+      "強い反対",
+    ]);
+  });
+  it("places points into the new shapes' zones and refuses the pyramid's corners", () => {
+    expect(zoneAtPoint("fishbone", 0.2, 0.2)).toBe("a");
+    expect(zoneAtPoint("fishbone", 0.6, 0.8)).toBe("d");
+    expect(zoneAtPoint("butterfly4", 0.2, 0.7)).toBe("b");
+    expect(zoneAtPoint("jellyfish", 0.85, 0.6)).toBe("d");
+    expect(zoneAtPoint("kumade", 0.5, 0.6)).toBe("c");
+    expect(zoneAtPoint("pyramid3", 0.5, 0.19)).toBe("a");
+    expect(zoneAtPoint("pyramid3", 0.5, 0.81)).toBe("c");
+    // The top tier's trapezoid is narrow: the band's corner is
+    // outside every zone, so a click there places nothing (🟡).
+    expect(zoneAtPoint("pyramid3", 0.05, 0.19)).toBeNull();
+    expect(zoneAtPoint("pyramid4", 0.05, 0.15)).toBeNull();
+  });
+  it("hides the new templates without the board5 capability and shares only with it", () => {
+    const { sql } = fixture();
+    const id = boardTool(sql, "fishbone", "結果のわけ");
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "a", text: "人の原因", color: "" });
+    expect(thinkingList(sql, "deck", "ana", false, { board: true }).some((t) => t.id === id)).toBe(false);
+    expect(thinkingList(sql, "deck", "ana", false, caps).some((t) => t.id === id)).toBe(true);
+    expect(thinkingShareView(sql, "deck", id, "ana", false, "host")).toBeUndefined();
+    const share = thinkingShareView(sql, "deck", id, "ana", false, "host", { board5: true });
+    expect(share).toBeTruthy();
+    expect(share!.cards.map((c) => c.text)).toEqual(["人の原因"]);
+    // An older board (kwl) is unaffected by the new capability.
+    const kwl = boardTool(sql, "kwl", "単元の導入");
+    expect(thinkingList(sql, "deck", "ana", false, { board: true }).some((t) => t.id === kwl)).toBe(true);
+  });
+});
