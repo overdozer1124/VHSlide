@@ -43,7 +43,7 @@ export function EditSlidePanel({
           {error}
         </p>
       )}
-      {!mine.some((d) => d.baseKind !== "blank") && (
+      {mine.length === 0 && (
         <button
           className="button primary"
           disabled={busy || !slide}
@@ -59,7 +59,7 @@ export function EditSlidePanel({
           このスライドの写しを土台にする
         </button>
       )}
-      {!mine.some((d) => d.baseKind === "blank") && (
+      {mine.length === 0 && (
         <button
           className="button outline"
           disabled={busy || !slide}

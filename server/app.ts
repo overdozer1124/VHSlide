@@ -16,6 +16,7 @@ import {
 } from "../src/surveys.ts";
 import {
   editSlideSchema,
+  ensureEditSlideShape,
   editSlideList,
   editSlideAnswersMeta,
   editSlideAnswerContent,
@@ -463,6 +464,7 @@ export function createApplication(options: Options) {
   db.exec(historySchema);
   db.exec(surveySchema);
   db.exec(editSlideSchema);
+  ensureEditSlideShape((query, ...args) => db.prepare(query).all(...args));
   db.exec(worksheetSchema);
   db.exec(webbingSchema);
   db.exec(groupSchema);

@@ -74,6 +74,11 @@ export async function exerciseEditSlides(
   const deckState = async (deck: string) =>
     ((await (await call(`/api/decks/${deck}`, "GET", undefined, owner)).json())
       .state as string) ?? "";
+  const slideAt = async (deck: string, index: number): Promise<Slide> => {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, fromBase64(await deckState(deck)));
+    return readSharedDeck(doc).slides[index];
+  };
   const firstSlide = async (deck: string): Promise<Slide> => {
     const doc = new Y.Doc();
     Y.applyUpdate(doc, fromBase64(await deckState(deck)));
@@ -461,9 +466,10 @@ export async function exerciseEditSlides(
   // Blank base (stage 3a): the entry slide stays the same, the
   // base is an empty page, and answering + gallery sharing work
   // exactly like a copied base.
+  const blankSource = await slideAt(id, 1);
   const blankCreated = await write(
     "",
-    { source: source.id, slide: source, baseKind: "blank" },
+    { source: blankSource.id, slide: blankSource, baseKind: "blank" },
     owner,
   );
   const blankId = ((await blankCreated.json()).editSlides as any[]).at(-1)
@@ -471,7 +477,7 @@ export async function exerciseEditSlides(
   const blankDef = (await list(owner)).find((d: any) => d.id === blankId);
   assert.equal(blankDef.baseKind, "blank");
   assert.equal(blankDef.base.elements.length, 0);
-  assert.equal(blankDef.base.id, source.id);
+  assert.equal(blankDef.base.id, blankSource.id);
   await write(`/${blankId}/status`, { status: "open" }, owner);
   const blankAnswer = {
     ...blankDef.base,
@@ -499,13 +505,13 @@ export async function exerciseEditSlides(
   const blankShare = await call(
     `/api/decks/${id}/edit-slides/${blankId}/share-gallery`,
     "POST",
-    { author: guestId, names: false, slide: source },
+    { author: guestId, names: false, slide: blankSource },
     owner,
   );
   assert.equal(blankShare.status, 200);
   const galleryNow = await galleryOf(guest2);
   const blankGallery = galleryNow.find(
-    (g: any) => g.slide.id === source.id,
+    (g: any) => g.slide.id === blankSource.id,
   );
   assert.ok(
     blankGallery.editSlides.some((s: any) =>

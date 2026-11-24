@@ -583,6 +583,22 @@ export function editSlideCommand(
       400,
       "元のスライドを確認してください。",
     );
+    // One definition per entry slide: the student's entry point
+    // (and the console's follow target) resolves a slide to a
+    // single definition, so a second one — of either base kind —
+    // would shadow the first.
+    const sameSlide = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM edit_slide_defs WHERE deck=? AND source=?",
+        deck,
+        value.source as string,
+      ),
+    ][0].n as number;
+    insist(
+      sameSlide === 0,
+      400,
+      "このスライドには、すでに生徒の編集用があります。",
+    );
     // Stage 3a: the base is either a copy of the teacher's slide
     // or a blank page. The source slide is always the entry point
     // (the student's button, the follow target, the gallery key),
