@@ -17,6 +17,28 @@ export type ResolvedPageScope = {
   details: string;
   issues: string[];
 };
+/** Where a spatial presentation starts from. "current" begins at
+ * the slide on screen when it is inside the scope, and falls back
+ * to the scope's head (undefined) when it is not. "row" begins at
+ * the leftmost in-scope slide of the current slide's row (same
+ * sheet, same y), or undefined when that row has no slide in the
+ * scope. */
+export function presentationStartId(
+  book: Deck,
+  ids: string[],
+  current: Slide,
+  mode: "current" | "row",
+): string | undefined {
+  if (mode === "current")
+    return ids.includes(current.id) ? current.id : undefined;
+  const inScope = new Set(ids);
+  return book.slides
+    .filter(
+      (p) =>
+        inScope.has(p.id) && p.sheetId === current.sheetId && p.y === current.y,
+    )
+    .sort((a, b) => a.x - b.x)[0]?.id;
+}
 /** Bind a user's numeric choices once, before positions can be reordered. */
 export function bindMapFilter(
   book: Deck,
