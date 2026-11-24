@@ -8339,3 +8339,55 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-edit-large header h3 {
   margin: 0;
 }
+
+/* Free-edit feedback (§4.3, stage 2a) */
+.edit-slide-feedback {
+  position: fixed;
+  right: 20px;
+  bottom: 84px;
+  z-index: 40;
+  max-width: 360px;
+  background: var(--hatch-widget-surface, #fff);
+  border: 1px solid #d8c98a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 20px rgba(23, 61, 56, 0.2);
+  font-size: 14px;
+}
+.edit-slide-feedback p,
+.edit-studio-feedback p,
+.console-edit-feedback-row {
+  margin: 4px 0;
+}
+.stamp {
+  display: inline-block;
+  background: #fdf3d7;
+  border: 1px solid #d8c98a;
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-right: 6px;
+  font-size: 12px;
+}
+.edit-studio-feedback {
+  border-bottom: 1px solid #e3ddd0;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+.console-edit-feedback {
+  border-top: 1px solid #e3ddd0;
+  padding: 10px 14px;
+  text-align: left;
+}
+.console-edit-feedback h4 {
+  margin: 0 0 6px;
+}
+.console-edit-feedback-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.console-edit-feedback-form input[type="text"] {
+  flex: 1 1 220px;
+}

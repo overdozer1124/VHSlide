@@ -19,6 +19,7 @@ import {
   recordEditAnswerAsset,
   editAnswerAsset,
 } from "../src/editSlides.ts";
+import { feedbackCommand, feedbackList } from "../src/feedback.ts";
 import { webbingSchema, webbingList, webbingCommand } from "../src/webbing.ts";
 import {
   thinkingSchema,
@@ -537,6 +538,7 @@ export class Directory extends DurableObject<Env> {
         id,
       );
       this.sql.exec("DELETE FROM edit_slide_defs WHERE deck=?", id);
+      this.sql.exec("DELETE FROM form_feedback WHERE deck=?", id);
       if (deckRow)
         for (const row of answerHashes)
           this.releaseBlob(deckRow.owner, row.hash);
@@ -2051,6 +2053,15 @@ export class Directory extends DurableObject<Env> {
               editAnswers: editSlideAnswersMeta(sql, id, user.id, host),
             };
         }
+        const ef = params.get("ef");
+        if (ef !== null) {
+          const version = featureVersion(sql, id, "editfeedback");
+          if (ef === "" || Number(ef) !== version)
+            out.editfeedback = {
+              version,
+              feedback: feedbackList(sql, id, user.id, host),
+            };
+        }
         const wv = params.get("wv");
         if (wv !== null) {
           const version = featureVersion(sql, id, "worksheets");
@@ -2304,6 +2315,27 @@ export class Directory extends DurableObject<Env> {
             this.releaseBlob(work.owner, orphan.hash);
         });
       return response;
+    }
+    if (extra === "feedback" || extra?.startsWith("feedback/")) {
+      // Teacher feedback and send-backs (§4.3): small JSON commands
+      // only; the rows themselves ride the poll.
+      insist(method === "POST", 405, "この操作には対応していません。");
+      const action = extra === "feedback" ? "send" : extra.slice(9);
+      insist(
+        ["send", "read", "resubmit", "cancel-reopen"].includes(action),
+        404,
+        "フィードバックの操作が見つかりません。",
+      );
+      const value = await input(request, 64_000);
+      return this.ctx.storage.transactionSync(() => {
+        const current = this.access(id, user);
+        const host = current.owner === user.id;
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        this.rate(`feedback:${user.id}`, 120);
+        feedbackCommand(sql, id, user.id, host, action, value);
+        return json({ feedback: feedbackList(sql, id, user.id, host) });
+      });
     }
     if (extra === "groups" || extra?.startsWith("groups/")) {
       insist(

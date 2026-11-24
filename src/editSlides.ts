@@ -1,5 +1,11 @@
 import type { HistorySQL } from "./historyStore.ts";
 import { featureVersionSchema, versionTriggers } from "./featureVersions.ts";
+import {
+  feedbackAnswerFlags,
+  feedbackDeleteTarget,
+  feedbackReopenActive,
+  feedbackSchema,
+} from "./feedback.ts";
 import { parseDeck } from "./model.ts";
 import type { Element, Slide } from "./model.ts";
 
@@ -41,6 +47,10 @@ const insist = (ok: unknown, status: number, message: string): void => {
 
 export const editSlideSchema =
   featureVersionSchema +
+  // The generic feedback table (§4.3) rides along so it always
+  // exists where edit slides run: definition deletion clears the
+  // target's feedback from editSlideCommand itself.
+  feedbackSchema +
   `
 CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL, PRIMARY KEY(def,author));
@@ -71,6 +81,11 @@ export type EditSlideAnswerMeta = {
   author: string;
   name: string;
   updated: number;
+  /** A send-back (§4.3) is in force for this answer. */
+  reopen?: boolean;
+  /** The answer was saved again after a send-back that the student
+   * then closed with "出し直す". */
+  resubmitted?: boolean;
 };
 /** Host-only answer overview for one definition, delivered on the
  * separate "editanswers" poll counter so student saves stay cheap
@@ -418,11 +433,25 @@ export function editSlideAnswersMeta(
       ),
     ];
     const answers = rows
-      .map((r) => ({
-        author: String(r.author),
-        name: names.get(String(r.author)) || "名前未登録",
-        updated: Number(r.updated),
-      }))
+      .map((r) => {
+        const author = String(r.author);
+        const updated = Number(r.updated);
+        const flags = feedbackAnswerFlags(
+          sql,
+          deck,
+          "editslide",
+          String(def.id),
+          author,
+          updated,
+        );
+        return {
+          author,
+          name: names.get(author) || "名前未登録",
+          updated,
+          ...(flags.reopen ? { reopen: true } : {}),
+          ...(flags.resubmitted ? { resubmitted: true } : {}),
+        };
+      })
       .sort((a, b) => accountOrder(a.author, b.author));
     const answered = new Set(answers.map((a) => a.author));
     const missing: string[] = [];
@@ -541,12 +570,18 @@ export function editSlideCommand(
         def.id,
       ),
     ].map((r) => ({ asset: String(r.asset), hash: String(r.hash) }));
+    feedbackDeleteTarget(sql, deck, "editslide", def.id);
     sql("DELETE FROM edit_slide_defs WHERE id=?", def.id);
     return { orphanAssets: orphans };
   }
   if (action === "answer") {
+    // A send-back (§4.3) in force for this author re-opens saving
+    // for them alone after the intake closed; it stays in force
+    // across saves until the student resubmits or the host cancels.
     insist(
-      def.status === "open",
+      def.status === "open" ||
+        (def.status === "closed" &&
+          feedbackReopenActive(sql, deck, "editslide", def.id, actor)),
       403,
       "受付中ではないため保存できません。",
     );
@@ -687,7 +722,9 @@ export function recordEditAnswerAsset(
 ): void {
   const def = defRow(sql, deck, defId);
   insist(
-    def.status === "open",
+    def.status === "open" ||
+      (def.status === "closed" &&
+        feedbackReopenActive(sql, deck, "editslide", def.id, actor)),
     403,
     "受付中ではないため写真を追加できません。",
   );

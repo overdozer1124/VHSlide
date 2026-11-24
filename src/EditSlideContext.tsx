@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { EditSlideAnswersMeta, EditSlideDefView } from "./editSlides";
+import type { FeedbackRow } from "./feedback";
 import type { Slide } from "./model";
 import { api } from "./cloud";
 import { useDeckPoller } from "./deckPoll";
@@ -14,6 +15,20 @@ export type EditSlideContextValue = {
   defs: EditSlideDefView[];
   /** Host only: who answered each definition (no content). */
   answersMeta: EditSlideAnswersMeta[];
+  /** Feedback (§4.3) as this viewer may see it: the host sees every
+   * row, a student only their own. Rides the "editfeedback" poll
+   * counter, separate from the definition list. */
+  feedback: FeedbackRow[];
+  sendFeedback: (value: {
+    targetId: string;
+    owner: string;
+    text: string;
+    stamp: string;
+    reopen?: boolean;
+  }) => Promise<void>;
+  markFeedbackRead: (ids: string[]) => Promise<void>;
+  resubmitFeedback: (targetId: string) => Promise<void>;
+  cancelFeedbackReopen: (targetId: string, owner: string) => Promise<void>;
   /** Fetch one answer's slide on demand (console thumbnails). */
   answerContent: (
     defId: string,
@@ -27,6 +42,11 @@ export const EditSlideContext = createContext<EditSlideContextValue>({
   error: "",
   defs: [],
   answersMeta: [],
+  feedback: [],
+  sendFeedback: async () => {},
+  markFeedbackRead: async () => {},
+  resubmitFeedback: async () => {},
+  cancelFeedbackReopen: async () => {},
   answerContent: async () => {
     throw new Error("not ready");
   },
@@ -78,10 +98,12 @@ function EditSlideSession({
 }) {
   const [defs, setDefs] = useState<EditSlideDefView[]>([]);
   const [answersMeta, setAnswersMeta] = useState<EditSlideAnswersMeta[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [error, setError] = useState("");
   const alive = useRef(true);
   const generation = useRef(0);
   const metaGeneration = useRef(0);
+  const feedbackGeneration = useRef(0);
   const defsRef = useRef<EditSlideDefView[]>([]);
   defsRef.current = defs;
   const enabled = !!deckId && !!userId && !blocked;
@@ -90,6 +112,35 @@ function EditSlideSession({
     return api<{ slide: Slide; updated: number }>(
       `/api/decks/${deckId}/edit-slides/${defId}/answers/${encodeURIComponent(author)}`,
     );
+  }
+  async function feedbackApi(path: string, body: unknown) {
+    const data = await api<{ feedback: FeedbackRow[] }>(
+      `/api/decks/${deckId}/feedback${path}`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+    if (alive.current) {
+      feedbackGeneration.current++;
+      setFeedback(data.feedback);
+    }
+  }
+  async function sendFeedback(value: {
+    targetId: string;
+    owner: string;
+    text: string;
+    stamp: string;
+    reopen?: boolean;
+  }) {
+    await feedbackApi("", { targetKind: "editslide", ...value });
+  }
+  async function markFeedbackRead(ids: string[]) {
+    if (!ids.length) return;
+    await feedbackApi("/read", { ids });
+  }
+  async function resubmitFeedback(targetId: string) {
+    await feedbackApi("/resubmit", { targetId });
+  }
+  async function cancelFeedbackReopen(targetId: string, owner: string) {
+    await feedbackApi("/cancel-reopen", { targetId, owner });
   }
   function update(data: EditSlideDefView[]) {
     if (alive.current) {
@@ -157,9 +208,28 @@ function EditSlideSession({
       off();
     };
   }, [poller, enabled, host, deckId, userId]);
+  // Feedback rides its own counter for everyone: the host watches
+  // for resubmits, students watch for new comments and send-backs,
+  // and neither re-reads the definition list when it moves.
+  useEffect(() => {
+    if (!enabled || !poller) return;
+    const off = poller.register("editfeedback", {
+      guard: feedbackGeneration,
+      onData: (p) => {
+        if (!alive.current) return;
+        setFeedback((p.feedback ?? []) as FeedbackRow[]);
+      },
+      onError: () => {},
+    });
+    return () => {
+      feedbackGeneration.current++;
+      off();
+    };
+  }, [poller, enabled, deckId, userId]);
   useEffect(() => {
     poller?.setWant("editslides", pollActive ? 5000 : 30000);
     if (host) poller?.setWant("editanswers", pollActive ? 5000 : 30000);
+    poller?.setWant("editfeedback", pollActive ? 5000 : 30000);
   }, [poller, pollActive, host]);
   return (
     <EditSlideContext.Provider
@@ -171,6 +241,11 @@ function EditSlideSession({
         error,
         defs,
         answersMeta,
+        feedback,
+        sendFeedback,
+        markFeedbackRead,
+        resubmitFeedback,
+        cancelFeedbackReopen,
         answerContent,
         refresh,
         update,

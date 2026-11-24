@@ -16,7 +16,8 @@ export type PollFeature =
   | "groups"
   | "thinking"
   | "editslides"
-  | "editanswers";
+  | "editanswers"
+  | "editfeedback";
 const PARAM: Record<PollFeature, string> = {
   worksheets: "wv",
   webbing: "mv",
@@ -24,6 +25,7 @@ const PARAM: Record<PollFeature, string> = {
   thinking: "tv",
   editslides: "ev",
   editanswers: "ea",
+  editfeedback: "ef",
 };
 type Sink = {
   onData: (payload: any) => void;
@@ -43,6 +45,7 @@ export class DeckPoller {
     thinking: null,
     editslides: null,
     editanswers: null,
+    editfeedback: null,
   };
   private sinks = new Map<PollFeature, Sink>();
   private wants = new Map<PollFeature, number>();
