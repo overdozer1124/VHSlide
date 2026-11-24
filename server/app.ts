@@ -2345,6 +2345,20 @@ export function createApplication(options: Options) {
               route![1]!,
               route![3]!,
             );
+            if (stored.follow) {
+              // Allowed only through a follow snapshot: the room's
+              // follow must be live for that definition + author,
+              // however it was started or stopped.
+              const follow = expireFollow(room(id).follow ?? idleFollow());
+              insist(
+                follow.active &&
+                  follow.target.mode === "editslide" &&
+                  follow.share?.defId === stored.follow.defId &&
+                  follow.share?.owner === stored.follow.author,
+                404,
+                "写真が見つかりません。",
+              );
+            }
             const bytes = await storage.read(blobKey(stored.hash));
             res.writeHead(200, {
               "Content-Type": stored.mime,

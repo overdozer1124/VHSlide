@@ -799,7 +799,15 @@ export function editAnswerAsset(
   host: boolean,
   defId: string,
   asset: string,
-): { hash: string; mime: string; author: string } {
+): {
+  hash: string;
+  mime: string;
+  author: string;
+  /** Set when the read is allowed only through a follow snapshot:
+   * the server must confirm the room's follow is live for this
+   * definition + author before serving the bytes. */
+  follow?: { defId: string; author: string };
+} {
   const def = defRow(sql, deck, defId);
   const row = [
     ...sql(
@@ -810,14 +818,41 @@ export function editAnswerAsset(
   ][0];
   insist(row, 404, "写真が見つかりません。");
   if (!host && row!.author !== actor) {
-    const shared = [
+    const kinds = [
       ...sql(
-        "SELECT sa.share FROM edit_slide_share_assets sa JOIN edit_slide_shares s ON s.id=sa.share WHERE sa.asset=? AND s.deck=?",
+        "SELECT DISTINCT s.kind AS kind FROM edit_slide_share_assets sa JOIN edit_slide_shares s ON s.id=sa.share WHERE sa.asset=? AND s.deck=?",
+        asset,
+        deck,
+      ),
+    ].map((r) => String(r.kind));
+    if (kinds.includes("gallery"))
+      return {
+        hash: String(row!.hash),
+        mime: String(row!.mime),
+        author: String(row!.author),
+      };
+    // A follow snapshot alone is not enough: follow can end by
+    // many routes (the band's stop button, a switch to another
+    // showing, the lease expiring), and the row would linger. The
+    // server must confirm the room's follow is live for this
+    // definition + author before serving the bytes.
+    const followRef = [
+      ...sql(
+        "SELECT s.def AS def,s.author AS author FROM edit_slide_share_assets sa JOIN edit_slide_shares s ON s.id=sa.share WHERE sa.asset=? AND s.deck=? AND s.kind='follow'",
         asset,
         deck,
       ),
     ][0];
-    insist(shared, 404, "写真が見つかりません。");
+    insist(followRef, 404, "写真が見つかりません。");
+    return {
+      hash: String(row!.hash),
+      mime: String(row!.mime),
+      author: String(row!.author),
+      follow: {
+        defId: String(followRef!.def),
+        author: String(followRef!.author),
+      },
+    };
   }
   return {
     hash: String(row!.hash),
@@ -882,6 +917,26 @@ const shareRow = (
 function deleteShareRow(sql: HistorySQL, id: string) {
   sql("DELETE FROM edit_slide_share_assets WHERE share=?", id);
   sql("DELETE FROM edit_slide_shares WHERE id=?", id);
+}
+
+/** Remove gallery shares — for one source slide, or for the whole
+ * deck when source is omitted. Called when the response gallery is
+ * stopped: unpublishing the gallery must take its edit-slide
+ * snapshots (and their photo access) down with it. */
+export function deleteGalleryShares(
+  sql: HistorySQL,
+  deck: string,
+  source?: string,
+) {
+  const rows = [
+    ...sql(
+      source
+        ? "SELECT s.id AS id FROM edit_slide_shares s JOIN edit_slide_defs d ON d.id=s.def WHERE s.deck=? AND s.kind='gallery' AND d.source=?"
+        : "SELECT id FROM edit_slide_shares WHERE deck=? AND kind='gallery'",
+      ...(source ? [deck, source] : [deck]),
+    ),
+  ];
+  for (const row of rows) deleteShareRow(sql, String(row.id));
 }
 
 /** Remove every share of one definition (or of the whole deck when

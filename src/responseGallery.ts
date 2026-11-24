@@ -1,7 +1,10 @@
 import type { HistorySQL } from "./historyStore.ts";
 import { parseDeck } from "./model.ts";
 import type { Slide } from "./model.ts";
-import { galleryShareViews } from "./editSlides.ts";
+import {
+  deleteGalleryShares,
+  galleryShareViews,
+} from "./editSlides.ts";
 import type { EditShareView } from "./editSlides.ts";
 import { worksheetList } from "./worksheets.ts";
 import type { WorksheetView } from "./worksheets.ts";
@@ -315,8 +318,11 @@ export function galleryCommand(
   }
   check(host, 403, "共有を操作できるのはホストだけです。");
   if (action === "stop") {
+    // Stopping the gallery also takes down its free-edit
+    // snapshots: their photo access must end with the publication.
     if (typeof value?.slideId !== "string") {
       sql("DELETE FROM response_gallery WHERE deck=?", deck);
+      deleteGalleryShares(sql, deck);
       return { gallery: null, galleries: [] };
     }
     const data = stored();
@@ -327,6 +333,7 @@ export function galleryCommand(
       data.snapshots.splice(index, 1);
       save(data);
     }
+    deleteGalleryShares(sql, deck, value.slideId as string);
     return { gallery: data.snapshots[0] ?? null, galleries: data.snapshots };
   }
   if (action === "counts") {

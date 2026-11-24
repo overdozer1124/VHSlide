@@ -404,7 +404,10 @@ export async function exerciseEditSlides(
   };
   await sharePost("share-follow", { author: guestId, names: true }, guest, 403);
   await sharePost("share-follow", { author: guestId, names: true }, owner);
-  assert.equal((await call(photoPath!, "GET", undefined, guest2)).status, 200);
+  // A follow snapshot alone does not open the photo: the room's
+  // follow must be live for it (the E2E drives that case). With no
+  // follow running, the other student still gets 404.
+  assert.equal((await call(photoPath!, "GET", undefined, guest2)).status, 404);
   await sharePost("share-follow", undefined, owner, 200, "DELETE");
   assert.equal((await call(photoPath!, "GET", undefined, guest2)).status, 404);
   await sharePost(
@@ -429,6 +432,31 @@ export async function exerciseEditSlides(
     (g: any) => g.slide.id === source.id,
   );
   assert.equal(afterRemove?.editSlides, undefined);
+
+  // Stopping the response gallery itself takes the snapshots
+  // down with it: re-share, read the photo through the gallery
+  // share, stop by the gallery's own route — the photo is gone
+  // for the other student and the console flag clears.
+  await sharePost(
+    "share-gallery",
+    { author: guestId, names: false, slide: source },
+    owner,
+  );
+  assert.equal((await call(photoPath!, "GET", undefined, guest2)).status, 200);
+  const stopRes = await call(
+    `/api/decks/${id}/gallery/stop`,
+    "POST",
+    { slideId: source.id },
+    owner,
+  );
+  assert.equal(stopRes.status, 200);
+  assert.equal((await call(photoPath!, "GET", undefined, guest2)).status, 404);
+  const afterStop = await poll(owner);
+  assert.equal(
+    afterStop.editanswers.editAnswers.find((m: any) => m.id === defId)
+      .answers[0].shared,
+    undefined,
+  );
 
   // Removing the answer side frees the blob at last.
   await write(`/${defId}`, undefined, owner, 200, "DELETE");

@@ -341,6 +341,19 @@ test("free-edit shares: gallery publishing and follow showing", async ({
   const mine = await (
     await student.request.get(`/api/decks/${id}/edit-slides`, { headers })
   ).json();
+  // The answer carries a photo too, so the follow test can watch
+  // who may read it.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AAwMCAO+ip1sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const uploaded = await (
+    await student.request.post(
+      `/api/decks/${id}/edit-slides/${defId}/answer-assets`,
+      { headers: { ...headers, "Content-Type": "image/png" }, data: png },
+    )
+  ).json();
+  const photoSrc = uploaded.src as string;
   const answerSlide = {
     ...mine.editSlides[0].base,
     elements: [
@@ -356,6 +369,15 @@ test("free-edit shares: gallery publishing and follow showing", async ({
         fontSize: 32,
         color: "#173d38",
       },
+      {
+        id: "share-photo",
+        type: "image",
+        x: 500,
+        y: 60,
+        w: 200,
+        h: 150,
+        src: photoSrc,
+      },
     ],
   };
   expect(
@@ -367,7 +389,7 @@ test("free-edit shares: gallery publishing and follow showing", async ({
     ).status(),
   ).toBe(200);
 
-  // Host console: publish the answer into the response gallery.
+  // Host console, large view of the student's slide.
   await page.goto(`/?room=${id}`);
   await page.getByRole("button", { name: "授業コンソール" }).click();
   const consoleView = page.getByRole("region", { name: "授業コンソール" });
@@ -378,17 +400,52 @@ test("free-edit shares: gallery publishing and follow showing", async ({
   await consoleView.locator(".console-edit-card").first().click();
   const dialog = page.locator(".console-edit-large");
   await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+  const context2 = await browser.newContext({ baseURL: scopeOrigin });
+  const student2 = await context2.newPage();
+  await scopeLogin(student2, guest2Name);
+
+  // Follow first (before any gallery share exists): the host
+  // shows the snapshot to the whole class; the student's screen
+  // switches to it. While it shows, the other student may read
+  // the answer's photo through the snapshot.
+  await student.goto(`/?room=${id}`);
+  await openFirstSlide(student, shown(student.locator(".edit-slide-launch")));
+  await dialog.getByRole("button", { name: "集合で見せる" }).click();
+  const overlay = student.locator(".host-follow-overlay");
+  await expect(overlay).toBeVisible({ timeout: 20_000 });
+  await expect(overlay.getByText("みんなへの作品")).toBeVisible({
+    timeout: 20_000,
+  });
+  expect(
+    (await student2.request.get(photoSrc, { headers })).status(),
+  ).toBe(200);
+  // Stopping the follow from somewhere else — a second host tab's
+  // follow toggle, not the console button — must end the photo
+  // access too (the snapshot row alone must not keep it alive).
+  const host2 = await page.context().newPage();
+  await host2.goto(`/?room=${id}`);
+  const followToggle = host2.getByRole("button", {
+    name: "全員の画面を同期",
+  });
+  await expect(followToggle).toHaveAttribute("aria-pressed", "true", {
+    timeout: 20_000,
+  });
+  await followToggle.click();
+  await expect(overlay).toBeHidden({ timeout: 20_000 });
+  expect(
+    (await student2.request.get(photoSrc, { headers })).status(),
+  ).toBe(404);
+  await host2.close();
+
+  // Then publish the answer into the response gallery; the other
+  // student finds it in the shared response workspace.
   await dialog
     .getByRole("button", { name: "回答スライド共有に出す" })
     .click();
   await expect(
     dialog.getByRole("button", { name: "共有を取り消す" }),
   ).toBeVisible({ timeout: 15_000 });
-
-  // The other student finds it in the shared response workspace.
-  const context2 = await browser.newContext({ baseURL: scopeOrigin });
-  const student2 = await context2.newPage();
-  await scopeLogin(student2, guest2Name);
   await student2.goto(`/?room=${id}`);
   await openFirstSlide(
     student2,
@@ -412,21 +469,6 @@ test("free-edit shares: gallery publishing and follow showing", async ({
   await expect(workspace.getByText("みんなへの作品")).toBeVisible({
     timeout: 15_000,
   });
-  await workspace.getByRole("button", { name: "回答一覧へ" }).click();
-  await workspace.getByRole("button", { name: "作品に戻る" }).click();
-
-  // Follow: the host shows the snapshot to the whole class; the
-  // student's screen switches to it, and back when stopped.
-  await student.goto(`/?room=${id}`);
-  await openFirstSlide(student, shown(student.locator(".edit-slide-launch")));
-  await dialog.getByRole("button", { name: "集合で見せる" }).click();
-  const overlay = student.locator(".host-follow-overlay");
-  await expect(overlay).toBeVisible({ timeout: 20_000 });
-  await expect(overlay.getByText("みんなへの作品")).toBeVisible({
-    timeout: 20_000,
-  });
-  await dialog.getByRole("button", { name: "見せるのをやめる" }).click();
-  await expect(overlay).toBeHidden({ timeout: 20_000 });
   await context.close();
   await context2.close();
 });

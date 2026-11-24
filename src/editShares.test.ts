@@ -161,8 +161,12 @@ describe("edit-slide shares (stage 2b)", () => {
     expect(
       [...sql("SELECT asset FROM edit_slide_answer_assets WHERE asset=?", PHOTO)].length,
     ).toBe(1);
-    // Another student may read the photo only because it is shared.
-    expect(editAnswerAsset(sql, DECK, "bob", false, defId, PHOTO).hash).toBe("hash-p");
+    // Another student may read the photo only because it is
+    // shared — and through a follow snapshot the read comes back
+    // flagged, so the server can confirm the follow is still live.
+    const viaFollow = editAnswerAsset(sql, DECK, "bob", false, defId, PHOTO);
+    expect(viaFollow.hash).toBe("hash-p");
+    expect(viaFollow.follow).toEqual({ defId, author: "ana" });
 
     // Taking the share down ends both the view and the photo access;
     // the next save collects the photo at last.

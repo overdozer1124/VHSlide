@@ -2262,6 +2262,28 @@ export class Directory extends DurableObject<Env> {
           route![1]!,
           route![3]!,
         );
+        if (stored.follow) {
+          // Allowed only through a follow snapshot: the room's
+          // follow must be live for that definition + author,
+          // however it was started or stopped.
+          const followResponse = await checked(
+            await room(this.env, id).fetch(internal("/internal/follow-share")),
+          );
+          const follow = (await followResponse.json()) as {
+            active: boolean;
+            mode?: string;
+            defId?: string;
+            owner?: string;
+          };
+          insist(
+            follow.active &&
+              follow.mode === "editslide" &&
+              follow.defId === stored.follow.defId &&
+              follow.owner === stored.follow.author,
+            404,
+            "写真が見つかりません。",
+          );
+        }
         const blob = one<{ mime: string; bytes: number }>(
           this.sql,
           "SELECT mime,bytes FROM blobs WHERE owner=? AND hash=?",
