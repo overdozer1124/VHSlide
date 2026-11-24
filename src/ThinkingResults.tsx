@@ -54,6 +54,15 @@ export function ThinkingResults({
    * wired in the teacher console; the form panel passes nothing. */
   onShowChart?: (req?: ChartShowPick) => void;
 }) {
+  if (tool.template === "steps")
+    return (
+      <StepsResults
+        tool={tool}
+        showingOwner={showingOwner}
+        showingNames={showingNames}
+        onShowChart={onShowChart}
+      />
+    );
   if (tool.kind === "board")
     return (
       <BoardResults
@@ -395,6 +404,208 @@ function BoardResults({
   );
 }
 
+/** Host results for a step chart: each student's (or group's)
+ * sequence in order, with the 4a-style gallery, a CSV carrying the
+ * step numbers, and the word analysis over all cards (stage 4b). */
+function StepsResults({
+  tool,
+  showingOwner,
+  showingNames,
+  onShowChart,
+}: {
+  tool: ThinkingView;
+  showingOwner?: string;
+  showingNames?: boolean;
+  onShowChart?: (req?: ChartShowPick) => void;
+}) {
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const [showNames, setShowNames] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const colorLabel = (color: string): string =>
+    def.cardColors.find((c) => c.color === color)?.label ?? "";
+  const ordered = (owner: string) =>
+    tool.cards
+      .filter((c) => c.owner === owner)
+      .sort((a, b) => a.sort - b.sort || a.created - b.created);
+  const owners = [...new Set(tool.cards.map((c) => c.owner))];
+  const nameOfOwner = (owner: string): string | undefined =>
+    tool.unit === "group"
+      ? groupsCtx.groups.find((g) => g.id === owner)?.name
+      : tool.ownerNames?.[owner] || undefined;
+  const chartOwners: { owner: string; label: string }[] =
+    tool.unit === "class"
+      ? [{ owner: "", label: "全員" }]
+      : thinkingOwnerLabels(
+          owners,
+          nameOfOwner,
+          tool.unit === "group" || showNames,
+          tool.roster,
+        );
+  const expandedOwner = chartOwners.find((o) => o.owner === expanded);
+  function downloadCsv() {
+    const lines = [["名前・班", "順番", "カード", "色の意味"].map(csvCell).join(",")];
+    for (const { owner, label } of chartOwners)
+      ordered(owner).forEach((c, i) =>
+        lines.push(
+          [label, String(i + 1), c.text, colorLabel(c.color)]
+            .map(csvCell)
+            .join(","),
+        ),
+      );
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${def.title || "思考ツール"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  return (
+    <div className="thinking-results">
+      <div className="thinking-results-head">
+        <span className="thinking-results-count">
+          {tool.unit === "group"
+            ? "班ごと"
+            : tool.unit === "class"
+              ? "全員のチャート"
+              : "生徒ごと"}
+          の手順
+        </span>
+        {tool.unit === "individual" && (
+          <button
+            type="button"
+            aria-pressed={showNames}
+            onClick={() => setShowNames(!showNames)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        )}
+        <button type="button" onClick={downloadCsv}>
+          CSVで保存
+        </button>
+        <span className="thinking-results-count">
+          カード{tool.cards.length}枚
+        </span>
+      </div>
+      <div className="thinking-gallery">
+        <div className="thinking-thumbs">
+          {chartOwners.map(({ owner, label }) => {
+            const own = ordered(owner);
+            return (
+              <button
+                type="button"
+                key={owner || "all"}
+                className={`thinking-thumb${expanded === owner ? " is-active" : ""}`}
+                aria-expanded={expanded === owner}
+                onClick={() => setExpanded(expanded === owner ? null : owner)}
+              >
+                <ThinkingThumbBoard template={tool.template} cards={own} />
+                <span className="thinking-thumb-label">
+                  {label}（{own.length}枚）
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {chartOwners.length === 0 && (
+          <p className="thinking-zone-empty">まだカードがありません。</p>
+        )}
+        {expandedOwner && (
+          <>
+            <ExpandedChart
+              tool={tool}
+              cards={ordered(expandedOwner.owner)}
+              label={expandedOwner.label}
+              colorLabel={colorLabel}
+            />
+            {onShowChart &&
+              (showingOwner === expandedOwner.owner ? (
+                <div className="thinking-gallery-show">
+                  <span>
+                    いま全員にこのチャートを見せています
+                    {tool.unit === "individual" &&
+                      (showingNames ? "（名前つき）" : "（名前なし）")}
+                    。
+                  </span>
+                  <button
+                    type="button"
+                    className="button outline"
+                    onClick={() => onShowChart(undefined)}
+                  >
+                    見せるのをやめる
+                  </button>
+                </div>
+              ) : (
+                <div className="thinking-gallery-show">
+                  {showingOwner !== undefined && (
+                    <span>ほかのチャートを全員に見せています。</span>
+                  )}
+                  {tool.unit === "individual" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() =>
+                          onShowChart({
+                            toolId: tool.id,
+                            owner: expandedOwner.owner,
+                            showNames: false,
+                          })
+                        }
+                      >
+                        名前を出さずに全員に見せる
+                      </button>
+                      <button
+                        type="button"
+                        className="button outline"
+                        onClick={() =>
+                          onShowChart({
+                            toolId: tool.id,
+                            owner: expandedOwner.owner,
+                            showNames: true,
+                          })
+                        }
+                      >
+                        名前つきで全員に見せる
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() =>
+                        onShowChart({
+                          toolId: tool.id,
+                          owner: expandedOwner.owner,
+                          showNames,
+                        })
+                      }
+                    >
+                      全員に見せる
+                    </button>
+                  )}
+                </div>
+              ))}
+          </>
+        )}
+      </div>
+      <div className="thinking-textmine">
+        <h4>言葉の分析</h4>
+        <TextMinePanel
+          texts={textMineCardTexts(
+            tool.cards.filter((c) => !c.mine),
+            null,
+          )}
+          idleNote="カードの文章を言葉に分けて、よく出る言葉を人数順に並べます。同じ人が同じ言葉を何枚に書いても1人と数え、先生のカードは人数に入りません。解析はこの端末の中で行われ、カードの内容が外部へ送られることはありません。"
+        />
+      </div>
+    </div>
+  );
+}
+
 /** One student's (or group's) chart, enlarged and read-only, in the
  * results gallery: the real board shape with the card texts in their
  * zones. Also renders the chart the host shows the whole class
@@ -415,6 +626,40 @@ export function ExpandedChart({
   const circles = VENN_CIRCLES[tool.template];
   const zoneLabel = (id: string) =>
     def.zones.find((z) => z.id === id)?.label ?? "";
+  if (tool.template === "steps") {
+    const ordered = [...cards].sort(
+      (a, b) => a.sort - b.sort || a.created - b.created,
+    );
+    return (
+      <div className="thinking-gallery-expanded">
+        <h4>{label}のチャート</h4>
+        {ordered.length === 0 ? (
+          <p className="thinking-zone-empty">まだカードがありません。</p>
+        ) : (
+          <ol className="thinking-steps-list is-readonly">
+            {ordered.map((c, i) => (
+              <li key={c.id}>
+                <div className={`thinking-step-card is-${c.color || "none"}`}>
+                  <span className="thinking-step-num">{i + 1}</span>
+                  <span className="thinking-step-text">{c.text}</span>
+                  {colorLabel(c.color) && (
+                    <span className="thinking-step-color">
+                      {colorLabel(c.color)}
+                    </span>
+                  )}
+                </div>
+                {i < ordered.length - 1 && (
+                  <div className="thinking-step-arrow" aria-hidden="true">
+                    ↓
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="thinking-gallery-expanded">
       <h4>{label}のチャート</h4>

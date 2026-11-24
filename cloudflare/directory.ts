@@ -1969,6 +1969,7 @@ export class Directory extends DurableObject<Env> {
               version,
               thinking: thinkingList(sql, id, user.id, host, {
                 board: (params.get("tcaps") ?? "").includes("board"),
+                steps: (params.get("tcaps") ?? "").includes("steps"),
               }),
             };
         }
@@ -2175,7 +2176,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete))?)?$/.exec(
+        /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete|reorder))?)?$/.exec(
           extra,
         );
       insist(
@@ -2210,6 +2211,9 @@ export class Directory extends DurableObject<Env> {
         const caps = {
           board: (new URL(request.url).searchParams.get("caps") ?? "").includes(
             "board",
+          ),
+          steps: (new URL(request.url).searchParams.get("caps") ?? "").includes(
+            "steps",
           ),
         };
         if (method === "GET") {
@@ -2286,6 +2290,11 @@ export class Directory extends DurableObject<Env> {
           follow.owner!,
           follow.showNames === true,
           current.owner,
+          {
+            steps: (new URL(request.url).searchParams.get("caps") ?? "").includes(
+              "steps",
+            ),
+          },
         );
         insist(view, 404, "いま見せているチャートはありません。");
         return json({ share: view });
