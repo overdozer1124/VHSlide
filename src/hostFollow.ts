@@ -1,7 +1,7 @@
 import type { Deck } from "./model.ts";
 export const FOLLOW_LEASE_MS = 45_000;
 export type FollowTarget = {
-  mode: "map" | "page" | "group" | "thinking";
+  mode: "map" | "page" | "group" | "thinking" | "editslide";
   sheetId: string;
   pageId?: string;
   /** Group mode only: the webbing map to show, and the deck group
@@ -20,6 +20,17 @@ export type ChartShowRequest = FollowShare & {
   sheetId: string;
   pageId: string;
 };
+/** The host's request to show one student's free-edit slide to the
+ * class: the definition and author whose snapshot is up, the name
+ * setting chosen for this showing, and the base slide it belongs
+ * to. The snapshot itself stays server-side. */
+export type EditSlideShowRequest = {
+  defId: string;
+  owner: string;
+  showNames: boolean;
+  sheetId: string;
+  pageId: string;
+};
 /** Thinking mode only, server-side: which chart the host is showing
  * and whether names may be shown with it. Never broadcast: the
  * public follow state carries only the target's shareId, and the
@@ -29,6 +40,11 @@ export type FollowShare = {
   toolId: string;
   owner: string;
   showNames: boolean;
+  /** Edit-slide mode only: the definition whose answer snapshot is
+   * being shown (toolId stays empty there). The snapshot itself
+   * lives server-side in the deck's shares; students fetch it by
+   * the target's shareId. */
+  defId?: string;
 };
 export type FollowState =
   | { active: false; revision: number }
@@ -65,7 +81,7 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
   const v = value as FollowTarget;
   if (
     !v ||
-    !["map", "page", "group", "thinking"].includes(v.mode) ||
+    !["map", "page", "group", "thinking", "editslide"].includes(v.mode) ||
     typeof v.sheetId !== "string" ||
     !v.sheetId ||
     v.sheetId.length > 100 ||
@@ -82,11 +98,14 @@ export function followTarget(value: unknown, book: Deck): FollowTarget {
   )
     throw new FollowError(400, "追従先のページが見つかりません。");
   if (
-    (v.mode === "page" || v.mode === "group" || v.mode === "thinking") &&
+    (v.mode === "page" ||
+      v.mode === "group" ||
+      v.mode === "thinking" ||
+      v.mode === "editslide") &&
     !v.pageId
   )
     throw new FollowError(400, "追従先のページを指定してください。");
-  if (v.mode === "thinking")
+  if (v.mode === "thinking" || v.mode === "editslide")
     return { mode: v.mode, sheetId: v.sheetId, pageId: v.pageId };
   if (v.mode === "group") {
     if (
@@ -116,14 +135,21 @@ function followShare(value: unknown): FollowShare {
   if (
     !v ||
     typeof v.toolId !== "string" ||
-    !v.toolId ||
     v.toolId.length > 100 ||
     typeof v.owner !== "string" ||
     v.owner.length > 100 ||
-    typeof v.showNames !== "boolean"
+    typeof v.showNames !== "boolean" ||
+    (v.defId !== undefined &&
+      (typeof v.defId !== "string" || !v.defId || v.defId.length > 100)) ||
+    (!v.toolId && !v.defId)
   )
     throw new FollowError(400, "見せるチャートの指定が正しくありません。");
-  return { toolId: v.toolId, owner: v.owner, showNames: v.showNames };
+  return {
+    toolId: v.toolId,
+    owner: v.owner,
+    showNames: v.showNames,
+    ...(v.defId ? { defId: v.defId } : {}),
+  };
 }
 /** Apply a target the host sent: for a thinking target, validate
  * the share it carries and stamp the public shareId, keeping the
@@ -135,12 +161,14 @@ function withShare(
   value: unknown,
   current: FollowState,
 ): { target: FollowTarget; share?: FollowShare } {
-  if (target.mode !== "thinking") return { target };
+  if (target.mode !== "thinking" && target.mode !== "editslide")
+    return { target };
   const share = followShare(value);
   const keep =
     current.active &&
     current.share &&
     current.share.toolId === share.toolId &&
+    current.share.defId === share.defId &&
     current.share.owner === share.owner &&
     current.share.showNames === share.showNames
       ? current.target.shareId
@@ -262,7 +290,7 @@ export function isPublicFollowState(
     typeof v.host.id === "string" &&
     typeof v.host.name === "string" &&
     !!v.target &&
-    ["map", "page", "group", "thinking"].includes(v.target.mode) &&
+    ["map", "page", "group", "thinking", "editslide"].includes(v.target.mode) &&
     typeof v.target.sheetId === "string" &&
     (v.pinned === undefined || typeof v.pinned === "boolean") &&
     (v.presenting === undefined || typeof v.presenting === "boolean") &&

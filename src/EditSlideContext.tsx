@@ -19,6 +19,21 @@ export type EditSlideContextValue = {
    * row, a student only their own. Rides the "editfeedback" poll
    * counter, separate from the definition list. */
   feedback: FeedbackRow[];
+  /** Snapshot one answer for the follow view (stage 2b). */
+  shareFollow: (defId: string, author: string, names: boolean) => Promise<void>;
+  /** Take the follow snapshot down. */
+  unshareFollow: (defId: string) => Promise<void>;
+  /** Publish one answer's snapshot in the response gallery; the
+   * source slide rides along so the server can open a gallery for
+   * it when none exists yet. */
+  shareGallery: (
+    defId: string,
+    author: string,
+    names: boolean,
+    slide: Slide,
+  ) => Promise<void>;
+  /** Remove one answer's gallery snapshot. */
+  unshareGallery: (defId: string, author: string) => Promise<void>;
   sendFeedback: (value: {
     targetId: string;
     owner: string;
@@ -43,6 +58,10 @@ export const EditSlideContext = createContext<EditSlideContextValue>({
   defs: [],
   answersMeta: [],
   feedback: [],
+  shareFollow: async () => {},
+  unshareFollow: async () => {},
+  shareGallery: async () => {},
+  unshareGallery: async () => {},
   sendFeedback: async () => {},
   markFeedbackRead: async () => {},
   resubmitFeedback: async () => {},
@@ -122,6 +141,36 @@ function EditSlideSession({
       feedbackGeneration.current++;
       setFeedback(data.feedback);
     }
+  }
+  async function shareApi(defId: string, action: string, body?: unknown) {
+    const data = await api<{ editSlides?: EditSlideDefView[] }>(
+      `/api/decks/${deckId}/edit-slides/${defId}/${action}`,
+      body === undefined
+        ? { method: "DELETE" }
+        : { method: "POST", body: JSON.stringify(body) },
+    );
+    if (alive.current && data.editSlides) {
+      generation.current++;
+      defsRef.current = data.editSlides;
+      setDefs(data.editSlides);
+    }
+  }
+  async function shareFollow(defId: string, author: string, names: boolean) {
+    await shareApi(defId, "share-follow", { author, names });
+  }
+  async function unshareFollow(defId: string) {
+    await shareApi(defId, "share-follow");
+  }
+  async function shareGallery(
+    defId: string,
+    author: string,
+    names: boolean,
+    slide: Slide,
+  ) {
+    await shareApi(defId, "share-gallery", { author, names, slide });
+  }
+  async function unshareGallery(defId: string, author: string) {
+    await shareApi(defId, "share-remove", { author });
   }
   async function sendFeedback(value: {
     targetId: string;
@@ -242,6 +291,10 @@ function EditSlideSession({
         defs,
         answersMeta,
         feedback,
+        shareFollow,
+        unshareFollow,
+        shareGallery,
+        unshareGallery,
         sendFeedback,
         markFeedbackRead,
         resubmitFeedback,

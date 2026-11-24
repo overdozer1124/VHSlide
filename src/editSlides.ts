@@ -54,7 +54,9 @@ export const editSlideSchema =
   `
 CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL, PRIMARY KEY(def,author));
-CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, created INTEGER NOT NULL);` +
+CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS edit_slide_shares(id TEXT PRIMARY KEY, deck TEXT NOT NULL, def TEXT NOT NULL, author TEXT NOT NULL, kind TEXT NOT NULL, names INTEGER NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS edit_slide_share_assets(share TEXT NOT NULL, asset TEXT NOT NULL, PRIMARY KEY(share, asset));` +
   // The counters feed the shared deck poll; the deck's own document
   // version is never touched by these tables. Definitions bump the
   // counter everyone watches ("editslides"); answer saves bump only
@@ -65,7 +67,10 @@ CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def 
     "edit_slide_answers",
     "editanswers",
     (a) => `COALESCE((SELECT deck FROM edit_slide_defs WHERE id=${a}.def),'')`,
-  );
+  ) +
+  // Shares change what the console shows (the 共有中 flag), so they
+  // move the host's counter too.
+  versionTriggers("edit_slide_shares", "editanswers", (a) => `${a}.deck`);
 
 export const MAX_EDIT_DEFS_PER_DECK = 50;
 export const MAX_EDIT_ANSWERS_PER_DEF = 500;
@@ -86,6 +91,9 @@ export type EditSlideAnswerMeta = {
   /** The answer was saved again after a send-back that the student
    * then closed with "出し直す". */
   resubmitted?: boolean;
+  /** A snapshot of this answer is published in the response
+   * gallery. */
+  shared?: boolean;
 };
 /** Host-only answer overview for one definition, delivered on the
  * separate "editanswers" poll counter so student saves stay cheap
@@ -308,10 +316,14 @@ function deckEditBytes(
     ...sql(
       `SELECT
         (SELECT COALESCE(SUM(a.bytes),0) FROM edit_slide_answers a JOIN edit_slide_defs d ON d.id=a.def WHERE d.deck=? AND NOT (a.def=? AND a.author=?))
-        + (SELECT COALESCE(SUM(aa.bytes),0) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d2 ON d2.id=aa.def WHERE d2.deck=?) AS total`,
+        + (SELECT COALESCE(SUM(aa.bytes),0) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d2 ON d2.id=aa.def WHERE d2.deck=?)
+        + (SELECT COALESCE(SUM(s.bytes),0) FROM edit_slide_shares s WHERE s.deck=?)
+        + (SELECT COALESCE(SUM(aa2.bytes),0) FROM edit_slide_share_assets sa JOIN edit_slide_answer_assets aa2 ON aa2.asset=sa.asset JOIN edit_slide_shares s2 ON s2.id=sa.share WHERE s2.deck=?) AS total`,
       deck,
       exceptDef ?? "",
       exceptAuthor ?? "",
+      deck,
+      deck,
       deck,
     ),
   ][0];
@@ -432,6 +444,14 @@ export function editSlideAnswersMeta(
         String(def.id),
       ),
     ];
+    const sharedAuthors = new Set(
+      [
+        ...sql(
+          "SELECT author FROM edit_slide_shares WHERE def=? AND kind='gallery'",
+          String(def.id),
+        ),
+      ].map((r) => String(r.author)),
+    );
     const answers = rows
       .map((r) => {
         const author = String(r.author);
@@ -450,6 +470,7 @@ export function editSlideAnswersMeta(
           updated,
           ...(flags.reopen ? { reopen: true } : {}),
           ...(flags.resubmitted ? { resubmitted: true } : {}),
+          ...(sharedAuthors.has(author) ? { shared: true } : {}),
         };
       })
       .sort((a, b) => accountOrder(a.author, b.author));
@@ -571,6 +592,7 @@ export function editSlideCommand(
       ),
     ].map((r) => ({ asset: String(r.asset), hash: String(r.hash) }));
     feedbackDeleteTarget(sql, deck, "editslide", def.id);
+    deleteEditShares(sql, deck, def.id);
     sql("DELETE FROM edit_slide_defs WHERE id=?", def.id);
     return { orphanAssets: orphans };
   }
@@ -697,6 +719,15 @@ export function editSlideCommand(
     const orphans: OrphanAnswerAsset[] = [];
     for (const [asset, row] of ownAssets) {
       if (used.answerAssets.has(asset) || row.created > grace) continue;
+      // A photo inside a live share (follow or gallery snapshot)
+      // stays: the snapshot must keep rendering as it was taken.
+      const shared = [
+        ...sql(
+          "SELECT share FROM edit_slide_share_assets WHERE asset=?",
+          asset,
+        ),
+      ][0];
+      if (shared) continue;
       sql("DELETE FROM edit_slide_answer_assets WHERE asset=?", asset);
       orphans.push({ asset, hash: row.hash });
     }
@@ -757,8 +788,10 @@ export function recordEditAnswerAsset(
   );
 }
 
-/** The stored form of one answer photo, for the read path. Only the
- * author and the host may read it; everyone else gets a 404. */
+/** The stored form of one answer photo, for the read path. The
+ * author and the host may read it; any other member may read it
+ * only while it sits inside a live share snapshot of this deck
+ * (stage 2b) — once the share goes away, so does the access. */
 export function editAnswerAsset(
   sql: HistorySQL,
   deck: string,
@@ -775,14 +808,321 @@ export function editAnswerAsset(
       asset,
     ),
   ][0];
-  insist(
-    row && (host || row.author === actor),
-    404,
-    "写真が見つかりません。",
-  );
+  insist(row, 404, "写真が見つかりません。");
+  if (!host && row!.author !== actor) {
+    const shared = [
+      ...sql(
+        "SELECT sa.share FROM edit_slide_share_assets sa JOIN edit_slide_shares s ON s.id=sa.share WHERE sa.asset=? AND s.deck=?",
+        asset,
+        deck,
+      ),
+    ][0];
+    insist(shared, 404, "写真が見つかりません。");
+  }
   return {
     hash: String(row!.hash),
     mime: String(row!.mime),
     author: String(row!.author),
   };
+}
+
+/* ------------------------------------------------------------------
+ * Stage 2b: showing one student's slide to the class. Both routes —
+ * follow (集合で見せる) and the response gallery — present a
+ * SNAPSHOT: a copy of the answer as it was when the host picked it,
+ * never the live answer, so a student editing afterwards cannot
+ * change what the class is looking at (or swap a photo under it).
+ * The host re-takes the snapshot to show the latest version.
+ * Snapshot photos are referenced from edit_slide_share_assets:
+ * those references keep the blobs alive and are the only way other
+ * students may read an answer photo. Snapshots count toward the
+ * deck's 50MB like everything else.
+ * ------------------------------------------------------------------ */
+
+export type EditShareView = {
+  id: string;
+  /** Set only when the host chose to show names for this share. */
+  name?: string;
+  slide: Slide;
+};
+
+type ShareRow = {
+  id: string;
+  def: string;
+  author: string;
+  kind: string;
+  names: number;
+  slide: string;
+};
+
+const shareRow = (
+  sql: HistorySQL,
+  deck: string,
+  id: string,
+): ShareRow | undefined => {
+  const row = [
+    ...sql(
+      "SELECT id,def,author,kind,names,slide FROM edit_slide_shares WHERE deck=? AND id=?",
+      deck,
+      id,
+    ),
+  ][0];
+  return row
+    ? {
+        id: String(row.id),
+        def: String(row.def),
+        author: String(row.author),
+        kind: String(row.kind),
+        names: Number(row.names),
+        slide: String(row.slide),
+      }
+    : undefined;
+};
+
+function deleteShareRow(sql: HistorySQL, id: string) {
+  sql("DELETE FROM edit_slide_share_assets WHERE share=?", id);
+  sql("DELETE FROM edit_slide_shares WHERE id=?", id);
+}
+
+/** Remove every share of one definition (or of the whole deck when
+ * defId is omitted). Called on definition deletion; the servers do
+ * the same for deck deletion inside their own cleanup. */
+export function deleteEditShares(
+  sql: HistorySQL,
+  deck: string,
+  defId?: string,
+) {
+  const rows = [
+    ...sql(
+      defId
+        ? "SELECT id FROM edit_slide_shares WHERE deck=? AND def=?"
+        : "SELECT id FROM edit_slide_shares WHERE deck=?",
+      ...(defId ? [deck, defId] : [deck]),
+    ),
+  ];
+  for (const row of rows) deleteShareRow(sql, String(row.id));
+}
+
+/** Take (or re-take) a snapshot of one student's answer. Follow
+ * snapshots are one per deck — follow itself shows one thing at a
+ * time — while gallery snapshots are one per (definition, author).
+ * Returns the share id. */
+export function takeEditShare(
+  sql: HistorySQL,
+  deck: string,
+  host: boolean,
+  defId: string,
+  author: string,
+  kind: "follow" | "gallery",
+  names: boolean,
+): string {
+  insist(host, 403, "見せる作品を選べるのはホストだけです。");
+  const def = defRow(sql, deck, defId);
+  const answer = [
+    ...sql(
+      "SELECT slide,bytes FROM edit_slide_answers WHERE def=? AND author=?",
+      def.id,
+      author,
+    ),
+  ][0];
+  insist(answer, 404, "その生徒のスライドが見つかりません。");
+  const slide = JSON.parse(String(answer.slide)) as Slide;
+  // The snapshot's own bytes plus its photos' recorded sizes join
+  // the deck's 50MB accounting; the replaced snapshot's share is
+  // subtracted again through the deletion below.
+  const photoBytes = [...slideAssetIds(deck, slide)].reduce(
+    (sum, asset) => {
+      const row = [
+        ...sql(
+          "SELECT bytes FROM edit_slide_answer_assets WHERE asset=?",
+          asset,
+        ),
+      ][0];
+      return sum + (row ? Number(row.bytes) : 0);
+    },
+    0,
+  );
+  const replaced =
+    kind === "follow"
+      ? [...sql("SELECT id FROM edit_slide_shares WHERE deck=? AND kind='follow'", deck)]
+      : [
+          ...sql(
+            "SELECT id FROM edit_slide_shares WHERE deck=? AND kind='gallery' AND def=? AND author=?",
+            deck,
+            def.id,
+            author,
+          ),
+        ];
+  let replacedBytes = 0;
+  for (const row of replaced) {
+    const old = shareRow(sql, deck, String(row.id));
+    if (old) {
+      const joined = [
+        ...sql(
+          "SELECT COALESCE(SUM(aa.bytes),0) AS total FROM edit_slide_share_assets sa JOIN edit_slide_answer_assets aa ON aa.asset=sa.asset WHERE sa.share=?",
+          old.id,
+        ),
+      ][0];
+      replacedBytes +=
+        new TextEncoder().encode(old.slide).length +
+        (Number(joined?.total) || 0);
+    }
+    deleteShareRow(sql, String(row.id));
+  }
+  insist(
+    deckEditBytes(sql, deck) - replacedBytes + Number(answer.bytes) + photoBytes <=
+      MAX_EDIT_DECK_BYTES,
+    413,
+    "作品全体の保存量の上限（50MB）に達しました。",
+  );
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  sql(
+    "INSERT INTO edit_slide_shares VALUES(?,?,?,?,?,?,?,?,?,?)",
+    id,
+    deck,
+    def.id,
+    author,
+    kind,
+    names ? 1 : 0,
+    String(answer.slide),
+    Number(answer.bytes),
+    now,
+    now,
+  );
+  for (const asset of slideAssetIds(deck, slide))
+    sql("INSERT INTO edit_slide_share_assets VALUES(?,?)", id, asset);
+  return id;
+}
+
+/** The answer-photo ids a slide references (this deck's only). */
+function slideAssetIds(deck: string, slide: Slide): Set<string> {
+  const ids = new Set<string>();
+  const visit = (value: unknown): void => {
+    if (typeof value === "string") {
+      const match = ANSWER_ASSET_PATTERN.exec(value);
+      if (match && match[1] === deck) ids.add(match[3]);
+    } else if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object")
+      Object.values(value).forEach(visit);
+  };
+  visit(slide);
+  return ids;
+}
+
+/** A definition's source slide id (the slide it was taken from). */
+export function editSlideSource(
+  sql: HistorySQL,
+  deck: string,
+  defId: string,
+): string | undefined {
+  const def = [...sql("SELECT source FROM edit_slide_defs WHERE deck=? AND id=?", deck, defId)][0];
+  return def ? String(def.source) : undefined;
+}
+
+/** Remove the deck's follow share, or one definition's gallery
+ * share (named by share id, or by its author). */
+export function removeEditShare(
+  sql: HistorySQL,
+  deck: string,
+  host: boolean,
+  defId: string,
+  value: { shareId?: unknown; follow?: unknown; author?: unknown },
+) {
+  insist(host, 403, "共有を操作できるのはホストだけです。");
+  if (value.follow === true) {
+    for (const row of sql(
+      "SELECT id FROM edit_slide_shares WHERE deck=? AND kind='follow'",
+      deck,
+    ))
+      deleteShareRow(sql, String(row.id));
+    return;
+  }
+  if (typeof value.author === "string") {
+    for (const row of sql(
+      "SELECT id FROM edit_slide_shares WHERE deck=? AND kind='gallery' AND def=? AND author=?",
+      deck,
+      defId,
+      value.author,
+    ))
+      deleteShareRow(sql, String(row.id));
+    return;
+  }
+  insist(
+    typeof value.shareId === "string",
+    400,
+    "取り消す共有を指定してください。",
+  );
+  const row = shareRow(sql, deck, value.shareId as string);
+  insist(row, 404, "その共有は見つかりません。");
+  deleteShareRow(sql, row!.id);
+}
+
+const shareView = (
+  sql: HistorySQL,
+  row: ShareRow,
+): EditShareView => {
+  let name: string | undefined;
+  if (row.names) {
+    const user = [...sql("SELECT name FROM users WHERE id=?", row.author)][0];
+    if (user?.name) name = String(user.name);
+  }
+  return {
+    id: row.id,
+    ...(name ? { name } : {}),
+    slide: JSON.parse(row.slide) as Slide,
+  };
+};
+
+/** The deck's live follow snapshot for one definition + author, as
+ * the share endpoint serves it. Undefined when the host is not
+ * showing that answer. */
+export function followShareView(
+  sql: HistorySQL,
+  deck: string,
+  defId: string,
+  author: string,
+): EditShareView | undefined {
+  const row = [
+    ...sql(
+      "SELECT id,def,author,kind,names,slide FROM edit_slide_shares WHERE deck=? AND kind='follow' AND def=? AND author=?",
+      deck,
+      defId,
+      author,
+    ),
+  ][0];
+  if (!row) return undefined;
+  return shareView(sql, {
+    id: String(row.id),
+    def: String(row.def),
+    author: String(row.author),
+    kind: String(row.kind),
+    names: Number(row.names),
+    slide: String(row.slide),
+  });
+}
+
+/** Published gallery snapshots whose definition belongs to one
+ * source slide, for the response gallery's read path. */
+export function galleryShareViews(
+  sql: HistorySQL,
+  deck: string,
+  source: string,
+): EditShareView[] {
+  return [
+    ...sql(
+      "SELECT s.id AS id,s.def AS def,s.author AS author,s.kind AS kind,s.names AS names,s.slide AS slide FROM edit_slide_shares s JOIN edit_slide_defs d ON d.id=s.def WHERE s.deck=? AND s.kind='gallery' AND d.source=? ORDER BY s.created",
+      deck,
+      source,
+    ),
+  ].map((row) =>
+    shareView(sql, {
+      id: String(row.id),
+      def: String(row.def),
+      author: String(row.author),
+      kind: String(row.kind),
+      names: Number(row.names),
+      slide: String(row.slide),
+    }),
+  );
 }

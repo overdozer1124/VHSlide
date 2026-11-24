@@ -304,3 +304,129 @@ test("free-edit feedback: host sends back, student resubmits", async ({
   });
   await context.close();
 });
+
+test("free-edit shares: gallery publishing and follow showing", async ({
+  page,
+  browser,
+}, info) => {
+  test.skip(
+    info.project.name.includes("touch"),
+    "touch viewport taps differ on the fixture deck",
+  );
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-editshare-host`);
+  const guestName = `${info.project.name}-editshare-one`;
+  const guest2Name = `${info.project.name}-editshare-two`;
+  await addGuest(page, id, guestName);
+  await addGuest(page, id, guest2Name);
+  const book = await readBook(page, id);
+  const source = book.slides[0];
+
+  // Setup over the API: definition open, the student answers with
+  // a distinctive text element.
+  const created = await (
+    await page.request.post(`/api/decks/${id}/edit-slides`, {
+      headers,
+      data: { source: source.id, slide: source },
+    })
+  ).json();
+  const defId = created.editSlides[0].id as string;
+  await page.request.post(`/api/decks/${id}/edit-slides/${defId}/status`, {
+    headers,
+    data: { status: "open" },
+  });
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  const mine = await (
+    await student.request.get(`/api/decks/${id}/edit-slides`, { headers })
+  ).json();
+  const answerSlide = {
+    ...mine.editSlides[0].base,
+    elements: [
+      ...mine.editSlides[0].base.elements,
+      {
+        id: "share-text",
+        type: "text",
+        x: 60,
+        y: 60,
+        w: 400,
+        h: 80,
+        text: "みんなへの作品",
+        fontSize: 32,
+        color: "#173d38",
+      },
+    ],
+  };
+  expect(
+    (
+      await student.request.post(
+        `/api/decks/${id}/edit-slides/${defId}/answer`,
+        { headers, data: { slide: answerSlide, baseUpdated: 0 } },
+      )
+    ).status(),
+  ).toBe(200);
+
+  // Host console: publish the answer into the response gallery.
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "授業コンソール" }).click();
+  const consoleView = page.getByRole("region", { name: "授業コンソール" });
+  await consoleView.getByRole("tab", { name: "生徒のスライド" }).click();
+  await expect(
+    consoleView.getByText(/生徒が作ったスライド（1人）/),
+  ).toBeVisible({ timeout: 15_000 });
+  await consoleView.locator(".console-edit-card").first().click();
+  const dialog = page.locator(".console-edit-large");
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await dialog
+    .getByRole("button", { name: "回答スライド共有に出す" })
+    .click();
+  await expect(
+    dialog.getByRole("button", { name: "共有を取り消す" }),
+  ).toBeVisible({ timeout: 15_000 });
+
+  // The other student finds it in the shared response workspace.
+  const context2 = await browser.newContext({ baseURL: scopeOrigin });
+  const student2 = await context2.newPage();
+  await scopeLogin(student2, guest2Name);
+  await student2.goto(`/?room=${id}`);
+  await openFirstSlide(
+    student2,
+    shown(student2.getByRole("button", { name: "フォーム", exact: true })),
+  );
+  await student2
+    .getByRole("button", { name: "フォーム", exact: true })
+    .click();
+  const panel2 = student2.locator(".activity-panel");
+  await panel2.getByRole("tab", { name: "回答スライド" }).click();
+  await panel2
+    .getByRole("button", { name: "共有された回答を開く" })
+    .click();
+  const workspace = student2.locator(".response-workspace");
+  await expect(workspace.getByText("生徒が作ったスライド")).toBeVisible({
+    timeout: 15_000,
+  });
+  await workspace
+    .getByRole("button", { name: "生徒のスライドを閲覧" })
+    .click();
+  await expect(workspace.getByText("みんなへの作品")).toBeVisible({
+    timeout: 15_000,
+  });
+  await workspace.getByRole("button", { name: "回答一覧へ" }).click();
+  await workspace.getByRole("button", { name: "作品に戻る" }).click();
+
+  // Follow: the host shows the snapshot to the whole class; the
+  // student's screen switches to it, and back when stopped.
+  await student.goto(`/?room=${id}`);
+  await openFirstSlide(student, shown(student.locator(".edit-slide-launch")));
+  await dialog.getByRole("button", { name: "集合で見せる" }).click();
+  const overlay = student.locator(".host-follow-overlay");
+  await expect(overlay).toBeVisible({ timeout: 20_000 });
+  await expect(overlay.getByText("みんなへの作品")).toBeVisible({
+    timeout: 20_000,
+  });
+  await dialog.getByRole("button", { name: "見せるのをやめる" }).click();
+  await expect(overlay).toBeHidden({ timeout: 20_000 });
+  await context.close();
+  await context2.close();
+});

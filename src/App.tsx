@@ -45,7 +45,11 @@ import { axisIndex } from "./axes";
 import { ImportRowChoiceDialog } from "./ImportRowChoiceDialog";
 import { prepareImportedForms } from "./importForms";
 import { useFollowLock } from "./useFollowLock";
-import type { FollowTarget, ChartShowRequest } from "./hostFollow";
+import type {
+  FollowTarget,
+  ChartShowRequest,
+  EditSlideShowRequest,
+} from "./hostFollow";
 import { HostFollowView } from "./HostFollowView";
 import { TeacherConsole } from "./TeacherConsole";
 import { LearningRecord } from "./LearningRecord";
@@ -2468,6 +2472,21 @@ export default function App() {
         showNames: chartShow.showNames,
       }
     : undefined;
+  // The same override for one student's free-edit slide (stage 2b):
+  // exclusive with the group and chart overrides.
+  const [editShow, setEditShow] = useState<EditSlideShowRequest | undefined>();
+  const editShowStartedFollow = useRef(false);
+  const editTarget: FollowTarget | undefined = editShow
+    ? { mode: "editslide", sheetId: editShow.sheetId, pageId: editShow.pageId }
+    : undefined;
+  const editShare = editShow
+    ? {
+        toolId: "",
+        owner: editShow.owner,
+        showNames: editShow.showNames,
+        defId: editShow.defId,
+      }
+    : undefined;
   const handleGroupShow = (target?: FollowTarget) => {
     if (!target) {
       setGroupShow(undefined);
@@ -2484,6 +2503,11 @@ export default function App() {
       groupShowStartedFollow.current = chartShowStartedFollow.current;
       chartShowStartedFollow.current = false;
       setChartShow(undefined);
+    }
+    if (editShow) {
+      groupShowStartedFollow.current = editShowStartedFollow.current;
+      editShowStartedFollow.current = false;
+      setEditShow(undefined);
     }
     const wasActive = cloud.follow.active;
     setGroupShow(target);
@@ -2518,6 +2542,11 @@ export default function App() {
       groupShowStartedFollow.current = false;
       setGroupShow(undefined);
     }
+    if (editShow) {
+      chartShowStartedFollow.current = editShowStartedFollow.current;
+      editShowStartedFollow.current = false;
+      setEditShow(undefined);
+    }
     const target: FollowTarget = {
       mode: "thinking",
       sheetId: req.sheetId,
@@ -2544,6 +2573,55 @@ export default function App() {
     }
     // Active and unpinned: the move effect below carries the target.
   };
+  const handleEditShow = (req?: EditSlideShowRequest) => {
+    if (!req) {
+      setEditShow(undefined);
+      if (editShowStartedFollow.current) {
+        editShowStartedFollow.current = false;
+        if (cloud.follow.active)
+          void cloud
+            .stopFollow()
+            .catch((error) => notify((error as Error).message));
+      }
+      return;
+    }
+    if (groupShow) {
+      editShowStartedFollow.current = groupShowStartedFollow.current;
+      groupShowStartedFollow.current = false;
+      setGroupShow(undefined);
+    }
+    if (chartShow) {
+      editShowStartedFollow.current = chartShowStartedFollow.current;
+      chartShowStartedFollow.current = false;
+      setChartShow(undefined);
+    }
+    const target: FollowTarget = {
+      mode: "editslide",
+      sheetId: req.sheetId,
+      pageId: req.pageId,
+    };
+    const share = {
+      toolId: "",
+      owner: req.owner,
+      showNames: req.showNames,
+      defId: req.defId,
+    };
+    const wasActive = cloud.follow.active;
+    setEditShow(req);
+    if (!wasActive) {
+      editShowStartedFollow.current = true;
+      void cloud.startFollow(target, share).catch((error) => {
+        editShowStartedFollow.current = false;
+        setEditShow(undefined);
+        notify((error as Error).message);
+      });
+    } else if (cloud.follow.pinned) {
+      void cloud
+        .resumeFollow(target, share)
+        .catch((error) => notify((error as Error).message));
+    }
+    // Active and unpinned: the move effect below carries the target.
+  };
   const followWasActive = useRef(false);
   useEffect(() => {
     // Clear the show overrides when follow ends by any other route —
@@ -2556,8 +2634,12 @@ export default function App() {
       setChartShow(undefined);
       chartShowStartedFollow.current = false;
     }
+    if (followWasActive.current && !cloud.follow.active && editShow) {
+      setEditShow(undefined);
+      editShowStartedFollow.current = false;
+    }
     followWasActive.current = cloud.follow.active;
-  }, [cloud.follow.active, groupShow, chartShow]);
+  }, [cloud.follow.active, groupShow, chartShow, editShow]);
   // When follow ends, a guest stays on the page they were shown instead of
   // returning to the page they had open before follow started. A guest in
   // the middle of editing text keeps the old behaviour: their live editor
@@ -2598,9 +2680,13 @@ export default function App() {
           pageId: followPage?.id,
         };
   const followTarget: FollowTarget =
-    chartTarget ?? groupShow ?? viewFollowTarget;
+    editTarget ?? chartTarget ?? groupShow ?? viewFollowTarget;
   const followShare =
-    followTarget.mode === "thinking" ? chartShare : undefined;
+    followTarget.mode === "thinking"
+      ? chartShare
+      : followTarget.mode === "editslide"
+        ? editShare
+        : undefined;
   const followTargetKey = JSON.stringify({
       target: followTarget,
       share: followShare ?? null,
@@ -2613,6 +2699,7 @@ export default function App() {
     }
     if (
       followTarget.mode !== "thinking" &&
+      followTarget.mode !== "editslide" &&
       JSON.stringify(cloud.follow.target) === JSON.stringify(followTarget)
     ) {
       lastFollowTarget.current = followTargetKey;
@@ -3472,6 +3559,8 @@ export default function App() {
             onGroupShow={handleGroupShow}
             chartShow={chartShow}
             onChartShow={handleChartShow}
+            editShow={editShow}
+            onEditShow={handleEditShow}
           />
         )}
         {view === "record" && cloud.active && (

@@ -8391,3 +8391,21 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .console-edit-feedback-form input[type="text"] {
   flex: 1 1 220px;
 }
+
+/* Stage 2b: showing one student's slide (console share controls). */
+.console-edit-share {
+  margin-top: 12px;
+  border-top: 1px solid var(--hatch-widget-border, #ddd);
+  padding-top: 10px;
+}
+.console-edit-share-names {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+}
+.console-edit-share-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
