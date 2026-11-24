@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.152.0 (550e343): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.159.0 (4ba3139): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -316,12 +316,19 @@ CREATE INDEX IF NOT EXISTS thinking_points_tool ON thinking_points(tool);
 CREATE TABLE IF NOT EXISTS thinking_locks(tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, owner TEXT NOT NULL, scene TEXT NOT NULL, user TEXT NOT NULL, name TEXT NOT NULL, expires INTEGER NOT NULL, PRIMARY KEY(tool, owner, scene));
 CREATE TABLE IF NOT EXISTS thinking_cards(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, zone TEXT NOT NULL, parent TEXT, sort INTEGER NOT NULL DEFAULT 0, text TEXT NOT NULL, color TEXT NOT NULL DEFAULT '', x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS thinking_cards_tool ON thinking_cards(tool, owner);
-CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);` + featureVersionSchema + versionTriggers("thinking_tools", "thinking", (a) => `${a}.deck`) + versionTriggers(
+CREATE INDEX IF NOT EXISTS thinking_cards_deck ON thinking_cards(deck);
+CREATE TABLE IF NOT EXISTS thinking_nodes(id TEXT PRIMARY KEY, tool TEXT NOT NULL REFERENCES thinking_tools(id) ON DELETE CASCADE, deck TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL, parent TEXT, text TEXT NOT NULL, x REAL NOT NULL DEFAULT 0.5, y REAL NOT NULL DEFAULT 0.5, author TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS thinking_nodes_tool ON thinking_nodes(tool, owner);
+CREATE INDEX IF NOT EXISTS thinking_nodes_deck ON thinking_nodes(deck);` + featureVersionSchema + versionTriggers("thinking_tools", "thinking", (a) => `${a}.deck`) + versionTriggers(
   "thinking_points",
   "thinking",
   (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`
 ) + versionTriggers(
   "thinking_cards",
+  "thinking",
+  (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`
+) + versionTriggers(
+  "thinking_nodes",
   "thinking",
   (a) => `COALESCE((SELECT deck FROM thinking_tools WHERE id=${a}.tool),'')`
 ) + versionTriggers(
@@ -379,7 +386,51 @@ var BOARD_ZONE_SPECS = {
   // Step chart (stage 4): one sequence of cards. The single zone is
   // a formality so every board path (record, results, text mining,
   // sharing) keeps working; the order lives in the cards' sort.
-  steps: [{ id: "all", label: "\u624B\u9806", rect: [0, 0, 1, 1], anchor: [0.5, 0.5] }]
+  steps: [{ id: "all", label: "\u624B\u9806", rect: [0, 0, 1, 1], anchor: [0.5, 0.5] }],
+  // Stage 4, remaining templates. The card boxes stay upright and
+  // axis-aligned even on the fishbone (design review 🟡); the
+  // figure's lines live in ThinkingBoardArt. The title is drawn
+  // inside the figure (head / body / dome / handle) except on the
+  // pyramid, which has no room for it.
+  fishbone: [
+    { id: "a", label: "\u5DE6\u4E0A", rect: [0.02, 0.03, 0.36, 0.42], anchor: [0.2, 0.24] },
+    { id: "b", label: "\u53F3\u4E0A", rect: [0.44, 0.03, 0.34, 0.42], anchor: [0.61, 0.24] },
+    { id: "c", label: "\u5DE6\u4E0B", rect: [0.02, 0.55, 0.36, 0.42], anchor: [0.2, 0.76] },
+    { id: "d", label: "\u53F3\u4E0B", rect: [0.44, 0.55, 0.34, 0.42], anchor: [0.61, 0.76] }
+  ],
+  butterfly2: [
+    { id: "a", label: "\u5DE6", rect: [0.03, 0.1, 0.4, 0.8], anchor: [0.23, 0.5] },
+    { id: "b", label: "\u53F3", rect: [0.57, 0.1, 0.4, 0.8], anchor: [0.77, 0.5] }
+  ],
+  butterfly4: [
+    { id: "a", label: "\u5F37\u3044\u8CDB\u6210", rect: [0.03, 0.04, 0.4, 0.44], anchor: [0.23, 0.26] },
+    { id: "b", label: "\u8CDB\u6210", rect: [0.03, 0.52, 0.4, 0.44], anchor: [0.23, 0.74] },
+    { id: "c", label: "\u53CD\u5BFE", rect: [0.57, 0.52, 0.4, 0.44], anchor: [0.77, 0.74] },
+    { id: "d", label: "\u5F37\u3044\u53CD\u5BFE", rect: [0.57, 0.04, 0.4, 0.44], anchor: [0.77, 0.26] }
+  ],
+  jellyfish: [0, 1, 2, 3].map((i) => ({
+    id: String.fromCharCode(97 + i),
+    label: `\u8DB3${i + 1}`,
+    rect: [0.02 + i * 0.245, 0.4, 0.225, 0.57],
+    anchor: [0.02 + i * 0.245 + 0.1125, 0.68]
+  })),
+  pyramid3: [
+    { id: "a", label: "1\u6BB5\u76EE", rect: [0.32, 0.05, 0.36, 0.29], anchor: [0.5, 0.19] },
+    { id: "b", label: "2\u6BB5\u76EE", rect: [0.18, 0.36, 0.64, 0.29], anchor: [0.5, 0.5] },
+    { id: "c", label: "3\u6BB5\u76EE", rect: [0.04, 0.67, 0.92, 0.29], anchor: [0.5, 0.81] }
+  ],
+  pyramid4: [
+    { id: "a", label: "1\u6BB5\u76EE", rect: [0.35, 0.04, 0.3, 0.22], anchor: [0.5, 0.15] },
+    { id: "b", label: "2\u6BB5\u76EE", rect: [0.24, 0.28, 0.52, 0.22], anchor: [0.5, 0.39] },
+    { id: "c", label: "3\u6BB5\u76EE", rect: [0.13, 0.52, 0.74, 0.22], anchor: [0.5, 0.63] },
+    { id: "d", label: "4\u6BB5\u76EE", rect: [0.02, 0.76, 0.96, 0.22], anchor: [0.5, 0.87] }
+  ],
+  kumade: [0, 1, 2, 3, 4].map((i) => ({
+    id: String.fromCharCode(97 + i),
+    label: `\u6B6F${i + 1}`,
+    rect: [i * 0.2, 0.24, 0.2, 0.73],
+    anchor: [(i + 0.5) * 0.2, 0.6]
+  }))
 };
 function cleanLabel(value, label, max = MAX_LABEL) {
   insist(
@@ -404,7 +455,15 @@ var TEMPLATES = [
   "pmi",
   "matrix",
   "kwl",
-  "steps"
+  "steps",
+  "webbing",
+  "fishbone",
+  "butterfly2",
+  "butterfly4",
+  "jellyfish",
+  "pyramid3",
+  "pyramid4",
+  "kumade"
 ];
 function parseThinkingDefinition(template, raw) {
   insist(
@@ -420,6 +479,28 @@ function parseThinkingDefinition(template, raw) {
     "\u601D\u8003\u30C4\u30FC\u30EB\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
   );
   const title = cleanLabel(value.title, "\u30C4\u30FC\u30EB\u306E\u540D\u524D", 60);
+  if (t === "webbing") {
+    return {
+      template: t,
+      definition: {
+        title,
+        xMin: "",
+        xMax: "",
+        yMin: "",
+        yMax: "",
+        scale: "none",
+        vertical: false,
+        nameA: "",
+        nameB: "",
+        zones: [],
+        cardColors: [],
+        scenes: [],
+        sceneMode: "teacher",
+        reason: false,
+        lines: []
+      }
+    };
+  }
   if (BOARD_ZONE_SPECS[t]) {
     const spec = BOARD_ZONE_SPECS[t];
     insist(
