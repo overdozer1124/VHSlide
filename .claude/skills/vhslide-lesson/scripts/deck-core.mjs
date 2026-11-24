@@ -648,12 +648,15 @@ const kinds = {
     if (s.prompt) { els.push(...(await ask(s.prompt, y, s.promptHeight ?? 64))); y += (s.promptHeight ?? 64) + 12; }
     const fh = s.field ? (s.fieldHeight ?? 120) : 0, area = BOTTOM - y - (fh ? fh + 12 : 0);
     const gap = 70, cw = (X1 - X0 - gap) / 2;
+    // Body text grows with the free space (the user prefers large text that fills the page); text() still shrinks to fit.
+    const nLines = Math.max(...[s.left, s.right].map(sd => sd.items ? sd.items.length : String(sd.body ?? "").split("\n").length), 1);
+    const cmpFs = s.bodySize ?? Math.max(20, Math.min(28, Math.floor((area - 90) / (nLines * 1.8))));
     [s.left, s.right].forEach((side2, i) => {
       const x = X0 + i * (cw + gap);
       const k = card(x, y, cw, area, i ? "primary" : "accent"); const inr = k.inner;
       els.push(...k.els, text(side2.title, inr.x, inr.y, inr.w, 44, 28, { bold: true, color: T.ink, align: "center", heading: true }));
       const body = side2.items ? side2.items.map(v => `・${v}`).join("\n") : side2.body ?? "";
-      els.push(text(body, inr.x, inr.y + 52, inr.w, inr.h - 52, 20));
+      els.push(text(body, inr.x, inr.y + 52, inr.w, inr.h - 52, cmpFs));
     });
     els.push(rect(X0 + cw + 9, y + area / 2 - 26, 52, 52, T.accent, { shape: "circle" }), text("VS", X0 + cw + 9, y + area / 2 - 26, 52, 52, 18, { bold: true, color: T.onAccent, align: "center", valign: "middle", noFit: true }));
     if (s.field) els.push(field(s.field, X0, BOTTOM - fh, X1 - X0, fh, 17));

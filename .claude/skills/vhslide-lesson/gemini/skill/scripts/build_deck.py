@@ -1172,13 +1172,15 @@ def build_deck(spec, layout=None, theme=None, mascot=None, flat=False, no_fonts=
         area = BOTTOM - y - (fh + 12 if fh else 0)
         gap = 70
         cw = (X1 - X0 - gap) / 2
+        n_lines = max([len(sd["items"]) if sd.get("items") else len(str(nn(sd.get("body"), "")).split("\n")) for sd in (s["left"], s["right"])] + [1])
+        cmp_fs = s["bodySize"] if s.get("bodySize") is not None else max(20, min(28, math.floor((area - 90) / (n_lines * 1.8))))
         for i, side2 in enumerate([s["left"], s["right"]]):
             x = X0 + i * (cw + gap)
             k_els, inr = card(x, y, cw, area, "primary" if i else "accent")
             els += k_els
             els.append(text(side2.get("title"), inr["x"], inr["y"], inr["w"], 44, 28, bold=True, color=T["ink"], align="center", heading=True))
             body = "\n".join(f"・{v}" for v in side2["items"]) if side2.get("items") else nn(side2.get("body"), "")
-            els.append(text(body, inr["x"], inr["y"] + 52, inr["w"], inr["h"] - 52, 20))
+            els.append(text(body, inr["x"], inr["y"] + 52, inr["w"], inr["h"] - 52, cmp_fs))
         els += [rect(X0 + cw + 9, y + area / 2 - 26, 52, 52, T["accent"], shape="circle"),
                 text("VS", X0 + cw + 9, y + area / 2 - 26, 52, 52, 18, bold=True, color=T["onAccent"], align="center", valign="middle", noFit=True)]
         if s.get("field"):

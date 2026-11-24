@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.149.0 (52fa078): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.150.0 (9e0cc2f): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
@@ -390,6 +390,7 @@ var TEMPLATES = [
   "axis1",
   "emotion",
   "ratio",
+  "curve",
   "venn2",
   "venn3",
   "ychart",
@@ -478,7 +479,8 @@ function parseThinkingDefinition(template, raw) {
         cardColors,
         scenes: [],
         sceneMode: "teacher",
-        reason: false
+        reason: false,
+        lines: []
       }
     };
   }
@@ -533,7 +535,8 @@ function parseThinkingDefinition(template, raw) {
     cardColors: [],
     scenes,
     sceneMode: scenes.length ? value.sceneMode === "free" ? "free" : "teacher" : "teacher",
-    reason: value.reason === true
+    reason: value.reason === true,
+    lines: []
   };
   if (t === "axis2" || t === "axis1" || t === "emotion") {
     definition.xMin = cleanLabel(value.xMin, "\u8EF8\u306E\u5DE6\u7AEF\uFF08\u4E0B\u7AEF\uFF09\u306E\u8A00\u8449");
@@ -546,6 +549,52 @@ function parseThinkingDefinition(template, raw) {
   if (t === "ratio") {
     definition.nameA = cleanLabel(value.nameA, "1\u3064\u3081\u306E\u6C17\u6301\u3061\u306E\u540D\u524D");
     definition.nameB = cleanLabel(value.nameB, "2\u3064\u3081\u306E\u6C17\u6301\u3061\u306E\u540D\u524D");
+  }
+  if (t === "curve") {
+    const ID_OK = /^[A-Za-z0-9-]+$/;
+    for (const s of scenes)
+      insist(
+        ID_OK.test(s.id) && s.id.length <= 64,
+        400,
+        "\u5834\u9762\u306EID\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+      );
+    definition.yMin = cleanLabel(value.yMin, "\u7E26\u8EF8\u306E\u4E0B\u7AEF\u306E\u8A00\u8449");
+    definition.yMax = cleanLabel(value.yMax, "\u7E26\u8EF8\u306E\u4E0A\u7AEF\u306E\u8A00\u8449");
+    definition.sceneMode = "free";
+    definition.reason = true;
+    insist(
+      scenes.length >= 1,
+      400,
+      "\u5FC3\u60C5\u66F2\u7DDA\u306B\u306F\u5834\u9762\u304C1\u3064\u4EE5\u4E0A\u5FC5\u8981\u3067\u3059\u3002"
+    );
+    insist(
+      value.lines === void 0 || Array.isArray(value.lines),
+      400,
+      "\u7DDA\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    );
+    const linesRaw = Array.isArray(value.lines) ? value.lines : [];
+    insist(
+      linesRaw.length >= 1 && linesRaw.length <= 3,
+      400,
+      "\u7DDA\u306F1\u301C3\u672C\u3067\u3059\u3002"
+    );
+    const lines = [];
+    const seenLines = /* @__PURE__ */ new Set();
+    for (const entry of linesRaw) {
+      const s = entry;
+      insist(
+        s && typeof s === "object" && typeof s.id === "string" && /^[A-Za-z0-9-]+$/.test(s.id) && s.id.length <= 64,
+        400,
+        "\u7DDA\u306E\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+      );
+      insist(!seenLines.has(s.id), 400, "\u7DDA\u304C\u91CD\u306A\u3063\u3066\u3044\u307E\u3059\u3002");
+      seenLines.add(s.id);
+      lines.push({
+        id: s.id,
+        label: cleanLabel(s.label, "\u7DDA\u306E\u540D\u524D")
+      });
+    }
+    definition.lines = lines;
   }
   return { template: t, definition };
 }
@@ -609,7 +658,8 @@ function parseThinkingBindingLenient(value) {
         cardColors: [],
         scenes: [],
         sceneMode: "teacher",
-        reason: false
+        reason: false,
+        lines: []
       }
     };
   }

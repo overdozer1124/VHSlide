@@ -90,7 +90,7 @@
 | `section` | `number` `name` `minutes` `lead`（ふつうは自動。各場面の始まりに入る。`sectionSlides: false` で無効） | 場面の区切り |
 | `passage` | `text`（改行で段落）`note` `fontSize` `font`（既定は見出し明朝 shippori） | **縦書き**の本文。国語で、本文・古文・漢文の書き下し・詩・短歌など「読ませる文章」に使う |
 | `statement` | `big`（大きな数字・言葉）`caption` `note` `bigSize` | 1枚1メッセージ。印象に残す数値・結論 |
-| `compare` | `prompt` `left{title, items[] か body}` `right{…}` `field` `fieldHeight` | 2つを比べる（VS） |
+| `compare` | `prompt` `left{title, items[] か body}` `right{…}` `field` `fieldHeight` `bodySize`（省略時は余白に合わせて20〜28で自動） | 2つを比べる（VS） |
 | `steps` | `lead` `items[{title, body}]`（2〜5）`field` | 番号つきの手順 |
 | `quiz` | `prompt` `choices[]`（2〜4。回答欄そのものを大きな文字の選択肢として出す。同じ文章を二重に並べず、回答一覧・集計にも選択肢の文章が残る。`variant: "tiles"` で左に大きなタイルも置く）`id` `label` `reason`（既定true）`public`（既定true） | 全員参加の確認（大きな選択肢の回答欄＋理由） |
 | `rubric` | `lead` `selfCheck`（`true`＝観点ごとの A/B/C 自己評価欄、`"public"`＝集計も公開）`split` `fontSize`。内容は lesson.rubric（`rubric` キーで上書き可） | ルーブリック（見通し・自己評価） |
