@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { blank, moveRowGroup, removeRowGroup, swap, type Deck } from "./model";
 import { defaultAccess } from "./permissions";
-import { bindMapFilter, resolveMapFilter, resolvePageScope } from "./pageScope";
+import { bindMapFilter, presentationStartId, resolveMapFilter, resolvePageScope } from "./pageScope";
 import {
   presentationState,
   presentationNeighbor,
@@ -174,4 +174,20 @@ it("keeps explicit saved route order and isolates out-of-scope excursions", () =
   expect(external.external).toBe(true);
   expect(presentationNeighbor(external, s.mode, 1, 0)).toBeUndefined();
   expect(external.pages.map((p) => p.id)).toEqual(s.ids);
+});
+
+it("presentation starts at the current slide when it is in scope", () => {
+  const b = book();
+  const current = b.slides.find((s) => s.id === "p4")!;
+  expect(presentationStartId(b, ["p0", "p4", "p8"], current, "current")).toBe("p4");
+  expect(presentationStartId(b, ["p0", "p8"], current, "current")).toBeUndefined();
+});
+it("row start is the leftmost in-scope slide of the current row", () => {
+  const b = book();
+  const current = b.slides.find((s) => s.id === "p5")!; // sheet z, row 1 (y=1): p3,p4,p5
+  expect(presentationStartId(b, ["p5", "p4"], current, "row")).toBe("p4");
+  expect(presentationStartId(b, ["p3", "p4", "p5"], current, "row")).toBe("p3");
+  // No slide of the row in scope, and slides of other rows/sheets
+  // never count.
+  expect(presentationStartId(b, ["p0", "p8", "q"], current, "row")).toBeUndefined();
 });

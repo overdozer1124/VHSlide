@@ -54,6 +54,7 @@ import { batchAxes, removeSelectedPages } from "./mapBatch";
 import { PageScopeSummary } from "./PageScopeSummary";
 import {
   bindMapFilter,
+  presentationStartId,
   resolveMapFilter,
   resolvePageScope,
   type PageScope,
@@ -2265,21 +2266,24 @@ export default function App() {
   }
   function startPresent(
     scope: PageScope = actionScope,
-    fromCurrent = false,
+    start: "current" | "head" | "row" = "current",
     withNotes = false,
   ) {
+    const book = latestWorkbook.current;
     const resolved = resolvePageScope(
-      latestWorkbook.current,
+      book,
       scope,
       cloud.active ? cloud.access : hostAccess(),
     );
-    beginPresentation(
-      resolved.ids,
-      resolved.label,
-      "spatial",
-      fromCurrent ? slide.id : undefined,
-      withNotes,
-    );
+    // The default start is the slide on screen (falling back to the
+    // scope's head when it is outside the scope); "head" keeps the
+    // old always-from-the-first-page behavior for the whole-sheet
+    // entry, and "row" starts at the current row's leftmost slide.
+    const startId =
+      start === "head"
+        ? undefined
+        : presentationStartId(book, resolved.ids, slide, start);
+    beginPresentation(resolved.ids, resolved.label, "spatial", startId, withNotes);
   }
   const cloudPresence =
     cloud.active && view !== "present" ? (
@@ -3099,13 +3103,25 @@ export default function App() {
                           label: "ノートを見ながら発表する",
                           detail: `${actionResolvedScope.summary}・発表者用ノートを別ウィンドウで開く`,
                           disabled: !actionResolvedScope.ids.length,
-                          action: () => startPresent(actionScope, false, true),
+                          action: () => startPresent(actionScope, "current", true),
                         },
                         {
                           label: "現在のページから縦横に発表",
                           detail: actionResolvedScope.summary,
                           disabled: !actionResolvedScope.ids.includes(slide.id),
-                          action: () => startPresent(actionScope, true),
+                          action: () => startPresent(actionScope, "current"),
+                        },
+                        {
+                          label: "現在の行の最初から発表",
+                          detail: actionResolvedScope.summary,
+                          disabled:
+                            presentationStartId(
+                              workbook,
+                              actionResolvedScope.ids,
+                              slide,
+                              "row",
+                            ) === undefined,
+                          action: () => startPresent(actionScope, "row"),
                         },
                         ...(actionScope.kind === "filter"
                           ? [
@@ -3113,10 +3129,13 @@ export default function App() {
                                 label: "シート全体を縦横に発表",
                                 detail: `${activeSheet(workbook).name}・全${deck.slides.length}ページ`,
                                 action: () =>
-                                  startPresent({
-                                    kind: "sheet",
-                                    sheetId: currentSheetId,
-                                  }),
+                                  startPresent(
+                                    {
+                                      kind: "sheet",
+                                      sheetId: currentSheetId,
+                                    },
+                                    "head",
+                                  ),
                               },
                             ]
                           : []),
