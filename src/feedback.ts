@@ -1,5 +1,4 @@
 import type { HistorySQL } from "./historyStore.ts";
-import { versionTriggers } from "./featureVersions.ts";
 
 /** Teacher feedback and send-backs (student-input plan §4.3). One
  * generic table serves every answer kind; stage 2a wires it to
@@ -29,10 +28,20 @@ const insist = (ok: unknown, status: number, message: string): void => {
   if (!ok) throw new FeedbackError(status, message);
 };
 
+const feedbackBump = (alias: "NEW" | "OLD", feature: string) =>
+  `INSERT INTO feature_versions(deck,feature,version) VALUES(${alias}.deck,'${feature}',1) ON CONFLICT(deck,feature) DO UPDATE SET version=version+1;`;
+/** Feedback moves two poll counters: "editfeedback" (the rows
+ * themselves) and "editanswers" (the host console's answer overview,
+ * whose cards carry the send-back / resubmitted flags — they must
+ * refresh while the console stays open). A read_at-only update
+ * moves neither: the reader gets the fresh rows in the command's
+ * response, and read receipts are not urgent for the host. */
 export const feedbackSchema =
   `
-CREATE TABLE IF NOT EXISTS form_feedback(id TEXT PRIMARY KEY, deck TEXT NOT NULL, target_kind TEXT NOT NULL, target_id TEXT NOT NULL, owner TEXT NOT NULL, text TEXT NOT NULL, stamp TEXT NOT NULL, reopen INTEGER NOT NULL, created INTEGER NOT NULL, read_at INTEGER NOT NULL);` +
-  versionTriggers("form_feedback", "editfeedback", (a) => `${a}.deck`);
+CREATE TABLE IF NOT EXISTS form_feedback(id TEXT PRIMARY KEY, deck TEXT NOT NULL, target_kind TEXT NOT NULL, target_id TEXT NOT NULL, owner TEXT NOT NULL, text TEXT NOT NULL, stamp TEXT NOT NULL, reopen INTEGER NOT NULL, created INTEGER NOT NULL, read_at INTEGER NOT NULL);
+CREATE TRIGGER IF NOT EXISTS fv_form_feedback_ins AFTER INSERT ON form_feedback BEGIN ${feedbackBump("NEW", "editfeedback")} ${feedbackBump("NEW", "editanswers")} END;
+CREATE TRIGGER IF NOT EXISTS fv_form_feedback_upd AFTER UPDATE OF reopen ON form_feedback BEGIN ${feedbackBump("NEW", "editfeedback")} ${feedbackBump("NEW", "editanswers")} END;
+CREATE TRIGGER IF NOT EXISTS fv_form_feedback_del AFTER DELETE ON form_feedback BEGIN ${feedbackBump("OLD", "editfeedback")} ${feedbackBump("OLD", "editanswers")} END;`;
 
 export const FEEDBACK_STAMPS = [
   "よくできました",

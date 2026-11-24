@@ -97,8 +97,14 @@ describe("feedback (§4.3) for free-edit slides", () => {
     const { sql } = fixture();
     const defId = closedDeckWithAnswer(sql);
     const before = featureVersion(sql, DECK, "editfeedback");
+    const answersBefore = featureVersion(sql, DECK, "editanswers");
     send(sql, defId, { stamp: "よくできました" });
     expect(featureVersion(sql, DECK, "editfeedback")).toBeGreaterThan(before);
+    // The console's answer overview moves too, so its cards can
+    // refresh their flags without a reload.
+    expect(featureVersion(sql, DECK, "editanswers")).toBeGreaterThan(
+      answersBefore,
+    );
     const mine = feedbackList(sql, DECK, "ana", false);
     expect(mine).toHaveLength(1);
     expect(mine[0].stamp).toBe("よくできました");
@@ -109,8 +115,14 @@ describe("feedback (§4.3) for free-edit slides", () => {
     // Bob cannot mark ana's row read; ana can.
     feedbackCommand(sql, DECK, "bob", false, "read", { ids: [mine[0].id] });
     expect(feedbackList(sql, DECK, "ana", false)[0].readAt).toBeNull();
+    // Marking read moves no poll counter: the reader gets the fresh
+    // rows in the response, and the host need not re-read for it.
+    const efBefore = featureVersion(sql, DECK, "editfeedback");
+    const eaBefore = featureVersion(sql, DECK, "editanswers");
     feedbackCommand(sql, DECK, "ana", false, "read", { ids: [mine[0].id] });
     expect(feedbackList(sql, DECK, "ana", false)[0].readAt).not.toBeNull();
+    expect(featureVersion(sql, DECK, "editfeedback")).toBe(efBefore);
+    expect(featureVersion(sql, DECK, "editanswers")).toBe(eaBefore);
   });
 
   it("validates sender, stamp, length and emptiness", () => {
@@ -211,7 +223,11 @@ describe("feedback (§4.3) for free-edit slides", () => {
     expect(() => save("bob", 0)).toThrow(/受付中ではない/);
     // Resubmit closes the send-back; saving stops again, and the
     // console flag reports the resubmission.
+    const eaBeforeResubmit = featureVersion(sql, DECK, "editanswers");
     feedbackCommand(sql, DECK, "ana", false, "resubmit", { targetId: defId });
+    expect(featureVersion(sql, DECK, "editanswers")).toBeGreaterThan(
+      eaBeforeResubmit,
+    );
     expect(feedbackReopenActive(sql, DECK, "editslide", defId, "ana")).toBe(
       false,
     );

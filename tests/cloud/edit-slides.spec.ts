@@ -268,6 +268,10 @@ test("free-edit feedback: host sends back, student resubmits", async ({
     timeout: 15_000,
   });
   await dialog.getByRole("button", { name: "閉じる" }).click();
+  // The card flags the send-back without any reload.
+  await expect(consoleView.getByText("差し戻し中")).toBeVisible({
+    timeout: 20_000,
+  });
 
   // Student: the feedback shows on the base slide, the studio
   // re-opens despite the closed intake, and 出し直す closes the
@@ -290,11 +294,12 @@ test("free-edit feedback: host sends back, student resubmits", async ({
   await studio.getByRole("button", { name: "出し直す" }).click();
   await expect(studio).toBeHidden({ timeout: 15_000 });
 
-  // Host console: the card now flags the resubmission.
-  await page.goto(`/?room=${id}`);
-  await page.getByRole("button", { name: "授業コンソール" }).click();
-  await consoleView.getByRole("tab", { name: "生徒のスライド" }).click();
+  // Host console, still open from before: the card switches from
+  // 差し戻し中 to 再提出 on its own (no reload).
   await expect(consoleView.getByText("再提出")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(consoleView.getByText("差し戻し中")).toBeHidden({
     timeout: 20_000,
   });
   await context.close();

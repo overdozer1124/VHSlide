@@ -283,6 +283,7 @@ export async function exerciseEditSlides(
     guest,
     403,
   );
+  const eaBeforeFeedback = (await poll(owner)).editanswers.version as number;
   const sentBack = await sendFeedback(
     {
       targetKind: "editslide",
@@ -293,6 +294,11 @@ export async function exerciseEditSlides(
       reopen: true,
     },
     owner,
+  );
+  // Sending feedback moves the host console's counter too, so the
+  // cards' send-back / resubmitted flags refresh without a reload.
+  assert.ok(
+    ((await poll(owner)).editanswers.version as number) > eaBeforeFeedback,
   );
   assert.equal(((await sentBack.json()).feedback as any[]).length, 1);
   const guestFeedback = await pollFeedback(guest);
@@ -321,6 +327,7 @@ export async function exerciseEditSlides(
   );
   // Resubmitting closes the send-back: saves stop, and the host's
   // answer overview flags the resubmission.
+  const eaBeforeResubmit = (await poll(owner)).editanswers.version as number;
   const resub = await call(
     `${feedbackBase}/resubmit`,
     "POST",
@@ -328,6 +335,9 @@ export async function exerciseEditSlides(
     guest,
   );
   assert.equal(resub.status, 200, await resub.clone().text());
+  assert.ok(
+    ((await poll(owner)).editanswers.version as number) > eaBeforeResubmit,
+  );
   const afterResubmit = (await list(guest)).find((d: any) => d.id === defId)
     .mine;
   await write(
