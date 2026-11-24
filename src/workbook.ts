@@ -244,3 +244,45 @@ export function appendJsonRows(
       : {}),
   };
 }
+
+/**
+ * Place imported pages into an existing row of a sheet: "replace"
+ * swaps the row's current pages for the imported ones, "append"
+ * puts them after the row's last page. Used when a student with an
+ * assigned row imports a file into their own row; the server-side
+ * access check only accepts changes inside that row.
+ */
+export function placeSlidesInRow(
+  book: Deck,
+  imported: Slide[],
+  sheetId: string,
+  y: number,
+  mode: "replace" | "append",
+): Deck {
+  if (!imported.length) throw new Error("読み込むページがありません。");
+  const inRow = book.slides.filter(
+    (s) => (s.sheetId ?? "main") === sheetId && s.y === y,
+  );
+  const total =
+    book.slides.length - (mode === "replace" ? inRow.length : 0) +
+    imported.length;
+  if (total > MAX_SLIDES)
+    throw new Error(`作品全体で${MAX_SLIDES}ページまでです。`);
+  const startX =
+    mode === "append" && inRow.length
+      ? Math.max(...inRow.map((s) => s.x)) + 1
+      : 0;
+  if (startX + imported.length - 1 > 99)
+    throw new Error("行の後ろに置く場所が足りません。");
+  const placed = imported.map((s, i) => {
+    const base: Slide = { ...s, x: startX + i, y };
+    if (book.sheets) base.sheetId = sheetId;
+    else delete base.sheetId;
+    return base;
+  });
+  const kept =
+    mode === "replace"
+      ? book.slides.filter((s) => !inRow.includes(s))
+      : book.slides;
+  return { ...book, slides: [...kept, ...placed] };
+}

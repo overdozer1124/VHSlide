@@ -37,6 +37,9 @@ import { parseSurveyBinding } from "./surveyBinding";
 import { SurveyPanel } from "./SurveyPanel";
 import { insertSurveyResults } from "./surveySlides";
 import { importPptx, dataUrlToFile } from "./pptx";
+import { importPdf } from "./pdfImport";
+import { axisIndex } from "./axes";
+import { ImportRowChoiceDialog } from "./ImportRowChoiceDialog";
 import { prepareImportedForms } from "./importForms";
 import { useFollowLock } from "./useFollowLock";
 import type { FollowTarget, ChartShowRequest } from "./hostFollow";
@@ -155,6 +158,7 @@ import {
   mergeSheet,
   changeSheet,
   appendSlidesAsRow,
+  placeSlidesInRow,
   appendJsonRows,
 } from "./workbook";
 import { SheetTabs } from "./SheetTabs";
@@ -310,6 +314,11 @@ export default function App() {
     null,
   );
   const [backupOpen, setBackupOpen] = useState(false);
+  const [importChoice, setImportChoice] = useState<{
+    slides: Slide[];
+    target: { sheetId: string; y: number };
+    isPdf: boolean;
+  } | null>(null);
   const [toolsOpen, setToolsOpen] = useState<SlideAction>();
   const [compareIds, setCompareIds] = useState<string[]>([]);
   type FitRequest = {
@@ -1949,41 +1958,109 @@ export default function App() {
     }
     return result;
   }
-  async function openPptxAsRow(file?: File) {
+  /** The one row this member is assigned to, if exactly one row is granted. */
+  function myAssignedRow(book: Deck): { sheetId: string; y: number } | null {
+    const access = cloud.access;
+    if (!access || access.mode !== "scoped" || access.rows.length !== 1)
+      return null;
+    const grant = access.rows[0];
+    const y = axisIndex(book, "rows", grant);
+    if (y === undefined) return null;
+    return { sheetId: grant.sheetId, y };
+  }
+  async function openImportAsRow(file?: File) {
     if (!file) return;
-    if (!cloud.isHost) {
-      notify("行の追加はホストだけが行えます。");
+    const isPdf = /\.pdf$/i.test(file.name);
+    if (!isPdf && !/\.pptx$/i.test(file.name)) {
+      notify("PPTXまたはPDFファイルを選んでください。");
+      return;
+    }
+    if (!cloud.isHost && !myAssignedRow(latestWorkbook.current)) {
+      notify(
+        "読み込みは、ホストか、行を割り当てられた生徒だけが行えます。",
+      );
       return;
     }
     try {
-      if (!/\.pptx$/i.test(file.name))
-        throw new Error("PPTXファイルを選んでください。");
-      const imported = await importPptx(file);
       const roomId = cloud.active?.id;
-      const slides = roomId
-        ? await uploadEmbeddedImages(imported.slides, roomId)
-        : imported.slides;
+      let slides = isPdf
+        ? await importPdf(file)
+        : (await importPptx(file)).slides;
+      if (roomId) slides = await uploadEmbeddedImages(slides, roomId);
       if (roomId && cloud.active?.id !== roomId)
         throw new Error(
           "読み込み中に作品が切り替わりました。もう一度お試しください。",
         );
       const current = latestWorkbook.current;
-      const sheet = activeSheet(current);
-      const next = appendSlidesAsRow(
+      if (cloud.isHost) {
+        const sheet = activeSheet(current);
+        const next = appendSlidesAsRow(
+          current,
+          slides,
+          sheet.id,
+          file.name.replace(/\.(pptx|pdf)$/i, ""),
+        );
+        if (!commitWorkbook(next, current)) return;
+        const first = next.slides[current.slides.length];
+        setViewFilters({});
+        setActiveId(first.id);
+        setSelected(undefined);
+        setView("map");
+        setMoving(undefined);
+        notify(
+          isPdf
+            ? `PDFの${slides.length}ページを「${sheet.name}」の新しい行として読み込みました。各ページは画像として取り込まれます。`
+            : `PPTXの${slides.length}ページを「${sheet.name}」の新しい行として読み込みました。文字・画像・基本図形のみ再現され、テーマ・グループ・表・グラフ・アニメーションなどは再現されない場合があります。`,
+        );
+        return;
+      }
+      const target = myAssignedRow(current);
+      if (!target) {
+        notify(
+          "読み込みは、ホストか、行を割り当てられた生徒だけが行えます。",
+        );
+        return;
+      }
+      const existing = current.slides.filter(
+        (slide) =>
+          (slide.sheetId ?? "main") === target.sheetId &&
+          slide.y === target.y,
+      );
+      if (existing.length) {
+        setImportChoice({ slides, target, isPdf });
+        return;
+      }
+      finishRowImport(slides, target, "append", isPdf);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "読み込めませんでした。");
+    }
+  }
+  function finishRowImport(
+    slides: Slide[],
+    target: { sheetId: string; y: number },
+    mode: "replace" | "append",
+    isPdf: boolean,
+  ) {
+    try {
+      const current = latestWorkbook.current;
+      const next = placeSlidesInRow(
         current,
         slides,
-        sheet.id,
-        file.name.replace(/\.pptx$/i, ""),
+        target.sheetId,
+        target.y,
+        mode,
       );
       if (!commitWorkbook(next, current)) return;
-      const first = next.slides[current.slides.length];
+      const first = next.slides[next.slides.length - slides.length];
+      const sheet = sheetList(next).find((s) => s.id === target.sheetId);
       setViewFilters({});
+      if (activeSheet(next).id !== target.sheetId) selectSheet(target.sheetId);
       setActiveId(first.id);
       setSelected(undefined);
       setView("map");
       setMoving(undefined);
       notify(
-        `PPTXの${imported.slides.length}ページを「${sheet.name}」の新しい行として読み込みました。文字・画像・基本図形のみ再現され、テーマ・グループ・表・グラフ・アニメーションなどは再現されない場合があります。`,
+        `${isPdf ? "PDF" : "PPTX"}の${slides.length}ページを、あなたの行（「${sheet?.name ?? ""}」の${target.y + 1}行目）に読み込みました。${isPdf ? "各ページは画像として取り込まれます。" : ""}`,
       );
     } catch (error) {
       notify(error instanceof Error ? error.message : "読み込めませんでした。");
@@ -2856,10 +2933,10 @@ export default function App() {
         <input
           ref={pptxRowRef}
           type="file"
-          accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          accept=".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
           hidden
           onChange={(e) => {
-            void openPptxAsRow(e.target.files?.[0]);
+            void openImportAsRow(e.target.files?.[0]);
             e.target.value = "";
           }}
         />
@@ -2961,8 +3038,16 @@ export default function App() {
                           action: () => jsonRef.current?.click(),
                         },
                         {
-                          label: "PPTXを1行として読み込む",
-                          detail: "今のシートの末尾に新しい行として追加",
+                          label: cloud.isHost
+                            ? "PPTX／PDFを1行として読み込む"
+                            : myAssignedRow(workbook)
+                              ? "PPTX／PDFを自分の行に読み込む"
+                              : "PPTX／PDFを読み込む",
+                          detail: cloud.isHost
+                            ? "今のシートの末尾に新しい行として追加"
+                            : myAssignedRow(workbook)
+                              ? "割り当てられた行に入ります"
+                              : "ホストか、行を割り当てられた生徒だけが行えます",
                           action: () => pptxRowRef.current?.click(),
                         },
                         {
@@ -3330,6 +3415,28 @@ export default function App() {
               <X size={18} />
             </button>
           </aside>
+        )}
+        {importChoice && (
+          <ImportRowChoiceDialog
+            pageCount={importChoice.slides.length}
+            sheetName={
+              sheetList(workbook).find(
+                (s) => s.id === importChoice.target.sheetId,
+              )?.name ?? ""
+            }
+            rowNumber={importChoice.target.y + 1}
+            onChoose={(mode) => {
+              const choice = importChoice;
+              setImportChoice(null);
+              finishRowImport(
+                choice.slides,
+                choice.target,
+                mode,
+                choice.isPdf,
+              );
+            }}
+            onCancel={() => setImportChoice(null)}
+          />
         )}
         {backupOpen && (
           <BackupDialog
