@@ -1,4 +1,8 @@
-import { galleryCommand } from "../src/responseGallery.ts";
+import {
+  galleryCommand,
+  ensureEditGallery,
+  pruneEditGallery,
+} from "../src/responseGallery.ts";
 import {
   worksheetSchema,
   worksheetList,
@@ -18,6 +22,10 @@ import {
   editSlideCommand,
   recordEditAnswerAsset,
   editAnswerAsset,
+  takeEditShare,
+  removeEditShare,
+  followShareView,
+  editSlideSource,
   EditSlideError,
 } from "../src/editSlides.ts";
 import {
@@ -671,9 +679,9 @@ export function createApplication(options: Options) {
   async function releaseBlob(owner: string, hash: string) {
     const refs = db
       .prepare(
-        "SELECT (SELECT COUNT(*) FROM assets WHERE owner=? AND hash=?) + (SELECT COUNT(*) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def JOIN decks dk ON dk.id=d.deck WHERE dk.owner=? AND aa.hash=?) AS n",
+        "SELECT (SELECT COUNT(*) FROM assets WHERE owner=? AND hash=?) + (SELECT COUNT(*) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def JOIN decks dk ON dk.id=d.deck WHERE dk.owner=? AND aa.hash=?) + (SELECT COUNT(*) FROM edit_slide_share_assets sa JOIN edit_slide_answer_assets aa2 ON aa2.asset=sa.asset JOIN edit_slide_defs d2 ON d2.id=aa2.def JOIN decks dk2 ON dk2.id=d2.deck WHERE dk2.owner=? AND aa2.hash=?) AS n",
       )
-      .get(owner, hash, owner, hash) as { n: number };
+      .get(owner, hash, owner, hash, owner, hash) as { n: number };
     if (refs.n) return;
     db.prepare("DELETE FROM blobs WHERE owner=? AND hash=?").run(owner, hash);
     if (!db.prepare("SELECT hash FROM blobs WHERE hash=?").get(hash))
@@ -893,6 +901,10 @@ export function createApplication(options: Options) {
   /** Remove a deck's edit-slide rows explicitly (used by the deck
    * deletion paths, inside their transaction). */
   function deleteEditSlideRows(id: string) {
+    db.prepare(
+      "DELETE FROM edit_slide_share_assets WHERE share IN (SELECT id FROM edit_slide_shares WHERE deck=?)",
+    ).run(id);
+    db.prepare("DELETE FROM edit_slide_shares WHERE deck=?").run(id);
     db.prepare(
       "DELETE FROM edit_slide_answer_assets WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
     ).run(id);
@@ -2289,7 +2301,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers)(?:\/([^/]+))?)?)?$/.exec(
+            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers|share-follow|share-gallery|share-remove)(?:\/([^/]+))?)?)?$/.exec(
               extra,
             );
           insist(
@@ -2299,7 +2311,8 @@ export function createApplication(options: Options) {
                   (route[2] === "answer-assets" && !!route[3]) ||
                   (route[2] === "answers" && !!route[3])
                 : method === "DELETE"
-                  ? !!route[1] && !route[2]
+                  ? !!route[1] &&
+                    (!route[2] || route[2] === "share-follow")
                   : extra === "edit-slides" ||
                     (!!route[2] && !route[3])),
             404,
@@ -2332,6 +2345,20 @@ export function createApplication(options: Options) {
               route![1]!,
               route![3]!,
             );
+            if (stored.follow) {
+              // Allowed only through a follow snapshot: the room's
+              // follow must be live for that definition + author,
+              // however it was started or stopped.
+              const follow = expireFollow(room(id).follow ?? idleFollow());
+              insist(
+                follow.active &&
+                  follow.target.mode === "editslide" &&
+                  follow.share?.defId === stored.follow.defId &&
+                  follow.share?.owner === stored.follow.author,
+                404,
+                "写真が見つかりません。",
+              );
+            }
             const bytes = await storage.read(blobKey(stored.hash));
             res.writeHead(200, {
               "Content-Type": stored.mime,
@@ -2350,6 +2377,72 @@ export function createApplication(options: Options) {
               await body(req, 6_000_000),
             );
             return json(res, 201, { src });
+          }
+          if (
+            route![2] === "share-follow" ||
+            route![2] === "share-gallery" ||
+            route![2] === "share-remove"
+          ) {
+            // Stage 2b: snapshot one answer for follow or for the
+            // response gallery, or take a share down.
+            const value =
+              method === "POST"
+                ? JSON.parse((await body(req, 8_000_000)).toString())
+                : {};
+            db.exec("BEGIN IMMEDIATE");
+            try {
+              const current = member(id, u);
+              const host = current.owner === u.id;
+              if (route![2] === "share-follow") {
+                if (method === "DELETE")
+                  removeEditShare(historySQL, id, host, route![1]!, { follow: true });
+                else
+                  takeEditShare(
+                    historySQL,
+                    id,
+                    host,
+                    route![1]!,
+                    String(value.author ?? ""),
+                    "follow",
+                    value.names === true,
+                  );
+              } else if (route![2] === "share-gallery") {
+                takeEditShare(
+                  historySQL,
+                  id,
+                  host,
+                  route![1]!,
+                  String(value.author ?? ""),
+                  "gallery",
+                  value.names === true,
+                );
+                const source = editSlideSource(historySQL, id, route![1]!);
+                const slide = value.slide as { id?: unknown } | undefined;
+                insist(
+                  slide && slide.id === source,
+                  400,
+                  "共有先のスライドが違います。",
+                );
+                ensureEditGallery(
+                  historySQL,
+                  id,
+                  slide as Parameters<typeof ensureEditGallery>[2],
+                );
+              } else {
+                const source = editSlideSource(historySQL, id, route![1]!);
+                removeEditShare(historySQL, id, host, route![1]!, {
+                  shareId: value.shareId,
+                  author: value.author,
+                });
+                if (source) pruneEditGallery(historySQL, id, source);
+              }
+              const editSlides = editSlideList(historySQL, id, u.id, host);
+              db.exec("COMMIT");
+              return json(res, 200, { editSlides });
+            } catch (error) {
+              db.exec("ROLLBACK");
+              throw error;
+            }
           }
           // An answer's JSON is capped at 256KB, so its request
           // body gets a cap near that size; definition creation
@@ -2672,6 +2765,31 @@ export function createApplication(options: Options) {
             },
           );
           insist(view, 404, "いま見せているチャートはありません。");
+          return json(res, 200, { share: view });
+        }
+        if (extra === "edit-slide-share") {
+          // The follow snapshot of one student's slide (stage 2b):
+          // served only while the room's follow state points at
+          // that definition + author with this share id.
+          insist(method === "GET", 405, "この操作には対応していません。");
+          member(id, u);
+          const follow = expireFollow(room(id).follow ?? idleFollow());
+          insist(
+            follow.active &&
+              follow.target.mode === "editslide" &&
+              follow.target.shareId ===
+                (url.searchParams.get("share") ?? "") &&
+              !!follow.share?.defId,
+            404,
+            "いま見せているスライドはありません。",
+          );
+          const view = followShareView(
+            historySQL,
+            id,
+            follow.share!.defId!,
+            follow.share!.owner,
+          );
+          insist(view, 404, "いま見せているスライドはありません。");
           return json(res, 200, { share: view });
         }
         if (extra === "prev-answer") {

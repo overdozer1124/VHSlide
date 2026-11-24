@@ -1,6 +1,11 @@
 import type { HistorySQL } from "./historyStore.ts";
 import { parseDeck } from "./model.ts";
 import type { Slide } from "./model.ts";
+import {
+  deleteGalleryShares,
+  galleryShareViews,
+} from "./editSlides.ts";
+import type { EditShareView } from "./editSlides.ts";
 import { worksheetList } from "./worksheets.ts";
 import type { WorksheetView } from "./worksheets.ts";
 import { surveyList, SurveyError } from "./surveys.ts";
@@ -19,6 +24,11 @@ export type ResponseGallery = {
   names: boolean;
   live: boolean;
   created: number;
+  /** Free-edit slide snapshots the host published for this slide
+   * (stage 2b). Stored as their own rows, never inside this
+   * snapshot; attached at read time, so unpublishing one takes
+   * effect immediately. */
+  editSlides?: EditShareView[];
   /** Private preview only: the deck's members who have not answered
    * this slide yet (names, in class account order), so the console
    * can list them as 未回答. Never set on a published gallery. */
@@ -29,6 +39,9 @@ type Config = {
   names: boolean;
   live: boolean;
   aliases?: Record<string, { id: string; number: number }>;
+  /** Created automatically so free-edit shares of this slide have
+   * a gallery to live in; carries no answer cards of its own. */
+  editOnly?: boolean;
 };
 function check(v: unknown, status: number, message: string): asserts v {
   if (!v) throw new SurveyError(status, message);
@@ -287,9 +300,12 @@ export function galleryCommand(
     const data = stored();
     const galleries = data.slides.map((slide, index) => {
       const config = data.configs[index];
-      if (!config.live) return data.snapshots[index];
-      config.aliases ??= {};
-      return galleryBuild(sql, deck, actor, slide, config);
+      const gallery = !config.live
+        ? data.snapshots[index]
+        : galleryBuild(sql, deck, actor, slide, config);
+      const shares = galleryShareViews(sql, deck, slide.id);
+      if (shares.length) gallery.editSlides = shares;
+      return gallery;
     });
     if (row && data.configs.some((config) => config.live)) {
       const encoded = JSON.stringify(
@@ -302,8 +318,11 @@ export function galleryCommand(
   }
   check(host, 403, "共有を操作できるのはホストだけです。");
   if (action === "stop") {
+    // Stopping the gallery also takes down its free-edit
+    // snapshots: their photo access must end with the publication.
     if (typeof value?.slideId !== "string") {
       sql("DELETE FROM response_gallery WHERE deck=?", deck);
+      deleteGalleryShares(sql, deck);
       return { gallery: null, galleries: [] };
     }
     const data = stored();
@@ -314,6 +333,7 @@ export function galleryCommand(
       data.snapshots.splice(index, 1);
       save(data);
     }
+    deleteGalleryShares(sql, deck, value.slideId as string);
     return { gallery: data.snapshots[0] ?? null, galleries: data.snapshots };
   }
   if (action === "counts") {
@@ -431,4 +451,99 @@ export function galleryCommand(
     return { gallery: snapshot, galleries: data.snapshots };
   }
   return { gallery };
+}
+
+/** Ensure a published gallery exists for a free-edit definition's
+ * source slide, so its gallery shares have somewhere to appear.
+ * Creates an empty, edit-only entry when the slide has none; a
+ * real gallery the host already published is left untouched. */
+export function ensureEditGallery(
+  sql: HistorySQL,
+  deck: string,
+  slide: Slide,
+) {
+  sql(
+    "CREATE TABLE IF NOT EXISTS response_gallery(deck TEXT PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE,slide TEXT NOT NULL,config TEXT NOT NULL,snapshot TEXT NOT NULL)",
+  );
+  const row = [...sql("SELECT * FROM response_gallery WHERE deck=?", deck)][0];
+  const data = row
+    ? ((): { slides: Slide[]; configs: Config[]; snapshots: ResponseGallery[] } => {
+        const slides = JSON.parse(row.slide),
+          configs = JSON.parse(row.config),
+          snapshots = JSON.parse(row.snapshot);
+        return {
+          slides: Array.isArray(slides) ? slides : [slides],
+          configs: Array.isArray(configs) ? configs : [configs],
+          snapshots: Array.isArray(snapshots) ? snapshots : [snapshots],
+        };
+      })()
+    : { slides: [], configs: [], snapshots: [] };
+  if (data.slides.some((s) => s.id === slide.id)) return;
+  check(data.slides.length < 50, 400, "共有できるスライドは50枚までです。");
+  const clean: Slide = {
+    ...slide,
+    x: 0,
+    y: 0,
+    sheetId: undefined,
+    speakerNotes: undefined,
+    elements: slide.elements.map((e) => ({ ...e, link: undefined })),
+  };
+  data.slides.push(clean);
+  data.configs.push({
+    participants: null,
+    names: false,
+    live: false,
+    editOnly: true,
+  });
+  data.snapshots.push({
+    slide: clean,
+    cards: [],
+    names: false,
+    live: false,
+    created: Date.now(),
+  });
+  sql(
+    "INSERT INTO response_gallery VALUES(?,?,?,?) ON CONFLICT(deck) DO UPDATE SET slide=excluded.slide,config=excluded.config,snapshot=excluded.snapshot",
+    deck,
+    JSON.stringify(data.slides),
+    JSON.stringify(data.configs),
+    JSON.stringify(data.snapshots),
+  );
+}
+
+/** Drop an edit-only gallery entry once its last free-edit share
+ * is gone, so students are not left with an empty gallery. Real
+ * galleries (with answer cards) are never pruned here. */
+export function pruneEditGallery(
+  sql: HistorySQL,
+  deck: string,
+  source: string,
+) {
+  if (galleryShareViews(sql, deck, source).length) return;
+  const row = [...sql("SELECT * FROM response_gallery WHERE deck=?", deck)][0];
+  if (!row) return;
+  const slides = JSON.parse(row.slide),
+    configs = JSON.parse(row.config),
+    snapshots = JSON.parse(row.snapshot);
+  const list = {
+    slides: Array.isArray(slides) ? slides : [slides],
+    configs: Array.isArray(configs) ? configs : [configs],
+    snapshots: Array.isArray(snapshots) ? snapshots : [snapshots],
+  };
+  const index = list.slides.findIndex((s: Slide) => s.id === source);
+  if (index < 0 || !list.configs[index]?.editOnly) return;
+  list.slides.splice(index, 1);
+  list.configs.splice(index, 1);
+  list.snapshots.splice(index, 1);
+  if (!list.slides.length) {
+    sql("DELETE FROM response_gallery WHERE deck=?", deck);
+    return;
+  }
+  sql(
+    "UPDATE response_gallery SET slide=?,config=?,snapshot=? WHERE deck=?",
+    JSON.stringify(list.slides),
+    JSON.stringify(list.configs),
+    JSON.stringify(list.snapshots),
+    deck,
+  );
 }

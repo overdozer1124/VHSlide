@@ -1,4 +1,8 @@
-import { galleryCommand } from "../src/responseGallery.ts";
+import {
+  galleryCommand,
+  ensureEditGallery,
+  pruneEditGallery,
+} from "../src/responseGallery.ts";
 import {
   worksheetSchema,
   worksheetList,
@@ -18,6 +22,10 @@ import {
   editSlideCommand,
   recordEditAnswerAsset,
   editAnswerAsset,
+  takeEditShare,
+  removeEditShare,
+  followShareView,
+  editSlideSource,
 } from "../src/editSlides.ts";
 import { feedbackCommand, feedbackList } from "../src/feedback.ts";
 import { webbingSchema, webbingList, webbingCommand } from "../src/webbing.ts";
@@ -417,7 +425,9 @@ export class Directory extends DurableObject<Env> {
     // answer photos (whose blobs are owned by the deck's owner).
     const refs = one<{ n: number }>(
       this.sql,
-      "SELECT (SELECT COUNT(*) FROM assets WHERE owner=? AND hash=?) + (SELECT COUNT(*) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def JOIN decks dk ON dk.id=d.deck WHERE dk.owner=? AND aa.hash=?) AS n",
+      "SELECT (SELECT COUNT(*) FROM assets WHERE owner=? AND hash=?) + (SELECT COUNT(*) FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def JOIN decks dk ON dk.id=d.deck WHERE dk.owner=? AND aa.hash=?) + (SELECT COUNT(*) FROM edit_slide_share_assets sa JOIN edit_slide_answer_assets aa2 ON aa2.asset=sa.asset JOIN edit_slide_defs d2 ON d2.id=aa2.def JOIN decks dk2 ON dk2.id=d2.deck WHERE dk2.owner=? AND aa2.hash=?) AS n",
+      owner,
+      hash,
       owner,
       hash,
       owner,
@@ -529,6 +539,11 @@ export class Directory extends DurableObject<Env> {
         "SELECT DISTINCT aa.hash AS hash FROM edit_slide_answer_assets aa JOIN edit_slide_defs d ON d.id=aa.def WHERE d.deck=?",
         id,
       );
+      this.sql.exec(
+        "DELETE FROM edit_slide_share_assets WHERE share IN (SELECT id FROM edit_slide_shares WHERE deck=?)",
+        id,
+      );
+      this.sql.exec("DELETE FROM edit_slide_shares WHERE deck=?", id);
       this.sql.exec(
         "DELETE FROM edit_slide_answer_assets WHERE def IN (SELECT id FROM edit_slide_defs WHERE deck=?)",
         id,
@@ -2201,7 +2216,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers)(?:\/([^/]+))?)?)?$/.exec(
+        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers|share-follow|share-gallery|share-remove)(?:\/([^/]+))?)?)?$/.exec(
           extra,
         );
       insist(
@@ -2211,7 +2226,7 @@ export class Directory extends DurableObject<Env> {
               (route[2] === "answer-assets" && !!route[3]) ||
               (route[2] === "answers" && !!route[3])
             : method === "DELETE"
-              ? !!route[1] && !route[2]
+              ? !!route[1] && (!route[2] || route[2] === "share-follow")
               : extra === "edit-slides" || (!!route[2] && !route[3])),
         404,
         "生徒の編集用の操作が見つかりません。",
@@ -2247,6 +2262,28 @@ export class Directory extends DurableObject<Env> {
           route![1]!,
           route![3]!,
         );
+        if (stored.follow) {
+          // Allowed only through a follow snapshot: the room's
+          // follow must be live for that definition + author,
+          // however it was started or stopped.
+          const followResponse = await checked(
+            await room(this.env, id).fetch(internal("/internal/follow-share")),
+          );
+          const follow = (await followResponse.json()) as {
+            active: boolean;
+            mode?: string;
+            defId?: string;
+            owner?: string;
+          };
+          insist(
+            follow.active &&
+              follow.mode === "editslide" &&
+              follow.defId === stored.follow.defId &&
+              follow.owner === stored.follow.author,
+            404,
+            "写真が見つかりません。",
+          );
+        }
         const blob = one<{ mime: string; bytes: number }>(
           this.sql,
           "SELECT mime,bytes FROM blobs WHERE owner=? AND hash=?",
@@ -2294,6 +2331,61 @@ export class Directory extends DurableObject<Env> {
       const response = this.ctx.storage.transactionSync(() => {
         const current = this.access(id, user);
         const host = current.owner === user.id;
+        if (
+          route![2] === "share-follow" ||
+          route![2] === "share-gallery" ||
+          route![2] === "share-remove"
+        ) {
+          // Stage 2b shares: snapshot one answer for follow or for
+          // the response gallery, or take a share down.
+          this.rate(`editslide:${user.id}`, 120);
+          const v = value as {
+            author?: unknown;
+            names?: unknown;
+            shareId?: unknown;
+            slide?: { id?: unknown };
+          };
+          if (route![2] === "share-follow") {
+            if (method === "DELETE")
+              removeEditShare(sql, id, host, route![1]!, { follow: true });
+            else
+              takeEditShare(
+                sql,
+                id,
+                host,
+                route![1]!,
+                String(v.author ?? ""),
+                "follow",
+                v.names === true,
+              );
+          } else if (route![2] === "share-gallery") {
+            takeEditShare(
+              sql,
+              id,
+              host,
+              route![1]!,
+              String(v.author ?? ""),
+              "gallery",
+              v.names === true,
+            );
+            const source = editSlideSource(sql, id, route![1]!);
+            insist(
+              v.slide && v.slide.id === source,
+              400,
+              "共有先のスライドが違います。",
+            );
+            ensureEditGallery(
+              sql,
+              id,
+              v.slide as Parameters<typeof ensureEditGallery>[2],
+            );
+          } else {
+            const source = editSlideSource(sql, id, route![1]!);
+            removeEditShare(sql, id, host, route![1]!, { shareId: v.shareId, author: v.author });
+            if (source) pruneEditGallery(sql, id, source);
+          }
+          return json({ editSlides: editSlideList(sql, id, user.id, host) });
+        }
         if (method !== "GET") {
           this.rate(`editslide:${user.id}`, 120);
           const result = editSlideCommand(
@@ -2574,6 +2666,40 @@ export class Directory extends DurableObject<Env> {
           },
         );
         insist(view, 404, "いま見せているチャートはありません。");
+        return json({ share: view });
+      });
+    }
+    if (extra === "edit-slide-share") {
+      // The follow snapshot of one student's slide (stage 2b):
+      // served only while the room's follow state points at that
+      // definition + author with this share id.
+      insist(method === "GET", 405, "この操作には対応していません。");
+      this.access(id, user);
+      const followResponse = await checked(
+        await room(this.env, id).fetch(internal("/internal/follow-share")),
+      );
+      const follow = (await followResponse.json()) as {
+        active: boolean;
+        mode?: string;
+        shareId?: string;
+        defId?: string;
+        owner?: string;
+      };
+      const shareId = new URL(request.url).searchParams.get("share") ?? "";
+      insist(
+        follow.active &&
+          follow.mode === "editslide" &&
+          follow.shareId === shareId &&
+          typeof follow.defId === "string" &&
+          typeof follow.owner === "string",
+        404,
+        "いま見せているスライドはありません。",
+      );
+      return this.ctx.storage.transactionSync(() => {
+        const sql = (query: string, ...args: (string | number)[]) =>
+          this.sql.exec(query, ...args);
+        const view = followShareView(sql, id, follow.defId!, follow.owner!);
+        insist(view, 404, "いま見せているスライドはありません。");
         return json({ share: view });
       });
     }

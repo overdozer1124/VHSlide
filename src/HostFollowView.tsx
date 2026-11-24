@@ -70,6 +70,8 @@ export function HostFollowView({
         <FollowGroupMap target={state.target} presenting={presenting} />
       ) : state.target.mode === "thinking" ? (
         <FollowThinkingChart deckId={deckId} shareId={state.target.shareId} />
+      ) : state.target.mode === "editslide" ? (
+        <FollowEditSlide deckId={deckId} shareId={state.target.shareId} />
       ) : (
         <FollowPage page={page} presenting={presenting} />
       )}
@@ -355,6 +357,63 @@ function FollowMap({
             </figure>
           ))}
       </div>
+    </div>
+  );
+}
+
+/** The host is showing one student's free-edit slide to the whole
+ * class (stage 2b): the snapshot the host took, fetched from the
+ * share endpoint, which serves it only while this share is the
+ * live follow. Viewing only — nothing here writes. */
+function FollowEditSlide({
+  deckId,
+  shareId,
+}: {
+  deckId: string;
+  shareId?: string;
+}) {
+  const [view, setView] = useState<{ name?: string; slide: Slide } | null>(
+    null,
+  );
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/decks/${deckId}/edit-slide-share?share=${encodeURIComponent(shareId ?? "")}`,
+        );
+        if (!live) return;
+        if (res.ok) {
+          const data = (await res.json()) as {
+            share: { name?: string; slide: Slide };
+          };
+          setView(data.share);
+          setGone(false);
+        } else setGone(true);
+      } catch {
+        // Keep the last slide on a transient failure.
+      }
+    };
+    void load();
+    const timer = setInterval(load, 10_000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [deckId, shareId]);
+  if (!view)
+    return (
+      <div className="host-follow-wait" role="status">
+        {gone
+          ? "見せているスライドはありません。"
+          : "スライドを読み込んでいます…"}
+      </div>
+    );
+  return (
+    <div className="host-follow-page">
+      {view.name && <p>{view.name}さんのスライド</p>}
+      <FittedFollowPage page={view.slide} presenting />
     </div>
   );
 }

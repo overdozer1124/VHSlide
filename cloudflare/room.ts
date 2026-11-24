@@ -612,12 +612,15 @@ export class SlideRoom extends DurableObject<Env> {
         (() => {
           const state = this.followState();
           return state.active &&
-            state.target.mode === "thinking" &&
+            (state.target.mode === "thinking" ||
+              state.target.mode === "editslide") &&
             state.share
             ? {
                 active: true,
+                mode: state.target.mode,
                 shareId: state.target.shareId,
                 toolId: state.share.toolId,
+                defId: state.share.defId,
                 owner: state.share.owner,
                 showNames: state.share.showNames,
               }

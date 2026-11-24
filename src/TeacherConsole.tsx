@@ -9,7 +9,11 @@ import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
 import { W, type Deck, type Slide } from "./model";
 import { api, type CloudWorkspace } from "./cloud";
-import type { FollowTarget, ChartShowRequest } from "./hostFollow";
+import type {
+  FollowTarget,
+  ChartShowRequest,
+  EditSlideShowRequest,
+} from "./hostFollow";
 import { useWorksheets } from "./WorksheetContext";
 import { useEditSlides } from "./EditSlideContext";
 import { useWebbing } from "./WebbingContext";
@@ -53,6 +57,8 @@ export function TeacherConsole({
   onGroupShow,
   chartShow,
   onChartShow,
+  editShow,
+  onEditShow,
   initialSlideId,
 }: {
   workbook: Deck;
@@ -66,6 +72,8 @@ export function TeacherConsole({
   onGroupShow?: (target?: FollowTarget) => void;
   chartShow?: ChartShowRequest;
   onChartShow?: (req?: ChartShowRequest) => void;
+  editShow?: EditSlideShowRequest;
+  onEditShow?: (req?: EditSlideShowRequest) => void;
 }) {
   const follow = cloud.follow;
   const sheets = consoleSheets(workbook);
@@ -410,6 +418,8 @@ export function TeacherConsole({
           onGroupShow={onGroupShow}
           chartShow={chartShow}
           onChartShow={onChartShow}
+          editShow={editShow}
+          onEditShow={onEditShow}
         />
       </div>
     </section>
@@ -427,6 +437,8 @@ function ConsoleMain({
   onGroupShow,
   chartShow,
   onChartShow,
+  editShow,
+  onEditShow,
 }: {
   cloud: CloudWorkspace;
   workbook: Deck;
@@ -438,6 +450,8 @@ function ConsoleMain({
   onGroupShow?: (target?: FollowTarget) => void;
   chartShow?: ChartShowRequest;
   onChartShow?: (req?: ChartShowRequest) => void;
+  editShow?: EditSlideShowRequest;
+  onEditShow?: (req?: EditSlideShowRequest) => void;
 }) {
   const ctx = useWorksheets();
   const webbingCtx = useWebbing();
@@ -570,7 +584,12 @@ function ConsoleMain({
       {mode === "slides" ? (
         <>
           <ConsoleStudentSlides focus={focus} onOpenGallery={onOpenGallery} />
-          <ConsoleEditSlides workbook={workbook} focus={focus} />
+          <ConsoleEditSlides
+            workbook={workbook}
+            focus={focus}
+            editShow={editShow}
+            onEditShow={onEditShow}
+          />
         </>
       ) : mode === "groups" ? (
         <ConsoleGroups
@@ -691,9 +710,13 @@ function TextMineAnalysis({
 function ConsoleEditSlides({
   workbook,
   focus,
+  editShow,
+  onEditShow,
 }: {
   workbook: Deck;
   focus?: Slide;
+  editShow?: EditSlideShowRequest;
+  onEditShow?: (req?: EditSlideShowRequest) => void;
 }) {
   const ctx = useEditSlides();
   const [large, setLarge] = useState<{
@@ -788,6 +811,9 @@ function ConsoleEditSlides({
                   {a.resubmitted && (
                     <span className="console-badge">再提出</span>
                   )}
+                  {a.shared && (
+                    <span className="console-badge">共有中</span>
+                  )}
                 </button>
               );
             })}
@@ -822,6 +848,23 @@ function ConsoleEditSlides({
             </button>
           </header>
           <Canvas slide={large.slide} zoom={0.85} />
+          <ConsoleEditShare
+            defId={large.defId}
+            author={large.author}
+            shared={
+              metas
+                .find((m) => m.def.id === large.defId)
+                ?.meta?.answers.find((a) => a.author === large.author)
+                ?.shared === true
+            }
+            sourceSlide={workbook.slides.find(
+              (s) =>
+                s.id ===
+                ctx.defs.find((d) => d.id === large.defId)?.source,
+            )}
+            editShow={editShow}
+            onEditShow={onEditShow}
+          />
           <ConsoleEditFeedback
             defId={large.defId}
             author={large.author}
@@ -830,6 +873,130 @@ function ConsoleEditSlides({
         </div>
       )}
     </section>
+  );
+}
+
+/** Showing one student's free-edit slide to the class (stage 2b):
+ * follow (集合で見せる) and the response gallery both present a
+ * snapshot taken at this moment — what the class sees never
+ * changes under them while the student keeps editing. */
+function ConsoleEditShare({
+  defId,
+  author,
+  shared,
+  sourceSlide,
+  editShow,
+  onEditShow,
+}: {
+  defId: string;
+  author: string;
+  shared: boolean;
+  sourceSlide?: Slide;
+  editShow?: EditSlideShowRequest;
+  onEditShow?: (req?: EditSlideShowRequest) => void;
+}) {
+  const ctx = useEditSlides();
+  const showing =
+    editShow?.defId === defId && editShow?.owner === author ? editShow : undefined;
+  const [names, setNames] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="console-edit-share">
+      <h4>みんなに見せる</h4>
+      <label className="console-edit-share-names">
+        <input
+          type="checkbox"
+          checked={showing ? showing.showNames : names}
+          disabled={busy || !!showing}
+          onChange={(e) => setNames(e.target.checked)}
+        />
+        名前を出す
+      </label>
+      <div className="console-edit-share-actions">
+        {onEditShow && sourceSlide && (
+          <>
+            <button
+              type="button"
+              className="button outline"
+              disabled={busy}
+              aria-pressed={!!showing}
+              onClick={() =>
+                void run(async () => {
+                  if (showing) {
+                    onEditShow(undefined);
+                    await ctx.unshareFollow(defId);
+                  } else {
+                    await ctx.shareFollow(defId, author, names);
+                    onEditShow({
+                      defId,
+                      owner: author,
+                      showNames: names,
+                      sheetId: sourceSlide.sheetId ?? "main",
+                      pageId: sourceSlide.id,
+                    });
+                  }
+                })
+              }
+            >
+              {showing ? "見せるのをやめる" : "集合で見せる"}
+            </button>
+            {showing && (
+              <button
+                type="button"
+                className="button outline"
+                disabled={busy}
+                onClick={() =>
+                  void run(() =>
+                    ctx.shareFollow(defId, author, showing.showNames),
+                  )
+                }
+              >
+                最新にする
+              </button>
+            )}
+          </>
+        )}
+        {sourceSlide && (
+          <button
+            type="button"
+            className="button outline"
+            disabled={busy}
+            aria-pressed={shared}
+            onClick={() =>
+              void run(async () => {
+                if (shared) await ctx.unshareGallery(defId, author);
+                else
+                  await ctx.shareGallery(
+                    defId,
+                    author,
+                    names,
+                    sourceSlide,
+                  );
+              })
+            }
+          >
+            {shared ? "共有を取り消す" : "回答スライド共有に出す"}
+          </button>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="small">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

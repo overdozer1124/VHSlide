@@ -4,6 +4,8 @@ import { api } from "./cloud";
 import { usePageVisible } from "./usePageVisible";
 import { useWorksheets } from "./WorksheetContext";
 import { ResponseGalleryCard } from "./ResponseGalleryPanel";
+import { Canvas } from "./Canvas";
+import { W } from "./model";
 import type { ResponseGallery } from "./responseGallery";
 
 /** A read-only workspace for the publicly shared response cards. */
@@ -13,6 +15,7 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
   const [galleries, setGalleries] = useState<ResponseGallery[]>([]);
   const [selected, setSelected] = useState("");
   const [cardId, setCardId] = useState<string>();
+  const [shareId, setShareId] = useState<string>();
   const [zoom, setZoom] = useState(100);
   const [page, setPage] = useState(0);
   const [error, setError] = useState("");
@@ -59,6 +62,8 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
   const gallery = galleries.find((g) => g.slide.id === selected);
   const cards = gallery?.cards ?? [];
   const active = cards.find((card) => card.id === cardId);
+  const shares = gallery?.editSlides ?? [];
+  const activeShare = shares.find((share) => share.id === shareId);
   const count = Math.max(1, Math.ceil(cards.length / 24));
   const current = Math.min(page, count - 1);
   const visible = cards.slice(current * 24, (current + 1) * 24);
@@ -73,6 +78,7 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
         if (e.key === "Escape") {
           e.stopPropagation();
           if (cardId) setCardId(undefined);
+          else if (shareId) setShareId(undefined);
           else onClose();
         }
         if (e.key === "Tab") {
@@ -98,11 +104,19 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
         <button
           className="button outline"
           autoFocus
-          onClick={active ? () => setCardId(undefined) : onClose}
+          onClick={
+            active
+              ? () => setCardId(undefined)
+              : activeShare
+                ? () => setShareId(undefined)
+                : onClose
+          }
         >
-          {active ? "回答一覧へ" : "作品に戻る"}
+          {active || activeShare ? "回答一覧へ" : "作品に戻る"}
         </button>
-        <strong>共有された回答スライド{active ? "・閲覧のみ" : ""}</strong>
+        <strong>
+          共有された回答スライド{active || activeShare ? "・閲覧のみ" : ""}
+        </strong>
         <label>
           スライドを選択
           <select
@@ -110,6 +124,7 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
             onChange={(e) => {
               setSelected(e.target.value);
               setCardId(undefined);
+              setShareId(undefined);
               setPage(0);
             }}
           >
@@ -143,6 +158,17 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
       {error && <p role="alert">{error}</p>}
       {!gallery ? (
         <p>共有されている回答スライドはありません。</p>
+      ) : activeShare ? (
+        <main className="response-workspace-detail">
+          <h2>
+            {activeShare.name
+              ? `${activeShare.name}さんのスライド`
+              : "生徒のスライド"}
+          </h2>
+          <div className="response-workspace-detail-slide">
+            <Canvas slide={activeShare.slide} zoom={0.85} />
+          </div>
+        </main>
       ) : active ? (
         <div className="response-workspace-reader">
           <aside className="response-workspace-rail" aria-label="回答一覧">
@@ -180,6 +206,7 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
         <main className="response-workspace-map">
           <p>
             {gallery.slide.title || "無題"} · {cards.length}人の回答
+            {shares.length ? ` · 生徒のスライド${shares.length}枚` : ""}
           </p>
           <div
             className="response-workspace-grid"
@@ -209,7 +236,37 @@ export function ResponseGalleryView({ onClose }: { onClose: () => void }) {
               </article>
             ))}
           </div>
-          {!cards.length && <p>共有された回答はまだありません。</p>}
+          {!cards.length && !shares.length && (
+            <p>共有された回答はまだありません。</p>
+          )}
+          {!!shares.length && (
+            <section aria-label="生徒が作ったスライド">
+              <h3>生徒が作ったスライド</h3>
+              <div className="response-workspace-grid">
+                {shares.map((share) => (
+                  <article
+                    key={share.id}
+                    className="response-workspace-card"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="生徒のスライドを閲覧"
+                    onClick={() => setShareId(share.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setShareId(share.id);
+                      }
+                    }}
+                  >
+                    <div aria-hidden="true">
+                      <Canvas slide={share.slide} zoom={280 / W} />
+                    </div>
+                    <strong>{share.name ?? ""}</strong>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
           {count > 1 && (
             <nav aria-label="回答のページ">
               <button disabled={!current} onClick={() => setPage(current - 1)}>
