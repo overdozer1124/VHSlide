@@ -1143,3 +1143,92 @@ describe("thinking curve id length cap", () => {
     ).toBeTruthy();
   });
 });
+
+describe("thinking step chart (stage 4)", () => {
+  const stepsDef = {
+    title: "実験の手順",
+    zones: [{ id: "all", label: "手順" }],
+    cardColors: [],
+  };
+  function stepsTool(sql: HistorySQL, unit: string = "individual") {
+    const created = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "steps",
+      unit,
+      definition: stepsDef,
+    });
+    const id = created!.createdId!;
+    open(sql, id);
+    return id;
+  }
+  it("creates as a board tool with one zone and appends in order", () => {
+    const { sql } = fixture();
+    const id = stepsTool(sql);
+    const view = thinkingList(sql, "deck", "host", true, { board: true, steps: true }).find((t) => t.id === id)!;
+    expect(view.kind).toBe("board");
+    expect(view.definition.zones).toHaveLength(1);
+    const a = thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "水を入れる", color: "" })!.createdId!;
+    const b = thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "火にかける", color: "" })!.createdId!;
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "まぜる", color: "" });
+    // Delete the middle card, then append: the new card must sort
+    // after the last one (max+1), not collide with it (review 🟡1).
+    thinkingCommand(sql, "deck", "ana", false, "carddelete", id, { cardId: b });
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "冷ます", color: "" });
+    const cards = thinkingList(sql, "deck", "ana", false, { board: true, steps: true })
+      .find((t) => t.id === id)!.cards.sort((x, y) => x.sort - y.sort);
+    expect(cards.map((c) => c.text)).toEqual(["水を入れる", "まぜる", "冷ます"]);
+    expect(a).toBeTruthy();
+  });
+  it("reorders only with the exact current set", () => {
+    const { sql } = fixture();
+    const id = stepsTool(sql);
+    const ids: string[] = [];
+    for (const text of ["一", "二", "三"])
+      ids.push(thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text, color: "" })!.createdId!);
+    thinkingCommand(sql, "deck", "ana", false, "reorder", id, { order: [ids[2], ids[0], ids[1]] });
+    const cards = thinkingList(sql, "deck", "ana", false, { board: true, steps: true })
+      .find((t) => t.id === id)!.cards.sort((x, y) => x.sort - y.sort);
+    expect(cards.map((c) => c.text)).toEqual(["三", "一", "二"]);
+    // A stale order (someone else added a card meanwhile) is refused.
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "四", color: "" });
+    fails(() => thinkingCommand(sql, "deck", "ana", false, "reorder", id, { order: [ids[0], ids[1], ids[2]] }), 409);
+    // Another student's cards are not bob's to reorder: the sent
+    // set never matches his own (empty) sequence.
+    fails(() => thinkingCommand(sql, "deck", "bob", false, "reorder", id, { order: [ids[0], ids[1], ids[2]] }), 409);
+  });
+  it("hides step charts from clients without the steps capability", () => {
+    const { sql } = fixture();
+    const id = stepsTool(sql);
+    expect(thinkingList(sql, "deck", "ana", false, { board: true }).some((t) => t.id === id)).toBe(false);
+    expect(thinkingList(sql, "deck", "ana", false, { board: true, steps: true }).some((t) => t.id === id)).toBe(true);
+    expect(thinkingList(sql, "deck", "ana", false).some((t) => t.id === id)).toBe(false);
+  });
+  it("shares the sequence through the class share view", () => {
+    const { sql } = fixture();
+    const id = stepsTool(sql);
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "最初", color: "" });
+    thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "最後", color: "" });
+    const share = thinkingShareView(sql, "deck", id, "ana", false, "host", {
+      steps: true,
+    });
+    expect(share).toBeTruthy();
+    expect(share!.cards.map((c) => c.text)).toEqual(["最初", "最後"]);
+    // Without the steps capability the share is refused, so an old
+    // tab shows "nothing is being shown" instead of an empty board.
+    expect(thinkingShareView(sql, "deck", id, "ana", false, "host")).toBeUndefined();
+  });
+  it("refuses generic card moves on a step chart", () => {
+    const { sql } = fixture();
+    const id = stepsTool(sql);
+    const cardId = thinkingCommand(sql, "deck", "ana", false, "card", id, { zone: "all", text: "一", color: "" })!.createdId!;
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "ana", false, "cardmove", id, {
+          cardId,
+          zone: "all",
+          x: 0.5,
+          y: 0.5,
+        }),
+      400,
+    );
+  });
+});

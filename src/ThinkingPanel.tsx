@@ -35,6 +35,7 @@ export const THINKING_TEMPLATE_LABELS: Record<ThinkingTemplate, string> = {
   pmi: "PMI",
   matrix: "マトリックス（2×2）",
   kwl: "KWL",
+  steps: "ステップチャート（手順を並べる）",
 };
 export const CARD_COLOR_LABELS: Record<string, string> = {
   yellow: "黄色",
@@ -117,6 +118,12 @@ export const THINKING_TEMPLATE_GUIDES: Record<
     usage:
       "例えば「大切さ」と「急ぎ具合」で分けて優先順位を考える、といった使い方をします。区切りの名前は自由に付けられます。",
   },
+  steps: {
+    about:
+      "カードを順番に並べて、矢印でつないで表すツールです。",
+    usage:
+      "実験や調理の手順、物語のあらすじ、作業の流れなどを順番に整理するのに使います。カードは上へ・下へボタンやドラッグで並べ替えられます。",
+  },
   kwl: {
     about: "知っていること（K）・知りたいこと（W）・分かったこと（L）を書く図です。",
     usage:
@@ -166,7 +173,40 @@ function ThinkingTemplatePreview({
     const spec = BOARD_ZONE_SPECS[template] ?? [];
     const circles = VENN_CIRCLES[template];
     body =
-      template === "xchart" ? (
+      template === "steps" ? (
+        <>
+          {[0, 1, 2].map((i) => (
+            <g key={i}>
+              <rect
+                x={110}
+                y={28 + i * 92}
+                width={180}
+                height={56}
+                rx={10}
+                className="tp-anchor"
+              />
+              <text
+                x={200}
+                y={28 + i * 92 + 36}
+                className="tp-zone-label"
+                textAnchor="middle"
+              >
+                {i + 1}
+              </text>
+              {i < 2 && (
+                <text
+                  x={200}
+                  y={28 + i * 92 + 80}
+                  className="tp-zone-label"
+                  textAnchor="middle"
+                >
+                  ↓
+                </text>
+              )}
+            </g>
+          ))}
+        </>
+      ) : template === "xchart" ? (
         <>
           <line x1="0" y1="0" x2="400" y2="300" className="tp-x-line" />
           <line x1="400" y1="0" x2="0" y2="300" className="tp-x-line" />
@@ -908,6 +948,7 @@ function ThinkingToolForm({
       </label>
       {templateKind(template) === "board" && (
         <>
+          {template !== "steps" && (
           <fieldset className="thinking-form-scenes">
             <legend>区切りの名前</legend>
             {def.zones.map((z) => (
@@ -927,6 +968,7 @@ function ThinkingToolForm({
               </div>
             ))}
           </fieldset>
+          )}
           <fieldset className="thinking-form-scenes">
             <legend>カードの色の意味（任意）</legend>
             {def.cardColors.map((c) => (

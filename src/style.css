@@ -8153,3 +8153,31 @@ button.console-now:hover {border-color:#b9cf9f;background:#f2f7ec;}
 .host-follow-thinking .thinking-gallery-board { max-width:900px; }
 .host-follow-overlay.is-presenting .host-follow-thinking { padding:0; }
 .thinking-curve-counts { display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#5b4a8a;margin:2px 0 0; }
+.thinking-steps { display:flex;flex-direction:column;gap:10px;padding:10px;overflow:auto; }
+.thinking-steps-list { list-style:none;margin:0;padding:0;display:flex;flex-direction:column; }
+.thinking-steps-list > li { display:flex;flex-direction:column; }
+.thinking-step-card { display:flex;align-items:center;gap:10px;background:#fff;border:2px solid #d9cdf2;border-radius:10px;padding:10px 12px;cursor:pointer; }
+.thinking-step-card.is-selected { border-color:#7a5fd0; }
+.thinking-step-card.is-locked { opacity:.65; }
+.thinking-step-card.is-yellow { background:#fff6cf; }
+.thinking-step-card.is-blue { background:#dceeff; }
+.thinking-step-card.is-pink { background:#ffe0ec; }
+.thinking-step-card.is-green { background:#dcf5dc; }
+.thinking-step-num { flex:none;width:26px;height:26px;border-radius:50%;background:#7a5fd0;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px; }
+.thinking-step-text { flex:1;font-size:16px;white-space:pre-wrap;word-break:break-word; }
+.thinking-step-color { font-size:12px;color:#5b4a8a; }
+.thinking-step-lock { font-size:12px;color:#a33; }
+.thinking-step-move { flex:none;display:flex;flex-direction:column;gap:2px; }
+.thinking-step-move button { width:30px;height:24px;border:1px solid #c9bde4;border-radius:6px;background:#f4f0fd;cursor:pointer; }
+.thinking-step-move button:disabled { opacity:.35;cursor:default; }
+.thinking-step-arrow { text-align:center;color:#7a5fd0;font-size:18px;line-height:1.2;padding:2px 0; }
+.thinking-step-editor { display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 4px; }
+.thinking-step-editor textarea { flex:1;min-width:180px;font-size:15px; }
+.thinking-step-add { display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px dashed #c9bde4;padding-top:10px; }
+.thinking-step-add textarea { flex:1;min-width:180px;font-size:15px; }
+.thinking-step-note { font-size:13px;color:#a33;margin:4px 0 0; }
+.thinking-steps-list.is-readonly .thinking-step-card { cursor:default; }
+.thinking-thumb-board.is-steps { display:flex;flex-direction:column;gap:3px;align-items:stretch;justify-content:center;padding:6px; }
+.thinking-thumb-step { background:#efe9fb;border:1px solid #c9bde4;border-radius:4px;font-size:11px;color:#5b4a8a;text-align:center;padding:1px 0; }
+.thinking-thumb-step.is-more { background:#e2d8f7; }
+.thinking-thumb-step.is-empty { opacity:.5; }

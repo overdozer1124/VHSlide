@@ -90,7 +90,11 @@ export function SlideThinking(props: {
       </header>
       {tool ? (
         tool.kind === "board" ? (
-          <BoardSurface tool={tool} interactive={!!props.interactive} />
+          tool.template === "steps" ? (
+            <StepsSurface tool={tool} interactive={!!props.interactive} />
+          ) : (
+            <BoardSurface tool={tool} interactive={!!props.interactive} />
+          )
         ) : tool.kind === "point" ? (
           tool.template === "curve" ? (
             <CurveSurface tool={tool} interactive={!!props.interactive} />
@@ -1246,6 +1250,434 @@ function RatioSurface({
  * chart. Anyone in scope may move a card; its text is edited or deleted
  * only by its author or the host, under the short editing lock (user
  * decisions, plan §4.1.2/§7). A class board is one shared board. */
+/** Step chart surface (stage 4): one sequence of cards per student
+ * (or group, or the whole class), joined by arrows. Order is changed
+ * with up/down buttons or by dragging; the server takes the whole
+ * order at once and refuses a stale one, in which case this surface
+ * reloads and says so (design review 🟡2). */
+function StepsSurface({
+  tool,
+  interactive,
+}: {
+  tool: ThinkingView;
+  interactive: boolean;
+}) {
+  const ctx = useThinking();
+  const groupsCtx = useGroups();
+  const def = tool.definition;
+  const myOwner =
+    tool.unit === "group"
+      ? (tool.myGroupId ?? "")
+      : tool.unit === "class"
+        ? ""
+        : (ctx.userId ?? "");
+  const [focusOwner, setFocusOwner] = useState("");
+  const [showNames, setShowNames] = useState(false);
+  const [draftText, setDraftText] = useState("");
+  const [draftColor, setDraftColor] = useState("");
+  const [selectedId, setSelectedId] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [dragId, setDragId] = useState("");
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (tool.unit === "group" && !tool.myGroupId && !ctx.host) {
+    return (
+      <div className="thinking-join">
+        <p>この思考ツールは班ごとに書き込みます。班に入ってください。</p>
+        <div className="thinking-join-buttons">
+          {groupsCtx.groups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => void groupsCtx.command("join", { groupId: g.id })}
+            >
+              {g.name}に入る
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const hostChartList = !!ctx.host && tool.unit !== "class" && !focusOwner;
+  const viewOwner = ctx.host && tool.unit !== "class" && focusOwner ? focusOwner : myOwner;
+  const canWrite =
+    interactive &&
+    tool.status === "open" &&
+    !hostChartList &&
+    !focusOwner &&
+    (tool.unit !== "group" || !!tool.myGroupId || !!ctx.host) &&
+    !(ctx.host && tool.unit === "group");
+  const ordered = tool.cards
+    .filter((c) => c.owner === viewOwner)
+    .sort((a, b) => a.sort - b.sort || a.created - b.created);
+  const chartOwners: { owner: string; label: string }[] =
+    tool.unit === "group"
+      ? groupsCtx.groups.map((g) => ({ owner: g.id, label: g.name }))
+      : thinkingOwnerLabels(
+          [...new Set(tool.cards.map((c) => c.owner))],
+          (owner) =>
+            tool.ownerNames?.[owner] ||
+            tool.cards.find((c) => c.owner === owner)?.authorName ||
+            undefined,
+          showNames,
+          tool.roster,
+        );
+  const focusLabel =
+    chartOwners.find((o) => o.owner === focusOwner)?.label ?? "";
+  const selected = ordered.find((c) => c.id === selectedId);
+  const lockOf = (card: ThinkingCard) =>
+    tool.locks.find((l) => l.scene === card.id && l.expires > nowTick);
+  const selectedLock = selected ? lockOf(selected) : undefined;
+  const selectedLockedByOther = !!selectedLock && !selectedLock.mine;
+  const canEditSelected =
+    !!selected && (selected.mine || !!ctx.host) && !selectedLockedByOther;
+
+  async function run(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+      setNotice("");
+    } catch (e) {
+      setNotice((e as Error).message);
+    }
+  }
+  async function addCard() {
+    const text = draftText.trim();
+    if (!text) return;
+    await run(async () => {
+      const result = await ctx.command(tool.id, "card", {
+        zone: "all",
+        text,
+        color: draftColor,
+        ...(tool.unit === "group" ? { owner: tool.myGroupId } : {}),
+      });
+      setDraftText("");
+      if (result.createdId) setSelectedId(result.createdId);
+    });
+  }
+  function beginEdit(card: ThinkingCard) {
+    setSelectedId(card.id);
+    setEditing(true);
+    setEditText(card.text);
+    setEditColor(card.color);
+    setConfirmDelete(false);
+    void ctx.command(tool.id, "lock", { cardId: card.id }).catch(() => {});
+  }
+  async function saveEdit() {
+    if (!selected) return;
+    await run(async () => {
+      await ctx.command(tool.id, "cardedit", {
+        cardId: selected.id,
+        text: editText,
+        color: editColor,
+      });
+      setEditing(false);
+    });
+  }
+  async function deleteSelected() {
+    if (!selected) return;
+    await run(async () => {
+      await ctx.command(tool.id, "carddelete", { cardId: selected.id });
+      setSelectedId("");
+      setEditing(false);
+      setConfirmDelete(false);
+    });
+  }
+  async function reorder(ids: string[]) {
+    try {
+      await ctx.command(tool.id, "reorder", {
+        order: ids,
+        ...(tool.unit === "group" ? { owner: tool.myGroupId } : {}),
+      });
+      setNotice("");
+    } catch (e) {
+      // Someone else changed the sequence first: reload the fresh
+      // order and say so instead of leaving a stale list (🟡2).
+      await ctx.refresh().catch(() => {});
+      setNotice(
+        (e as Error).message.includes("並びが変わっています")
+          ? "並びが変わっていたので、最新の並びに直しました。もう一度お試しください。"
+          : (e as Error).message,
+      );
+    }
+  }
+  function move(card: ThinkingCard, dir: -1 | 1) {
+    const ids = ordered.map((c) => c.id);
+    const i = ids.indexOf(card.id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    void reorder(ids);
+  }
+  function dropOn(targetId: string) {
+    if (!dragId || dragId === targetId) return;
+    const ids = ordered.map((c) => c.id);
+    const from = ids.indexOf(dragId);
+    const to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, dragId);
+    setDragId("");
+    void reorder(ids);
+  }
+
+  if (hostChartList) {
+    return (
+      <div className="thinking-steps">
+        <div className="thinking-hostbar" role="group" aria-label="生徒を選ぶ">
+          <button
+            type="button"
+            aria-pressed={showNames}
+            onClick={() => setShowNames((v) => !v)}
+          >
+            {showNames ? "名前を隠す" : "名前を出す"}
+          </button>
+        </div>
+        <div className="thinking-thumbs">
+          {chartOwners.map(({ owner, label }) => {
+            const own = tool.cards.filter((c) => c.owner === owner);
+            return (
+              <button
+                type="button"
+                key={owner || "all"}
+                className="thinking-thumb"
+                onClick={() => setFocusOwner(owner)}
+              >
+                <ThinkingThumbBoard template={tool.template} cards={own} />
+                <span className="thinking-thumb-label">
+                  {label}（{own.length}枚）
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {chartOwners.length === 0 && (
+          <p className="thinking-zone-empty">まだカードがありません。</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="thinking-steps">
+      {ctx.host && tool.unit !== "class" && (
+        <div className="thinking-hostbar" role="group" aria-label="表示の切り替え">
+          {focusOwner ? (
+            <>
+              <button type="button" onClick={() => setFocusOwner("")}>
+                一覧に戻る
+              </button>
+              <span className="thinking-focus-label">{focusLabel}の手順</span>
+            </>
+          ) : (
+            <span className="thinking-focus-label">自分の手順</span>
+          )}
+        </div>
+      )}
+      {ordered.length === 0 && (
+        <p className="thinking-zone-empty">
+          {focusOwner
+            ? "まだカードがありません。"
+            : "まだカードがありません。下の欄から最初の手順を書いてください。"}
+        </p>
+      )}
+      <ol className="thinking-steps-list">
+        {ordered.map((card, i) => {
+          const lock = lockOf(card);
+          const isSelected = card.id === selectedId;
+          return (
+            <li key={card.id}>
+              <div
+                className={`thinking-step-card is-${card.color || "none"}${isSelected ? " is-selected" : ""}${lock && !lock.mine ? " is-locked" : ""}`}
+                draggable={canWrite}
+                onDragStart={() => setDragId(card.id)}
+                onDragEnd={() => setDragId("")}
+                onDragOver={(e) => {
+                  if (canWrite && dragId) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  dropOn(card.id);
+                }}
+                onClick={() => {
+                  setSelectedId(isSelected ? "" : card.id);
+                  setEditing(false);
+                  setConfirmDelete(false);
+                }}
+              >
+                <span className="thinking-step-num">{i + 1}</span>
+                <span className="thinking-step-text">{card.text}</span>
+                {lock && !lock.mine && (
+                  <span className="thinking-step-lock">編集中</span>
+                )}
+                {canWrite && (
+                  <span className="thinking-step-move">
+                    <button
+                      type="button"
+                      aria-label={`${i + 1}番目を上へ`}
+                      disabled={i === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(card, -1);
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${i + 1}番目を下へ`}
+                      disabled={i === ordered.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(card, 1);
+                      }}
+                    >
+                      ↓
+                    </button>
+                  </span>
+                )}
+              </div>
+              {isSelected && canEditSelected && !focusOwner && (
+                <div className="thinking-step-editor">
+                  {editing ? (
+                    <>
+                      <textarea
+                        value={editText}
+                        maxLength={80}
+                        rows={2}
+                        aria-label="カードの内容"
+                        onChange={(e) => setEditText(e.target.value)}
+                      />
+                      {def.cardColors.length > 0 && (
+                        <select
+                          value={editColor}
+                          aria-label="カードの色"
+                          onChange={(e) => setEditColor(e.target.value)}
+                        >
+                          <option value="">色なし</option>
+                          {def.cardColors.map((c) => (
+                            <option key={c.color} value={c.color}>
+                              {c.label || c.color}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <button type="button" className="button" onClick={() => void saveEdit()}>
+                        保存する
+                      </button>
+                      <button
+                        type="button"
+                        className="button outline"
+                        onClick={() => setEditing(false)}
+                      >
+                        やめる
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() => beginEdit(card)}
+                      >
+                        内容を直す
+                      </button>
+                      {confirmDelete ? (
+                        <>
+                          <span>このカードを消しますか。</span>
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => void deleteSelected()}
+                          >
+                            消す
+                          </button>
+                          <button
+                            type="button"
+                            className="button outline"
+                            onClick={() => setConfirmDelete(false)}
+                          >
+                            やめる
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="button outline"
+                          onClick={() => setConfirmDelete(true)}
+                        >
+                          消す
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {isSelected && selectedLockedByOther && (
+                <p className="thinking-step-note">
+                  ほかの人がこのカードを直しています。
+                </p>
+              )}
+              {i < ordered.length - 1 && (
+                <div className="thinking-step-arrow" aria-hidden="true">
+                  ↓
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      {canWrite && (
+        <div className="thinking-step-add">
+          <textarea
+            value={draftText}
+            maxLength={80}
+            rows={2}
+            placeholder="次の手順を書く"
+            aria-label="次の手順"
+            onChange={(e) => setDraftText(e.target.value)}
+          />
+          {def.cardColors.length > 0 && (
+            <select
+              value={draftColor}
+              aria-label="カードの色"
+              onChange={(e) => setDraftColor(e.target.value)}
+            >
+              <option value="">色なし</option>
+              {def.cardColors.map((c) => (
+                <option key={c.color} value={c.color}>
+                  {c.label || c.color}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            className="button"
+            disabled={!draftText.trim()}
+            onClick={() => void addCard()}
+          >
+            カードを足す
+          </button>
+        </div>
+      )}
+      {notice && (
+        <p className="thinking-notice" role="status">
+          {notice}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function BoardSurface({
   tool,
   interactive,

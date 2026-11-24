@@ -30,7 +30,8 @@ export type ThinkingTemplate =
   | "tchart"
   | "pmi"
   | "matrix"
-  | "kwl";
+  | "kwl"
+  | "steps";
 export type ThinkingUnit = "individual" | "group" | "class";
 export type ThinkingStatus = "draft" | "open" | "closed";
 export type ThinkingScale = "none" | "s5" | "s10";
@@ -265,6 +266,10 @@ export const BOARD_ZONE_SPECS: Partial<
     "知りたいこと（W）",
     "分かったこと（L）",
   ]),
+  // Step chart (stage 4): one sequence of cards. The single zone is
+  // a formality so every board path (record, results, text mining,
+  // sharing) keeps working; the order lives in the cards' sort.
+  steps: [{ id: "all", label: "手順", rect: [0, 0, 1, 1], anchor: [0.5, 0.5] }],
 };
 /** The X chart's centre circle, which holds the topic (the tool's
  * title), in the same 0..1 space (x, y, r). Cards cannot be placed
@@ -402,6 +407,7 @@ const TEMPLATES: ThinkingTemplate[] = [
   "pmi",
   "matrix",
   "kwl",
+  "steps",
 ];
 const UNITS: ThinkingUnit[] = ["individual", "group", "class"];
 
@@ -805,7 +811,7 @@ export function thinkingList(
   deck: string,
   actor: string,
   host: boolean,
-  caps?: { board?: boolean },
+  caps?: { board?: boolean; steps?: boolean },
 ): ThinkingView[] {
   const now = Date.now();
   // The host's fixed member order for stable pseudonym numbers:
@@ -850,6 +856,7 @@ export function thinkingList(
   ]
     .filter((row) => host || row.status !== "draft")
     .filter((row) => caps?.board || row.kind !== "board")
+    .filter((row) => caps?.steps || row.template !== "steps")
     .map((row) => {
       const tool = readTool(row);
       if (tool.kind === "board") {
@@ -1321,6 +1328,7 @@ export function thinkingShareView(
   owner: string,
   showNames: boolean,
   hostId: string,
+  caps?: { steps?: boolean },
 ): ThinkingShareView | undefined {
   const row = [
     ...sql("SELECT * FROM thinking_tools WHERE id=? AND deck=?", toolId, deck),
@@ -1328,6 +1336,11 @@ export function thinkingShareView(
   if (!row) return undefined;
   const tool = readTool(row);
   if (tool.kind !== "board") return undefined;
+  // A client that cannot render step charts (a tab still running
+  // the previous release) must not receive one: it would draw an
+  // empty board. It gets the same "nothing is being shown" answer
+  // as a stopped share (review 🟡).
+  if (tool.template === "steps" && !caps?.steps) return undefined;
   let label = "";
   if (tool.unit === "class") label = "全員";
   else {
@@ -1666,14 +1679,27 @@ export function thinkingCommand(
       413,
       "作品全体のカードの上限に達しています。",
     );
-    const sort = [
-      ...sql(
-        "SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=? AND owner=? AND zone=?",
-        tool.id,
-        owner,
-        zone,
-      ),
-    ][0].n as number;
+    // Step charts: the order is the meaning, so a new card takes
+    // max(sort)+1 — a count would collide with the last card after
+    // a deletion in the middle (design review 🟡1).
+    const sort =
+      tool.template === "steps"
+        ? (([
+            ...sql(
+              "SELECT MAX(sort) AS m FROM thinking_cards WHERE tool=? AND owner=? AND zone=?",
+              tool.id,
+              owner,
+              zone,
+            ),
+          ][0].m as number | null) ?? -1) + 1
+        : ([
+            ...sql(
+              "SELECT COUNT(*) AS n FROM thinking_cards WHERE tool=? AND owner=? AND zone=?",
+              tool.id,
+              owner,
+              zone,
+            ),
+          ][0].n as number);
     const cardId = crypto.randomUUID();
     sql(
       "INSERT INTO thinking_cards(id,tool,deck,owner,zone,parent,sort,text,color,x,y,author,created,updated) VALUES(?,?,?,?,?,NULL,?,?,?,?,?,?,?,?)",
@@ -1695,6 +1721,14 @@ export function thinkingCommand(
   }
   if (action === "cardmove") {
     insist(tool.kind === "board", 400, "このツールにカードはありません。");
+    // A step chart's order belongs to "reorder" alone: a generic
+    // card move would hand out a count-based sort that can collide
+    // with a surviving card after a deletion (review 🟡).
+    insist(
+      tool.template !== "steps",
+      400,
+      "並べ替えは上へ・下へで行ってください。",
+    );
     insist(
       host || tool.status === "open",
       409,
@@ -1724,6 +1758,51 @@ export function thinkingCommand(
       now,
       card.id as string,
     );
+    return undefined;
+  }
+  if (action === "reorder") {
+    // Step charts only: replace the owner's whole order at once.
+    // The sent id list must be exactly the owner's current cards —
+    // if someone added or removed a card meanwhile, refuse so the
+    // client reloads the fresh order instead of guessing (review
+    // 🟡2). Edit locks do not block reordering: only positions
+    // change, never text (review 🟡3).
+    insist(
+      tool.kind === "board" && tool.template === "steps",
+      400,
+      "並べ替えはステップチャートだけです。",
+    );
+    insist(
+      host || tool.status === "open",
+      409,
+      "このツールは書き込みを受け付けていません。",
+    );
+    const owner = boardOwner(sql, deck, tool, actor, host, value.owner);
+    insist(
+      Array.isArray(value.order) &&
+        value.order.every((x) => typeof x === "string"),
+      400,
+      "並びの指定を確認してください。",
+    );
+    const order = value.order as string[];
+    const current = [
+      ...sql(
+        "SELECT id FROM thinking_cards WHERE tool=? AND owner=? AND zone=?",
+        tool.id,
+        owner,
+        "all",
+      ),
+    ].map((r) => String(r.id));
+    insist(
+      order.length === current.length &&
+        new Set(order).size === order.length &&
+        current.every((id) => order.includes(id)),
+      409,
+      "並びが変わっています。最新の並びでやり直してください。",
+    );
+    order.forEach((id, i) => {
+      sql("UPDATE thinking_cards SET sort=?,updated=? WHERE id=?", i, now, id);
+    });
     return undefined;
   }
   if (action === "cardedit") {

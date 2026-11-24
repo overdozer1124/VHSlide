@@ -18,6 +18,28 @@ export function ThinkingThumbBoard({
 }) {
   const spec = BOARD_ZONE_SPECS[template] ?? [];
   const circles = VENN_CIRCLES[template];
+  if (template === "steps") {
+    const ordered = [...cards].sort(
+      (a, b) => a.sort - b.sort || a.created - b.created,
+    );
+    return (
+      <span className="thinking-thumb-board is-steps" aria-hidden="true">
+        {ordered.slice(0, 6).map((c, i) => (
+          <span key={c.id} className="thinking-thumb-step">
+            {i + 1}
+          </span>
+        ))}
+        {ordered.length > 6 && (
+          <span className="thinking-thumb-step is-more">
+            +{ordered.length - 6}
+          </span>
+        )}
+        {ordered.length === 0 && (
+          <span className="thinking-thumb-step is-empty">0</span>
+        )}
+      </span>
+    );
+  }
   return (
     <span className="thinking-thumb-board">
       {template === "xchart" && (

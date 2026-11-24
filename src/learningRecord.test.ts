@@ -490,3 +490,76 @@ describe("learning record: emotion curve (stage 4)", () => {
     expect(bob?.cells[0].answered).toBe(0);
   });
 });
+
+describe("learning record: step chart (stage 4)", () => {
+  it("lists the cards in order and counts the chart as answered", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY, name TEXT, email TEXT); CREATE TABLE members(deck TEXT, user_id TEXT)",
+    );
+    db.exec(groupSchema);
+    db.exec(worksheetSchema);
+    db.exec(surveySchema);
+    db.exec(thinkingSchema);
+    db.prepare("INSERT INTO decks VALUES(?)").run("deck");
+    for (const [id, name] of [
+      ["host", "先生"],
+      ["ana", "あな"],
+      ["bob", "ぼぶ"],
+    ]) {
+      db.prepare("INSERT INTO users VALUES(?,?,?)").run(id, name, "");
+      db.prepare("INSERT INTO members VALUES(?,?)").run("deck", id);
+    }
+    const sql: HistorySQL = (query, ...args) =>
+      db.prepare(query).all(...(args as never[]));
+    const steps = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "steps",
+      unit: "individual",
+      definition: {
+        title: "実験の手順",
+        zones: [{ id: "all", label: "手順" }],
+        cardColors: [],
+      },
+    })!.createdId!;
+    thinkingCommand(sql, "deck", "host", true, "status", steps, {
+      status: "open",
+    });
+    thinkingCommand(sql, "deck", "ana", false, "card", steps, {
+      zone: "all",
+      text: "水を入れる",
+      color: "",
+    });
+    thinkingCommand(sql, "deck", "ana", false, "card", steps, {
+      zone: "all",
+      text: "火にかける",
+      color: "",
+    });
+    const deck = {
+      version: 1,
+      title: "テスト作品",
+      sheets: [{ id: "main", name: "シート1", rowLabels: { 0: "第1時" } }],
+      slides: [
+        {
+          id: "slide-1",
+          sheetId: "main",
+          x: 0,
+          y: 0,
+          title: "手順を並べよう",
+          background: "",
+          elements: [{ id: "e1", thinking: { deckId: "deck", toolId: steps } }],
+        },
+      ],
+    } as unknown as Deck;
+    const record = myLearningRecord(sql, deck, "deck", "ana");
+    const entry = record.entries.find((e) => e.template === "steps");
+    expect(entry).toBeTruthy();
+    expect(entry!.kind).toBe("thinking");
+    const zone = entry!.zones?.find((z) => z.id === "all");
+    expect(zone?.cards.map((c) => c.text)).toEqual(["水を入れる", "火にかける"]);
+    const matrix = learningRecordMatrix(sql, deck, "deck", "host");
+    const ana = matrix.rows.find((r) => r.userId === "ana");
+    const bob = matrix.rows.find((r) => r.userId === "bob");
+    expect(ana?.cells[0].answered).toBe(1);
+    expect(bob?.cells[0].answered).toBe(0);
+  });
+});

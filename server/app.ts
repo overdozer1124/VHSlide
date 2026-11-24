@@ -2013,6 +2013,9 @@ export function createApplication(options: Options) {
                     board: (url.searchParams.get("tcaps") ?? "").includes(
                       "board",
                     ),
+                    steps: (url.searchParams.get("tcaps") ?? "").includes(
+                      "steps",
+                    ),
                   }),
                 };
             }
@@ -2267,7 +2270,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete))?)?$/.exec(
+            /^thinking(?:\/([a-f0-9-]{36})(?:\/(status|scene|point|clear|lock|edit|card|cardmove|cardedit|carddelete|reorder))?)?$/.exec(
               extra,
             );
           insist(
@@ -2292,6 +2295,7 @@ export function createApplication(options: Options) {
             // (0.136.0) must never receive them (stage-2 review note).
             const caps = {
               board: (url.searchParams.get("caps") ?? "").includes("board"),
+              steps: (url.searchParams.get("caps") ?? "").includes("steps"),
             };
             if (method === "GET") {
               const v = url.searchParams.get("v");
@@ -2374,6 +2378,9 @@ export function createApplication(options: Options) {
             follow.share!.owner,
             follow.share!.showNames,
             current.owner,
+            {
+              steps: (url.searchParams.get("caps") ?? "").includes("steps"),
+            },
           );
           insist(view, 404, "いま見せているチャートはありません。");
           return json(res, 200, { share: view });
