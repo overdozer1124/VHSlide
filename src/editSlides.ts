@@ -888,7 +888,7 @@ export function editSlideCommand(
     }
     const ownRows = [
       ...sql(
-        "SELECT asset,hash,created FROM edit_slide_answer_assets WHERE def=? AND author=?",
+        "SELECT asset,hash,created,uploader FROM edit_slide_answer_assets WHERE def=? AND author=?",
         def.id,
         author!,
       ),
@@ -896,7 +896,11 @@ export function editSlideCommand(
     const ownAssets = new Map(
       ownRows.map((r) => [
         String(r.asset),
-        { hash: String(r.hash), created: Number(r.created) },
+        {
+          hash: String(r.hash),
+          created: Number(r.created),
+          uploader: r.uploader == null ? null : String(r.uploader),
+        },
       ]),
     );
     for (const [asset, refDef] of used.answerAssets) {
@@ -952,6 +956,11 @@ export function editSlideCommand(
     const orphans: OrphanAnswerAsset[] = [];
     for (const [asset, row] of ownAssets) {
       if (used.answerAssets.has(asset) || row.created > grace) continue;
+      // Another group member's uploads are never swept by this
+      // save: they may belong to an edit still in progress on
+      // that member's screen (stage 3b review). They are counted
+      // in the per-answer cap and removed with the answer.
+      if (row.uploader !== null && row.uploader !== actor) continue;
       // A photo inside a live share (follow or gallery snapshot)
       // stays: the snapshot must keep rendering as it was taken.
       const shared = [

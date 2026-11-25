@@ -675,4 +675,57 @@ describe("free-edit slides: group co-editing (stage 3b)", () => {
       updated: null,
     });
   });
+
+  it("never sweeps another member's uploaded photos on save", () => {
+    const { sql, defId, groups } = groupFixture();
+    const aka = groups.find((g) => g.name === "あか")!;
+    // cid joins あか as its second member.
+    groupCommand(sql, DECK, "cid", false, "join", undefined, {
+      groupId: aka.id,
+    });
+    recordEditAnswerAsset(
+      sql,
+      DECK,
+      "ana",
+      defId,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "hash-ana-photo",
+      100,
+      "image/png",
+      aka.id,
+    );
+    // Age the photo past the grace window.
+    sql(
+      "UPDATE edit_slide_answer_assets SET created=? WHERE def=?",
+      Date.now() - 600_000,
+      defId,
+    );
+    const photoCount = () =>
+      Number(
+        [...sql("SELECT COUNT(*) AS n FROM edit_slide_answer_assets WHERE def=?", defId)][0].n,
+      );
+    expect(photoCount()).toBe(1);
+    // A save by the other member leaves ana's photo alone.
+    editSlideCommand(sql, DECK, "cid", false, "answer", defId, {
+      slide: answerSlide(),
+      baseUpdated: 0,
+      groupId: aka.id,
+    });
+    expect(photoCount()).toBe(1);
+    // Ana's own save (not referencing it) sweeps it.
+    sql(
+      "UPDATE edit_slide_answers SET updated=updated-10000 WHERE def=?",
+      defId,
+    );
+    const stamp = Number(
+      [...sql("SELECT updated FROM edit_slide_answers WHERE def=?", defId)][0]
+        .updated,
+    );
+    editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
+      slide: answerSlide(),
+      baseUpdated: stamp,
+      groupId: aka.id,
+    });
+    expect(photoCount()).toBe(0);
+  });
 });

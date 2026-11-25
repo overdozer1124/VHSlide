@@ -93,7 +93,7 @@ export function EditSlideStudio({
           body: JSON.stringify({
             slide: slideRef.current,
             baseUpdated: baseUpdated.current,
-            ...(def.groupId ? { groupId: def.groupId } : {}),
+            ...(group ? { groupId: openedGroupId.current } : {}),
           }),
         },
       );
@@ -104,10 +104,24 @@ export function EditSlideStudio({
       setState("saved");
       setMessage("");
     } catch (e) {
-      const err = e as Error & { status?: number };
+      const err = e as Error & { status?: number; code?: string };
+      if (err.code === "group-changed") {
+        // The student's group changed mid-edit: never offer an
+        // overwrite into the new group (stage 3b review).
+        noteGroupGone();
+        return;
+      }
       if (err.status === 409) {
         const list = await ctx.refreshDirect();
         const fresh = list.find((d) => d.id === def.id);
+        if (
+          group &&
+          fresh &&
+          (fresh.groupId ?? null) !== (openedGroupId.current ?? null)
+        ) {
+          noteGroupGone();
+          return;
+        }
         if (group && fresh?.mine && dirty.current) {
           // A groupmate saved first. Keep this student's work and
           // let them choose — never silently discard it.

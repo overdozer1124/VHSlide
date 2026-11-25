@@ -297,6 +297,7 @@ describe("feedback for group free-edit answers (stage 3b)", () => {
     editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
       slide: slide("あかの回答"),
       baseUpdated: 0,
+      groupId: aka.id,
     });
     editSlideCommand(sql, DECK, "host", true, "status", defId, { status: "closed" });
     feedbackCommand(sql, DECK, "host", true, "send", {
@@ -323,6 +324,7 @@ describe("feedback for group free-edit answers (stage 3b)", () => {
     editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
       slide: slide("直した"),
       baseUpdated: editSlideAnswerUpdated(sql, defId, aka.id),
+      groupId: aka.id,
     });
     feedbackCommand(sql, DECK, "ana", false, "resubmit", { targetId: defId });
     expect(
