@@ -2131,7 +2131,11 @@ export function createApplication(options: Options) {
               if (ev === "" || Number(ev) !== version)
                 out.editslides = {
                   version,
-                  editSlides: editSlideList(historySQL, id, u.id, host),
+                  editSlides: editSlideList(historySQL, id, u.id, host, {
+                    groupOk: (url.searchParams.get("ecaps") ?? "").includes(
+                      "editgroup",
+                    ),
+                  }),
                 };
             }
             const ea = url.searchParams.get("ea");
@@ -2438,7 +2442,11 @@ export function createApplication(options: Options) {
                 });
                 if (source) pruneEditGallery(historySQL, id, source);
               }
-              const editSlides = editSlideList(historySQL, id, u.id, host);
+              const editSlides = editSlideList(historySQL, id, u.id, host, {
+                groupOk: (url.searchParams.get("ecaps") ?? "").includes(
+                  "editgroup",
+                ),
+              });
               db.exec("COMMIT");
               return json(res, 200, { editSlides });
             } catch (error) {
@@ -2477,7 +2485,11 @@ export function createApplication(options: Options) {
               );
               orphans = result.orphanAssets ?? [];
             }
-            const editSlides = editSlideList(historySQL, id, u.id, host);
+            const editSlides = editSlideList(historySQL, id, u.id, host, {
+                groupOk: (url.searchParams.get("ecaps") ?? "").includes(
+                  "editgroup",
+                ),
+              });
             db.exec("COMMIT");
             for (const orphan of orphans)
               await releaseBlob(current.owner, orphan.hash);

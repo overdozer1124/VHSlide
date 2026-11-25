@@ -526,3 +526,92 @@ test("free-edit slide: blank base starts from an empty page", async ({
   });
   await context.close();
 });
+
+test("group definition: a group edits one slide together", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-esgroup-host`);
+  const guestName = `${info.project.name}-esgroup-one`;
+  const guest2Name = `${info.project.name}-esgroup-two`;
+  await addGuest(page, id, guestName);
+  await addGuest(page, id, guest2Name);
+  // Groups first (a group definition needs them), host via API.
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/groups`, {
+        headers,
+        data: { names: ["あか", "あお"] },
+      })
+    ).status(),
+  ).toBe(200);
+  const groupList = await (
+    await page.request.get(`/api/decks/${id}/groups`, { headers })
+  ).json();
+  const aka = groupList.groups.find((g: { name: string }) => g.name === "あか");
+  const ao = groupList.groups.find((g: { name: string }) => g.name === "あお");
+
+  // Host panel: choose group mode, copy base, open the intake.
+  await page.goto(`/?room=${id}`);
+  await page.locator(".slide-card").first().click();
+  await page.getByRole("button", { name: "フォーム" }).click();
+  const panel = page.locator(".activity-panel");
+  await panel.getByRole("tab", { name: "生徒の編集用" }).click();
+  await panel.getByLabel("班で1枚を共同編集").check();
+  await panel
+    .getByRole("button", { name: "このスライドの写しを土台にする" })
+    .click();
+  await expect(panel.getByText("班で共同編集")).toBeVisible({
+    timeout: 15_000,
+  });
+  await panel.getByRole("button", { name: "受付を開始" }).click();
+  await expect(panel.getByText("受付中")).toBeVisible({ timeout: 15_000 });
+
+  const joinAndOpen = async (name: string, groupId: string) => {
+    const context = await browser.newContext({ baseURL: scopeOrigin });
+    const student = await context.newPage();
+    await scopeLogin(student, name);
+    expect(
+      (
+        await student.request.post(`/api/decks/${id}/groups/join`, {
+          headers,
+          data: { groupId },
+        })
+      ).status(),
+    ).toBe(200);
+    await student.goto(`/?room=${id}`);
+    return { context, student };
+  };
+
+  // A member of あか opens the group studio from the entry slide.
+  const aka1 = await joinAndOpen(guestName, aka.id);
+  await openFirstSlide(
+    aka1.student,
+    shown(aka1.student.locator(".edit-slide-launch")),
+  );
+  await expect(
+    aka1.student.locator(".edit-slide-launch"),
+  ).toHaveText(/班のスライドを作る/);
+  await aka1.student.locator(".edit-slide-launch").click();
+  const studio = aka1.student.locator(".edit-studio");
+  await expect(studio).toBeVisible({ timeout: 15_000 });
+  await expect(studio.getByText("班のスライドを作る（あか）")).toBeVisible();
+  await studio.getByRole("button", { name: "文字" }).click();
+  await expect(studio.getByText("保存しました")).toBeVisible({
+    timeout: 20_000,
+  });
+  await aka1.context.close();
+
+  // The other group has its own (still empty) answer: its entry
+  // offers to create, not to edit あか's slide.
+  const ao1 = await joinAndOpen(guest2Name, ao.id);
+  await openFirstSlide(
+    ao1.student,
+    shown(ao1.student.locator(".edit-slide-launch")),
+  );
+  await expect(
+    ao1.student.locator(".edit-slide-launch"),
+  ).toHaveText(/班のスライドを作る/);
+  await ao1.context.close();
+});

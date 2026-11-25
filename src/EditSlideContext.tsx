@@ -144,7 +144,7 @@ function EditSlideSession({
   }
   async function shareApi(defId: string, action: string, body?: unknown) {
     const data = await api<{ editSlides?: EditSlideDefView[] }>(
-      `/api/decks/${deckId}/edit-slides/${defId}/${action}`,
+      `/api/decks/${deckId}/edit-slides/${defId}/${action}?ecaps=editgroup`,
       body === undefined
         ? { method: "DELETE" }
         : { method: "POST", body: JSON.stringify(body) },
@@ -205,7 +205,7 @@ function EditSlideSession({
     }
     const version = ++generation.current;
     const data = await api<{ editSlides?: EditSlideDefView[] }>(
-      `/api/decks/${deckId}/edit-slides`,
+      `/api/decks/${deckId}/edit-slides?ecaps=editgroup`,
     );
     const list = data.editSlides ?? [];
     if (alive.current && version === generation.current) {
@@ -316,7 +316,7 @@ export async function editSlideApi(
   init?: { method?: string; body?: unknown },
 ): Promise<EditSlideDefView[]> {
   const data = await api<{ editSlides: EditSlideDefView[] }>(
-    `/api/decks/${ctx.deckId}/edit-slides${path}`,
+    `/api/decks/${ctx.deckId}/edit-slides${path}?ecaps=editgroup`,
     {
       method: init?.method ?? "POST",
       body: init?.body === undefined ? undefined : JSON.stringify(init.body),

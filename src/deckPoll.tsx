@@ -111,7 +111,10 @@ export class DeckPoller {
         .join("&") +
       // Thinking board tools are only sent to clients that declare
       // they can render them (older clients keep the point-only list).
-      (features.includes("thinking") ? "&tcaps=board,steps,flow,board5" : "");
+      (features.includes("thinking") ? "&tcaps=board,steps,flow,board5" : "") +
+      // Group free-edit definitions are only sent to clients that
+      // declare they can handle them.
+      (features.includes("editslides") ? "&ecaps=editgroup" : "");
     const guards = new Map(
       features.map((f) => [f, this.sinks.get(f)?.guard?.current]),
     );

@@ -6,6 +6,7 @@ import {
   feedbackReopenActive,
   feedbackSchema,
 } from "./feedback.ts";
+import { deckGroups, effectiveGroupId } from "./groups.ts";
 import { parseDeck } from "./model.ts";
 import type { Element, Slide } from "./model.ts";
 
@@ -52,9 +53,9 @@ export const editSlideSchema =
   // target's feedback from editSlideCommand itself.
   feedbackSchema +
   `
-CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, base_kind TEXT NOT NULL DEFAULT 'copy');
-CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL, PRIMARY KEY(def,author));
-CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, base_kind TEXT NOT NULL DEFAULT 'copy', mode TEXT NOT NULL DEFAULT 'single');
+CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL, last_editor TEXT, PRIMARY KEY(def,author));
+CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, created INTEGER NOT NULL, uploader TEXT);
 CREATE TABLE IF NOT EXISTS edit_slide_shares(id TEXT PRIMARY KEY, deck TEXT NOT NULL, def TEXT NOT NULL, author TEXT NOT NULL, kind TEXT NOT NULL, names INTEGER NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS edit_slide_share_assets(share TEXT NOT NULL, asset TEXT NOT NULL, PRIMARY KEY(share, asset));` +
   // The counters feed the shared deck poll; the deck's own document
@@ -94,6 +95,9 @@ export type EditSlideAnswerMeta = {
   /** A snapshot of this answer is published in the response
    * gallery. */
   shared?: boolean;
+  /** Who saved this answer last (stage 3b: for a group's answer,
+   * the member who saved; for a personal answer, the author). */
+  lastEditor?: string;
 };
 /** Host-only answer overview for one definition, delivered on the
  * separate "editanswers" poll counter so student saves stay cheap
@@ -111,13 +115,24 @@ export type EditSlideDefView = {
   /** Stage 3a: "copy" of the teacher's slide, or a "blank" page.
    * The source slide stays the entry point either way. */
   baseKind: "copy" | "blank";
+  /** Stage 3b: "single" — one answer per student; "group" — one
+   * answer per group, edited by every member (whole-save). Group
+   * definitions are only sent to clients that declare the
+   * "editgroup" marker. */
+  mode: "single" | "group";
+  /** For a group definition, the requesting student's own group
+   * (absent when they belong to no group: no entry point). */
+  groupId?: string;
+  groupName?: string;
   status: EditSlideStatus;
   created: number;
   updated: number;
   base: Slide;
   answerCount: number;
-  /** The requesting user's own answer, when they have one. */
-  mine?: { slide: Slide; updated: number };
+  /** The requesting user's own answer, when they have one. For a
+   * group definition this is the group's answer, with the name of
+   * the member who saved it last. */
+  mine?: { slide: Slide; updated: number; lastEditorName?: string };
 };
 
 const FORBIDDEN_ELEMENT_KEYS = [
@@ -305,6 +320,7 @@ type DefRow = {
   created: number;
   updated: number;
   base_kind?: string;
+  mode?: string;
 };
 
 /** Older databases predate base_kind (stage 3a); add it lazily,
@@ -317,12 +333,44 @@ export function ensureEditSlideShape(sql: HistorySQL): void {
     sql(
       "ALTER TABLE edit_slide_defs ADD COLUMN base_kind TEXT NOT NULL DEFAULT 'copy'",
     );
+  if (columns.length && !columns.includes("mode"))
+    sql(
+      "ALTER TABLE edit_slide_defs ADD COLUMN mode TEXT NOT NULL DEFAULT 'single'",
+    );
+  const answerColumns = [...sql("PRAGMA table_info(edit_slide_answers)")].map(
+    (c) => c.name,
+  );
+  if (answerColumns.length && !answerColumns.includes("last_editor"))
+    sql("ALTER TABLE edit_slide_answers ADD COLUMN last_editor TEXT");
+  const assetColumns = [
+    ...sql("PRAGMA table_info(edit_slide_answer_assets)"),
+  ].map((c) => c.name);
+  if (assetColumns.length && !assetColumns.includes("uploader"))
+    sql("ALTER TABLE edit_slide_answer_assets ADD COLUMN uploader TEXT");
+}
+
+const defMode = (def: DefRow): "single" | "group" =>
+  def.mode === "group" ? "group" : "single";
+
+/** The author key a save / read / photo acts on: the user themself
+ * for a personal definition; for a group definition, the group the
+ * SERVER derives from membership (stage 3b review: the client never
+ * picks the author). Undefined when the user belongs to no group. */
+function answerAuthor(
+  sql: HistorySQL,
+  deck: string,
+  def: DefRow,
+  actor: string,
+): string | undefined {
+  return defMode(def) === "group"
+    ? effectiveGroupId(sql, deck, actor)
+    : actor;
 }
 
 function defRow(sql: HistorySQL, deck: string, defId: string): DefRow {
   const row = [
     ...sql(
-      "SELECT id,source,base,status,created,updated,base_kind FROM edit_slide_defs WHERE deck=? AND id=?",
+      "SELECT id,source,base,status,created,updated,base_kind,mode FROM edit_slide_defs WHERE deck=? AND id=?",
       deck,
       defId,
     ),
@@ -376,33 +424,58 @@ export function editSlideList(
   deck: string,
   actor: string,
   host: boolean,
+  options?: { groupOk?: boolean },
 ): EditSlideDefView[] {
   ensureEditSlideShape(sql);
   const defs = [
     ...sql(
-      "SELECT id,source,base,status,created,updated,base_kind FROM edit_slide_defs WHERE deck=? ORDER BY created",
+      "SELECT id,source,base,status,created,updated,base_kind,mode FROM edit_slide_defs WHERE deck=? ORDER BY created",
       deck,
     ),
   ] as unknown as DefRow[];
+  const groups = deckGroups(sql, deck);
+  const myGroupId = host ? undefined : effectiveGroupId(sql, deck, actor);
   return defs.flatMap((def) => {
     if (!host && def.status === "draft") return [];
+    const mode = defMode(def);
+    // Group definitions go only to clients that declare they can
+    // handle them; older screens keep the personal-only list.
+    if (mode === "group" && !options?.groupOk) return [];
     const count = [
       ...sql(
         "SELECT COUNT(*) AS n FROM edit_slide_answers WHERE def=?",
         def.id,
       ),
     ][0].n as number;
-    const mine = [
-      ...sql(
-        "SELECT slide,updated FROM edit_slide_answers WHERE def=? AND author=?",
-        def.id,
-        actor,
-      ),
-    ][0];
+    const authorKey =
+      mode === "group" ? (host ? undefined : myGroupId) : actor;
+    const mine = authorKey
+      ? [
+          ...sql(
+            "SELECT slide,updated,last_editor FROM edit_slide_answers WHERE def=? AND author=?",
+            def.id,
+            authorKey,
+          ),
+        ][0]
+      : undefined;
+    let lastEditorName: string | undefined;
+    if (mine?.last_editor) {
+      const editor = [
+        ...sql("SELECT name FROM users WHERE id=?", String(mine.last_editor)),
+      ][0];
+      if (editor?.name) lastEditorName = String(editor.name);
+    }
     const view: EditSlideDefView = {
       id: def.id,
       source: def.source,
       baseKind: def.base_kind === "blank" ? "blank" : "copy",
+      mode,
+      ...(mode === "group" && myGroupId
+        ? {
+            groupId: myGroupId,
+            groupName: groups.find((g) => g.id === myGroupId)?.name,
+          }
+        : {}),
       status: def.status as EditSlideStatus,
       created: def.created,
       updated: def.updated,
@@ -413,6 +486,7 @@ export function editSlideList(
             mine: {
               slide: JSON.parse(String(mine.slide)) as Slide,
               updated: Number(mine.updated),
+              ...(lastEditorName ? { lastEditorName } : {}),
             },
           }
         : {}),
@@ -433,7 +507,10 @@ export function editSlideAnswersMeta(
 ): EditSlideAnswersMeta[] {
   if (!host) return [];
   const defs = [
-    ...sql("SELECT id FROM edit_slide_defs WHERE deck=? ORDER BY created", deck),
+    ...sql(
+      "SELECT id,mode FROM edit_slide_defs WHERE deck=? ORDER BY created",
+      deck,
+    ),
   ];
   if (!defs.length) return [];
   const names = new Map<string, string>();
@@ -470,9 +547,11 @@ export function editSlideAnswersMeta(
     return a.localeCompare(b);
   };
   return defs.map((def) => {
+    const groupMode = String(def.mode ?? "single") === "group";
+    const groups = groupMode ? deckGroups(sql, deck) : [];
     const rows = [
       ...sql(
-        "SELECT author,updated FROM edit_slide_answers WHERE def=?",
+        "SELECT author,updated,last_editor FROM edit_slide_answers WHERE def=?",
         String(def.id),
       ),
     ];
@@ -496,17 +575,33 @@ export function editSlideAnswersMeta(
           author,
           updated,
         );
+        const lastEditor =
+          typeof r.last_editor === "string" ? r.last_editor : undefined;
         return {
           author,
-          name: names.get(author) || "名前未登録",
+          name: groupMode
+            ? (groups.find((g) => g.id === author)?.name ?? "削除された班")
+            : names.get(author) || "名前未登録",
           updated,
           ...(flags.reopen ? { reopen: true } : {}),
           ...(flags.resubmitted ? { resubmitted: true } : {}),
           ...(sharedAuthors.has(author) ? { shared: true } : {}),
+          ...(lastEditor && names.get(lastEditor)
+            ? { lastEditor: names.get(lastEditor) }
+            : {}),
         };
       })
       .sort((a, b) => accountOrder(a.author, b.author));
     const answered = new Set(answers.map((a) => a.author));
+    if (groupMode)
+      return {
+        id: String(def.id),
+        answerCount: answers.length,
+        answers,
+        uncreated: groups
+          .filter((g) => !answered.has(g.id))
+          .map((g) => ({ name: g.name })),
+      };
     const missing: string[] = [];
     for (const row of sql("SELECT user_id FROM members WHERE deck=?", deck)) {
       const id = row.user_id;
@@ -541,7 +636,14 @@ export function editSlideAnswerContent(
   author: string,
 ): { slide: Slide; updated: number } {
   const def = defRow(sql, deck, defId);
-  insist(host || author === actor, 404, "回答が見つかりません。");
+  insist(
+    host ||
+      author === actor ||
+      (defMode(def) === "group" &&
+        answerAuthor(sql, deck, def, actor) === author),
+    404,
+    "回答が見つかりません。",
+  );
   const row = [
     ...sql(
       "SELECT slide,updated FROM edit_slide_answers WHERE def=? AND author=?",
@@ -599,6 +701,16 @@ export function editSlideCommand(
       400,
       "このスライドには、すでに生徒の編集用があります。",
     );
+    // Stage 3b: a group definition needs the deck's groups to
+    // exist — its answers are keyed by group, so with no groups
+    // nobody could ever answer.
+    const group = value.mode === "group";
+    if (group)
+      insist(
+        deckGroups(sql, deck).length > 0,
+        400,
+        "班が作られていない作品では、班の編集用は作れません。",
+      );
     // Stage 3a: the base is either a copy of the teacher's slide
     // or a blank page. The source slide is always the entry point
     // (the student's button, the follow target, the gallery key),
@@ -610,7 +722,7 @@ export function editSlideCommand(
     const id = crypto.randomUUID();
     const now = Date.now();
     sql(
-      "INSERT INTO edit_slide_defs(id,deck,source,base,status,created,updated,base_kind) VALUES(?,?,?,?,?,?,?,?)",
+      "INSERT INTO edit_slide_defs(id,deck,source,base,status,created,updated,base_kind,mode) VALUES(?,?,?,?,?,?,?,?,?)",
       id,
       deck,
       value.source as string,
@@ -619,6 +731,7 @@ export function editSlideCommand(
       now,
       now,
       blank ? "blank" : "copy",
+      group ? "group" : "single",
     );
     return { createdId: id };
   }
@@ -654,13 +767,30 @@ export function editSlideCommand(
     return { orphanAssets: orphans };
   }
   if (action === "answer") {
+    // Stage 3b: for a group definition the answer belongs to the
+    // group the server derives from membership — never to a group
+    // the client claims. A claim that disagrees is a conflict
+    // (the student's group changed under them), and a student in
+    // no group cannot save at all. This derivation runs on every
+    // save, including an overwrite after a conflict.
+    const author = answerAuthor(sql, deck, def, actor);
+    insist(author !== undefined, 403, "班に入っていないため保存できません。");
+    if (
+      defMode(def) === "group" &&
+      typeof value.groupId === "string"
+    )
+      insist(
+        value.groupId === author,
+        409,
+        "班が変わっています。最新の状態を読み直してください。",
+      );
     // A send-back (§4.3) in force for this author re-opens saving
     // for them alone after the intake closed; it stays in force
     // across saves until the student resubmits or the host cancels.
     insist(
       def.status === "open" ||
         (def.status === "closed" &&
-          feedbackReopenActive(sql, deck, "editslide", def.id, actor)),
+          feedbackReopenActive(sql, deck, "editslide", def.id, author!)),
       403,
       "受付中ではないため保存できません。",
     );
@@ -668,7 +798,7 @@ export function editSlideCommand(
       ...sql(
         "SELECT updated FROM edit_slide_answers WHERE def=? AND author=?",
         def.id,
-        actor,
+        author!,
       ),
     ][0];
     const baseUpdated =
@@ -715,7 +845,7 @@ export function editSlideCommand(
       ...sql(
         "SELECT asset,hash,created FROM edit_slide_answer_assets WHERE def=? AND author=?",
         def.id,
-        actor,
+        author!,
       ),
     ];
     const ownAssets = new Map(
@@ -754,19 +884,20 @@ export function editSlideCommand(
       );
     }
     insist(
-      deckEditBytes(sql, deck, def.id, actor) + byteLength <=
+      deckEditBytes(sql, deck, def.id, author!) + byteLength <=
         MAX_EDIT_DECK_BYTES,
       413,
       "作品全体の保存量の上限（50MB）に達しました。",
     );
     const now = Date.now();
     sql(
-      "INSERT INTO edit_slide_answers VALUES(?,?,?,?,?) ON CONFLICT(def,author) DO UPDATE SET slide=excluded.slide,bytes=excluded.bytes,updated=excluded.updated",
+      "INSERT INTO edit_slide_answers(def,author,slide,bytes,updated,last_editor) VALUES(?,?,?,?,?,?) ON CONFLICT(def,author) DO UPDATE SET slide=excluded.slide,bytes=excluded.bytes,updated=excluded.updated,last_editor=excluded.last_editor",
       def.id,
-      actor,
+      author!,
       encoded,
       byteLength,
       now,
+      actor,
     );
     // Photos the new slide no longer references are deleted —
     // except ones uploaded in the last few minutes, which a save
@@ -809,10 +940,12 @@ export function recordEditAnswerAsset(
   mime: string,
 ): void {
   const def = defRow(sql, deck, defId);
+  const author = answerAuthor(sql, deck, def, actor);
+  insist(author !== undefined, 403, "班に入っていないため写真を追加できません。");
   insist(
     def.status === "open" ||
       (def.status === "closed" &&
-        feedbackReopenActive(sql, deck, "editslide", def.id, actor)),
+        feedbackReopenActive(sql, deck, "editslide", def.id, author!)),
     403,
     "受付中ではないため写真を追加できません。",
   );
@@ -820,7 +953,7 @@ export function recordEditAnswerAsset(
     ...sql(
       "SELECT COUNT(*) AS n FROM edit_slide_answer_assets WHERE def=? AND author=?",
       def.id,
-      actor,
+      author!,
     ),
   ][0].n as number;
   insist(
@@ -834,14 +967,15 @@ export function recordEditAnswerAsset(
     "作品全体の保存量の上限（50MB）に達しました。",
   );
   sql(
-    "INSERT INTO edit_slide_answer_assets VALUES(?,?,?,?,?,?,?)",
+    "INSERT INTO edit_slide_answer_assets(asset,def,author,hash,bytes,mime,created,uploader) VALUES(?,?,?,?,?,?,?,?)",
     asset,
     def.id,
-    actor,
+    author!,
     hash,
     bytes,
     mime,
     Date.now(),
+    actor,
   );
 }
 
@@ -874,7 +1008,10 @@ export function editAnswerAsset(
     ),
   ][0];
   insist(row, 404, "写真が見つかりません。");
-  if (!host && row!.author !== actor) {
+  const ownGroupPhoto =
+    defMode(def) === "group" &&
+    answerAuthor(sql, deck, def, actor) === String(row!.author);
+  if (!host && row!.author !== actor && !ownGroupPhoto) {
     const kinds = [
       ...sql(
         "SELECT DISTINCT s.kind AS kind FROM edit_slide_share_assets sa JOIN edit_slide_shares s ON s.id=sa.share WHERE sa.asset=? AND s.deck=?",
@@ -1173,11 +1310,22 @@ export function removeEditShare(
 const shareView = (
   sql: HistorySQL,
   row: ShareRow,
+  deck?: string,
 ): EditShareView => {
   let name: string | undefined;
   if (row.names) {
-    const user = [...sql("SELECT name FROM users WHERE id=?", row.author)][0];
-    if (user?.name) name = String(user.name);
+    // A group answer is credited to the group alone (stage 3b
+    // design note) — never to the member who saved it last.
+    const def = deck
+      ? [...sql("SELECT mode FROM edit_slide_defs WHERE deck=? AND id=?", deck, row.def)][0]
+      : undefined;
+    if (def && String(def.mode) === "group") {
+      const group = deckGroups(sql, deck!).find((g) => g.id === row.author);
+      if (group) name = group.name;
+    } else {
+      const user = [...sql("SELECT name FROM users WHERE id=?", row.author)][0];
+      if (user?.name) name = String(user.name);
+    }
   }
   return {
     id: row.id,
@@ -1204,14 +1352,18 @@ export function followShareView(
     ),
   ][0];
   if (!row) return undefined;
-  return shareView(sql, {
-    id: String(row.id),
-    def: String(row.def),
-    author: String(row.author),
-    kind: String(row.kind),
-    names: Number(row.names),
-    slide: String(row.slide),
-  });
+  return shareView(
+    sql,
+    {
+      id: String(row.id),
+      def: String(row.def),
+      author: String(row.author),
+      kind: String(row.kind),
+      names: Number(row.names),
+      slide: String(row.slide),
+    },
+    deck,
+  );
 }
 
 /** Published gallery snapshots whose definition belongs to one
@@ -1228,13 +1380,17 @@ export function galleryShareViews(
       source,
     ),
   ].map((row) =>
-    shareView(sql, {
-      id: String(row.id),
-      def: String(row.def),
-      author: String(row.author),
-      kind: String(row.kind),
-      names: Number(row.names),
-      slide: String(row.slide),
-    }),
+    shareView(
+      sql,
+      {
+        id: String(row.id),
+        def: String(row.def),
+        author: String(row.author),
+        kind: String(row.kind),
+        names: Number(row.names),
+        slide: String(row.slide),
+      },
+      deck,
+    ),
   );
 }

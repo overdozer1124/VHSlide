@@ -45,6 +45,12 @@ export function EditSlideStudio({
     "saved",
   );
   const [message, setMessage] = useState("");
+  // Group mode (stage 3b): the newest stamp a save conflicted
+  // with. The student chooses: reload it, or overwrite with their
+  // own content (the overwrite save carries that stamp, so the
+  // server's group check runs again — no unchecked path).
+  const [conflict, setConflict] = useState<number | null>(null);
+  const group = def.mode === "group";
   const baseUpdated = useRef(def.mine?.updated ?? 0);
   const slideRef = useRef(slide);
   slideRef.current = slide;
@@ -58,12 +64,13 @@ export function EditSlideStudio({
     setState("saving");
     try {
       const data = await api<{ editSlides: EditSlideDefView[] }>(
-        `/api/decks/${ctx.deckId}/edit-slides/${def.id}/answer`,
+        `/api/decks/${ctx.deckId}/edit-slides/${def.id}/answer?ecaps=editgroup`,
         {
           method: "POST",
           body: JSON.stringify({
             slide: slideRef.current,
             baseUpdated: baseUpdated.current,
+            ...(def.groupId ? { groupId: def.groupId } : {}),
           }),
         },
       );
@@ -76,10 +83,18 @@ export function EditSlideStudio({
     } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 409) {
-        // Reload the newest copy rather than overwriting it.
         const list = await ctx.refresh();
         const fresh = list.find((d) => d.id === def.id);
-        if (fresh?.mine) {
+        if (group && fresh?.mine && dirty.current) {
+          // A groupmate saved first. Keep this student's work and
+          // let them choose — never silently discard it.
+          setConflict(fresh.mine.updated);
+          setState("error");
+          setMessage(
+            "班のほかの人が新しい版を保存しました。読み直すか、自分の内容で上書きできます。",
+          );
+        } else if (fresh?.mine) {
+          // Reload the newest copy rather than overwriting it.
           baseUpdated.current = fresh.mine.updated;
           setSlide(fresh.mine.slide);
           dirty.current = false;
@@ -98,6 +113,20 @@ export function EditSlideStudio({
   }
   const saveRef = useRef(save);
   saveRef.current = save;
+  // Group mode: while this student has not changed anything, a
+  // groupmate's newer save simply replaces the page (design
+  // review, stage 3b) — only students holding unsaved work are
+  // told about the newer version.
+  const incoming = def.mine;
+  useEffect(() => {
+    if (!group || !incoming) return;
+    if (dirty.current || saving.current) return;
+    if (incoming.updated === baseUpdated.current) return;
+    baseUpdated.current = incoming.updated;
+    setSlide(incoming.slide);
+    setState("saved");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group, incoming?.updated]);
   useEffect(() => {
     const timer = setInterval(() => void saveRef.current(), 2500);
     return () => {
@@ -152,7 +181,16 @@ export function EditSlideStudio({
         aria-label="自分のスライドを作る"
       >
         <header>
-          <h2>自分のスライドを作る</h2>
+          <h2>
+            {group
+              ? `班のスライドを作る${def.groupName ? `（${def.groupName}）` : ""}`
+              : "自分のスライドを作る"}
+          </h2>
+          {group && def.mine?.lastEditorName && (
+            <span className="edit-studio-last">
+              最後の保存：{def.mine.lastEditorName}さん
+            </span>
+          )}
           <span className="edit-studio-state" role="status">
             {state === "saving"
               ? "保存中…"
@@ -177,6 +215,39 @@ export function EditSlideStudio({
           <p className="edit-studio-message" role="status">
             {message}
           </p>
+        )}
+        {conflict !== null && (
+          <div className="edit-studio-conflict">
+            <button
+              className="button outline"
+              onClick={() => {
+                void (async () => {
+                  const list = await ctx.refresh();
+                  const fresh = list.find((d) => d.id === def.id);
+                  if (fresh?.mine) {
+                    baseUpdated.current = fresh.mine.updated;
+                    setSlide(fresh.mine.slide);
+                    dirty.current = false;
+                    setConflict(null);
+                    setState("saved");
+                    setMessage("最新の状態を読み直しました。");
+                  }
+                })();
+              }}
+            >
+              最新の状態を読み直す
+            </button>
+            <button
+              className="button primary"
+              onClick={() => {
+                baseUpdated.current = conflict;
+                setConflict(null);
+                void saveRef.current();
+              }}
+            >
+              自分の内容で上書き保存
+            </button>
+          </div>
         )}
         {feedback.length > 0 && (
           <div className="edit-studio-feedback">
@@ -386,7 +457,9 @@ export function EditSlideStudio({
           />
         </div>
         <p className="edit-studio-note">
-          保存は自動です。写真は自分のスライドにだけ使え、見られるのは先生と自分だけです。
+          {group
+            ? "保存は自動です。写真は班のスライドにだけ使え、見られるのは先生と班のみんなだけです。"
+            : "保存は自動です。写真は自分のスライドにだけ使え、見られるのは先生と自分だけです。"}
         </p>
       </section>
     </div>

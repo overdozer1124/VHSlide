@@ -2058,7 +2058,9 @@ export class Directory extends DurableObject<Env> {
           if (ev === "" || Number(ev) !== version)
             out.editslides = {
               version,
-              editSlides: editSlideList(sql, id, user.id, host),
+              editSlides: editSlideList(sql, id, user.id, host, {
+                  groupOk: (params.get("ecaps") ?? "").includes("editgroup"),
+                }),
             };
         }
         const ea = params.get("ea");
@@ -2386,7 +2388,13 @@ export class Directory extends DurableObject<Env> {
             removeEditShare(sql, id, host, route![1]!, { shareId: v.shareId, author: v.author });
             if (source) pruneEditGallery(sql, id, source);
           }
-          return json({ editSlides: editSlideList(sql, id, user.id, host) });
+          return json({
+            editSlides: editSlideList(sql, id, user.id, host, {
+              groupOk: (new URL(request.url).searchParams.get("ecaps") ?? "").includes(
+                "editgroup",
+              ),
+            }),
+          });
         }
         if (method !== "GET") {
           this.rate(`editslide:${user.id}`, 120);
@@ -2401,7 +2409,13 @@ export class Directory extends DurableObject<Env> {
           );
           orphans = result.orphanAssets ?? [];
         }
-        return json({ editSlides: editSlideList(sql, id, user.id, host) });
+        return json({
+            editSlides: editSlideList(sql, id, user.id, host, {
+              groupOk: (new URL(request.url).searchParams.get("ecaps") ?? "").includes(
+                "editgroup",
+              ),
+            }),
+          });
       });
       if (orphans.length)
         this.ctx.storage.transactionSync(() => {

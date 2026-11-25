@@ -769,7 +769,8 @@ function ConsoleEditSlides({
       {metas.map(({ def, meta }) => (
         <div key={def.id} className="console-edit-def">
           <h3>
-            生徒が作ったスライド（{meta?.answers.length ?? 0}人）
+            生徒が作ったスライド（{meta?.answers.length ?? 0}
+            {def.mode === "group" ? "班" : "人"}）
             {!workbook.slides.some((s) => s.id === def.source) && (
               <span className="console-badge">
                 元のスライドは削除されています
@@ -805,6 +806,11 @@ function ConsoleEditSlides({
                     )}
                   </span>
                   <span>{a.name}</span>
+                  {def.mode === "group" && a.lastEditor && (
+                    <span className="console-edit-last">
+                      最後の保存：{a.lastEditor}さん
+                    </span>
+                  )}
                   {a.reopen && (
                     <span className="console-badge">差し戻し中</span>
                   )}
@@ -821,7 +827,8 @@ function ConsoleEditSlides({
           {!!meta?.uncreated.length && (
             <div className="console-unanswered">
               <span className="console-unanswered-label">
-                未作成（{meta.uncreated.length}人）
+                未作成（{meta.uncreated.length}
+                {def.mode === "group" ? "班" : "人"}）
               </span>
               <span className="console-unanswered-names">
                 {meta.uncreated.map((u) => u.name).join("、")}

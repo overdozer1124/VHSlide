@@ -56,7 +56,7 @@ export async function exerciseEditSlides(
 ) {
   const base = `/api/decks/${id}/edit-slides`;
   const list = async (who: string) => {
-    const r = await call(base, "GET", undefined, who);
+    const r = await call(`${base}?ecaps=editgroup`, "GET", undefined, who);
     assert.equal(r.status, 200, await r.clone().text());
     return (await r.json()).editSlides as any[];
   };
@@ -519,6 +519,145 @@ export async function exerciseEditSlides(
     ),
   );
   await write(`/${blankId}`, undefined, owner, 200, "DELETE");
+
+  // Group co-editing (stage 3b): one answer per group, keyed by
+  // the group the server derives from membership.
+  const groupsCreated = await call(
+    `/api/decks/${id}/groups`,
+    "POST",
+    { names: ["あか", "あお"] },
+    owner,
+  );
+  assert.equal(groupsCreated.status, 200, await groupsCreated.clone().text());
+  const groupList = (await (
+    await call(`/api/decks/${id}/groups`, "GET", undefined, owner)
+  ).json()).groups as { id: string; name: string }[];
+  const aka = groupList.find((g) => g.name === "あか")!;
+  const ao = groupList.find((g) => g.name === "あお")!;
+  const join = async (who: string, groupId: string) => {
+    const r = await call(
+      `/api/decks/${id}/groups/join`,
+      "POST",
+      { groupId },
+      who,
+    );
+    assert.equal(r.status, 200, await r.clone().text());
+  };
+  await join(guest, aka.id);
+  await join(guest2, ao.id);
+  const groupEntry = await slideAt(id, 2);
+  const groupCreated = await write(
+    "",
+    { source: groupEntry.id, slide: groupEntry, mode: "group" },
+    owner,
+  );
+  assert.equal(groupCreated.status, 200);
+  const groupDef = (await list(owner)).find(
+    (d: any) => d.source === groupEntry.id,
+  );
+  assert.equal(groupDef.mode, "group");
+  const groupDefId = groupDef.id as string;
+  await write(`/${groupDefId}/status`, { status: "open" }, owner);
+  const groupAnswerSlide = {
+    ...groupDef.base,
+    elements: [
+      {
+        id: "gt1",
+        type: "text",
+        x: 10,
+        y: 10,
+        w: 300,
+        h: 60,
+        text: "あかの班の答え",
+        fontSize: 24,
+        color: "#173d38",
+      },
+    ],
+  };
+  const groupSave = await call(
+    `${base}/${groupDefId}/answer`,
+    "POST",
+    { slide: groupAnswerSlide, baseUpdated: 0 },
+    guest,
+  );
+  assert.equal(groupSave.status, 200, await groupSave.clone().text());
+  // The groupmate view: guest (あか) has the answer as "mine";
+  // guest2 (あお) does not, and cannot read it by author either.
+  const guestDefs = await list(guest);
+  const guestGroupDef = guestDefs.find((d: any) => d.id === groupDefId);
+  assert.equal(guestGroupDef.groupName, "あか");
+  assert.ok(JSON.stringify(guestGroupDef.mine.slide).includes("あかの班の答え"));
+  const guest2Defs = await list(guest2);
+  assert.equal(
+    guest2Defs.find((d: any) => d.id === groupDefId).mine,
+    undefined,
+  );
+  assert.equal(
+    (
+      await call(
+        `${base}/${groupDefId}/answers/${aka.id}`,
+        "GET",
+        undefined,
+        guest2,
+      )
+    ).status,
+    404,
+  );
+  // Feedback + send-back address the group: after closing, the
+  // host sends the あか group back; its member can save again,
+  // the other group still cannot.
+  await write(`/${groupDefId}/status`, { status: "closed" }, owner);
+  const groupFeedback = await call(
+    `/api/decks/${id}/feedback`,
+    "POST",
+    {
+      targetKind: "editslide",
+      targetId: groupDefId,
+      owner: aka.id,
+      text: "班で直してね",
+      stamp: "",
+      reopen: true,
+    },
+    owner,
+  );
+  assert.equal(groupFeedback.status, 200, await groupFeedback.clone().text());
+  // The group's member receives the row; the other group does not.
+  assert.equal(
+    (await pollFeedback(guest)).filter(
+      (f: any) => f.targetId === groupDefId,
+    ).length,
+    1,
+  );
+  assert.equal(
+    (await pollFeedback(guest2)).filter(
+      (f: any) => f.targetId === groupDefId,
+    ).length,
+    0,
+  );
+  const groupSave2 = await call(
+    `${base}/${groupDefId}/answer`,
+    "POST",
+    {
+      slide: groupAnswerSlide,
+      baseUpdated: guestGroupDef.mine.updated,
+    },
+    guest,
+  );
+  // Reopened for the group: anything but the closed-intake 403
+  // (200, or 429 when it lands inside the rapid-save window).
+  assert.ok(
+    groupSave2.status === 200 || groupSave2.status === 429,
+    await groupSave2.clone().text(),
+  );
+  // The other group has no send-back: still 403 while closed.
+  const aoSave = await call(
+    `${base}/${groupDefId}/answer`,
+    "POST",
+    { slide: groupAnswerSlide, baseUpdated: 0 },
+    guest2,
+  );
+  assert.equal(aoSave.status, 403, await aoSave.clone().text());
+  await write(`/${groupDefId}`, undefined, owner, 200, "DELETE");
 
   // Removing the answer side frees the blob at last.
   await write(`/${defId}`, undefined, owner, 200, "DELETE");

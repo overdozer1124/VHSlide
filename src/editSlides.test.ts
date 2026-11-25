@@ -15,6 +15,7 @@ import {
   sanitizeEditBase,
 } from "./editSlides";
 import { featureVersion } from "./featureVersions";
+import { deckGroups, groupCommand, groupSchema } from "./groups";
 
 const DECK = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const ASSET_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -27,6 +28,7 @@ function fixture() {
     "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT,name TEXT,email TEXT); CREATE TABLE members(deck TEXT,user_id TEXT); CREATE TABLE recipients(deck TEXT,user_id TEXT,rank INTEGER); CREATE TABLE assets(id TEXT,deck TEXT,hash TEXT,bytes INTEGER); CREATE TABLE blobs(hash TEXT,owner TEXT,bytes INTEGER); INSERT INTO decks VALUES('dddddddd-dddd-4ddd-8ddd-dddddddddddd')",
   );
   db.exec(editSlideSchema);
+  db.exec(groupSchema);
   const sql: HistorySQL = (query, ...args) =>
     db.prepare(query).all(...args) as Record<string, unknown>[];
   const people: [string, string, number][] = [
@@ -533,5 +535,112 @@ describe("edit slides: poll counters and visibility", () => {
         slide: foreign,
       }),
     ).toThrow("ほかの作品の写真が含まれています。");
+  });
+});
+
+describe("free-edit slides: group co-editing (stage 3b)", () => {
+  const GROUP_SRC = "11111111-1111-4111-8111-111111111111";
+  function groupFixture() {
+    const f = fixture();
+    f.db.exec(groupSchema);
+    f.db
+      .prepare("INSERT INTO users VALUES(?,?,?)")
+      .run("cid", "生徒C", "cid@t");
+    f.db
+      .prepare("INSERT INTO members VALUES(?,?)")
+      .run(DECK, "cid");
+    groupCommand(f.sql, DECK, "host", true, "create", undefined, {
+      names: ["あか", "あお"],
+    });
+    const groups = deckGroups(f.sql, DECK);
+    const join = (who: string, name: string) =>
+      groupCommand(f.sql, DECK, who, false, "join", undefined, {
+        groupId: groups.find((g) => g.name === name)!.id,
+      });
+    join("ana", "あか");
+    join("bob", "あお");
+    const created = editSlideCommand(
+      f.sql, DECK, "host", true, "create", undefined,
+      { source: GROUP_SRC, slide: baseSlide(), mode: "group" },
+    );
+    const defId = created.createdId!;
+    editSlideCommand(f.sql, DECK, "host", true, "status", defId, {
+      status: "open",
+    });
+    return { ...f, defId, groups };
+  }
+
+  it("refuses a group definition when the deck has no groups", () => {
+    const { sql } = fixture();
+    expect(
+      status(() =>
+        editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+          source: GROUP_SRC,
+          slide: baseSlide(),
+          mode: "group",
+        }),
+      ),
+    ).toBe(400);
+  });
+
+  it("hides group definitions from clients without the marker", () => {
+    const { sql, defId } = groupFixture();
+    expect(editSlideList(sql, DECK, "ana", false).map((d) => d.id)).not.toContain(defId);
+    const withMarker = editSlideList(sql, DECK, "ana", false, { groupOk: true });
+    const view = withMarker.find((d) => d.id === defId)!;
+    expect(view.mode).toBe("group");
+    expect(view.groupName).toBe("あか");
+    // A student in no group gets the definition (with the marker)
+    // but no group identity — the entry point stays hidden.
+    const cid = editSlideList(sql, DECK, "cid", false, { groupOk: true }).find(
+      (d) => d.id === defId,
+    )!;
+    expect(cid.groupId).toBeUndefined();
+  });
+
+  it("keys the answer by the server-derived group, with the last editor", () => {
+    const { sql, defId, groups } = groupFixture();
+    const aka = groups.find((g) => g.name === "あか")!;
+    editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
+      slide: answerSlide(),
+      baseUpdated: 0,
+    });
+    const meta = editSlideAnswersMeta(sql, DECK, "host", true).find(
+      (m) => m.id === defId,
+    )!;
+    expect(meta.answers).toHaveLength(1);
+    expect(meta.answers[0].author).toBe(aka.id);
+    expect(meta.answers[0].name).toBe("あか");
+    expect(meta.answers[0].lastEditor).toBe("生徒A");
+    expect(meta.uncreated.map((u) => u.name)).toEqual(["あお"]);
+    // The other group's member cannot read it; a groupmate can.
+    expect(
+      status(() =>
+        editSlideAnswerContent(sql, DECK, "bob", false, defId, aka.id),
+      ),
+    ).toBe(404);
+    expect(
+      editSlideAnswerContent(sql, DECK, "ana", false, defId, aka.id).slide
+        .elements[0],
+    ).toMatchObject({ text: "ぼくの答え" });
+    // A student in no group cannot save.
+    expect(
+      status(() =>
+        editSlideCommand(sql, DECK, "cid", false, "answer", defId, {
+          slide: answerSlide(),
+          baseUpdated: 0,
+        }),
+      ),
+    ).toBe(403);
+    // A stale claim about the group is a conflict, not a save.
+    expect(
+      status(() =>
+        editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
+          slide: answerSlide(),
+          baseUpdated: meta.answers[0].updated,
+          groupId: groups.find((g) => g.name === "あお")!.id,
+        }),
+      ),
+    ).toBe(409);
   });
 });

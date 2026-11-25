@@ -31,6 +31,9 @@ export function SlideEditSlide({ slideId }: { slideId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unread.join(",")]);
   if (!ctx.enabled || ctx.host || !slideId || !def) return null;
+  // A group definition has no entry point for a student who
+  // belongs to no group (stage 3b design).
+  if (def.mode === "group" && !def.groupId) return null;
   const canEdit = def.status === "open" || reopenActive;
   if (!canEdit && mine.length === 0) return null;
   return (
@@ -53,7 +56,13 @@ export function SlideEditSlide({ slideId }: { slideId?: string }) {
           onClick={() => setOpen(true)}
         >
           <PencilRuler size={18} />
-          {def.mine ? "自分のスライドを編集する" : "自分のスライドを作る"}
+          {def.mode === "group"
+            ? def.mine
+              ? "班のスライドを編集する"
+              : "班のスライドを作る"
+            : def.mine
+              ? "自分のスライドを編集する"
+              : "自分のスライドを作る"}
         </button>
       )}
       {open && (
