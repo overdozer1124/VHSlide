@@ -16,6 +16,7 @@ import {
 } from "../src/surveys.ts";
 import {
   editSlideSchema,
+  ensureEditSlideShape,
   editSlideList,
   editSlideAnswersMeta,
   editSlideAnswerContent,
@@ -216,6 +217,7 @@ export class Directory extends DurableObject<Env> {
     this.sql.exec(joinSchema);
     this.sql.exec(surveySchema);
     this.sql.exec(editSlideSchema);
+    ensureEditSlideShape((query, ...args) => this.sql.exec(query, ...args));
     this.sql.exec(worksheetSchema);
     this.sql.exec(webbingSchema);
     this.sql.exec(groupSchema);

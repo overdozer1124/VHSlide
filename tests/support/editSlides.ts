@@ -74,6 +74,11 @@ export async function exerciseEditSlides(
   const deckState = async (deck: string) =>
     ((await (await call(`/api/decks/${deck}`, "GET", undefined, owner)).json())
       .state as string) ?? "";
+  const slideAt = async (deck: string, index: number): Promise<Slide> => {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, fromBase64(await deckState(deck)));
+    return readSharedDeck(doc).slides[index];
+  };
   const firstSlide = async (deck: string): Promise<Slide> => {
     const doc = new Y.Doc();
     Y.applyUpdate(doc, fromBase64(await deckState(deck)));
@@ -457,6 +462,63 @@ export async function exerciseEditSlides(
       .answers[0].shared,
     undefined,
   );
+
+  // Blank base (stage 3a): the entry slide stays the same, the
+  // base is an empty page, and answering + gallery sharing work
+  // exactly like a copied base.
+  const blankSource = await slideAt(id, 1);
+  const blankCreated = await write(
+    "",
+    { source: blankSource.id, slide: blankSource, baseKind: "blank" },
+    owner,
+  );
+  const blankId = ((await blankCreated.json()).editSlides as any[]).at(-1)
+    .id as string;
+  const blankDef = (await list(owner)).find((d: any) => d.id === blankId);
+  assert.equal(blankDef.baseKind, "blank");
+  assert.equal(blankDef.base.elements.length, 0);
+  assert.equal(blankDef.base.id, blankSource.id);
+  await write(`/${blankId}/status`, { status: "open" }, owner);
+  const blankAnswer = {
+    ...blankDef.base,
+    elements: [
+      {
+        id: "blank-text",
+        type: "text",
+        x: 40,
+        y: 40,
+        w: 300,
+        h: 60,
+        text: "白紙から作った",
+        fontSize: 24,
+        color: "#173d38",
+      },
+    ],
+  };
+  const blankSave = await call(
+    `/api/decks/${id}/edit-slides/${blankId}/answer`,
+    "POST",
+    { slide: blankAnswer, baseUpdated: 0 },
+    guest,
+  );
+  assert.equal(blankSave.status, 200);
+  const blankShare = await call(
+    `/api/decks/${id}/edit-slides/${blankId}/share-gallery`,
+    "POST",
+    { author: guestId, names: false, slide: blankSource },
+    owner,
+  );
+  assert.equal(blankShare.status, 200);
+  const galleryNow = await galleryOf(guest2);
+  const blankGallery = galleryNow.find(
+    (g: any) => g.slide.id === blankSource.id,
+  );
+  assert.ok(
+    blankGallery.editSlides.some((s: any) =>
+      JSON.stringify(s.slide).includes("白紙から作った"),
+    ),
+  );
+  await write(`/${blankId}`, undefined, owner, 200, "DELETE");
 
   // Removing the answer side frees the blob at last.
   await write(`/${defId}`, undefined, owner, 200, "DELETE");

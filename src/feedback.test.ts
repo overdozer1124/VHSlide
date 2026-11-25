@@ -149,9 +149,11 @@ describe("feedback (§4.3) for free-edit slides", () => {
     // Fill the deck cap directly, then a different answer (bob's,
     // on a second definition, with no rows of its own) hits the
     // deck cap rather than the per-answer one.
+    const slide2 = slide("土台2");
+    (slide2 as { id: string }).id = "33333333-3333-4333-8333-333333333333";
     const created2 = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
-      source: "11111111-1111-4111-8111-111111111111",
-      slide: slide("土台2"),
+      source: "33333333-3333-4333-8333-333333333333",
+      slide: slide2,
     });
     const def2 = created2.createdId!;
     editSlideCommand(sql, DECK, "host", true, "status", def2, {

@@ -476,6 +476,44 @@ describe("edit slides: poll counters and visibility", () => {
     ).toBe(413);
   });
 
+  it("blank base (stage 3a): entry slide stays, base is an empty page", () => {
+    const { sql } = fixture();
+    const created = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+      source: "11111111-1111-4111-8111-111111111111",
+      slide: baseSlide(),
+      baseKind: "blank",
+    });
+    const def = editSlideList(sql, DECK, "host", true).find(
+      (d) => d.id === created.createdId,
+    );
+    expect(def?.baseKind).toBe("blank");
+    expect(def?.source).toBe("11111111-1111-4111-8111-111111111111");
+    expect(def?.base.id).toBe("11111111-1111-4111-8111-111111111111");
+    expect(def?.base.elements).toEqual([]);
+    // One definition per entry slide: a second one — of either
+    // kind — is refused, so the student's entry never shadows.
+    expect(
+      status(() =>
+        editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+          source: "11111111-1111-4111-8111-111111111111",
+          slide: baseSlide(),
+        }),
+      ),
+    ).toBe(400);
+    // A copy definition on another slide keeps the default kind.
+    const other = baseSlide();
+    (other as { id: string }).id = "22222222-2222-4222-8222-222222222222";
+    const copy = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+      source: "22222222-2222-4222-8222-222222222222",
+      slide: other,
+    });
+    expect(
+      editSlideList(sql, DECK, "host", true).find(
+        (d) => d.id === copy.createdId,
+      )?.baseKind,
+    ).toBe("copy");
+  });
+
   it("refuses a base carrying another deck's photo, at creation time", () => {
     const { sql } = fixture();
     const foreign = baseSlide();

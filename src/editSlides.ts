@@ -52,7 +52,7 @@ export const editSlideSchema =
   // target's feedback from editSlideCommand itself.
   feedbackSchema +
   `
-CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS edit_slide_defs(id TEXT PRIMARY KEY, deck TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE, source TEXT NOT NULL, base TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, base_kind TEXT NOT NULL DEFAULT 'copy');
 CREATE TABLE IF NOT EXISTS edit_slide_answers(def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL, PRIMARY KEY(def,author));
 CREATE TABLE IF NOT EXISTS edit_slide_answer_assets(asset TEXT PRIMARY KEY, def TEXT NOT NULL REFERENCES edit_slide_defs(id) ON DELETE CASCADE, author TEXT NOT NULL, hash TEXT NOT NULL, bytes INTEGER NOT NULL, mime TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS edit_slide_shares(id TEXT PRIMARY KEY, deck TEXT NOT NULL, def TEXT NOT NULL, author TEXT NOT NULL, kind TEXT NOT NULL, names INTEGER NOT NULL, slide TEXT NOT NULL, bytes INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
@@ -108,6 +108,9 @@ export type EditSlideAnswersMeta = {
 export type EditSlideDefView = {
   id: string;
   source: string;
+  /** Stage 3a: "copy" of the teacher's slide, or a "blank" page.
+   * The source slide stays the entry point either way. */
+  baseKind: "copy" | "blank";
   status: EditSlideStatus;
   created: number;
   updated: number;
@@ -280,6 +283,20 @@ export function sanitizeEditBase(raw: unknown, deck?: string): Slide {
   return slide;
 }
 
+/** A blank starting page (stage 3a): same identity as the entry
+ * slide, white, no elements. Parsed like any other base so the
+ * stored shape is canonical. */
+function blankEditBase(source: string): Slide {
+  return parseOneSlide({
+    id: source,
+    x: 0,
+    y: 0,
+    title: "",
+    background: "#ffffff",
+    elements: [],
+  } as unknown as Slide);
+}
+
 type DefRow = {
   id: string;
   source: string;
@@ -287,12 +304,25 @@ type DefRow = {
   status: string;
   created: number;
   updated: number;
+  base_kind?: string;
 };
+
+/** Older databases predate base_kind (stage 3a); add it lazily,
+ * the way webbing adds its columns. */
+export function ensureEditSlideShape(sql: HistorySQL): void {
+  const columns = [...sql("PRAGMA table_info(edit_slide_defs)")].map(
+    (c) => c.name,
+  );
+  if (columns.length && !columns.includes("base_kind"))
+    sql(
+      "ALTER TABLE edit_slide_defs ADD COLUMN base_kind TEXT NOT NULL DEFAULT 'copy'",
+    );
+}
 
 function defRow(sql: HistorySQL, deck: string, defId: string): DefRow {
   const row = [
     ...sql(
-      "SELECT id,source,base,status,created,updated FROM edit_slide_defs WHERE deck=? AND id=?",
+      "SELECT id,source,base,status,created,updated,base_kind FROM edit_slide_defs WHERE deck=? AND id=?",
       deck,
       defId,
     ),
@@ -347,9 +377,10 @@ export function editSlideList(
   actor: string,
   host: boolean,
 ): EditSlideDefView[] {
+  ensureEditSlideShape(sql);
   const defs = [
     ...sql(
-      "SELECT id,source,base,status,created,updated FROM edit_slide_defs WHERE deck=? ORDER BY created",
+      "SELECT id,source,base,status,created,updated,base_kind FROM edit_slide_defs WHERE deck=? ORDER BY created",
       deck,
     ),
   ] as unknown as DefRow[];
@@ -371,6 +402,7 @@ export function editSlideList(
     const view: EditSlideDefView = {
       id: def.id,
       source: def.source,
+      baseKind: def.base_kind === "blank" ? "blank" : "copy",
       status: def.status as EditSlideStatus,
       created: def.created,
       updated: def.updated,
@@ -535,6 +567,7 @@ export function editSlideCommand(
   defId: string | undefined,
   value: Record<string, unknown>,
 ): { createdId?: string; orphanAssets?: OrphanAnswerAsset[] } {
+  ensureEditSlideShape(sql);
   if (action === "create") {
     insist(host, 403, "生徒の編集用を作れるのはホストだけです。");
     const count = [
@@ -550,11 +583,34 @@ export function editSlideCommand(
       400,
       "元のスライドを確認してください。",
     );
-    const base = sanitizeEditBase(value.slide, deck);
+    // One definition per entry slide: the student's entry point
+    // (and the console's follow target) resolves a slide to a
+    // single definition, so a second one — of either base kind —
+    // would shadow the first.
+    const sameSlide = [
+      ...sql(
+        "SELECT COUNT(*) AS n FROM edit_slide_defs WHERE deck=? AND source=?",
+        deck,
+        value.source as string,
+      ),
+    ][0].n as number;
+    insist(
+      sameSlide === 0,
+      400,
+      "このスライドには、すでに生徒の編集用があります。",
+    );
+    // Stage 3a: the base is either a copy of the teacher's slide
+    // or a blank page. The source slide is always the entry point
+    // (the student's button, the follow target, the gallery key),
+    // so it is required for both kinds.
+    const blank = value.baseKind === "blank";
+    const base = blank
+      ? blankEditBase(value.source as string)
+      : sanitizeEditBase(value.slide, deck);
     const id = crypto.randomUUID();
     const now = Date.now();
     sql(
-      "INSERT INTO edit_slide_defs VALUES(?,?,?,?,?,?,?)",
+      "INSERT INTO edit_slide_defs(id,deck,source,base,status,created,updated,base_kind) VALUES(?,?,?,?,?,?,?,?)",
       id,
       deck,
       value.source as string,
@@ -562,6 +618,7 @@ export function editSlideCommand(
       "draft",
       now,
       now,
+      blank ? "blank" : "copy",
     );
     return { createdId: id };
   }
