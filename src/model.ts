@@ -243,20 +243,19 @@ export function insert(
   if (deck.slides.length >= MAX_SLIDES)
     throw new Error(`ページは${MAX_SLIDES}枚までです。`);
   const x = at.x + (direction === "right" ? 1 : 0),
-    y = direction === "right" ? 0 : at.y + 1;
+    y = direction === "right" ? at.y : at.y + 1;
+  // Both directions stay inside the line they start from: a page
+  // added to the right shifts only its own row, and a page added
+  // below shifts only its own column. Inserting a whole grid
+  // line (every row or column at once) is insertGridLine's job.
   const slides = deck.slides.map((s) =>
-    direction === "right" && s.x >= x
+    direction === "right" && s.y === at.y && s.x >= x
       ? { ...s, x: s.x + 1 }
       : direction === "down" && s.x === x && s.y >= y
         ? { ...s, y: s.y + 1 }
         : s,
   );
-  return {
-    ...(direction === "right"
-      ? remapAxis(deck, "columns", (i) => (i >= x ? i + 1 : i))
-      : deck),
-    slides: [...slides, blank(x, y)],
-  };
+  return { ...deck, slides: [...slides, blank(x, y)] };
 }
 /** Insert a complete grid line between pages; the origin is never displaced. */
 export function insertGridLine(

@@ -61,14 +61,22 @@ describe("fixed grid and portable document", () => {
     ).toThrow();
     expect(() => insert(full, full.slides[0], "right")).toThrow("1000枚");
   });
-  it("inserts a topic by shifting all deeper columns and keeping fixed coordinates", () => {
+  it("inserts a page to the right within its own row only", () => {
     const d = sample(),
       added = insert(d, d.slides[0], "right");
     expect(added.slides).toHaveLength(6);
+    // The same row shifts; the row below keeps its coordinates.
     expect(added.slides.find((s) => s.id === d.slides[1].id)?.x).toBe(2);
-    expect(added.slides.find((s) => s.id === d.slides[4].id)?.x).toBe(2);
+    expect(added.slides.find((s) => s.id === d.slides[4].id)?.x).toBe(1);
     expect(added.slides.at(-1)).toMatchObject({ x: 1, y: 0 });
     expect(parseDeck(JSON.stringify(added))).toEqual(added);
+    // From a lower row, the blank lands in that row and the rows
+    // above stay put.
+    const lower = insert(d, d.slides[3], "right");
+    expect(lower.slides.at(-1)).toMatchObject({ x: 1, y: 1 });
+    expect(lower.slides.find((s) => s.id === d.slides[4].id)?.x).toBe(2);
+    expect(lower.slides.find((s) => s.id === d.slides[1].id)?.x).toBe(1);
+    expect(parseDeck(JSON.stringify(lower))).toEqual(lower);
   });
   it("inserts detail without changing adjacent topics", () => {
     const d = sample(),

@@ -17,7 +17,7 @@ test("create, edit, persist, export/import and present a two-dimensional story",
   });
   await page
     .getByRole("button", {
-      name: "わたしたちのまちの右に次の話題を追加",
+      name: "わたしたちのまちの右にページを追加",
       exact: true,
     })
     .click();
