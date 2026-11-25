@@ -49,7 +49,12 @@ export function EditSlideStudio({
   // with. The student chooses: reload it, or overwrite with their
   // own content (the overwrite save carries that stamp, so the
   // server's group check runs again — no unchecked path).
-  const [conflict, setConflict] = useState<number | null>(null);
+  const [conflict, setConflictState] = useState<number | null>(null);
+  const conflictRef = useRef<number | null>(null);
+  const setConflict = (stamp: number | null) => {
+    conflictRef.current = stamp;
+    setConflictState(stamp);
+  };
   const group = def.mode === "group";
   const baseUpdated = useRef(def.mine?.updated ?? 0);
   const slideRef = useRef(slide);
@@ -60,6 +65,9 @@ export function EditSlideStudio({
 
   async function save() {
     if (saving.current || !dirty.current) return;
+    // While a conflict awaits the student's choice, autosave
+    // stays out of the way (stage 3b review).
+    if (conflictRef.current !== null) return;
     saving.current = true;
     setState("saving");
     try {
@@ -83,7 +91,7 @@ export function EditSlideStudio({
     } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 409) {
-        const list = await ctx.refresh();
+        const list = await ctx.refreshDirect();
         const fresh = list.find((d) => d.id === def.id);
         if (group && fresh?.mine && dirty.current) {
           // A groupmate saved first. Keep this student's work and
@@ -113,20 +121,39 @@ export function EditSlideStudio({
   }
   const saveRef = useRef(save);
   saveRef.current = save;
-  // Group mode: while this student has not changed anything, a
-  // groupmate's newer save simply replaces the page (design
-  // review, stage 3b) — only students holding unsaved work are
-  // told about the newer version.
-  const incoming = def.mine;
   useEffect(() => {
-    if (!group || !incoming) return;
-    if (dirty.current || saving.current) return;
-    if (incoming.updated === baseUpdated.current) return;
-    baseUpdated.current = incoming.updated;
-    setSlide(incoming.slide);
-    setState("saved");
+    if (!group) return;
+    let stopped = false;
+    const timer = setInterval(() => {
+      void (async () => {
+        if (saving.current || conflictRef.current !== null) return;
+        const list = await ctx.refreshDirect().catch(() => null);
+        if (stopped || !list) return;
+        const fresh = list.find((d) => d.id === def.id);
+        if (!fresh?.mine) return;
+        if (fresh.mine.updated === baseUpdated.current) return;
+        if (!dirty.current) {
+          // Untouched: adopt the groupmate's newer version
+          // silently (design review, stage 3b).
+          baseUpdated.current = fresh.mine.updated;
+          setSlide(fresh.mine.slide);
+          setState("saved");
+        } else {
+          // Holding unsaved work: stop and let them choose.
+          setConflict(fresh.mine.updated);
+          setState("error");
+          setMessage(
+            "班のほかの人が新しい版を保存しました。読み直すか、自分の内容で上書きできます。",
+          );
+        }
+      })();
+    }, 4000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group, incoming?.updated]);
+  }, [group, def.id]);
   useEffect(() => {
     const timer = setInterval(() => void saveRef.current(), 2500);
     return () => {
@@ -222,7 +249,7 @@ export function EditSlideStudio({
               className="button outline"
               onClick={() => {
                 void (async () => {
-                  const list = await ctx.refresh();
+                  const list = await ctx.refreshDirect();
                   const fresh = list.find((d) => d.id === def.id);
                   if (fresh?.mine) {
                     baseUpdated.current = fresh.mine.updated;

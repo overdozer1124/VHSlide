@@ -50,6 +50,10 @@ export type EditSlideContextValue = {
     author: string,
   ) => Promise<{ slide: Slide; updated: number }>;
   refresh: () => Promise<EditSlideDefView[]>;
+  /** Always fetch the list directly (the poller only re-reads a
+   * feature when its counter moved, and answer saves deliberately
+   * do not move the shared one). */
+  refreshDirect: () => Promise<EditSlideDefView[]>;
   update: (defs: EditSlideDefView[]) => void;
 };
 export const EditSlideContext = createContext<EditSlideContextValue>({
@@ -70,6 +74,7 @@ export const EditSlideContext = createContext<EditSlideContextValue>({
     throw new Error("not ready");
   },
   refresh: async () => [],
+  refreshDirect: async () => [],
   update: () => {},
 });
 export const useEditSlides = () => useContext(EditSlideContext);
@@ -203,12 +208,17 @@ function EditSlideSession({
       await poller.pollNow();
       return defsRef.current;
     }
+    return refreshDirect();
+  }
+  async function refreshDirect() {
+    if (!enabled) return [];
     const version = ++generation.current;
     const data = await api<{ editSlides?: EditSlideDefView[] }>(
       `/api/decks/${deckId}/edit-slides?ecaps=editgroup`,
     );
     const list = data.editSlides ?? [];
     if (alive.current && version === generation.current) {
+      defsRef.current = list;
       setDefs(list);
       setError("");
     }
@@ -301,6 +311,7 @@ function EditSlideSession({
         cancelFeedbackReopen,
         answerContent,
         refresh,
+        refreshDirect,
         update,
       }}
     >

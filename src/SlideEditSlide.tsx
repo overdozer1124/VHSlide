@@ -67,7 +67,7 @@ export function SlideEditSlide({ slideId }: { slideId?: string }) {
       )}
       {open && (
         <EditSlideStudio
-          key={`${def.id}:${def.mine?.updated ?? 0}`}
+          key={def.id}
           def={def}
           onClose={() => setOpen(false)}
         />
