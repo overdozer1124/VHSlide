@@ -49,7 +49,16 @@ export type EditSlideContextValue = {
     defId: string,
     author: string,
   ) => Promise<{ slide: Slide; updated: number }>;
+  /** The light watcher probe for one definition (stage 3b):
+   * the caller's current group and their answer's version stamp. */
+  answerVersion: (
+    defId: string,
+  ) => Promise<{ groupId: string | null; updated: number | null }>;
   refresh: () => Promise<EditSlideDefView[]>;
+  /** Always fetch the list directly (the poller only re-reads a
+   * feature when its counter moved, and answer saves deliberately
+   * do not move the shared one). */
+  refreshDirect: () => Promise<EditSlideDefView[]>;
   update: (defs: EditSlideDefView[]) => void;
 };
 export const EditSlideContext = createContext<EditSlideContextValue>({
@@ -69,7 +78,9 @@ export const EditSlideContext = createContext<EditSlideContextValue>({
   answerContent: async () => {
     throw new Error("not ready");
   },
+  answerVersion: async () => ({ groupId: null, updated: null }),
   refresh: async () => [],
+  refreshDirect: async () => [],
   update: () => {},
 });
 export const useEditSlides = () => useContext(EditSlideContext);
@@ -144,7 +155,7 @@ function EditSlideSession({
   }
   async function shareApi(defId: string, action: string, body?: unknown) {
     const data = await api<{ editSlides?: EditSlideDefView[] }>(
-      `/api/decks/${deckId}/edit-slides/${defId}/${action}`,
+      `/api/decks/${deckId}/edit-slides/${defId}/${action}?ecaps=editgroup`,
       body === undefined
         ? { method: "DELETE" }
         : { method: "POST", body: JSON.stringify(body) },
@@ -197,18 +208,28 @@ function EditSlideSession({
       setDefs(data);
     }
   }
+  async function answerVersion(defId: string) {
+    return api<{ groupId: string | null; updated: number | null }>(
+      `/api/decks/${deckId}/edit-slides/${defId}/version?ecaps=editgroup`,
+    );
+  }
   async function refresh() {
     if (!enabled) return [];
     if (poller) {
       await poller.pollNow();
       return defsRef.current;
     }
+    return refreshDirect();
+  }
+  async function refreshDirect() {
+    if (!enabled) return [];
     const version = ++generation.current;
     const data = await api<{ editSlides?: EditSlideDefView[] }>(
-      `/api/decks/${deckId}/edit-slides`,
+      `/api/decks/${deckId}/edit-slides?ecaps=editgroup`,
     );
     const list = data.editSlides ?? [];
     if (alive.current && version === generation.current) {
+      defsRef.current = list;
       setDefs(list);
       setError("");
     }
@@ -300,7 +321,9 @@ function EditSlideSession({
         resubmitFeedback,
         cancelFeedbackReopen,
         answerContent,
+        answerVersion,
         refresh,
+        refreshDirect,
         update,
       }}
     >
@@ -316,7 +339,7 @@ export async function editSlideApi(
   init?: { method?: string; body?: unknown },
 ): Promise<EditSlideDefView[]> {
   const data = await api<{ editSlides: EditSlideDefView[] }>(
-    `/api/decks/${ctx.deckId}/edit-slides${path}`,
+    `/api/decks/${ctx.deckId}/edit-slides${path}?ecaps=editgroup`,
     {
       method: init?.method ?? "POST",
       body: init?.body === undefined ? undefined : JSON.stringify(init.body),

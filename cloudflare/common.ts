@@ -84,6 +84,9 @@ export function failure(error: unknown) {
         status < 500
           ? (error as Error).message
           : "クラウドで処理できませんでした。無料枠の上限・接続状況を確認し、JSONも保存してください。",
+      ...((error as { code?: string }).code
+        ? { code: (error as { code?: string }).code }
+        : {}),
     },
     status,
   );

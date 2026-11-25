@@ -16,6 +16,7 @@ export function EditSlidePanel({
   const ctx = useEditSlides();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"single" | "group">("single");
   const slide = currentSlide();
   const mine = ctx.defs.filter((d) => d.source === slide?.id);
   async function run(fn: () => Promise<unknown>) {
@@ -44,6 +45,28 @@ export function EditSlidePanel({
         </p>
       )}
       {mine.length === 0 && (
+        <div className="edit-slide-mode" role="radiogroup" aria-label="作り方">
+          <label>
+            <input
+              type="radio"
+              name="edit-slide-mode"
+              checked={mode === "single"}
+              onChange={() => setMode("single")}
+            />
+            個人で1枚ずつ
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="edit-slide-mode"
+              checked={mode === "group"}
+              onChange={() => setMode("group")}
+            />
+            班で1枚を共同編集
+          </label>
+        </div>
+      )}
+      {mine.length === 0 && (
         <button
           className="button primary"
           disabled={busy || !slide}
@@ -51,7 +74,7 @@ export function EditSlidePanel({
             slide &&
             void run(() =>
               editSlideApi(ctx, "", {
-                body: { source: slide.id, slide },
+                body: { source: slide.id, slide, mode },
               }),
             )
           }
@@ -67,7 +90,7 @@ export function EditSlidePanel({
             slide &&
             void run(() =>
               editSlideApi(ctx, "", {
-                body: { source: slide.id, slide, baseKind: "blank" },
+                body: { source: slide.id, slide, baseKind: "blank", mode },
               }),
             )
           }
@@ -78,14 +101,16 @@ export function EditSlidePanel({
       {mine.map((def) => (
           <div key={def.id} className="edit-slide-def">
             <p>
-              土台：{def.baseKind === "blank" ? "白紙" : "スライドの写し"}
+              {def.mode === "group" ? "班で共同編集" : "個人で1枚ずつ"}
+              　土台：{def.baseKind === "blank" ? "白紙" : "スライドの写し"}
               　状態：
               {def.status === "draft"
                 ? "下書き"
                 : def.status === "open"
                   ? "受付中"
                   : "終了"}
-              　回答：{def.answerCount}人
+              　回答：{def.answerCount}
+              {def.mode === "group" ? "班" : "人"}
               {!slideExists(def.source) &&
                 "（元のスライドは削除されています）"}
             </p>
@@ -126,7 +151,7 @@ export function EditSlidePanel({
                   if (
                     !window.confirm(
                       def.answerCount > 0
-                        ? `${def.answerCount}人分の回答も消えます。生徒の編集用を削除しますか？`
+                        ? `${def.answerCount}${def.mode === "group" ? "班" : "人"}分の回答も消えます。生徒の編集用を削除しますか？`
                         : "生徒の編集用を削除しますか？",
                     )
                   )

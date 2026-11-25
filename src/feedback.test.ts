@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { HistorySQL } from "./historyStore";
 import type { Slide } from "./model";
 import { editSlideCommand, editSlideSchema } from "./editSlides";
+import { deckGroups, groupCommand, groupSchema } from "./groups";
 import { featureVersion } from "./featureVersions";
 import {
   FeedbackError,
@@ -20,6 +21,7 @@ function fixture() {
     "CREATE TABLE decks(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT,name TEXT,email TEXT); CREATE TABLE members(deck TEXT,user_id TEXT); CREATE TABLE recipients(deck TEXT,user_id TEXT,rank INTEGER); CREATE TABLE assets(id TEXT,deck TEXT,hash TEXT,bytes INTEGER); CREATE TABLE blobs(hash TEXT,owner TEXT,bytes INTEGER); INSERT INTO decks VALUES('dddddddd-dddd-4ddd-8ddd-dddddddddddd')",
   );
   db.exec(editSlideSchema);
+  db.exec(groupSchema);
   const sql: HistorySQL = (query, ...args) =>
     db.prepare(query).all(...args) as Record<string, unknown>[];
   for (const [id, name] of [
@@ -32,6 +34,16 @@ function fixture() {
   }
   return { db, sql };
 }
+
+const editSlideAnswerUpdated = (
+  sql: HistorySQL,
+  defId: string,
+  author: string,
+) =>
+  Number(
+    [...sql("SELECT updated FROM edit_slide_answers WHERE def=? AND author=?", defId, author)][0]
+      .updated,
+  );
 
 const slide = (text: string): Slide =>
   ({
@@ -261,5 +273,63 @@ describe("feedback (§4.3) for free-edit slides", () => {
     send(sql, defId, {});
     editSlideCommand(sql, DECK, "host", true, "delete", defId, {});
     expect(feedbackList(sql, DECK, "host", true)).toHaveLength(0);
+  });
+});
+
+describe("feedback for group free-edit answers (stage 3b)", () => {
+  it("reaches every member of the group, and a member can resubmit", () => {
+    const { sql } = fixture();
+    groupCommand(sql, DECK, "host", true, "create", undefined, {
+      names: ["あか", "あお"],
+    });
+    const groups = deckGroups(sql, DECK);
+    const aka = groups.find((g) => g.name === "あか")!;
+    const ao = groups.find((g) => g.name === "あお")!;
+    groupCommand(sql, DECK, "ana", false, "join", undefined, { groupId: aka.id });
+    groupCommand(sql, DECK, "bob", false, "join", undefined, { groupId: ao.id });
+    const created = editSlideCommand(sql, DECK, "host", true, "create", undefined, {
+      source: "11111111-1111-4111-8111-111111111111",
+      slide: slide("土台"),
+      mode: "group",
+    });
+    const defId = created.createdId!;
+    editSlideCommand(sql, DECK, "host", true, "status", defId, { status: "open" });
+    editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
+      slide: slide("あかの回答"),
+      baseUpdated: 0,
+      groupId: aka.id,
+    });
+    editSlideCommand(sql, DECK, "host", true, "status", defId, { status: "closed" });
+    feedbackCommand(sql, DECK, "host", true, "send", {
+      targetKind: "editslide",
+      targetId: defId,
+      owner: aka.id,
+      text: "班のみんなで直してね",
+      stamp: "",
+      reopen: true,
+    });
+    // The group's member sees it; the other group's member does not.
+    const anaRows = feedbackList(sql, DECK, "ana", false).filter(
+      (f) => f.targetId === defId,
+    );
+    expect(anaRows).toHaveLength(1);
+    expect(anaRows[0].reopen).toBe(1);
+    expect(
+      feedbackList(sql, DECK, "bob", false).filter((f) => f.targetId === defId),
+    ).toHaveLength(0);
+    // The send-back re-opens saving for the group, and any member
+    // can close it by resubmitting. (Age the first save past the
+    // rapid-save limit first.)
+    sql("UPDATE edit_slide_answers SET updated=updated-10000 WHERE def=?", defId);
+    editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
+      slide: slide("直した"),
+      baseUpdated: editSlideAnswerUpdated(sql, defId, aka.id),
+      groupId: aka.id,
+    });
+    feedbackCommand(sql, DECK, "ana", false, "resubmit", { targetId: defId });
+    expect(
+      feedbackList(sql, DECK, "ana", false).find((f) => f.targetId === defId)
+        ?.reopen,
+    ).toBe(2);
   });
 });

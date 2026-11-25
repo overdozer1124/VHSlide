@@ -1,4 +1,5 @@
 import type { HistorySQL } from "./historyStore.ts";
+import { effectiveGroupId } from "./groups.ts";
 
 /** Teacher feedback and send-backs (student-input plan §4.3). One
  * generic table serves every answer kind; stage 2a wires it to
@@ -85,16 +86,30 @@ function toRow(r: RawRow): FeedbackRow {
 }
 
 /** Feedback for one deck as one viewer may see it: the host sees
- * every row; a student sees only their own. Newest first. */
+ * every row; a student sees their own rows — and, for a group
+ * free-edit definition (stage 3b), the rows addressed to their
+ * CURRENT group, so feedback follows the group a student is in
+ * now, not a group they left. Newest first. */
 export function feedbackList(
   sql: HistorySQL,
   deck: string,
   actor: string,
   host: boolean,
 ): FeedbackRow[] {
-  const rows = host
-    ? sql(
+  if (host)
+    return [
+      ...sql(
         "SELECT * FROM form_feedback WHERE deck=? ORDER BY created DESC, id",
+        deck,
+      ),
+    ].map((r) => toRow(r as RawRow));
+  const group = effectiveGroupId(sql, deck, actor);
+  const rows = group
+    ? sql(
+        "SELECT * FROM form_feedback WHERE deck=? AND (owner=? OR (owner=? AND target_kind='editslide' AND target_id IN (SELECT id FROM edit_slide_defs WHERE deck=? AND mode='group'))) ORDER BY created DESC, id",
+        deck,
+        actor,
+        group,
         deck,
       )
     : sql(
@@ -103,6 +118,33 @@ export function feedbackList(
         actor,
       );
   return [...rows].map((r) => toRow(r as RawRow));
+}
+
+/** The owner key a student's feedback action acts on for one
+ * target: themself, or their current group when the target is a
+ * group free-edit definition and the rows are the group's. */
+function studentOwner(
+  sql: HistorySQL,
+  deck: string,
+  actor: string,
+  targetId: string,
+): string {
+  const def = [
+    ...sql(
+      "SELECT mode FROM edit_slide_defs WHERE deck=? AND id=?",
+      deck,
+      targetId,
+    ),
+  ][0];
+  if (def && String(def.mode) === "group") {
+    const group = effectiveGroupId(sql, deck, actor);
+    if (
+      group &&
+      feedbackReopenActive(sql, deck, "editslide", targetId, group)
+    )
+      return group;
+  }
+  return actor;
 }
 
 /** Whether a send-back is currently in force for one answer. */
@@ -252,8 +294,9 @@ export function feedbackCommand(
   if (action === "read") {
     const ids = Array.isArray(value.ids) ? value.ids.slice(0, 100) : [];
     const now = Date.now();
+    const group = effectiveGroupId(sql, deck, actor);
     for (const id of ids)
-      if (typeof id === "string")
+      if (typeof id === "string") {
         sql(
           "UPDATE form_feedback SET read_at=? WHERE deck=? AND owner=? AND id=? AND read_at=0",
           now,
@@ -261,6 +304,18 @@ export function feedbackCommand(
           actor,
           id,
         );
+        // Rows addressed to the student's group (group free-edit
+        // definitions) are read by whichever member sees them.
+        if (group)
+          sql(
+            "UPDATE form_feedback SET read_at=? WHERE deck=? AND owner=? AND id=? AND read_at=0 AND target_kind='editslide' AND target_id IN (SELECT id FROM edit_slide_defs WHERE deck=? AND mode='group')",
+            now,
+            deck,
+            group,
+            id,
+            deck,
+          );
+      }
     return {};
   }
   if (action === "resubmit") {
@@ -270,8 +325,9 @@ export function feedbackCommand(
       400,
       "フィードバックの対象が正しくありません。",
     );
+    const owner = studentOwner(sql, deck, actor, targetId as string);
     insist(
-      feedbackReopenActive(sql, deck, "editslide", targetId as string, actor),
+      feedbackReopenActive(sql, deck, "editslide", targetId as string, owner),
       400,
       "差し戻しは受けていません。",
     );
@@ -279,7 +335,7 @@ export function feedbackCommand(
       "UPDATE form_feedback SET reopen=2 WHERE deck=? AND target_kind='editslide' AND target_id=? AND owner=? AND reopen=1",
       deck,
       targetId as string,
-      actor,
+      owner,
     );
     return {};
   }
