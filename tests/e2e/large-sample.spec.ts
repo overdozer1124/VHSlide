@@ -74,7 +74,7 @@ test("adds page 1000, blocks page 1001, and restores the complete deck", async (
   });
   await expect(page.locator(".slide-card")).toHaveCount(999);
   const add = page.getByRole("button", {
-    name: "ページ1の右に次の話題を追加",
+    name: "ページ1の右にページを追加",
     exact: true,
   });
   await add.click();

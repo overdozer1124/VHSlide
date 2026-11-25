@@ -5,7 +5,6 @@ import {
   blank,
   duplicateRowGroup,
   insertGridLine,
-  insert,
   movePage,
   moveRowGroup,
   parseDeck,
@@ -70,7 +69,7 @@ it("moves column grants and headings when swapping or inserting entire columns",
   expect(after.sheets![0].columnLabels).toEqual({ "0": "答え", "1": "問い" });
   expect(canEdit(access, after.slides[0], after)).toBe(true);
   expect(canEdit(access, after.slides[1], after)).toBe(false);
-  const added = insert(before, before.slides[0], "right");
+  const added = insertGridLine(before, "column", 1, 0);
   expect(axisId(added, "main", "columns", 2)).toBe("1");
   expect(axisId(added, "main", "columns", 1)).not.toBe("1");
 });

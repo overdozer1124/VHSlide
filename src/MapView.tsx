@@ -2319,8 +2319,8 @@ function MapViewComponent({
                               <button
                                 className="add-right add-dot"
                                 disabled={readOnly}
-                                aria-label={`${s.title}の右に次の話題を追加`}
-                                title="次の話題へ（右）"
+                                aria-label={`${s.title}の右にページを追加`}
+                                title="右にページを追加"
                                 onClick={() => add(s, "right")}
                               >
                                 <Plus size={15} />
