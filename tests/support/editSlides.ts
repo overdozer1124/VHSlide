@@ -577,10 +577,38 @@ export async function exerciseEditSlides(
   const groupSave = await call(
     `${base}/${groupDefId}/answer`,
     "POST",
-    { slide: groupAnswerSlide, baseUpdated: 0 },
+    { slide: groupAnswerSlide, baseUpdated: 0, groupId: aka.id },
     guest,
   );
   assert.equal(groupSave.status, 200, await groupSave.clone().text());
+  // The light version probe reports the guest's group and the
+  // answer's stamp; a save claiming the other group is the
+  // group-changed 409, told apart by its code (stage 3b review).
+  const version = await (
+    await call(
+      `${base}/${groupDefId}/version?ecaps=editgroup`,
+      "GET",
+      undefined,
+      guest,
+    )
+  ).json();
+  assert.equal(version.groupId, aka.id);
+  assert.equal(typeof version.updated, "number");
+  const wrongGroup = await call(
+    `${base}/${groupDefId}/answer`,
+    "POST",
+    { slide: groupAnswerSlide, baseUpdated: version.updated, groupId: ao.id },
+    guest,
+  );
+  assert.equal(wrongGroup.status, 409, await wrongGroup.clone().text());
+  assert.equal((await wrongGroup.json()).code, "group-changed");
+  const noClaim = await call(
+    `${base}/${groupDefId}/answer`,
+    "POST",
+    { slide: groupAnswerSlide, baseUpdated: version.updated },
+    guest,
+  );
+  assert.equal(noClaim.status, 400, await noClaim.clone().text());
   // The groupmate view: guest (あか) has the answer as "mine";
   // guest2 (あお) does not, and cannot read it by author either.
   const guestDefs = await list(guest);
@@ -640,6 +668,7 @@ export async function exerciseEditSlides(
     {
       slide: groupAnswerSlide,
       baseUpdated: guestGroupDef.mine.updated,
+      groupId: aka.id,
     },
     guest,
   );
@@ -653,7 +682,7 @@ export async function exerciseEditSlides(
   const aoSave = await call(
     `${base}/${groupDefId}/answer`,
     "POST",
-    { slide: groupAnswerSlide, baseUpdated: 0 },
+    { slide: groupAnswerSlide, baseUpdated: 0, groupId: ao.id },
     guest2,
   );
   assert.equal(aoSave.status, 403, await aoSave.clone().text());

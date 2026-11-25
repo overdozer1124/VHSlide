@@ -726,3 +726,103 @@ test("group definition: two members editing at once get the conflict choice", as
   await one.context.close();
   await two.context.close();
 });
+
+test("group definition: a student moved to another group cannot overwrite it", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(300_000);
+  const id = await scopeFixture(page, `${info.project.name}-esgroupmove-host`);
+  const guestName = `${info.project.name}-esgroupmove-one`;
+  await addGuest(page, id, guestName);
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/groups`, {
+        headers,
+        data: { names: ["あか", "あお"] },
+      })
+    ).status(),
+  ).toBe(200);
+  const groupList = await (
+    await page.request.get(`/api/decks/${id}/groups`, { headers })
+  ).json();
+  const aka = groupList.groups.find((g: { name: string }) => g.name === "あか");
+  const ao = groupList.groups.find((g: { name: string }) => g.name === "あお");
+  await page.goto(`/?room=${id}`);
+  await page.locator(".slide-card").first().click();
+  await page.getByRole("button", { name: "フォーム" }).click();
+  const panel = page.locator(".activity-panel");
+  await panel.getByRole("tab", { name: "生徒の編集用" }).click();
+  await panel.getByLabel("班で1枚を共同編集").check();
+  await panel
+    .getByRole("button", { name: "このスライドの写しを土台にする" })
+    .click();
+  await expect(panel.getByText("班で共同編集")).toBeVisible({
+    timeout: 15_000,
+  });
+  await panel.getByRole("button", { name: "受付を開始" }).click();
+  await expect(panel.getByText("受付中")).toBeVisible({ timeout: 15_000 });
+  const hostList = await (
+    await page.request.get(`/api/decks/${id}/edit-slides?ecaps=editgroup`, {
+      headers,
+    })
+  ).json();
+  const def = hostList.editSlides[0];
+
+  // The student joins あか and opens the group studio.
+  const context = await browser.newContext({ baseURL: scopeOrigin });
+  const student = await context.newPage();
+  await scopeLogin(student, guestName);
+  expect(
+    (
+      await student.request.post(`/api/decks/${id}/groups/join`, {
+        headers,
+        data: { groupId: aka.id },
+      })
+    ).status(),
+  ).toBe(200);
+  await student.goto(`/?room=${id}`);
+  await openFirstSlide(student, shown(student.locator(".edit-slide-launch")));
+  await student.locator(".edit-slide-launch").click();
+  const studio = student.locator(".edit-studio");
+  await expect(studio).toBeVisible({ timeout: 15_000 });
+  // An unsaved edit, then the membership changes under the
+  // student (leave あか, join あお — the same server-side move a
+  // teacher's reassignment performs).
+  await studio.getByRole("button", { name: "四角" }).click();
+  expect(
+    (
+      await student.request.post(`/api/decks/${id}/groups/leave`, {
+        headers,
+        data: {},
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await student.request.post(`/api/decks/${id}/groups/join`, {
+        headers,
+        data: { groupId: ao.id },
+      })
+    ).status(),
+  ).toBe(200);
+  // The studio notices the group changed, says so, and closes —
+  // no overwrite choice is ever offered.
+  await expect(studio.getByText("班が変わりました")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(
+    studio.getByRole("button", { name: "自分の内容で上書き保存" }),
+  ).toHaveCount(0);
+  await expect(studio).toHaveCount(0, { timeout: 15_000 });
+  // The new group has no answer: nothing was written into it.
+  expect(
+    (
+      await page.request.get(
+        `/api/decks/${id}/edit-slides/${def.id}/answers/${ao.id}`,
+        { headers },
+      )
+    ).status(),
+  ).toBe(404);
+  await context.close();
+});

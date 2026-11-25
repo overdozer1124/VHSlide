@@ -49,6 +49,11 @@ export type EditSlideContextValue = {
     defId: string,
     author: string,
   ) => Promise<{ slide: Slide; updated: number }>;
+  /** The light watcher probe for one definition (stage 3b):
+   * the caller's current group and their answer's version stamp. */
+  answerVersion: (
+    defId: string,
+  ) => Promise<{ groupId: string | null; updated: number | null }>;
   refresh: () => Promise<EditSlideDefView[]>;
   /** Always fetch the list directly (the poller only re-reads a
    * feature when its counter moved, and answer saves deliberately
@@ -73,6 +78,7 @@ export const EditSlideContext = createContext<EditSlideContextValue>({
   answerContent: async () => {
     throw new Error("not ready");
   },
+  answerVersion: async () => ({ groupId: null, updated: null }),
   refresh: async () => [],
   refreshDirect: async () => [],
   update: () => {},
@@ -202,6 +208,11 @@ function EditSlideSession({
       setDefs(data);
     }
   }
+  async function answerVersion(defId: string) {
+    return api<{ groupId: string | null; updated: number | null }>(
+      `/api/decks/${deckId}/edit-slides/${defId}/version?ecaps=editgroup`,
+    );
+  }
   async function refresh() {
     if (!enabled) return [];
     if (poller) {
@@ -310,6 +321,7 @@ function EditSlideSession({
         resubmitFeedback,
         cancelFeedbackReopen,
         answerContent,
+        answerVersion,
         refresh,
         refreshDirect,
         update,

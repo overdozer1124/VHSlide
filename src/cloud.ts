@@ -93,7 +93,10 @@ export async function api<T>(
         status: response.status,
       });
     }
-    throw Object.assign(new Error(message), { status: response.status });
+    throw Object.assign(new Error(message), {
+      status: response.status,
+      code: (value as { code?: string }).code,
+    });
   }
   return value as T;
 }

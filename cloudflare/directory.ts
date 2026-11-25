@@ -20,6 +20,7 @@ import {
   editSlideList,
   editSlideAnswersMeta,
   editSlideAnswerContent,
+  editSlideAnswerVersion,
   editSlideCommand,
   recordEditAnswerAsset,
   editAnswerAsset,
@@ -476,6 +477,7 @@ export class Directory extends DurableObject<Env> {
     user: User,
     defId: string,
     bytes: Uint8Array,
+    claimGroupId?: string,
   ) {
     const type = mime(bytes);
     insist(
@@ -516,6 +518,7 @@ export class Directory extends DurableObject<Env> {
         hash,
         bytes.length,
         type!,
+        claimGroupId,
       );
     });
     return `/api/decks/${work.id}/edit-slides/${defId}/answer-assets/${asset}`;
@@ -2220,7 +2223,7 @@ export class Directory extends DurableObject<Env> {
         "この操作には対応していません。",
       );
       const route =
-        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers|share-follow|share-gallery|share-remove)(?:\/([^/]+))?)?)?$/.exec(
+        /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers|version|share-follow|share-gallery|share-remove)(?:\/([^/]+))?)?)?$/.exec(
           extra,
         );
       insist(
@@ -2228,7 +2231,8 @@ export class Directory extends DurableObject<Env> {
           (method === "GET"
             ? extra === "edit-slides" ||
               (route[2] === "answer-assets" && !!route[3]) ||
-              (route[2] === "answers" && !!route[3])
+              (route[2] === "answers" && !!route[3]) ||
+              (route[2] === "version" && !route[3])
             : method === "DELETE"
               ? !!route[1] && (!route[2] || route[2] === "share-follow")
               : extra === "edit-slides" || (!!route[2] && !route[3])),
@@ -2237,6 +2241,25 @@ export class Directory extends DurableObject<Env> {
       );
       const sql = (query: string, ...args: (string | number)[]) =>
         this.sql.exec(query, ...args);
+      if (route![2] === "version" && method === "GET") {
+        // The group studio's light watcher probe (stage 3b).
+        return this.ctx.storage.transactionSync(() => {
+          const current = this.access(id, user);
+          const host = current.owner === user.id;
+          return json(
+            editSlideAnswerVersion(
+              sql,
+              id,
+              user.id,
+              host,
+              route![1]!,
+              (new URL(request.url).searchParams.get("ecaps") ?? "").includes(
+                "editgroup",
+              ),
+            ),
+          );
+        });
+      }
       if (route![2] === "answers" && method === "GET") {
         // One answer's content, on demand: the console fetches a
         // slide only when its updated stamp moved.
@@ -2318,6 +2341,7 @@ export class Directory extends DurableObject<Env> {
           user,
           route![1]!,
           await body(request, 6_000_000),
+          new URL(request.url).searchParams.get("group") ?? undefined,
         );
         return json({ src }, 201);
       }

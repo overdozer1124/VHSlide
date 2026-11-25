@@ -9,6 +9,7 @@ import {
   editSlideAnswerContent,
   editSlideAnswersMeta,
   editSlideSchema,
+  editSlideAnswerVersion,
   editSlideCommand,
   editSlideList,
   recordEditAnswerAsset,
@@ -604,6 +605,7 @@ describe("free-edit slides: group co-editing (stage 3b)", () => {
     editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
       slide: answerSlide(),
       baseUpdated: 0,
+      groupId: aka.id,
     });
     const meta = editSlideAnswersMeta(sql, DECK, "host", true).find(
       (m) => m.id === defId,
@@ -629,18 +631,48 @@ describe("free-edit slides: group co-editing (stage 3b)", () => {
         editSlideCommand(sql, DECK, "cid", false, "answer", defId, {
           slide: answerSlide(),
           baseUpdated: 0,
+          groupId: aka.id,
         }),
       ),
     ).toBe(403);
-    // A stale claim about the group is a conflict, not a save.
+    // No claim at all is a 400 for group definitions (review).
     expect(
       status(() =>
         editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
           slide: answerSlide(),
-          baseUpdated: meta.answers[0].updated,
-          groupId: groups.find((g) => g.name === "あお")!.id,
+          baseUpdated: 0,
         }),
       ),
-    ).toBe(409);
+    ).toBe(400);
+    // A stale claim about the group is a conflict, not a save —
+    // and it carries the group-changed code so the screen closes
+    // instead of offering an overwrite (review).
+    let changed: unknown;
+    try {
+      editSlideCommand(sql, DECK, "ana", false, "answer", defId, {
+        slide: answerSlide(),
+        baseUpdated: meta.answers[0].updated,
+        groupId: groups.find((g) => g.name === "あお")!.id,
+      });
+    } catch (error) {
+      changed = error;
+    }
+    expect((changed as EditSlideError).status).toBe(409);
+    expect((changed as EditSlideError).code).toBe("group-changed");
+    // The light version probe follows membership: after ana
+    // moves to あお, it reports the new group and no answer yet.
+    expect(
+      editSlideAnswerVersion(sql, DECK, "ana", false, defId, true),
+    ).toEqual({ groupId: aka.id, updated: meta.answers[0].updated });
+    groupCommand(sql, DECK, "ana", false, "leave", undefined, {});
+    groupCommand(sql, DECK, "ana", false, "join", undefined, {
+      groupId: groups.find((g) => g.name === "あお")!.id,
+    });
+    expect(
+      editSlideAnswerVersion(sql, DECK, "ana", false, defId, true),
+    ).toEqual({
+      groupId: groups.find((g) => g.name === "あお")!.id,
+      updated: null,
+    });
   });
 });

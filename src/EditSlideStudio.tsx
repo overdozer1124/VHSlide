@@ -56,6 +56,20 @@ export function EditSlideStudio({
     setConflictState(stamp);
   };
   const group = def.mode === "group";
+  // The group this screen opened under (stage 3b review): saves
+  // always claim it, never the group a later refresh reports —
+  // if the student was moved to another group mid-edit, the
+  // server answers the group-changed 409 and this screen closes
+  // instead of overwriting the new group's slide.
+  const openedGroupId = useRef(def.groupId);
+  const groupGoneRef = useRef(false);
+  const noteGroupGone = () => {
+    if (groupGoneRef.current) return;
+    groupGoneRef.current = true;
+    setState("error");
+    setMessage("班が変わりました。この画面を閉じます。");
+    setTimeout(() => onClose(), 2500);
+  };
   const baseUpdated = useRef(def.mine?.updated ?? 0);
   const slideRef = useRef(slide);
   slideRef.current = slide;
@@ -68,6 +82,7 @@ export function EditSlideStudio({
     // While a conflict awaits the student's choice, autosave
     // stays out of the way (stage 3b review).
     if (conflictRef.current !== null) return;
+    if (groupGoneRef.current) return;
     saving.current = true;
     setState("saving");
     try {
@@ -127,6 +142,22 @@ export function EditSlideStudio({
     const timer = setInterval(() => {
       void (async () => {
         if (saving.current || conflictRef.current !== null) return;
+        if (groupGoneRef.current) return;
+        // Light probe first (stage 3b review): only the caller's
+        // group and their answer's version stamp. The full list —
+        // and with it the slide content — is fetched only when
+        // the stamp actually moved.
+        const version = await ctx.answerVersion(def.id).catch(() => null);
+        if (stopped || !version) return;
+        if (version.groupId !== (openedGroupId.current ?? null)) {
+          noteGroupGone();
+          return;
+        }
+        if (
+          version.updated === null ||
+          version.updated === baseUpdated.current
+        )
+          return;
         const list = await ctx.refreshDirect().catch(() => null);
         if (stopped || !list) return;
         const fresh = list.find((d) => d.id === def.id);
@@ -378,7 +409,11 @@ export function EditSlideStudio({
               if (!file) return;
               try {
                 const { src } = await api<{ src: string }>(
-                  `/api/decks/${ctx.deckId}/edit-slides/${def.id}/answer-assets`,
+                  `/api/decks/${ctx.deckId}/edit-slides/${def.id}/answer-assets${
+                    group && openedGroupId.current
+                      ? `?group=${openedGroupId.current}`
+                      : ""
+                  }`,
                   { method: "POST", body: file },
                 );
                 add({

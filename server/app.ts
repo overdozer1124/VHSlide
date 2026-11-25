@@ -20,6 +20,7 @@ import {
   editSlideList,
   editSlideAnswersMeta,
   editSlideAnswerContent,
+  editSlideAnswerVersion,
   editSlideCommand,
   recordEditAnswerAsset,
   editAnswerAsset,
@@ -836,6 +837,7 @@ export function createApplication(options: Options) {
     u: User,
     defId: string,
     bytes: Buffer,
+    claimGroupId?: string,
   ) {
     const { owner } = member(id, u);
     const type = imageMime(bytes);
@@ -878,6 +880,7 @@ export function createApplication(options: Options) {
         hash,
         bytes.length,
         type!,
+        claimGroupId,
       );
     } catch (error) {
       if (!known) await releaseBlob(owner, hash);
@@ -2307,7 +2310,7 @@ export function createApplication(options: Options) {
             "この操作には対応していません。",
           );
           const route =
-            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers|share-follow|share-gallery|share-remove)(?:\/([^/]+))?)?)?$/.exec(
+            /^edit-slides(?:\/([a-f0-9-]{36})(?:\/(status|answer|answer-assets|answers|version|share-follow|share-gallery|share-remove)(?:\/([^/]+))?)?)?$/.exec(
               extra,
             );
           insist(
@@ -2315,7 +2318,8 @@ export function createApplication(options: Options) {
               (method === "GET"
                 ? extra === "edit-slides" ||
                   (route[2] === "answer-assets" && !!route[3]) ||
-                  (route[2] === "answers" && !!route[3])
+                  (route[2] === "answers" && !!route[3]) ||
+                  (route[2] === "version" && !route[3])
                 : method === "DELETE"
                   ? !!route[1] &&
                     (!route[2] || route[2] === "share-follow")
@@ -2324,6 +2328,20 @@ export function createApplication(options: Options) {
             404,
             "生徒の編集用の操作が見つかりません。",
           );
+          if (route![2] === "version" && method === "GET") {
+            // The group studio's light watcher probe (stage 3b).
+            const current = member(id, u);
+            const host = current.owner === u.id;
+            const version = editSlideAnswerVersion(
+              historySQL,
+              id,
+              u.id,
+              host,
+              route![1]!,
+              (url.searchParams.get("ecaps") ?? "").includes("editgroup"),
+            );
+            return json(res, 200, version);
+          }
           if (route![2] === "answers" && method === "GET") {
             // One answer's content, on demand: the console fetches
             // a slide only when its updated stamp moved.
@@ -2381,6 +2399,7 @@ export function createApplication(options: Options) {
               u,
               route![1]!,
               await body(req, 6_000_000),
+              url.searchParams.get("group") ?? undefined,
             );
             return json(res, 201, { src });
           }
@@ -3632,6 +3651,9 @@ export function createApplication(options: Options) {
           status < 500
             ? (error as Error).message
             : "サーバーで処理できませんでした。時間をおいてお試しください。",
+        ...((error as { code?: string }).code
+          ? { code: (error as { code?: string }).code }
+          : {}),
       });
     } finally {
       releaseJob?.();

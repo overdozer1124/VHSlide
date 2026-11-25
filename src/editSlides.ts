@@ -37,11 +37,20 @@ import type { Element, Slide } from "./model.ts";
  */
 export class EditSlideError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Machine-readable reason for the client (e.g. "group-changed"
+   * on the 409 a save gets after the student changed groups). */
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
+/** The 409 for "your group changed since this screen opened". */
+export const GROUP_CHANGED = "group-changed";
+const insistGroup = (ok: unknown, message: string): void => {
+  if (!ok) throw new EditSlideError(409, message, GROUP_CHANGED);
+};
 const insist = (ok: unknown, status: number, message: string): void => {
   if (!ok) throw new EditSlideError(status, message);
 };
@@ -627,6 +636,36 @@ export function editSlideAnswersMeta(
 /** One answer's content, fetched on demand: the console asks for a
  * slide only when its updated stamp moved, and a student can only
  * ever fetch their own. */
+/** The light probe behind the group studio's watcher (stage 3b
+ * review): the caller's own group and their answer's version
+ * stamp for one definition — no slide content. Group definitions
+ * stay hidden from screens without the marker, exactly like the
+ * list. */
+export function editSlideAnswerVersion(
+  sql: HistorySQL,
+  deck: string,
+  actor: string,
+  host: boolean,
+  defId: string,
+  groupOk: boolean,
+): { groupId: string | null; updated: number | null } {
+  ensureEditSlideShape(sql);
+  const def = defRow(sql, deck, defId);
+  if (defMode(def) !== "group") return { groupId: null, updated: null };
+  insist(groupOk, 404, "生徒の編集用が見つかりません。");
+  if (host) return { groupId: null, updated: null };
+  const groupId = effectiveGroupId(sql, deck, actor) ?? null;
+  if (!groupId) return { groupId: null, updated: null };
+  const row = [
+    ...sql(
+      "SELECT updated FROM edit_slide_answers WHERE def=? AND author=?",
+      defId,
+      groupId,
+    ),
+  ][0];
+  return { groupId, updated: row ? Number(row.updated) : null };
+}
+
 export function editSlideAnswerContent(
   sql: HistorySQL,
   deck: string,
@@ -775,15 +814,21 @@ export function editSlideCommand(
     // save, including an overwrite after a conflict.
     const author = answerAuthor(sql, deck, def, actor);
     insist(author !== undefined, 403, "班に入っていないため保存できません。");
-    if (
-      defMode(def) === "group" &&
-      typeof value.groupId === "string"
-    )
+    if (defMode(def) === "group") {
+      // Stage 3b review: the claim is required for group saves,
+      // and it must be the group the screen opened with — a
+      // mismatch is the group-changed 409, told apart by its code
+      // so the screen closes instead of offering an overwrite.
       insist(
-        value.groupId === author,
-        409,
-        "班が変わっています。最新の状態を読み直してください。",
+        typeof value.groupId === "string",
+        400,
+        "班の情報がありません。画面を読み直してください。",
       );
+      insistGroup(
+        value.groupId === author,
+        "班が変わっています。画面を読み直してください。",
+      );
+    }
     // A send-back (§4.3) in force for this author re-opens saving
     // for them alone after the intake closed; it stays in force
     // across saves until the student resubmits or the host cancels.
@@ -938,10 +983,18 @@ export function recordEditAnswerAsset(
   hash: string,
   bytes: number,
   mime: string,
+  claimGroupId?: string,
 ): void {
   const def = defRow(sql, deck, defId);
   const author = answerAuthor(sql, deck, def, actor);
   insist(author !== undefined, 403, "班に入っていないため写真を追加できません。");
+  // A claim that disagrees with the server-derived group is the
+  // group-changed 409 (the screen opened under another group).
+  if (claimGroupId !== undefined)
+    insistGroup(
+      claimGroupId === author,
+      "班が変わっています。画面を読み直してください。",
+    );
   insist(
     def.status === "open" ||
       (def.status === "closed" &&
