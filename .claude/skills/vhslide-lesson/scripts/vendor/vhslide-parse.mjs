@@ -1,4 +1,4 @@
-// Bundled from VHSlide 0.159.0 (4ba3139): parseDeck and worksheet adoption.
+// Bundled from VHSlide 0.160.0 (9ad5de9): parseDeck and worksheet adoption.
 // Regenerate with: node scripts/update-vendor.mjs <vhslide checkout>
 // src/featureVersions.ts
 var featureVersionSchema = `
