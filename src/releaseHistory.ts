@@ -8,6 +8,15 @@ export type Release = {
 };
 export const releaseHistory: Release[] = [
   {
+    version: "0.163.1",
+    title: "アプリのあるスライドを開いたときの、白い一瞬をなくしました",
+    date: "2026-11-26",
+    retrospective: false,
+    changes: [
+      "サムネイルがあるアプリは、読み込みが終わるまでサムネイルを表示しておき、アプリの画面の準備ができてから切り替えます。",
+    ],
+  },
+  {
     version: "0.163.0",
     title: "アップロードした自分のアプリは、サムネイルが自動で撮影されるようになりました",
     date: "2026-11-26",

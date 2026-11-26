@@ -57,6 +57,10 @@ export function SlideEmbed({
   })();
 
   useEffect(() => {
+    setLoaded(false);
+  }, [url]);
+
+  useEffect(() => {
     if (!interactive || !onPoster || poster || !loaded) return;
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
@@ -127,8 +131,17 @@ export function SlideEmbed({
   const editing = !!onMoveStart;
   return (
     <div className="slide-embed" data-slide-embed={interactive}>
+      {poster && (
+        <img
+          className="slide-embed-backdrop"
+          src={poster}
+          alt=""
+          aria-hidden="true"
+        />
+      )}
       <iframe
         ref={iframeRef}
+        className={poster && !loaded ? "is-loading" : undefined}
         src={url}
         title={`埋め込みアプリ（${host}）`}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
