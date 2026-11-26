@@ -1,5 +1,6 @@
 import type { HistorySQL } from "./historyStore.ts";
 import { normalizeEmbedUrl } from "./embedBinding.ts";
+import { EMBED_BRIDGE_SCRIPT } from "./embedBridgeScript.ts";
 
 /**
  * アカウントに保存する「自分のアプリ」。URL登録と、単体HTMLファイルの
@@ -203,6 +204,20 @@ export function deleteUserApp(
 }
 
 /** 配信側（認証なし・IDのみ）でアップロード済みHTMLを取り出す。無ければ null。 */
+/**
+ * Serve-time help for thumbnails: uploaded apps get the snapshot
+ * bridge injected just before </body>, so opening the slide in the
+ * editor captures the app's top screen as its thumbnail without
+ * the author having to include the bridge. Apps that already carry
+ * the bridge (or the protocol strings) are served unchanged.
+ */
+export function withEmbedBridge(html: string): string {
+  if (html.includes("vhslide-embed:request-snapshot")) return html;
+  const tag = `<script>${EMBED_BRIDGE_SCRIPT}</script>`;
+  const close = html.toLowerCase().lastIndexOf("</body>");
+  return close >= 0 ? html.slice(0, close) + tag + html.slice(close) : html + tag;
+}
+
 export function readUserAppHtml(sql: HistorySQL, id: string): string | null {
   const app = [
     ...sql("SELECT kind FROM user_apps WHERE id=?", id),

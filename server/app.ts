@@ -64,6 +64,7 @@ import {
   deleteUserApp,
   listUserApps,
   readUserAppHtml,
+  withEmbedBridge,
   userAppSchema,
   UserAppError,
 } from "../src/userApps.ts";
@@ -975,7 +976,8 @@ export function createApplication(options: Options) {
       // sandbox CSP below (opaque origin). Overrides the app CSP set above.
       const pubApp = /^\/api\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
       if (pubApp && method === "GET") {
-        const html = readUserAppHtml(historySQL, pubApp[1]);
+        const rawHtml = readUserAppHtml(historySQL, pubApp[1]);
+        const html = rawHtml === null ? null : withEmbedBridge(rawHtml);
         if (html === null) {
           res.writeHead(404, { "Content-Type": "text/plain" });
           return res.end("Not found");

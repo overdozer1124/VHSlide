@@ -3,11 +3,17 @@ import type { Page } from "@playwright/test";
 import { blank } from "../../src/model";
 const headers = { Origin: "http://127.0.0.1:3187" };
 async function signIn(page: Page, name: string) {
+  // Cloudflare backend: fetch the harness token first (scopeCloud
+  // pattern); the Node backend takes the bare fixture name.
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (await page.request.get(`/__test/token?name=${name}`)).text()
+      : name;
   expect(
     (
       await page.request.post("/api/auth/google", {
         headers,
-        data: { credential: name },
+        data: { credential },
       })
     ).status(),
   ).toBe(200);
@@ -24,8 +30,9 @@ test("host registers own apps (URL and HTML upload) and places an upload", async
   const context = await browser.newContext(info.project.use);
   const guest = await context.newPage();
   try {
-    await signIn(page, "ua-host");
-    await signIn(guest, "ua-guest");
+    const suffix = info.project.name.replace("cloud-", "");
+    await signIn(page, `ua-host-${suffix}`);
+    await signIn(guest, `ua-guest-${suffix}`);
     const created = await page.request.post("/api/decks", {
       headers,
       data: { version: 1, title: "自分のアプリ", slides: [blank(0, 0)] },
@@ -99,13 +106,22 @@ test("host registers own apps (URL and HTML upload) and places an upload", async
     expect(src).toMatch(/\/api\/pub\/apps\/[a-f0-9-]{36}$/);
 
     // The deck stores that URL, and the pub endpoint serves the HTML
-    // itself under a sandbox CSP.
-    const backup = await page.request.get(`/api/decks/${id}/backup`);
-    const deck = (await backup.json()).deck;
-    const element = deck.slides[0].elements.find(
-      (e: { embed?: { url: string } }) => e.embed,
-    );
-    expect(element.embed.url).toBe(src);
+    // itself under a sandbox CSP. On the Cloudflare backend the
+    // stored copy can lag the editor by a moment, so poll for it.
+    let element: { embed?: { url: string } } | undefined;
+    await expect
+      .poll(
+        async () => {
+          const backup = await page.request.get(`/api/decks/${id}/backup`);
+          const deck = (await backup.json()).deck;
+          element = deck.slides[0].elements.find(
+            (e: { embed?: { url: string } }) => e.embed,
+          );
+          return element?.embed?.url ?? "";
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(src);
     const served = await page.request.get(src!);
     expect(served.status()).toBe(200);
     expect(served.headers()["content-security-policy"]).toContain("sandbox");
