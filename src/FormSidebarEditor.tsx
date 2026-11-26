@@ -18,6 +18,7 @@ import {
   normalizeEmbedUrl,
   parseEmbedBinding,
 } from "./embedBinding";
+import { fileToEmbedPoster } from "./embedPoster";
 
 const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -876,6 +877,7 @@ export function EmbedSidebarEditor({
 }) {
   const current = element.embed?.url ?? "";
   const [url, setUrl] = useState(current);
+  const [posterBusy, setPosterBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const savedRef = useRef(current);
@@ -933,28 +935,56 @@ export function EmbedSidebarEditor({
       >
         URLを変更
       </button>
+      {element.embed?.poster && (
+        <img
+          className="embed-sidebar-poster"
+          src={element.embed.poster}
+          alt="サムネイル"
+        />
+      )}
+      <label className="button outline embed-poster-picker">
+        {posterBusy
+          ? "サムネイルを作っています…"
+          : element.embed?.poster
+            ? "画像を変える"
+            : "画像を選んでサムネイルにする"}
+        <input
+          type="file"
+          accept="image/*"
+          aria-label="サムネイルにする画像"
+          hidden
+          disabled={posterBusy}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            setPosterBusy(true);
+            setError("");
+            void fileToEmbedPoster(file)
+              .then((poster) => {
+                onChange({ embed: { url: current, poster } });
+                setMessage("サムネイルを設定しました。");
+              })
+              .catch((e: Error) => setError(e.message))
+              .finally(() => setPosterBusy(false));
+          }}
+        />
+      </label>
       {element.embed?.poster ? (
-        <>
-          <img
-            className="embed-sidebar-poster"
-            src={element.embed.poster}
-            alt="サムネイル"
-          />
-          <button
-            type="button"
-            className="button outline"
-            onClick={() => {
-              savedRef.current = current;
-              onChange({ embed: { url: current } });
-              setMessage("サムネイルを消しました。開いたときに撮影し直します。");
-            }}
-          >
-            サムネイルを取り直す
-          </button>
-        </>
+        <button
+          type="button"
+          className="button outline"
+          onClick={() => {
+            savedRef.current = current;
+            onChange({ embed: { url: current } });
+            setMessage("サムネイルを消しました。開いたときに撮影し直します。");
+          }}
+        >
+          サムネイルを取り直す
+        </button>
       ) : (
         <p className="embed-panel-note">
-          サムネイルはまだありません。橋渡しスクリプトを入れた自作アプリは、スライドを開いたときに自動で撮影されます。
+          サムネイルはまだありません。橋渡しスクリプトを入れた自作アプリは、スライドを開いたときに自動で撮影されます。ほかのアプリは、上のボタンから画像を選んでサムネイルにできます。
         </p>
       )}
       <p className="embed-panel-note">
