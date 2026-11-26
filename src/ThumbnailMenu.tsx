@@ -1,12 +1,16 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Layers, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, Layers, Trash2 } from "lucide-react";
 import type { Deck } from "./model";
+import { activeSheet } from "./workbook";
+import { isRowHidden } from "./hiddenSlides";
 
 export type ThumbnailAction =
   | { kind: "duplicate-page"; id: string }
   | { kind: "delete-page"; id: string }
+  | { kind: "toggle-page-hidden"; id: string }
+  | { kind: "toggle-row-hidden"; y: number }
   | { kind: "delete-column"; x: number }
   | { kind: "duplicate-row"; y: number; count?: number }
   | { kind: "delete-row"; y: number };
@@ -31,6 +35,7 @@ export function ThumbnailMenu({
   readOnly = false,
   showColumnDelete = false,
   canDeleteColumn = false,
+  showHideActions = false,
   menu,
   onClose,
   onAction,
@@ -39,6 +44,7 @@ export function ThumbnailMenu({
   readOnly?: boolean;
   showColumnDelete?: boolean;
   canDeleteColumn?: boolean;
+  showHideActions?: boolean;
   menu: ThumbnailMenuState;
   onClose: () => void;
   onAction: (action: ThumbnailAction) => void;
@@ -47,6 +53,9 @@ export function ThumbnailMenu({
   const [copies, setCopies] = useState(5);
   const [position, setPosition] = useState({ left: menu.left, top: menu.top });
   const page = deck.slides.find((s) => s.id === menu.pageId);
+  const rowHidden =
+    menu.row !== undefined &&
+    isRowHidden(deck, activeSheet(deck).id, menu.row);
   const column = page?.x ?? menu.column;
   const count = deck.slides.filter((s) => s.y === menu.row).length;
   function dismiss(restoreFocus = false) {
@@ -162,6 +171,16 @@ export function ThumbnailMenu({
         <Copy size={16} />
         このページを複製
       </button>
+      {showHideActions && page && (
+        <button
+          role="menuitem"
+          disabled={readOnly}
+          onClick={() => act({ kind: "toggle-page-hidden", id: page.id })}
+        >
+          {page.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+          {page.hidden ? "生徒に表示する" : "生徒から隠す"}
+        </button>
+      )}
       <button
         role="menuitem"
         className="menu-delete"
@@ -228,6 +247,16 @@ export function ThumbnailMenu({
               指定数の段を複製
             </button>
           </div>
+          {showHideActions && (
+            <button
+              role="menuitem"
+              disabled={readOnly}
+              onClick={() => act({ kind: "toggle-row-hidden", y: menu.row! })}
+            >
+              {rowHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+              {rowHidden ? "この段を生徒に表示する" : "この段を生徒から隠す"}
+            </button>
+          )}
           <button
             role="menuitem"
             className="menu-delete"

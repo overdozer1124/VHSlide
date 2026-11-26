@@ -518,6 +518,18 @@ h1 span {
   background: #35618e;
   color: #fff;
 }
+.start-badge.student-hidden-badge {
+  top: auto;
+  bottom: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #5a4632e6;
+  color: #fff;
+}
+.slide-card.is-student-hidden .thumbnail {
+  opacity: 0.55;
+}
 .card-footer {
   height: 36px;
   display: flex;
