@@ -48,6 +48,8 @@ const framedApp = bridgeSource
   ? `<!doctype html><html><head><meta charset="utf-8">
 <style>body{margin:0;font-family:sans-serif}h1{background:#2f6a45;color:#ffffff;padding:24px;margin:0}p{padding:16px;font-size:20px;color:#263d39}</style>
 </head><body><h1>テストアプリ</h1><p>これは埋め込み用の画面です。</p>
+<p id="count">0</p><button id="inc" type="button">増やす</button>
+<script>document.getElementById("inc").addEventListener("click",()=>{var c=document.getElementById("count");c.textContent=String(Number(c.textContent)+1);});</script>
 <script>${bridgeSource}</script></body></html>`
   : "";
 
@@ -137,6 +139,25 @@ test("host embeds a web app, its thumbnail is captured once, guests just view", 
       })
       .toMatch(/^data:image\/jpeg;base64,/);
     expect((await savedEmbed(page, id))?.url).toBe("https://example.com/app");
+
+    // With the thumbnail laid under the frame, operating the app
+    // still reaches it: the backdrop must not swallow the pointer.
+    await frame.getByRole("button", { name: "アプリを操作する" }).click();
+    const hit = await page.evaluate(() => {
+      const el = document.querySelector(".slide-embed iframe");
+      if (!el) return "none";
+      const rect = el.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return top?.tagName ?? "none";
+    });
+    expect(hit).toBe("IFRAME");
+    const hostFrame = page.frameLocator(".slide-embed iframe");
+    await hostFrame.locator("#inc").click();
+    await expect(hostFrame.locator("#count")).toHaveText("1");
+    await frame.getByRole("button", { name: /操作を終わる/ }).click();
 
     // Guest map: the captured image is the thumbnail; no live app loads.
     await guest.goto(`/?room=${id}`);
