@@ -248,3 +248,64 @@ test("host sets an app thumbnail from an image when the app sends none", async (
   ).toBeVisible();
   await expect(card.locator("iframe")).toHaveCount(0);
 });
+
+test("uploaded own app gets its thumbnail captured automatically", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  // One account per project: both projects share one test server,
+  // and the app list is per account.
+  await signIn(page, `embed-auto-host-${info.project.name.replace("cloud-", "")}`);
+  // Upload a plain single-file app: no bridge script of its own.
+  const appHtml =
+    "<!doctype html><html><head><meta charset=\"utf-8\"><style>" +
+    "body{margin:0;font-family:sans-serif}" +
+    "h1{background:#2f6a45;color:#ffffff;padding:24px;margin:0}" +
+    "p{padding:16px;font-size:20px;color:#263d39}</style></head>" +
+    "<body><h1>自動撮影ツール</h1><p>橋渡しなしの自作アプリです。</p></body></html>";
+  const registered = await page.request.post("/api/user-apps", {
+    headers,
+    data: { kind: "upload", name: "自動撮影ツール", html: appHtml },
+  });
+  expect(registered.status()).toBe(201);
+
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "自分のアプリの自動撮影", slides: [blank(0, 0)] },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "フォーム", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "アンケート", exact: true });
+  await dialog.getByRole("tab", { name: "アプリ" }).click();
+  const appDialog = page.getByRole("dialog", { name: "アプリ", exact: true });
+  const row = appDialog.locator(".embed-myapp-row", {
+    hasText: "自動撮影ツール",
+  });
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: "配置" }).click();
+  await expect(page.locator(".activity-panel")).toBeHidden();
+  const frame = page.locator(".slide-embed").first();
+  await expect(frame).toBeVisible();
+  await expect(frame.locator("iframe")).toHaveAttribute(
+    "src",
+    /\/api\/pub\/apps\/[a-f0-9-]{36}$/,
+  );
+
+  // The server injected the bridge, so the editor's snapshot request
+  // is answered and the poster lands on the element by itself.
+  await expect
+    .poll(async () => (await savedEmbed(page, id))?.poster ?? "", {
+      timeout: 30_000,
+    })
+    .toMatch(/^data:image\/jpeg;base64,/);
+
+  await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
+  const card = page.locator(".slide-card").first();
+  await expect(
+    card.locator(".slide-embed-placeholder.has-poster img"),
+  ).toBeVisible();
+  await expect(card.locator("iframe")).toHaveCount(0);
+});

@@ -7,6 +7,7 @@ import {
   listUserApps,
   readUserAppHtml,
   userAppSchema,
+  withEmbedBridge,
   UserAppError,
   USER_APP_MAX_COUNT,
 } from "./userApps";
@@ -147,5 +148,22 @@ describe("user apps", () => {
     expect(readUserAppHtml(sql, id)).toBe(HTML);
     expect(deleteUserApp(sql, "alice", id)).toEqual([]);
     expect(readUserAppHtml(sql, id)).toBeNull();
+  });
+
+  it("injects the snapshot bridge into uploaded apps at serve time", () => {
+    const served = withEmbedBridge(HTML);
+    // The bridge lands just before </body> and speaks the protocol.
+    expect(served).toContain("vhslide-embed:request-snapshot");
+    expect(served.indexOf("vhslide-embed:request-snapshot")).toBeLessThan(
+      served.toLowerCase().lastIndexOf("</body>"),
+    );
+    expect(served).toContain("<h1>テスト</h1>");
+    // No closing body: appended at the end instead.
+    expect(withEmbedBridge("<p>だけ</p>")).toContain(
+      "vhslide-embed:request-snapshot",
+    );
+    // An app that already carries the bridge is served unchanged.
+    const own = "<html><body><script>/* vhslide-embed:request-snapshot */</script></body></html>";
+    expect(withEmbedBridge(own)).toBe(own);
   });
 });

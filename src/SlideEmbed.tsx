@@ -39,6 +39,22 @@ export function SlideEmbed({
   const url = element.embed?.url ?? "";
   const poster = element.embed?.poster;
   const host = embedHostName(url) || "Webアプリ";
+  // Apps uploaded to VHSlide itself are served from /api/pub/apps
+  // under a sandbox CSP, so the frame's origin is opaque ("null"):
+  // the snapshot request must go out with "*" and the answer is
+  // recognised by its source window plus that opaque origin. The
+  // bridge inside them is injected by the server at serve time.
+  const uploaded = (() => {
+    try {
+      const parsed = new URL(url);
+      return (
+        parsed.origin === location.origin &&
+        /^\/api\/pub\/apps\/[a-f0-9-]{36}$/.test(parsed.pathname)
+      );
+    } catch {
+      return false;
+    }
+  })();
 
   useEffect(() => {
     if (!interactive || !onPoster || poster || !loaded) return;
@@ -59,7 +75,8 @@ export function SlideEmbed({
     let timer = 0;
     const onMessage = (event: MessageEvent) => {
       if (event.source !== iframe.contentWindow) return;
-      if (event.origin !== origin) return;
+      if (uploaded ? event.origin !== "null" : event.origin !== origin)
+        return;
       const data = event.data as { type?: string; image?: unknown } | null;
       if (!data || data.type !== "vhslide-embed:snapshot") return;
       if (!isEmbedPoster(data.image)) return;
@@ -72,7 +89,7 @@ export function SlideEmbed({
       asksRef.current += 1;
       iframe.contentWindow?.postMessage(
         { type: "vhslide-embed:request-snapshot", version: 1 },
-        origin,
+        uploaded ? "*" : origin,
       );
       timer = window.setTimeout(ask, 2500);
     };
@@ -82,7 +99,7 @@ export function SlideEmbed({
       window.clearTimeout(timer);
       window.removeEventListener("message", onMessage);
     };
-  }, [interactive, onPoster, poster, loaded, url]);
+  }, [interactive, onPoster, poster, loaded, url, uploaded]);
 
   if (!interactive) {
     if (poster)

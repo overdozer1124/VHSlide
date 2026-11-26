@@ -48,6 +48,7 @@ import {
   deleteUserApp,
   listUserApps,
   readUserAppHtml,
+  withEmbedBridge,
   userAppSchema,
 } from "../src/userApps.ts";
 import { featureVersion } from "../src/featureVersions.ts";
@@ -852,12 +853,12 @@ export class Directory extends DurableObject<Env> {
     // origin, so it can never reach this app's data or session.
     const pubApp = /^\/api\/pub\/apps\/([a-f0-9-]{36})$/.exec(path);
     if (pubApp && method === "GET") {
-      const html = readUserAppHtml(
+      const rawHtml = readUserAppHtml(
         (query, ...args) => this.sql.exec(query, ...args),
         pubApp[1],
       );
-      if (html === null) return new Response("Not found", { status: 404 });
-      return new Response(html, {
+      if (rawHtml === null) return new Response("Not found", { status: 404 });
+      return new Response(withEmbedBridge(rawHtml), {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Content-Security-Policy":
