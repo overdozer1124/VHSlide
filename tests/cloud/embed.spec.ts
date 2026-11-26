@@ -6,11 +6,18 @@ import { fileURLToPath } from "node:url";
 import { blank } from "../../src/model";
 const headers = { Origin: "http://127.0.0.1:3187" };
 async function signIn(page: Page, name: string) {
+  // The Cloudflare backend verifies real Google JWTs, so the test
+  // harness issues a signed token per fixture name (same pattern as
+  // scopeCloud's scopeLogin); the Node backend takes the bare name.
+  const credential =
+    process.env.VHSLIDE_TEST_BACKEND === "cloudflare"
+      ? await (await page.request.get(`/__test/token?name=${name}`)).text()
+      : name;
   expect(
     (
       await page.request.post("/api/auth/google", {
         headers,
-        data: { credential: name },
+        data: { credential },
       })
     ).status(),
   ).toBe(200);
@@ -143,7 +150,7 @@ test("host embeds a web app, its thumbnail is captured once, guests just view", 
     const sidebar = page.locator(".embed-sidebar-editor");
     await expect(sidebar).toBeVisible();
     await expect(sidebar.locator(".embed-sidebar-poster")).toBeVisible();
-    await sidebar.locator("input").fill("https://example.org/other");
+    await sidebar.locator('input[type="url"]').fill("https://example.org/other");
     await sidebar.getByRole("button", { name: "URLを変更" }).click();
     await expect(sidebar).toContainText("URLを変更しました。");
     await expect
@@ -177,4 +184,67 @@ test("host embeds a web app, its thumbnail is captured once, guests just view", 
   } finally {
     await context.close();
   }
+});
+
+test("host sets an app thumbnail from an image when the app sends none", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  await signIn(page, "embed-poster-host");
+  const created = await page.request.post("/api/decks", {
+    headers,
+    data: { version: 1, title: "アプリのサムネイル", slides: [blank(0, 0)] },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = await created.json();
+
+  // A plain page without the bridge script: nothing is captured.
+  await page.route("https://example.com/plain", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><html><body><h1>ふつうのページ</h1></body></html>",
+    });
+  });
+
+  await page.goto(`/?room=${id}`);
+  await page.getByRole("button", { name: "フォーム", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "アンケート", exact: true });
+  await dialog.getByRole("tab", { name: "アプリ" }).click();
+  const appDialog = page.getByRole("dialog", { name: "アプリ", exact: true });
+  await appDialog
+    .getByLabel("埋め込むアプリのURL")
+    .fill("https://example.com/plain");
+  await appDialog
+    .getByRole("button", { name: "このアプリをスライドに配置" })
+    .click();
+  await expect(page.locator(".activity-panel")).toBeHidden();
+  await expect(page.locator(".slide-embed").first()).toBeVisible();
+  expect((await savedEmbed(page, id))?.poster).toBeUndefined();
+
+  // Pick an image in the sidebar editor: it becomes the thumbnail.
+  const sidebar = page.locator(".embed-sidebar-editor");
+  await expect(sidebar).toBeVisible();
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  await sidebar
+    .getByLabel("サムネイルにする画像")
+    .setInputFiles({ name: "thumb.png", mimeType: "image/png", buffer: png });
+  await expect
+    .poll(async () => (await savedEmbed(page, id))?.poster ?? "", {
+      timeout: 15_000,
+    })
+    .toMatch(/^data:image\/jpeg;base64,/);
+  await expect(sidebar.locator(".embed-sidebar-poster")).toBeVisible();
+  await expect(sidebar).toContainText("サムネイルを設定しました。");
+
+  // The map card now shows the image instead of the plain marker.
+  await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
+  const card = page.locator(".slide-card").first();
+  await expect(
+    card.locator(".slide-embed-placeholder.has-poster img"),
+  ).toBeVisible();
+  await expect(card.locator("iframe")).toHaveCount(0);
 });
