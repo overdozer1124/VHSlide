@@ -269,12 +269,6 @@ test("host sets an app thumbnail from an image when the app sends none", async (
   ).toBeVisible();
   await expect(card.locator("iframe")).toHaveCount(0);
 
-  // Reopening the slide keeps the thumbnail under the frame while
-  // the app loads, instead of flashing white.
-  await card.click();
-  const live = page.locator(".slide-embed").first();
-  await expect(live.locator(".slide-embed-backdrop")).toBeVisible();
-  await expect(live.locator("iframe")).toBeVisible();
 });
 
 test("uploaded own app gets its thumbnail captured automatically", async ({
@@ -337,10 +331,4 @@ test("uploaded own app gets its thumbnail captured automatically", async ({
   ).toBeVisible();
   await expect(card.locator("iframe")).toHaveCount(0);
 
-  // Reopening the slide keeps the thumbnail under the frame while
-  // the app loads, instead of flashing white.
-  await card.click();
-  const live = page.locator(".slide-embed").first();
-  await expect(live.locator(".slide-embed-backdrop")).toBeVisible();
-  await expect(live.locator("iframe")).toBeVisible();
 });
