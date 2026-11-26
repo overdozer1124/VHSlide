@@ -45,7 +45,8 @@ export function remapAxis(
   if (!old) throw new Error("シートが見つかりません。");
   const labelsKey = axis === "rows" ? "rowLabels" : "columnLabels";
   const ids: Record<string, string> = {},
-    labels: Record<string, string> = {};
+    labels: Record<string, string> = {},
+    hiddenRows: Record<string, boolean> = {};
   const occupied = new Set<number>();
   for (let i = 0; i < 100; i++) {
     const to = move(i);
@@ -55,6 +56,8 @@ export function remapAxis(
     ids[String(to)] = axisId(deck, sheetId, axis, i);
     if (old[labelsKey]?.[String(i)] !== undefined)
       labels[String(to)] = old[labelsKey]![String(i)];
+    if (axis === "rows" && old.hiddenRows?.[String(i)])
+      hiddenRows[String(to)] = true;
   }
   for (let i = 0; i < 100; i++)
     if (!occupied.has(i)) ids[String(i)] = `axis-${uid()}`;
@@ -69,6 +72,9 @@ export function remapAxis(
             ...s,
             [field(axis)]: ids,
             ...(old[labelsKey] === undefined ? {} : { [labelsKey]: labels }),
+            ...(axis === "rows" && old.hiddenRows !== undefined
+              ? { hiddenRows }
+              : {}),
           }
         : s,
     ),

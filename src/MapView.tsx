@@ -32,8 +32,10 @@ import {
   Columns2,
   LocateFixed,
   RotateCcw,
+  EyeOff,
 } from "lucide-react";
 import type { Deck, Slide, GridMove } from "./model";
+import { isSlideHidden } from "./hiddenSlides";
 import { bounds, W, H } from "./model";
 import { Canvas } from "./Canvas";
 import { usePinch } from "./usePinch";
@@ -2147,7 +2149,7 @@ function MapViewComponent({
                                 ? { height: cardHeight }
                                 : undefined
                             }
-                            className={`slide-card ${s.id === activeId ? "active-card" : ""} ${dropTargetId === s.id ? "drop-target" : ""}`}
+                            className={`slide-card ${s.id === activeId ? "active-card" : ""} ${dropTargetId === s.id ? "drop-target" : ""} ${isSlideHidden(deck, s) ? "is-student-hidden" : ""}`}
                             onContextMenu={(event) =>
                               filterOpen || selection.active
                                 ? event.preventDefault()
@@ -2246,6 +2248,12 @@ function MapViewComponent({
                               {detailed && !filterOpen && s.id === activeId && (
                                 <span className="start-badge current-badge">
                                   いまのページ
+                                </span>
+                              )}
+                              {detailed && !filterOpen && isSlideHidden(deck, s) && (
+                                <span className="start-badge student-hidden-badge">
+                                  <EyeOff size={11} />
+                                  非表示
                                 </span>
                               )}
                             </button>

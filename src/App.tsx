@@ -101,6 +101,11 @@ import { ActionMenu } from "./ActionMenu";
 import { GuestSettings } from "./GuestSettings";
 import { assignedSlides, routeSlides } from "./learningTools";
 import { hostAccess, canEdit } from "./permissions";
+import {
+  isSlideHidden,
+  nearestVisibleSlide,
+  studentDeck,
+} from "./hiddenSlides";
 import { saveLocalVersion } from "./localHistory";
 import { CloudRecoveryNotice } from "./CloudRecoveryNotice";
 import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
@@ -278,17 +283,21 @@ export default function App() {
   );
   const filterEditor = sheetFilter?.editor ?? true;
   const editorFiltered = !!sheetFilter?.filter && filterEditor;
+  const studentView = !!cloud.active && !cloud.isHost;
   const navigationDeck = useMemo(
-    () =>
-      editorFiltered
-        ? {
-            ...deck,
-            slides: deck.slides.filter((s) =>
-              matchesFilter(s, sheetFilter!.filter!),
-            ),
-          }
-        : deck,
-    [deck, editorFiltered, sheetFilter?.filter],
+    () => {
+      let slides = deck.slides;
+      if (editorFiltered)
+        slides = slides.filter((s) => matchesFilter(s, sheetFilter!.filter!));
+      if (studentView)
+        slides = slides.filter((s) => !isSlideHidden(deck, s));
+      return slides === deck.slides ? deck : { ...deck, slides };
+    },
+    [deck, editorFiltered, sheetFilter?.filter, studentView],
+  );
+  const studentMapDeck = useMemo(
+    () => (studentView ? studentDeck(deck) : deck),
+    [deck, studentView],
   );
   const latestNavigationDeck = useRef(navigationDeck);
   latestNavigationDeck.current = navigationDeck;
@@ -799,12 +808,14 @@ export default function App() {
   ) {
     if (
       destination === "editor" &&
-      editorFiltered &&
+      (editorFiltered || studentView) &&
       !navigationDeck.slides.some((s) => s.id === id)
     ) {
       if (!navigationDeck.slides.length) {
         notify(
-          "フィルタ対象のページがありません。マップで条件を変更してください。",
+          studentView && !editorFiltered
+            ? "表示できるページがありません。"
+            : "フィルタ対象のページがありません。マップで条件を変更してください。",
         );
         return;
       }
@@ -878,6 +889,58 @@ export default function App() {
   function thumbnailAction(action: ThumbnailAction) {
     try {
       const current = latestDeck.current;
+      if (
+        action.kind === "toggle-page-hidden" ||
+        action.kind === "toggle-row-hidden"
+      ) {
+        if (cloud.active && !cloud.isHost) {
+          notify("非表示の切り替えはホストだけができます。");
+          return;
+        }
+        if (action.kind === "toggle-page-hidden") {
+          const target = current.slides.find((s) => s.id === action.id);
+          if (!target) return;
+          const next: Deck = {
+            ...current,
+            slides: current.slides.map((s) => {
+              if (s.id !== action.id) return s;
+              if (!target.hidden) return { ...s, hidden: true };
+              const { hidden: _hidden, ...rest } = s;
+              return rest;
+            }),
+          };
+          if (!commit(next, current)) return;
+          notify(
+            target.hidden
+              ? "生徒に表示します。"
+              : "生徒から隠しました。",
+          );
+          return;
+        }
+        const sheet = activeSheet(current),
+          hidden: Record<string, boolean> = { ...(sheet.hiddenRows ?? {}) },
+          was = hidden[String(action.y)] === true;
+        if (was) delete hidden[String(action.y)];
+        else hidden[String(action.y)] = true;
+        const next: Deck = {
+          ...current,
+          sheets: sheetList(current).map((sh) =>
+            sh.id === sheet.id
+              ? {
+                  ...sh,
+                  hiddenRows: Object.keys(hidden).length ? hidden : undefined,
+                }
+              : sh,
+          ),
+        };
+        if (!commit(next, current)) return;
+        notify(
+          was
+            ? "この段を生徒に表示します。"
+            : "この段を生徒から隠しました。",
+        );
+        return;
+      }
       let next: Deck;
       let chosen: Slide | undefined;
       if (action.kind === "duplicate-page") {
@@ -2659,8 +2722,13 @@ export default function App() {
         (s) => (s.sheetId ?? "main") === target.sheetId,
       );
     if (!sheetSlides.length) return;
-    const page =
+    let page =
       sheetSlides.find((s) => s.id === target.pageId) ?? sheetSlides[0];
+    if (page && isSlideHidden(book, page)) {
+      const replacement = nearestVisibleSlide(book, page);
+      if (!replacement) return;
+      page = replacement;
+    }
     if (activeSheet(book).id !== target.sheetId)
       setWorkbook({ ...book, activeSheetId: target.sheetId });
     setActiveId(page.id);
@@ -3657,7 +3725,7 @@ export default function App() {
             onFilterChange={setMapFilter}
             filterEditor={filterEditor}
             onFilterEditorChange={setFilterEditor}
-            deck={deck}
+            deck={studentMapDeck}
             activeId={activeId}
             dropTargetId={mapDropTargetId}
             objectDropActive={!!dragMove}
@@ -4016,6 +4084,7 @@ export default function App() {
             readOnly={!!cloud.active && cloud.access.mode === "none"}
             showColumnDelete={view === "editor"}
             canDeleteColumn={cloud.isHost}
+            showHideActions={cloud.isHost || !cloud.active}
             menu={thumbnailMenu}
             onClose={() => setThumbnailMenu(undefined)}
             onAction={thumbnailAction}

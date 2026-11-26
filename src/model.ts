@@ -108,6 +108,8 @@ export interface Element {
 export interface Slide {
   speakerNotes?: string;
   footerLabel?: string;
+  /** Hidden from students (room guests). Hosts still see and edit it. */
+  hidden?: boolean;
   id: string;
   sheetId?: string;
   x: number;
@@ -121,6 +123,8 @@ export interface Sheet {
   name: string;
   rowLabels?: Record<string, string>;
   columnLabels?: Record<string, string>;
+  /** Rows hidden from students, keyed like rowLabels. */
+  hiddenRows?: Record<string, boolean>;
   showRowAccounts?: boolean;
   rowIds?: Record<string, string>;
   columnIds?: Record<string, string>;
@@ -599,6 +603,23 @@ export function parseDeck(input: string): Deck {
         }
         return result;
       };
+      const flags = (value: unknown): Record<string, boolean> => {
+        if (
+          !value ||
+          typeof value !== "object" ||
+          Array.isArray(value) ||
+          Object.keys(value).length > 100
+        )
+          fail();
+        const result: Record<string, boolean> = {};
+        for (const [key, flag] of Object.entries(
+          value as Record<string, unknown>,
+        )) {
+          if (!/^(0|[1-9][0-9]?)$/.test(key)) fail();
+          if (bool(flag)) result[key] = true;
+        }
+        return result;
+      };
       const identities = (value: unknown): Record<string, string> => {
         const result = labels(value);
         const seen = new Set<string>();
@@ -627,6 +648,9 @@ export function parseDeck(input: string): Deck {
         ...(sheet.showRowAccounts === undefined
           ? {}
           : { showRowAccounts: bool(sheet.showRowAccounts) }),
+        ...(sheet.hiddenRows === undefined
+          ? {}
+          : { hiddenRows: flags(sheet.hiddenRows) }),
       };
     });
   }
@@ -664,6 +688,7 @@ export function parseDeck(input: string): Deck {
       ...(s.speakerNotes === undefined
         ? {}
         : { speakerNotes: str(s.speakerNotes, 10000) }),
+      ...(s.hidden === undefined || !bool(s.hidden) ? {} : { hidden: true }),
       background: color(s.background),
       elements: s.elements.map((e: any): Element => {
         if (

@@ -127,6 +127,10 @@ export function applyDeckChange(doc: Y.Doc, before: Deck, after: Deck) {
         if (slide.footerLabel === undefined) target.delete("footerLabel");
         else target.set("footerLabel", slide.footerLabel);
       }
+      if (!old || old.hidden !== slide.hidden) {
+        if (slide.hidden) target.set("hidden", true);
+        else target.delete("hidden");
+      }
       if (!old || old.x !== slide.x || old.y !== slide.y)
         target.set("position", { x: slide.x, y: slide.y });
       if (!old || old.sheetId !== slide.sheetId) {
@@ -303,6 +307,9 @@ export function readSharedDeck(doc: Y.Doc): Deck {
       ...(s.has("showRowAccounts")
         ? { showRowAccounts: s.get("showRowAccounts") as boolean }
         : {}),
+      ...(s.has("hiddenRows")
+        ? { hiddenRows: s.get("hiddenRows") as Sheet["hiddenRows"] }
+        : {}),
     }))
     .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
     .map(({ rank: _rank, ...sheet }) => sheet);
@@ -430,6 +437,7 @@ export function readSharedDeck(doc: Y.Doc): Deck {
       ...(s.has("footerLabel")
         ? { footerLabel: String(s.get("footerLabel")) }
         : {}),
+      ...(s.get("hidden") === true ? { hidden: true } : {}),
       ...(s.get("speakerNotes") instanceof Y.Text
         ? { speakerNotes: (s.get("speakerNotes") as Y.Text).toString() }
         : {}),

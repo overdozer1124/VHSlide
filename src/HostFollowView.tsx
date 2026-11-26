@@ -1,7 +1,8 @@
 import { ResponseFieldLauncher } from "./ResponseFieldLauncher";
 import { useActivityPanel } from "./ActivitiesPanel";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck, Slide } from "./model";
+import { studentDeck } from "./hiddenSlides";
 import type { PublicFollowState } from "./hostFollow";
 import { Canvas } from "./Canvas";
 import { useWebbing } from "./WebbingContext";
@@ -21,10 +22,23 @@ export function HostFollowView({
   state: Extract<PublicFollowState, { active: true }>;
 }) {
   const activity = useActivityPanel();
-  const pages = book.slides.filter(
+  // Guests never receive hidden pages: resolve the target against the
+  // student view of the deck, and when the host opens a hidden page,
+  // stay on the last visible page instead of following.
+  const viewBook = useMemo(() => studentDeck(book), [book]);
+  const pages = viewBook.slides.filter(
       (p) => (p.sheetId ?? "main") === state.target.sheetId,
     ),
     page = pages.find((p) => p.id === state.target.pageId);
+  const [lastPage, setLastPage] = useState<Slide | undefined>();
+  useEffect(() => {
+    if (page) setLastPage(page);
+  }, [page]);
+  const shownPage =
+    page ??
+    (lastPage && (lastPage.sheetId ?? "main") === state.target.sheetId
+      ? lastPage
+      : undefined);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), 100);
@@ -65,7 +79,7 @@ export function HostFollowView({
           ホストの画面へ切り替えます…
         </div>
       ) : state.target.mode === "map" ? (
-        <FollowMap book={book} state={state} />
+        <FollowMap book={viewBook} state={state} />
       ) : state.target.mode === "group" ? (
         <FollowGroupMap target={state.target} presenting={presenting} />
       ) : state.target.mode === "thinking" ? (
@@ -73,7 +87,7 @@ export function HostFollowView({
       ) : state.target.mode === "editslide" ? (
         <FollowEditSlide deckId={deckId} shareId={state.target.shareId} />
       ) : (
-        <FollowPage page={page} presenting={presenting} />
+        <FollowPage page={shownPage} presenting={presenting} />
       )}
     </section>
   );
