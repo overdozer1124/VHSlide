@@ -1,4 +1,5 @@
 import { useWorksheets } from "./WorksheetContext";
+import { isSlideHidden } from "./hiddenSlides";
 import { SurveySlideContext } from "./SurveySlideContext";
 import { api } from "./cloud";
 import type { FormDraft } from "./formEditing";
@@ -61,6 +62,7 @@ import {
   PanelRightOpen,
   Type,
   Users,
+  EyeOff,
 } from "lucide-react";
 import type { Deck, Element, Shape, Slide } from "./model";
 import { Canvas } from "./Canvas";
@@ -956,6 +958,12 @@ export function Editor({
                 </button>
               )}
             </span>
+            {isSlideHidden(deck, slide) && (
+              <span className="student-hidden-chip" role="status">
+                <EyeOff size={13} />
+                {slide.hidden ? "生徒に非表示中" : "この段は生徒に非表示中"}
+              </span>
+            )}
             <span className="canvas-page-position">
               {slide.y + 1}.{slide.x + 1} / 16:9
             </span>

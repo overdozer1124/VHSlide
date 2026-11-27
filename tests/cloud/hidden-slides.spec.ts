@@ -81,6 +81,14 @@ test("hidden slides and rows stay invisible to students, including follow", asyn
     .getByRole("menuitem", { name: "生徒から隠す" })
     .click();
   await expect(card).toHaveClass(/is-student-hidden/);
+  await expect(card.locator(".student-hidden-badge")).toBeVisible();
+  await expect
+    .poll(() =>
+      card
+        .locator(".thumbnail .slide-canvas")
+        .evaluate((el) => getComputedStyle(el).filter),
+    )
+    .toContain("grayscale");
 
   // Host hides the whole third row from the editor rail's row menu.
   await page.locator('[data-page-id="p00"] .thumbnail').click();
@@ -92,10 +100,21 @@ test("hidden slides and rows stay invisible to students, including follow", asyn
     .locator(".thumbnail-menu")
     .getByRole("menuitem", { name: "この段を生徒から隠す" })
     .click();
+  await expect(
+    page.getByRole("button", { name: "3段目の横のページをひらく" }),
+  ).toHaveClass(/is-student-hidden/);
   await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
   await expect(page.locator('[data-page-id="p02"]')).toHaveClass(
     /is-student-hidden/,
   );
+
+  // The editor flags the hidden slide outside the canvas, and the
+  // slide itself stays editable.
+  await page.locator('[data-page-id="p11"] .thumbnail').click();
+  await expect(page.locator(".student-hidden-chip")).toContainText(
+    "生徒に非表示中",
+  );
+  await page.getByRole("button", { name: "全体マップへ", exact: true }).click();
 
   const context = await browser.newContext({ baseURL: scopeOrigin });
   const guest = await context.newPage();
