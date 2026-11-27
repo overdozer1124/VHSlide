@@ -253,8 +253,27 @@ function FollowThinkingChart({
       updated: 0,
     })),
   };
+  // D3=A: say whose chart everyone is looking at, prominently.
+  // The owner's own marker appears only when the share shows
+  // names (group names always show, as with the labels).
+  const banner =
+    view.unit === "class"
+      ? "みんなのチャートを全員で見ています"
+      : view.unit === "group"
+        ? `${view.label}のチャートを全員で見ています`
+        : view.showNames
+          ? `${view.label}さんのチャートを全員で見ています`
+          : `${view.label}のチャートを全員で見ています`;
+  const showMine =
+    view.mine && (view.unit === "group" || view.showNames);
   return (
     <div className="host-follow-thinking">
+      <p className="host-follow-share-banner" role="status">
+        {banner}
+        {showMine && (
+          <span className="host-follow-mine">あなたのチャートです</span>
+        )}
+      </p>
       <ExpandedChart
         tool={tool}
         cards={tool.cards}

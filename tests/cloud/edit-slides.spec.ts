@@ -192,6 +192,33 @@ test("free-edit slide: student builds a copy, host sees it in the console", asyn
   await expect(consoleView.getByText(/未作成（1人）/)).toBeVisible({
     timeout: 15_000,
   });
+
+  // H12 (D2=A): the host closes the intake; the student who
+  // submitted keeps a read-only entry to their own slide, while
+  // the edit entry is gone.
+  const defId = list.editSlides[0].id as string;
+  await page.request.post(`/api/decks/${id}/edit-slides/${defId}/status`, {
+    headers,
+    data: { status: "closed" },
+  });
+  await student.goto(`/?room=${id}`);
+  await openFirstSlide(
+    student,
+    shown(student.getByRole("button", { name: "自分のスライドを見る" })),
+  );
+  await expect(
+    student.getByRole("button", { name: "自分のスライドを見る" }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    student.getByRole("button", { name: "自分のスライドを編集する" }),
+  ).toHaveCount(0);
+  await student.getByRole("button", { name: "自分のスライドを見る" }).click();
+  const viewer = student.locator(".edit-slide-viewer");
+  await expect(viewer).toBeVisible({ timeout: 15_000 });
+  await expect(viewer).toContainText("閲覧専用");
+  await expect(viewer.locator(".slide-canvas")).toBeVisible();
+  await viewer.getByRole("button", { name: "閉じる" }).click();
+  await expect(viewer).toBeHidden({ timeout: 15_000 });
   await context.close();
   await context2.close();
 });

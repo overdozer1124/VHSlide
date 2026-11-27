@@ -127,6 +127,10 @@ test("host shows one student's chart to the class, then stops", async ({
     }
   }
   await expect(board).toBeVisible({ timeout: 15_000 });
+  // H11(a): the student's surface says only their own work shows.
+  await expect(board.locator(".thinking-own-note")).toContainText(
+    "ここには自分の分だけが出ます",
+  );
   await writeCard(student, "A", "あなの考えカード");
 
   // The teacher writes on the student's chart too — before the
@@ -186,6 +190,12 @@ test("host shows one student's chart to the class, then stops", async ({
   await expect(overlay.locator(".thinking-gallery-expanded h4")).toHaveText(
     "生徒1のチャート",
   );
+  // D3: the banner says whose chart everyone is looking at; an
+  // anonymous share never marks the owner, even on their screen.
+  await expect(overlay.locator(".host-follow-share-banner")).toContainText(
+    "生徒1のチャートを全員で見ています",
+  );
+  await expect(overlay.locator(".host-follow-mine")).toHaveCount(0);
   await expect(
     overlay.locator(".thinking-card", { hasText: "あなの考えカード" }),
   ).toHaveCount(1);
@@ -224,6 +234,14 @@ test("host shows one student's chart to the class, then stops", async ({
   await expect(overlay.locator(".thinking-gallery-expanded h4")).toHaveText(
     `${guestName}のチャート`,
   );
+  // D3: with names shown, the banner names the owner and the
+  // owner's own screen carries the "your chart" marker.
+  await expect(overlay.locator(".host-follow-share-banner")).toContainText(
+    `${guestName}さんのチャートを全員で見ています`,
+  );
+  await expect(overlay.locator(".host-follow-mine")).toHaveText(
+    "あなたのチャートです",
+  );
   await expect(
     results.locator(".thinking-gallery-show"),
   ).toContainText("（名前つき）");
@@ -231,5 +249,20 @@ test("host shows one student's chart to the class, then stops", async ({
   await expect(stopButton).toBeVisible({ timeout: 15_000 });
   await stopButton.click();
   await expect(overlay).toHaveCount(0, { timeout: 20_000 });
+
+  // H10: when the intake closes, the reason appears inside the
+  // student's surface, not only in the header chip.
+  expect(
+    (
+      await page.request.post(`/api/decks/${id}/thinking/${toolId}/status`, {
+        headers,
+        data: { status: "closed" },
+      })
+    ).status(),
+  ).toBe(200);
+  await expect(board.locator(".thinking-status-hint")).toHaveText(
+    "書き込みの受付は終了しました",
+    { timeout: 20_000 },
+  );
   await ctx.close();
 });

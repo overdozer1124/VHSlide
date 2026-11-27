@@ -93,6 +93,18 @@ export function SlideThinking(props: {
           </span>
         )}
       </header>
+      {props.interactive && tool && tool.status !== "open" && (
+        <p className="thinking-status-hint" role="status">
+          {tool.status === "closed"
+            ? "書き込みの受付は終了しました"
+            : "先生が受付を始めると書き込めます"}
+        </p>
+      )}
+      {props.interactive && tool && !ctx.host && (
+        <p className="thinking-own-note">
+          ここには自分の分だけが出ます。みんなの分は先生が共有したときに見られます
+        </p>
+      )}
       {tool ? (
         tool.kind === "board" ? (
           tool.template === "steps" ? (
