@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { PencilRuler } from "lucide-react";
+import { Eye, PencilRuler, X } from "lucide-react";
 import { useEditSlides } from "./EditSlideContext";
 import { EditSlideStudio } from "./EditSlideStudio";
+import { Canvas } from "./Canvas";
+import { H, W } from "./model";
 
 /** Student entry point for a free-edit slide: when the slide being
  * viewed is the base of an open definition, offer the studio. The
@@ -12,6 +14,7 @@ import { EditSlideStudio } from "./EditSlideStudio";
 export function SlideEditSlide({ slideId }: { slideId?: string }) {
   const ctx = useEditSlides();
   const [open, setOpen] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const marked = useRef("");
   const def = ctx.defs.find((d) => d.source === slideId);
   const mine = def
@@ -35,7 +38,11 @@ export function SlideEditSlide({ slideId }: { slideId?: string }) {
   // belongs to no group (stage 3b design).
   if (def.mode === "group" && !def.groupId) return null;
   const canEdit = def.status === "open" || reopenActive;
-  if (!canEdit && mine.length === 0) return null;
+  // After the intake closes, a student who submitted keeps a
+  // read-only way back to their slide (ODN decision D2=A,
+  // 2026-11-27); the entry sits right under any feedback.
+  const canView = !canEdit && !!def.mine;
+  if (!canEdit && !canView && mine.length === 0) return null;
   return (
     <>
       {mine.length > 0 && (
@@ -65,12 +72,68 @@ export function SlideEditSlide({ slideId }: { slideId?: string }) {
               : "自分のスライドを作る"}
         </button>
       )}
+      {canView && (
+        <button
+          className="button outline edit-slide-launch"
+          onClick={() => setViewing(true)}
+        >
+          <Eye size={18} />
+          {def.mode === "group" ? "班のスライドを見る" : "自分のスライドを見る"}
+        </button>
+      )}
       {open && (
         <EditSlideStudio
           key={def.id}
           def={def}
           onClose={() => setOpen(false)}
         />
+      )}
+      {viewing && def.mine && (
+        <div
+          className="edit-studio-overlay"
+          onClick={() => setViewing(false)}
+        >
+          <section
+            className="edit-slide-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              def.mode === "group"
+                ? "班のスライド（閲覧専用）"
+                : "自分のスライド（閲覧専用）"
+            }
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header>
+              <strong>
+                {def.mode === "group" ? "班のスライド" : "自分のスライド"}
+                （閲覧専用）
+              </strong>
+              <button
+                type="button"
+                className="button outline"
+                aria-label="閉じる"
+                onClick={() => setViewing(false)}
+              >
+                <X size={16} />
+                閉じる
+              </button>
+            </header>
+            <p className="edit-slide-viewer-note">
+              受付は終了しているため、編集はできません。
+            </p>
+            <div className="edit-slide-viewer-canvas">
+              <Canvas
+                slide={def.mine.slide}
+                zoom={Math.min(
+                  1,
+                  (window.innerWidth - 72) / W,
+                  (window.innerHeight - 220) / H,
+                )}
+              />
+            </div>
+          </section>
+        </div>
       )}
     </>
   );

@@ -17,7 +17,7 @@ export function ResponseFieldLauncher({
     <button
       className="tool-button response-field-launch"
       disabled={disabled || (!!ctx.deckId && !ctx.enabled)}
-      title="フォーム：アンケート・ワークシート・回答欄・回答共有"
+      title="フォーム：ワークシート・アンケート・ウェブマップ・思考ツール・回答欄の追加・前の回答・生徒の編集用・アプリ"
       onClick={(event) => activity.launch(activity.active, event.currentTarget)}
     >
       <ClipboardList size={20} />

@@ -93,8 +93,8 @@ export function ActivitiesPanel({
   // whose only action there is opening the shared slides.
   const kinds: Kind[] =
     ctx.enabled && !ctx.host
-      ? ["survey", "worksheet", "webbing", "gallery"]
-      : ["survey", "worksheet", "webbing", "thinking", "fields", "prevanswer", "editslide", "apps"];
+      ? ["worksheet", "survey", "webbing", "gallery"]
+      : ["worksheet", "survey", "webbing", "thinking", "fields", "prevanswer", "editslide", "apps"];
   const labels: Record<Kind, string> = {
     survey: "アンケート",
     worksheet: "ワークシート",
@@ -173,10 +173,15 @@ export function ActivitiesPanel({
               <X size={18} />
             </button>
           </header>
+          <p className="activity-guide">
+            {ctx.host
+              ? "生徒に書いてもらうもの・考えてもらうものを、作ってスライドに置く入口です。"
+              : "先生から共有された回答スライドなどを見る入口です。"}
+          </p>
           <div
             className="activity-tabs"
             role="tablist"
-            aria-label="アンケートとワークシートの切替"
+            aria-label={`フォームの切替：${kinds.map((k) => labels[k]).join("・")}`}
             onKeyDown={(e) => {
               if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
                 return;

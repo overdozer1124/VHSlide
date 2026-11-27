@@ -664,6 +664,7 @@ export function ThinkingPanel({
   const [deleteId, setDeleteId] = useState("");
   const [editId, setEditId] = useState("");
   const [resultsId, setResultsId] = useState("");
+  const [justCreatedId, setJustCreatedId] = useState("");
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -692,11 +693,19 @@ export function ThinkingPanel({
     }
   }
 
+  const justCreated = justCreatedId
+    ? ctx.tools.find((t) => t.id === justCreatedId && t.status === "draft")
+    : undefined;
   return (
     <div className="thinking-panel">
       <p className="webbing-panel-note">
         考えを「点」や「カード」で表す思考ツールです。軸や気持ちの上に点を置くものと、区切りにカードを書くものがあります。個人・班・全体のどれでも使えます。
       </p>
+      {host && (
+        <p className="thinking-steps-note">
+          手順：1 作る → 2 受付を開始 → 3 スライドに配置（受付を開始しないと配置できません）
+        </p>
+      )}
       {ctx.error && (
         <p role="alert" className="webbing-panel-error">
           {ctx.error}
@@ -721,14 +730,53 @@ export function ThinkingPanel({
           busy={busy}
           onSubmit={async (template, unit, definition) => {
             await run(async () => {
-              await ctx.command(undefined, undefined, {
+              const res = await ctx.command(undefined, undefined, {
                 template,
                 unit,
                 definition,
               });
+              if (res.createdId && alive.current)
+                setJustCreatedId(res.createdId);
             }, "思考ツールを作成しました。受付を開始すると配置できます。");
           }}
         />
+      )}
+      {host && justCreated && (
+        <div className="thinking-created-box">
+          <p>
+            「{justCreated.definition.title}
+            」を作成しました。続けて受付を始めて、スライドに置けます。
+          </p>
+          <div className="thinking-created-actions">
+            <button
+              type="button"
+              className="button primary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await ctx.command(justCreated.id, "status", {
+                    status: "open",
+                  });
+                  if (onEmbed) {
+                    onEmbed({ ...justCreated, status: "open" });
+                    activity.close();
+                  }
+                  setJustCreatedId("");
+                }, "受付を開始して、スライドに配置しました。")
+              }
+            >
+              受付を開始して配置する
+            </button>
+            <button
+              type="button"
+              className="button outline"
+              disabled={busy}
+              onClick={() => setJustCreatedId("")}
+            >
+              あとで配置する
+            </button>
+          </div>
+        </div>
       )}
       <div className="thinking-tool-list">
         {ctx.tools.length === 0 && (

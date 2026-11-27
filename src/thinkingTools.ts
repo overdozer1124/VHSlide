@@ -1577,6 +1577,14 @@ export type ThinkingShareView = {
   definition: ThinkingDefinition;
   cards: ThinkingShareCard[];
   nodes?: ThinkingShareNode[];
+  /** Whether the host chose to show names with this share. The
+   * client's "this is your chart" marker is gated on it (D3=A):
+   * an anonymous share never marks the owner. */
+  showNames: boolean;
+  /** True when the requesting viewer owns this chart (their own
+   * chart, or their group's). Lets the owner recognise their chart
+   * without exposing any owner identity to anyone else. */
+  mine: boolean;
 };
 /** The one chart the host is showing to the whole class (stage 4c),
  * built for students: the owner's display label is resolved here,
@@ -1592,6 +1600,7 @@ export function thinkingShareView(
   showNames: boolean,
   hostId: string,
   caps?: { steps?: boolean; flow?: boolean; board5?: boolean },
+  viewerId?: string,
 ): ThinkingShareView | undefined {
   const row = [
     ...sql("SELECT * FROM thinking_tools WHERE id=? AND deck=?", toolId, deck),
@@ -1694,6 +1703,8 @@ export function thinkingShareView(
       definition: tool.definition,
       cards: [],
       nodes,
+      showNames,
+      mine: shareMine(sql, deck, tool.unit, owner, viewerId),
     };
   }
   return {
@@ -1702,7 +1713,33 @@ export function thinkingShareView(
     template: tool.template,
     definition: tool.definition,
     cards,
+    showNames,
+    mine: shareMine(sql, deck, tool.unit, owner, viewerId),
   };
+}
+/** Whether the viewer owns the shared chart: their own chart for
+ * individual tools, their group's chart for group tools. A class
+ * chart belongs to everyone, so it is never "mine". */
+function shareMine(
+  sql: HistorySQL,
+  deck: string,
+  unit: ThinkingUnit,
+  owner: string,
+  viewerId?: string,
+): boolean {
+  if (!viewerId) return false;
+  if (unit === "individual") return viewerId === owner;
+  if (unit === "group") {
+    const row = [
+      ...sql(
+        "SELECT grp FROM deck_group_members WHERE deck=? AND user=?",
+        deck,
+        viewerId,
+      ),
+    ][0];
+    return row !== undefined && String(row.grp) === owner;
+  }
+  return false;
 }
 export function thinkingCommand(
   sql: HistorySQL,

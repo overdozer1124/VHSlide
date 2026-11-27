@@ -794,6 +794,56 @@ describe("thinking share view (stage 4c)", () => {
     expect(named?.label).toBe("あな");
     const second = thinkingShareView(sql, "deck", id, "bob", false, "host");
     expect(second?.label).toBe("生徒2");
+    // D3: the view reports whether names are shown and whether
+    // the requesting viewer owns the chart — a boolean only, so
+    // an anonymous share still identifies no one to anyone else.
+    expect(anon?.showNames).toBe(false);
+    expect(anon?.mine).toBe(false);
+    const ownAnon = thinkingShareView(
+      sql, "deck", id, "ana", false, "host", undefined, "ana",
+    );
+    expect(ownAnon?.mine).toBe(true);
+    expect(ownAnon?.showNames).toBe(false);
+    const ownNamed = thinkingShareView(
+      sql, "deck", id, "ana", true, "host", undefined, "ana",
+    );
+    expect(ownNamed?.mine).toBe(true);
+    expect(ownNamed?.showNames).toBe(true);
+    const others = thinkingShareView(
+      sql, "deck", id, "ana", true, "host", undefined, "bob",
+    );
+    expect(others?.mine).toBe(false);
+  });
+  it("marks a group chart as the viewer's own only for its members", () => {
+    const { sql } = fixture();
+    const id = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "webbing",
+      unit: "group",
+      definition: { title: "海の生き物" },
+    })!.createdId!;
+    open(sql, id);
+    groupCommand(sql, "deck", "host", true, "create", undefined, {
+      names: ["1班", "2班"],
+    });
+    const g1 = [...sql("SELECT id FROM deck_groups ORDER BY rowid")][0]
+      .id as string;
+    const g2 = [...sql("SELECT id FROM deck_groups ORDER BY rowid")][1]
+      .id as string;
+    groupCommand(sql, "deck", "ana", false, "join", undefined, { groupId: g1 });
+    groupCommand(sql, "deck", "eve", false, "join", undefined, { groupId: g2 });
+    thinkingCommand(sql, "deck", "ana", false, "node", id, {
+      text: "親",
+      owner: g1,
+    });
+    const member = thinkingShareView(
+      sql, "deck", id, g1, false, "host", { flow: true }, "ana",
+    );
+    expect(member?.mine).toBe(true);
+    expect(member?.label).toBe("1班");
+    const outsider = thinkingShareView(
+      sql, "deck", id, g1, false, "host", { flow: true }, "eve",
+    );
+    expect(outsider?.mine).toBe(false);
   });
   it("labels a class board 全員 and refuses point tools", () => {
     const { sql } = fixture();

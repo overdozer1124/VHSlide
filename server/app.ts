@@ -2798,6 +2798,7 @@ export function createApplication(options: Options) {
               flow: (url.searchParams.get("caps") ?? "").includes("flow"),
               board5: (url.searchParams.get("caps") ?? "").includes("board5"),
             },
+            u.id,
           );
           insist(view, 404, "いま見せているチャートはありません。");
           return json(res, 200, { share: view });

@@ -2705,6 +2705,7 @@ export class Directory extends DurableObject<Env> {
               "board5",
             ),
           },
+          user.id,
         );
         insist(view, 404, "いま見せているチャートはありません。");
         return json({ share: view });

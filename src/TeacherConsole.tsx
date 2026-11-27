@@ -101,7 +101,7 @@ export function TeacherConsole({
   const { deckId } = useWorksheets();
   const webbingCtx = useWebbing();
   const visible = usePageVisible();
-  const [mode, setMode] = useState<ConsoleMode>("list");
+  const [mode, setMode] = useState<ConsoleMode>("slides");
   const [onlyRelevant, setOnlyRelevant] = useState(false);
   const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
   // Per-slide answer counts (same aggregation as the gallery preview),
@@ -525,9 +525,9 @@ function ConsoleMain({
   }
 
   const modes: { key: ConsoleMode; label: string }[] = [
+    { key: "slides", label: "生徒のスライド" },
     { key: "list", label: "回答一覧" },
     { key: "fields", label: "設問ごとの集計" },
-    { key: "slides", label: "生徒のスライド" },
     ...(webbingCtx.maps.length
       ? [{ key: "groups" as ConsoleMode, label: "グループ別マップ" }]
       : []),
@@ -771,6 +771,13 @@ function ConsoleEditSlides({
           <h3>
             生徒が作ったスライド（{meta?.answers.length ?? 0}
             {def.mode === "group" ? "班" : "人"}）
+            <span className="console-badge">
+              {def.status === "draft"
+                ? "下書き"
+                : def.status === "open"
+                  ? "受付中"
+                  : "受付終了"}
+            </span>
             {!workbook.slides.some((s) => s.id === def.source) && (
               <span className="console-badge">
                 元のスライドは削除されています

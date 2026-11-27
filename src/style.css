@@ -6978,6 +6978,20 @@ h1 span {
 .webbing-unavailable { flex:1;display:flex;align-items:center;justify-content:center;color:#6a8070;font-size:14px;text-align:center;padding:12px; }
 .slide-thinking { width:100%;height:100%;box-sizing:border-box;border:2px solid #7a6a9a;border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;color:#2e2440;overflow:hidden;text-align:left;background:#fff; }
 .thinking-body { flex:1;min-height:0;display:flex;flex-direction:column;gap:6px; }
+.thinking-status-hint { margin:0;flex-shrink:0;align-self:center;font-size:12.5px;font-weight:700;color:#6b4e12;background:#fdf3d8;border:1px solid #e8d194;border-radius:999px;padding:4px 14px; }
+.activity-guide { margin:0 0 10px;font-size:12.5px;color:#5c7263; }
+.thinking-steps-note { margin:0 0 10px;font-size:12.5px;font-weight:700;color:#4a3a6b;background:#f4f1fa;border:1px solid #d9cfef;border-radius:8px;padding:6px 10px; }
+.thinking-created-box { margin:0 0 12px;border:1px solid #b7a8d9;background:#faf8ff;border-radius:10px;padding:10px 12px; }
+.thinking-created-box p { margin:0 0 8px;font-size:13px; }
+.thinking-created-actions { display:flex;gap:8px;flex-wrap:wrap; }
+.edit-slide-viewer { background:#fff;border-radius:14px;max-width:min(1060px,94vw);max-height:92vh;overflow:auto;padding:16px 18px;box-shadow:0 18px 50px rgba(23,61,56,.35); }
+.edit-slide-viewer header { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.edit-slide-viewer-note { margin:8px 0 10px;font-size:12.5px;color:#7a6f5f; }
+.edit-slide-viewer-canvas { display:flex;justify-content:center; }
+.edit-slide-viewer-canvas .slide-canvas { box-shadow:0 2px 14px rgba(23,61,56,.18); }
+.host-follow-share-banner { margin:0 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:17px;font-weight:800;color:#2e2440;background:#f4f1fa;border:1px solid #d9cfef;border-radius:10px;padding:8px 14px; }
+.host-follow-mine { font-size:12.5px;font-weight:700;color:#fff;background:#5b4a8a;border-radius:999px;padding:3px 10px; }
+.thinking-own-note { margin:0;flex-shrink:0;font-size:11.5px;color:#7a6f96;text-align:center; }
 .thinking-scenes { display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0; }
 .thinking-scenes button { font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #b7a8d9;background:#f4f1fa;color:#4a3a6b;cursor:pointer; }
 .thinking-scenes button.is-active { background:#5b4a8a;border-color:#5b4a8a;color:#fff; }
