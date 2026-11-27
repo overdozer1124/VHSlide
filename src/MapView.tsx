@@ -2250,7 +2250,7 @@ function MapViewComponent({
                                   いまのページ
                                 </span>
                               )}
-                              {detailed && !filterOpen && isSlideHidden(deck, s) && (
+                              {!filterOpen && isSlideHidden(deck, s) && (
                                 <span className="start-badge student-hidden-badge">
                                   <EyeOff size={11} />
                                   非表示

@@ -10,8 +10,10 @@ import {
   MoreHorizontal,
   Plus,
   X,
+  EyeOff,
 } from "lucide-react";
 import type { Deck, Slide } from "./model";
+import { isRowHidden, isSlideHidden } from "./hiddenSlides";
 import { bounds, W, rowPage } from "./model";
 import { ThumbnailFooter } from "./ThumbnailFooter";
 import { Canvas } from "./Canvas";
@@ -508,6 +510,9 @@ export function SlideRail({
                 const cell =
                   rowPage(deck, y, slide.x) ??
                   (filtered ? deck.slides.find((s) => s.y === y) : undefined);
+                const stripHidden =
+                  (cell ? isSlideHidden(deck, cell) : false) ||
+                  isRowHidden(deck, deck.activeSheetId ?? "main", y);
                 return (
                   <RailRowFrame
                     x={cell?.x ?? 0}
@@ -530,7 +535,7 @@ export function SlideRail({
                             if (node) triggers.current.set(y, node);
                             else triggers.current.delete(y);
                           }}
-                          className={`rail-trigger ${slide.y === y ? "rail-active" : ""}`}
+                          className={`rail-trigger ${slide.y === y ? "rail-active" : ""} ${stripHidden ? "is-student-hidden" : ""}`}
                           aria-label={`${y + 1}段目の横のページをひらく`}
                           aria-expanded={openRow === y}
                           aria-controls={
@@ -597,6 +602,12 @@ export function SlideRail({
                               <Canvas slide={cell} zoom={thumbWidth / W} />
                             ) : (
                               <span className="rail-empty">空のマス</span>
+                            )}
+                            {stripHidden && (
+                              <span className="rail-hidden-badge">
+                                <EyeOff size={11} />
+                                非表示
+                              </span>
                             )}
                           </span>
                           <span
@@ -807,7 +818,7 @@ export function SlideRail({
                             {...dragProps}
                             ref={ref}
                             onKeyDown={(e) => arrow(e, true)}
-                            className={`row-page ${cell?.id === slide.id ? "row-page-active" : ""} ${!cell ? "row-page-empty" : ""}`}
+                            className={`row-page ${cell?.id === slide.id ? "row-page-active" : ""} ${!cell ? "row-page-empty" : ""} ${cell && isSlideHidden(deck, cell) ? "is-student-hidden" : ""}`}
                             aria-current={
                               cell?.id === slide.id ? "page" : undefined
                             }
@@ -845,6 +856,12 @@ export function SlideRail({
                                 <span>
                                   <Plus size={20} />
                                   空のマス
+                                </span>
+                              )}
+                              {cell && isSlideHidden(deck, cell) && (
+                                <span className="rail-hidden-badge">
+                                  <EyeOff size={11} />
+                                  非表示
                                 </span>
                               )}
                             </span>
