@@ -2302,7 +2302,11 @@ function WebbingToolSurface({
   const ctx = useThinking();
   const groupsCtx = useGroups();
   const myOwner =
-    tool.unit === "group" ? (tool.myGroupId ?? "") : (ctx.userId ?? "");
+    tool.unit === "group"
+      ? (tool.myGroupId ?? "")
+      : tool.unit === "class"
+        ? ""
+        : (ctx.userId ?? "");
   const [focusOwner, setFocusOwner] = useState("");
   const [showNames, setShowNames] = useState(false);
   const [draftText, setDraftText] = useState("");
@@ -2339,7 +2343,7 @@ function WebbingToolSurface({
     );
   }
 
-  const hostChartList = !!ctx.host && !focusOwner;
+  const hostChartList = !!ctx.host && !focusOwner && tool.unit !== "class";
   const viewOwner = ctx.host && focusOwner ? focusOwner : myOwner;
   const canWrite =
     interactive &&
@@ -2532,7 +2536,9 @@ function WebbingToolSurface({
               <span className="thinking-focus-label">{focusLabel}のウェビング</span>
             </>
           ) : (
-            <span className="thinking-focus-label">自分のウェビング</span>
+            <span className="thinking-focus-label">
+              {tool.unit === "class" ? "全員のウェビング" : "自分のウェビング"}
+            </span>
           )}
         </div>
       )}
@@ -2576,6 +2582,9 @@ function WebbingToolSurface({
               }}
             >
               {n.text}
+              {tool.unit === "class" && n.authorName && (
+                <span className="thinking-webbing-author">{n.authorName}</span>
+              )}
               {lock && !lock.mine && (
                 <span className="thinking-webbing-lock">{lock.name}さんが編集中</span>
               )}

@@ -1088,7 +1088,7 @@ export function thinkingList(
           actor,
           host,
         );
-        const showAuthor = host || tool.unit === "group";
+        const showAuthor = host || tool.unit !== "individual";
         const ownerClause =
           owners === null
             ? ""
@@ -1770,11 +1770,6 @@ export function thinkingCommand(
       value.template,
       value.definition,
     );
-    insist(
-      template !== "webbing" || unit !== "class",
-      400,
-      "ウェビングは個人と班だけです。",
-    );
     const tool: ThinkingTool = {
       id: crypto.randomUUID(),
       kind: templateKind(template),
@@ -1804,11 +1799,6 @@ export function thinkingCommand(
   if (action === "edit") {
     insist(host, 403, "思考ツールを編集できるのはホストだけです。");
     const unit = parseUnit(value.unit === undefined ? tool.unit : value.unit);
-    insist(
-      tool.template !== "webbing" || unit !== "class",
-      400,
-      "ウェビングは個人と班だけです。",
-    );
     const { definition } = parseThinkingDefinition(
       tool.template,
       value.definition === undefined ? tool.definition : value.definition,

@@ -46,8 +46,26 @@ test("grouped webbing maps split writing by the deck's shared groups", async ({
       }
     }
     await page.goto(`/?room=${id}`);
-    // The host defines the deck's groups inside the webbing panel, then
-    // creates a grouped map from them.
+    // Groups and the grouped map are set up through the API: the
+    // webbing tab no longer creates maps (new maps are thinking
+    // tools now); it still runs reception and placement for the
+    // maps that already exist, which is what this test exercises.
+    expect(
+      (
+        await page.request.post(`/api/decks/${id}/groups`, {
+          headers: origin,
+          data: { names: ["1班", "2班"] },
+        })
+      ).status(),
+    ).toBe(200);
+    expect(
+      (
+        await page.request.post(`/api/decks/${id}/webbing`, {
+          headers: origin,
+          data: { title: "班で考えよう", grouped: true },
+        })
+      ).status(),
+    ).toBe(200);
     await launch(page).click();
     const dialog = page.getByRole("dialog", {
       name: "アンケート",
@@ -58,17 +76,9 @@ test("grouped webbing maps split writing by the deck's shared groups", async ({
       name: "ウェブマップ",
       exact: true,
     });
-    await webDialog.getByText(/グループごとに分ける/).click();
-    await webDialog.locator(".webbing-group-setup textarea").fill("1班\n2班");
-    await webDialog
-      .getByRole("button", { name: "この内容でグループを作成" })
-      .click();
-    await expect(webDialog.getByText(/この作品のグループ：/)).toBeVisible({
+    await expect(webDialog.getByText("グループ別")).toBeVisible({
       timeout: 20_000,
     });
-    await webDialog.getByLabel("中心のテーマ").fill("班で考えよう");
-    await webDialog.getByRole("button", { name: "マップを作成" }).click();
-    await expect(webDialog.getByText("グループ別")).toBeVisible();
     await webDialog.getByRole("button", { name: "受付を開始" }).click();
     await webDialog
       .getByRole("button", { name: "このマップをスライドに配置" })
@@ -298,7 +308,16 @@ test("guests write into one shared webbing map with authorship and edit locks", 
       }
     }
     await page.goto(`/?room=${id}`);
-    // Host creates the map, opens reception and places it on the slide.
+    // The map is set up through the API (see the first test); the
+    // host opens reception and places it from the webbing tab.
+    expect(
+      (
+        await page.request.post(`/api/decks/${id}/webbing`, {
+          headers: origin,
+          data: { title: "将来の夢", grouped: false },
+        })
+      ).status(),
+    ).toBe(200);
     await launch(page).click();
     const dialog = page.getByRole("dialog", { name: "アンケート", exact: true });
     await dialog.getByRole("tab", { name: "ウェブマップ" }).click();
@@ -306,8 +325,6 @@ test("guests write into one shared webbing map with authorship and edit locks", 
       name: "ウェブマップ",
       exact: true,
     });
-    await webDialog.getByLabel("中心のテーマ").fill("将来の夢");
-    await webDialog.getByRole("button", { name: "マップを作成" }).click();
     await webDialog.getByRole("button", { name: "受付を開始" }).click();
     await webDialog
       .getByRole("button", { name: "このマップをスライドに配置" })

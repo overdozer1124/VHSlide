@@ -17,11 +17,6 @@ export function WebbingPanel({
   const activity = useActivityPanel();
   const open = activity.open && activity.active === "webbing";
   const visible = usePageVisible();
-  const [title, setTitle] = useState("");
-  const [grouped, setGrouped] = useState(false);
-  const [groupNames, setGroupNames] = useState(
-    "グループ1\nグループ2\nグループ3\nグループ4",
-  );
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,82 +78,18 @@ export function WebbingPanel({
         </div>
       )}
       {host && (
-        <form
-          className="webbing-create"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!title.trim()) return;
-            void run(
-              async () => {
-                await ctx.command(undefined, undefined, {
-                  title: title.trim(),
-                  grouped,
-                });
-                setTitle("");
-              },
-              "ウェビングマップを作成しました。受付を開始すると配置できます。",
-            );
-          }}
-        >
-          <label>
-            中心のテーマ
-            <input
-              value={title}
-              maxLength={100}
-              placeholder="例：将来の夢"
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label className="webbing-grouped-toggle">
-            <input
-              type="checkbox"
-              checked={grouped}
-              onChange={(e) => setGrouped(e.target.checked)}
-            />
-            グループごとに分ける（自分のグループだけで書き込み、他のグループは見るだけ）
-          </label>
-          {grouped && !groupsCtx.groups.length && (
-            <div className="webbing-group-setup">
-              <label>
-                グループ名（1行に1つ）
-                <textarea
-                  value={groupNames}
-                  rows={4}
-                  onChange={(e) => setGroupNames(e.target.value)}
-                />
-              </label>
-              <button
-                className="button outline"
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(
-                    () =>
-                      groupsCtx.command("create", {
-                        names: groupNames
-                          .split("\n")
-                          .map((n) => n.trim())
-                          .filter(Boolean),
-                      }),
-                    "グループを作成しました。",
-                  )
-                }
-              >
-                この内容でグループを作成
-              </button>
-              <p className="webbing-map-meta">
-                グループを作成してから、マップを作成してください。
-              </p>
-            </div>
-          )}
+        <div className="webbing-create-stopped">
+          <p>
+            新しいウェビングマップは「思考ツール」から作ります（ひな形「ウェビング」で、単位は「全体」または「班」）。ここでは、これまでに作ったマップの受付・配置・削除だけができます。
+          </p>
           <button
+            type="button"
             className="button"
-            type="submit"
-            disabled={busy || !title.trim() || (grouped && !groupsCtx.groups.length)}
+            onClick={() => activity.select("thinking")}
           >
-            マップを作成
+            思考ツールを開く
           </button>
-        </form>
+        </div>
       )}
       {!ctx.enabled && (
         <p>クラウド作品を開くと、ウェビングマップを使えます。</p>
@@ -166,7 +97,7 @@ export function WebbingPanel({
       {ctx.enabled && ctx.maps.length === 0 && (
         <p>
           {host
-            ? "まだマップがありません。中心のテーマを決めて作成してください。"
+            ? "まだマップがありません。新しいマップは「思考ツール」から作ります。"
             : "開いているマップはまだありません。"}
         </p>
       )}

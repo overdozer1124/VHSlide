@@ -1298,18 +1298,9 @@ describe("thinking personal webbing (stage 4, flow)", () => {
   const listAs = (sql: HistorySQL, user: string, host = false) =>
     thinkingList(sql, "deck", user, host, { board: true, steps: true, flow: true });
 
-  it("is a flow tool, never a class unit, and hides without the flow cap", () => {
+  it("is a flow tool and hides without the flow cap", () => {
     const { sql } = fixture();
     expect(templateKind("webbing")).toBe("flow");
-    fails(
-      () =>
-        thinkingCommand(sql, "deck", "host", true, "create", undefined, {
-          template: "webbing",
-          unit: "class",
-          definition: webDef,
-        }),
-      400,
-    );
     const id = webTool(sql);
     const view = listAs(sql, "host", true).find((t) => t.id === id)!;
     expect(view.kind).toBe("flow");
@@ -1487,6 +1478,75 @@ describe("thinking personal webbing (stage 4, flow)", () => {
       [2, 1, "さけ"],
     ]);
     expect(JSON.stringify(share)).not.toContain(root);
+  });
+});
+
+describe("thinking — class webbing (the integrated whole-class map)", () => {
+  const webDef = { title: "海の生き物" };
+  const listAs = (sql: HistorySQL, user: string, host = false) =>
+    thinkingList(sql, "deck", user, host, {
+      board: true,
+      steps: true,
+      flow: true,
+      board5: true,
+    });
+
+  const classWeb = (sql: HistorySQL): string => {
+    const r = thinkingCommand(sql, "deck", "host", true, "create", undefined, {
+      template: "webbing",
+      unit: "class",
+      definition: webDef,
+    }) as { createdId: string };
+    thinkingCommand(sql, "deck", "host", true, "status", r.createdId, {
+      status: "open",
+    });
+    return r.createdId;
+  };
+
+  it("shares one tree across the class: anyone may branch off anyone's node", () => {
+    const { sql } = fixture();
+    const id = classWeb(sql);
+    const root = thinkingCommand(sql, "deck", "user", false, "node", id, {
+      text: "海",
+      x: 0.3,
+      y: 0.3,
+    }) as { createdId: string };
+    // Another student hangs a child off the first student's node.
+    const child = thinkingCommand(sql, "deck", "peer", false, "node", id, {
+      parent: root.createdId,
+      text: "魚",
+      x: 0.5,
+      y: 0.5,
+    }) as { createdId: string };
+    expect(child.createdId).toBeTruthy();
+    // Both students see the whole tree, with author names (the old
+    // shared webbing map showed who wrote each node).
+    const asPeer = listAs(sql, "peer", false).find((t) => t.id === id)!;
+    expect(asPeer.nodes.map((n) => n.text).sort()).toEqual(["海", "魚"]);
+    // (For an individual tool a peer would not see the node at all.)
+    const asHost = listAs(sql, "host", true).find((t) => t.id === id)!;
+    expect(asPeer.nodes.find((n) => n.text === "海")?.authorName).toBe(
+      asHost.nodes.find((n) => n.text === "海")?.authorName,
+    );
+    expect(asPeer.nodes.find((n) => n.text === "海")?.authorName).toBeTruthy();
+    // Text stays the author's; position is shared like the old map.
+    fails(
+      () =>
+        thinkingCommand(sql, "deck", "peer", false, "nodeedit", id, {
+          nodeId: root.createdId,
+          text: "書き換え",
+        }),
+      403,
+    );
+    thinkingCommand(sql, "deck", "peer", false, "nodeedit", id, {
+      nodeId: root.createdId,
+      x: 0.4,
+      y: 0.4,
+    });
+    // The host's share view of the class chart is labelled 全員.
+    const share = thinkingShareView(sql, "deck", id, "", false, "host", { flow: true }, "peer")!;
+    expect(share.unit).toBe("class");
+    expect(share.nodes).toHaveLength(2);
   });
 });
 
