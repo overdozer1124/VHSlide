@@ -37,7 +37,7 @@ export const THINKING_TEMPLATE_LABELS: Record<ThinkingTemplate, string> = {
   matrix: "マトリックス（2×2）",
   kwl: "KWL",
   steps: "ステップチャート（手順を並べる）",
-  webbing: "ウェビング（個人・班）",
+  webbing: "ウェビング",
   fishbone: "フィッシュボーン",
   butterfly2: "バタフライ（羽2枚）",
   butterfly4: "バタフライ（羽4枚）",
@@ -135,9 +135,9 @@ export const THINKING_TEMPLATE_GUIDES: Record<
   },
   webbing: {
     about:
-      "中心のテーマから、思いついた言葉を線でつないで広げていく図です。1人（1班）ごとに自分の図を持ちます。",
+      "中心のテーマから、思いついた言葉を線でつないで広げていく図です。",
     usage:
-      "考えを広げたり、関連を整理したりするのに使います。学びの記録や回答状況に残り、よい図は「全員に見せる」で共有できます。スライドの「ウェビングマップ」（全員や班で1枚に書く図）とは別の道具です。",
+      "考えを広げたり、関連を整理したりするのに使います。単位で「全体」を選ぶと、全員で1枚のマップに書き込めます（これまでのウェビングマップと同じ使い方です）。学びの記録や回答状況に残り、よい図は「全員に見せる」で共有できます。",
   },
   kwl: {
     about: "知っていること（K）・知りたいこと（W）・分かったこと（L）を書く図です。",
@@ -719,7 +719,7 @@ export function ThinkingPanel({
       {message && <p className="webbing-panel-message">{message}</p>}
       <div className="thinking-webbing-link">
         <span>
-          全員で1枚に書き込む「ウェビングマップ」も思考ツールの1つです。
+          これまでに作った「ウェビングマップ」は、こちらでそのまま使えます。新しいマップは思考ツール（ひな形「ウェビング」、単位「全体」）で作ります。
         </span>
         <button type="button" onClick={() => activity.select("webbing")}>
           ウェブマップを開く
@@ -990,9 +990,6 @@ function ThinkingToolForm({
   function pickTemplate(t: ThinkingTemplate) {
     setTemplate(t);
     if (!editing) setDef(defaultDefinition(t));
-    // Webbing has no class unit (the whole-class webbing is the
-    // slide's webbing map); never leave the form on it.
-    if (t === "webbing" && unit === "class") setUnit("individual");
   }
   return (
     <form
@@ -1055,6 +1052,7 @@ function ThinkingToolForm({
             <>
               <option value="individual">個人（1人1つの図）</option>
               <option value="group">班（班で1つの図）</option>
+              <option value="class">全体（全員で1枚のマップ）</option>
             </>
           ) : templateKind(template) === "board" ? (
             <>
@@ -1073,6 +1071,11 @@ function ThinkingToolForm({
         {unit === "class" && templateKind(template) === "point" && (
           <span className="thinking-form-note">
             「全体」は、みんなの点の分布を先生の画面で見せる前提の単位です。生徒には自分の点だけが見えます（「個人」との違いは、その前提があるかどうかです）。
+          </span>
+        )}
+        {unit === "class" && templateKind(template) === "flow" && (
+          <span className="thinking-form-note">
+            「全体」は、全員で1枚のウェビングマップに書き込みます。ノードには書いた人の名前が出ます。内容の変更と削除は、書いた人と先生だけです。
           </span>
         )}
         {unit === "class" && templateKind(template) === "board" && (
